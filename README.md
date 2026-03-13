@@ -1,164 +1,253 @@
 # LegionIO
 
-LegionIO is a framework for automating and connecting things.
+An extensible async job engine for Ruby. Schedule tasks, create relationships between services, and run them concurrently via RabbitMQ.
 
-Documentation:
-- [Core Overview](docs/overview.md)
-- [Wire Protocol](docs/protocol.md)
-- [Extensions](https://github.com/LegionIO)
+**Ruby >= 3.4** | **License**: Apache-2.0 | **Author**: [@Esity](https://github.com/Esity)
 
-### What does it do?
-LegionIO is an async job engine designed for scheduling tasks and creating relationships between things that wouldn't 
-otherwise be connected. Relationships do not have to be a single path. Both of these would work
-* `foo → bar → cat → dog`
+## What does it do?
+
+LegionIO routes work between services asynchronously. Tasks can be chained into dependency graphs:
+
 ```
-a → b → c
-    b → e → z
-        e → g
+a -> b -> c
+     b -> e -> z
+          e -> g
 ```
-In the second scenario, when a runs, it causes b to run which then causes both c and e to run in parallel
 
-It supports both conditions and transformation. The idea of a transformation is you can't connect two indepedent services 
-and expect them to know how to talk to each other. 
+When `a` completes, `b` runs, which triggers `c` and `e` in parallel. Conditions and transformations control when and how data flows between steps.
 
-### Running
-Run `gem install legionio` to install legion. If you want to use database features, you will need to
-run `gem install legion-data` also.
+## Installation
 
-After installing the gem, use the `legion` command for everything:
-- `legion start` to start the daemon
-- `legion lex create <name>` to generate a new extension
-- `legion task run` to trigger tasks
-- `legion --help` for all available commands
+```bash
+gem install legionio
+```
 
-### Example Legion Extensions(LEX)
-* [lex-http](https://github.com/LegionIO/lex-http) - Gives legion the ability to make http requests
-* [lex-influxdb](https://github.com/LegionIO/lex-influxdb) - Write, read, and manage influxdb nodes
-* [lex-log](https://github.com/LegionIO/lex-log) - Send log items to either stdout or a file with lex-log
-* [lex-memcached](https://github.com/LegionIO/lex-memcached) - Run memcached commands like set, add, append, delete, flush, reset_stats against memcached servers
-* [lex-pihole](https://github.com/LegionIO/lex-pihole) - Allows Legion to interact with [Pi-Hole](https://pi-hole.net/). Can do things like get status, add/remove domains from the list, etc
-* [lex-ping](https://github.com/LegionIO/lex-ping) - You can ping things?
-* [lex-pushover](https://github.com/LegionIO/lex-pushover) - Connects Legion to [Pushover](https://pushover.net/)
-* [lex-redis](https://github.com/LegionIO/lex-redis) - Similar to lex-memcached but for redis
-* [lex-sleepiq](https://github.com/LegionIO/lex-sleepiq) - Control your SleepIQ bed with Legion!
-* [lex-ssh](https://github.com/LegionIO/lex-ssh) - Send commands to a server via SSH in an async fashion
+For database features (task history, scheduling, chains):
 
-Browse all extensions on GitHub: [LegionIO org](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
+```bash
+gem install legion-data
+```
 
-### Scheduling Tasks
-1) Ensure you have the Legion::Data gem installed and configured  
-2) Make sure to have `lex-scheduler` extension installed so that it generates the schedules table in the database  
-3) From there you can add a function to be run at a given cron syntax or interval  
-4) Setting the interval column will make the job run X seconds after the last time it is completed and will ignore the cron colum  
-5) Setting the cron column will ensure the job runs at the given times regardless of when it was run last, only works if interval is null  
-6) Cron supports both `*/5 * * * *` style and verbose like `every minute` and `every day at noon`
+## Infrastructure Requirements
 
-### Creating Relationships
-*To be populated*
+- **RabbitMQ**: Required. All task distribution runs over AMQP 0.9.1.
+- **SQLite/PostgreSQL/MySQL**: Optional. Required for task history, scheduling, and chains.
+- **Redis/Memcached**: Optional. Required for extensions that use caching.
+- **HashiCorp Vault**: Optional. Required for extensions that use secrets management.
+
+## Running
+
+Use the `legion` command for everything:
+
+```bash
+legion start                    # Start the daemon (foreground)
+legion start -d                 # Daemonize
+legion start -d -p /tmp/l.pid   # With PID file
+legion status                   # Show running service status
+legion stop                     # Stop the daemon
+legion check                    # Smoke-test all subsystem connections
+legion check --extensions       # Also load and verify extensions
+legion check --full             # Full boot cycle including API server
+```
+
+All commands support `--json` for structured output and `--no-color` to strip ANSI codes.
+
+## Extensions (LEX)
+
+Extensions are gems named `lex-*`. They are auto-discovered from installed gems and loaded at startup.
+
+```bash
+legion lex list                 # List installed extensions
+legion lex info <name>          # Extension detail: runners, actors, deps
+legion lex create <name>        # Scaffold a new extension
+legion lex enable <name>        # Enable extension
+legion lex disable <name>       # Disable extension
+```
+
+### Running Tasks
+
+```bash
+legion task run http.request.get url:https://example.com   # dot notation
+legion task run -e http -r request -f get                   # explicit flags
+legion task run                                             # interactive selection
+legion task list                                            # recent tasks
+legion task show <id>                                       # task detail
+legion task logs <id>                                       # execution logs
+legion task purge --days 7                                  # cleanup old tasks
+```
+
+### Chains and Config
+
+```bash
+legion chain list
+legion chain create <name>
+legion chain delete <id>
+
+legion config show              # resolved config (sensitive values redacted)
+legion config path              # config search paths
+legion config validate          # verify settings + subsystem health
+```
+
+### Code Generation
+
+Run from inside a `lex-*` directory:
+
+```bash
+legion generate runner <name>   # add a runner + spec
+legion generate actor <name>    # add an actor + spec
+legion generate exchange <name>
+legion generate queue <name>
+legion generate message <name>
+```
+
+`legion g` is an alias for `legion generate`.
+
+## Configuration
+
+Settings are loaded from the first directory found (in order):
+
+1. `/etc/legionio/`
+2. `~/legionio/`
+3. `./settings/`
+
+## Task Relationships
+
+Tasks chain together with optional conditions and transformations:
+
+```
+Task A -> [condition check] -> Task B -> [transform payload] -> Task C
+                                      -> Task D  (parallel)
+```
 
 ### Conditions
-You can create complex conditional statements to ensure that when a triggers b, b only runs if certain conditions 
-are met. Example conditional statement
-```json
-{
-  "all": [{
-    "fact": "pet.type",
-	"value": "dog",
-	"operator": "equal"
-  },{
-	"fact":"pet.hungry",
-	"operator":"is_true"
-  }]
-}
 
-```
-You can nest conditions in an unlimited fashion to create and/or scenarios to meet your needs
+JSON rule engine via `lex-conditioner`. Supports nested `all`/`any` with operators like `equal`, `is_true`, `is_false`:
+
 ```json
 {
   "all": [
-	"any":[
-	  {"fact":"pet.type", "value":"dog","operator":"equal"},
-	  {"fact":"pet.type", "value":"cat","operator":"equal"}
-	],
-	{
-	  "fact": "pet.hungry",
-	  "operator": "is_true"
-	},{
-	  "fact":"pet.overweight",
-	  "operator":"is_false"
-	}]
+    {"fact": "pet.type", "value": "dog", "operator": "equal"},
+    {"fact": "pet.hungry", "operator": "is_true"}
+  ]
 }
 ```
-*Conditions are supported by the `lex-conditioner` extension and are not required to be run inside the legion framework*  
-You can read more in the [lex-conditioner repo](https://github.com/LegionIO/lex-conditioner)
-
 
 ### Transformations
-Transformations are a critical piece of interconnecting two independent items. Without it, service B doesn't know what
-to do with the result from service A
-`lex-conditioner` uses a combination of the [tilt](https://rubygems.org/gems/tilt) gem and erb style syntax.
-##### Examples
-Creating a new pagerduty incident 
+
+ERB templates via `lex-transformer`. Map data between services:
+
 ```json
-{"message":"New PagerDuty incident assigned to <%= assignee %> with a priority of <%= severity %>","from":"PagerDuty"}
+{"message": "Incident assigned to <%= assignee %> with priority <%= severity %>"}
 ```
-Example transformation to make the `lex-log` extension output a message
+
+Access Vault secrets inline:
+
 ```json
-{"message":"transform2","level":"fatal"}
+{"token": "<%= Legion::Crypt.read('pushover/token') %>"}
 ```
-You can also call Legion services to get the data you need, example sending a pushover message
+
+## REST API
+
+The daemon exposes a REST API on port 4567 (configurable). All routes are under `/api/`.
+
+| Route | Description |
+|-------|-------------|
+| `GET /api/health` | Health check |
+| `GET /api/ready` | Readiness + component status |
+| `GET/POST /api/tasks` | List/create tasks |
+| `GET /api/extensions` | Installed extensions + runners |
+| `GET /api/nodes` | Cluster nodes |
+| `GET/POST/PUT/DELETE /api/schedules` | Cron/interval scheduling |
+| `GET /api/settings` | Config (sensitive values redacted) |
+| `GET /api/transport` | RabbitMQ connection status |
+| `GET /api/events` | SSE event stream |
+
+Response envelope:
+
 ```json
-{"message":"This is my pushover body", "title": "this is my title", "token":"<%= Legion::Settings['lex']['pushover']['token'] %>" }
+{
+  "data": { ... },
+  "meta": { "timestamp": "...", "node": "..." }
+}
 ```
-Or if you wanted to make a real time call via `Legion::Crypt` to get a [Hashicorp Vault](https://www.vaultproject.io/) value
-```json
-{"message":"this is another body", "title":"vault token example", "token":"<%= Legion::Crypt.read('pushover/token') %> "}
+
+## MCP Server (AI Agent Integration)
+
+LegionIO exposes itself as an MCP server so AI agents can invoke tasks, inspect extensions, manage schedules, and query status directly.
+
+```bash
+legion mcp            # stdio transport (default, for Claude Desktop / agent SDKs)
+legion mcp http       # streamable HTTP on localhost:9393
+legion mcp http --port 8080 --host 0.0.0.0
 ```
-*Transformations are supported by the `lex-transformation` extension and are not "technically" required to be run inside the legion framework*  
-You can read more in the [lex-transformer repo](https://github.com/LegionIO/lex-transformer)
 
-## FAQ
-### Does it scale?
-Yes. Actually quite well. The framework uses RabbitMQ to ensure jobs are scheduled and run in a FIFO order. As you add
-more works, it just subscribes to the queues the workers can support and does more work. It is really geared towards a
-docker/K8 type of environment however it can be run locally, on a VM, etc.   
+**24 tools** in the `legion.*` namespace:
 
-As of right now, it has been tested to around 100 workers running in docker without any performance issues. You will 
-likely see performance issues on the DB or RabbitMQ side before Legion has issues. 
+- `legion.run_task` - execute any task by dot notation (e.g., `http.request.get`)
+- `legion.describe_runner` - discover available functions on a runner
+- `legion.list_tasks`, `legion.get_task`, `legion.delete_task`, `legion.get_task_logs`
+- `legion.list_extensions`, `legion.get_extension`, `legion.enable_extension`, `legion.disable_extension`
+- `legion.list_chains`, `legion.create_chain`, `legion.update_chain`, `legion.delete_chain`
+- `legion.list_relationships`, `legion.create_relationship`, `legion.update_relationship`, `legion.delete_relationship`
+- `legion.list_schedules`, `legion.create_schedule`, `legion.update_schedule`, `legion.delete_schedule`
+- `legion.get_status`, `legion.get_config`
 
-Another benefit is that you can run multiple LEXs in one worker or you could have dedicated workers that only run a single LEX.  
-In example if you have to make a ton of ssh connections via `lex-ssh`, maybe you want to run 10 pods with no other extensions in them
-but then run a pod with `lex-pagerduty`, `lex-log` and `lex-http` to send out notifications after each ssh task is completed
+**Resources**: `legion://runners` (full runner catalog), `legion://extensions/{name}` (extension detail template)
 
-### High Availability
-Because you can run this thing with multiple processes and it will distribute the work, it is naturally HA oriented. 
-if a worker goes down for some reason, another one should pick it up(assuming another work has that LEX enabled). There
-are no hidden features, pay walls, etc to get HA. Just run more instances of LegionIO
+## Scheduling
 
-### Price and License
-LegionIO is completely free. It was build using free time. There are no features held back, no private repos.
-Everything is under an MIT license to keep it as open as possible. With that, the devs can't always help with support,
-well because it's free.
+Requires `lex-scheduler`. Supports both cron syntax and plain-English intervals:
 
-### Who is it geared for?
-Anyone? Everyone? It could be used in a homelab to automate updating VMs. It could be used by someone to take ESPHome
-sensor data and pipe it to influxdb. At least that is what @Esity does. It could also be used by a company or enterprise looking
-to replace other tools.
+- `*/5 * * * *` — every 5 minutes
+- `every minute` — plain English
+- `every day at noon`
 
-### But it is written in ruby
-Yep. 
+Setting `interval` (seconds since last completion) takes precedence over `cron`.
 
-### Similiar projects
-There are multiple projects that are similiar. Some things like IFTTT are great(but is it?) but then again, cost money.  
-* [Node-Red](https://nodered.org/) - No HA but has some good features and a great drag and drop interface  
-* [n8n.io](https://n8n.io/) - Working on HA but [not there yet](https://github.com/n8n-io/n8n/pull/1294)  
-* [StackStorm](https://stackstorm.com/) - Written in Python, has potential but I feel they are removing features to convince you to pay for it  
-* [Jenkins](https://www.jenkins.io/) - It's jenkins. I don't need to say anything else  
-* [Huginn]() - Another IFTTT style app written in ruby. Not sure on this one but it doesn't have HA from what I can tell [github issue](https://github.com/huginn/huginn/issues/2198)  
+## Scaling and High Availability
 
-### Other fun facts
-* Supports Hashicorp vault for storing secrets/settings/etc  
-* Can enable global message encryption so that all messages going through RMQ are encrypted with aes-256-cbc  
-* Each worker generates a private/public key that can be used for internode communication, it also will generate a cluster secret  
-for all nodes to have so they can share data accross the entire cluster. The cluster secret by default is stored only in memory and
-and is generated when the first worker starts
+Task distribution uses RabbitMQ FIFO queues. Add more workers by running additional Legion processes — each subscribes to the same queues and picks up work automatically. Tested to 100+ workers without performance issues. No paid features or configuration required for HA.
+
+Different LEX combinations per worker are supported: run 10 pods focused on `lex-ssh`, and a separate pod running `lex-pagerduty` + `lex-log` for notifications.
+
+## Docker
+
+```bash
+docker pull legionio/legion
+```
+
+```dockerfile
+FROM ruby:3-alpine
+RUN gem install legionio
+CMD ruby --yjit $(which legion) start
+```
+
+## Security
+
+- Global message encryption available (AES-256-CBC) via `legion-crypt`
+- HashiCorp Vault integration for secrets and settings
+- Each worker generates a private/public keypair for inter-node communication
+- Cluster secret generated at first startup, stored only in memory by default
+
+## Extensions
+
+Browse available extensions: [LegionIO GitHub org](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
+
+**Core extensions (operational):**
+`lex-node`, `lex-tasker`, `lex-conditioner`, `lex-transformer`, `lex-scheduler`, `lex-health`, `lex-log`, `lex-ping`
+
+**AI/LLM extensions:**
+`lex-claude`, `lex-openai`, `lex-gemini`
+
+**Common service integrations:**
+`lex-http`, `lex-redis`, `lex-s3`, `lex-github`
+
+**Other integrations:**
+`lex-ssh`, `lex-slack`, `lex-smtp`, `lex-influxdb`, `lex-pagerduty`, `lex-elasticsearch`, and more
+
+## Similar Projects
+
+- [Node-RED](https://nodered.org/) - Visual flow editor, no HA
+- [n8n.io](https://n8n.io/) - Good features, HA limited
+- [StackStorm](https://stackstorm.com/) - Python-based, feature drift toward paid tiers
+- [Huginn](https://github.com/huginn/huginn) - Ruby IFTTT-style, no HA

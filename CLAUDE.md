@@ -8,8 +8,11 @@
 The primary gem for the LegionIO framework. An extensible async job engine for scheduling tasks, creating relationships between services, and running them concurrently via RabbitMQ. Orchestrates all `legion-*` gems and loads Legion Extensions (LEXs).
 
 **GitHub**: https://github.com/LegionIO/LegionIO
+**Gem**: `legionio`
+**Version**: 1.2.1
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
+**Ruby**: >= 3.4
 
 ## Architecture
 
@@ -19,57 +22,78 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 Legion.start
   └── Legion::Service.new
       ├── 1. setup_logging      (legion-logging)
-      ├── 2. setup_settings     (legion-settings, loads from /etc/legionio or ~/legionio)
+      ├── 2. setup_settings     (legion-settings, loads /etc/legionio, ~/legionio, ./settings)
       ├── 3. Legion::Crypt.start (legion-crypt, Vault connection)
       ├── 4. setup_transport    (legion-transport, RabbitMQ connection)
       ├── 5. require legion-cache
-      ├── 6. setup_data         (legion-data, MySQL connection + migrations)
-      ├── 7. setup_supervision  (process supervision)
-      ├── 8. load_extensions    (discover and load LEX gems)
-      └── 9. Legion::Crypt.cs   (distribute cluster secret)
+      ├── 6. setup_data         (legion-data, MySQL/SQLite + migrations, optional)
+      ├── 7. setup_llm          (legion-llm, optional)
+      ├── 8. setup_supervision  (process supervision)
+      ├── 9. load_extensions    (discover + load LEX gems)
+      ├── 10. Legion::Crypt.cs  (distribute cluster secret)
+      └── 11. setup_api         (start Sinatra/Puma on port 4567)
 ```
+
+Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
+
+### Reload Sequence
+
+`Legion.reload` shuts down all subsystems in reverse order, waits for them to drain, then re-runs setup from settings onward. Extensions and API are re-loaded fresh.
 
 ### Module Structure
 
 ```
 Legion (lib/legion.rb)
 ├── Service            # Orchestrator: initializes all modules, manages lifecycle
-├── Process            # Daemonization: PID management, signal traps, main loop
+│                      # Entry points: Legion.start, .shutdown, .reload
+├── Process            # Daemonization: PID management, signal traps (SIGINT=quit), main loop
+├── Readiness          # Startup readiness tracking
+│                      # COMPONENTS: settings, crypt, transport, cache, data, extensions, api
+│                      # Readiness.ready? checks all; /api/ready returns JSON status
+├── Events             # In-process pub/sub event bus
+│                      # Events.on(name) / .emit(name, **payload) / .once / .off
+│                      # Wildcard '*' listener supported
+│                      # Lifecycle: service.ready, service.shutting_down, service.shutdown
+│                      # Extension: extension.loaded
+│                      # Runner: ingress.received
+├── Ingress            # Universal entry point for runner invocation
+│                      # Sources: amqp, http, cli, api — all normalize through here
+│                      # Ingress.run(payload:, runner_class:, function:, source:)
+│                      # Ingress.normalize returns message hash without executing
 ├── Extensions         # LEX discovery, loading, and lifecycle management
-│   ├── Actors/        # Actor types for extension execution
+│   ├── Core           # Mixin: data_required?, cache_required?, crypt_required?, etc.
+│   ├── Actors/        # Actor execution modes
 │   │   ├── Base       # Base actor class
-│   │   ├── Every      # Run at interval
+│   │   ├── Every      # Run at interval (timer)
 │   │   ├── Loop       # Continuous loop
-│   │   ├── Once       # Run once
+│   │   ├── Once       # Run once at startup
 │   │   ├── Poll       # Polling actor
-│   │   ├── Subscription  # AMQP subscription actor
+│   │   ├── Subscription  # AMQP subscription (FixedThreadPool per worker count)
 │   │   └── Nothing    # No-op actor
-│   ├── Builders/      # Extension component builders
+│   ├── Builders/      # Build actors and runners from LEX definitions
 │   │   ├── Actors     # Build actors from extension definitions
 │   │   ├── Runners    # Build runners from extension definitions
-│   │   └── Helpers    # Builder utilities
-│   ├── Helpers/       # Extension helper mixins
+│   │   ├── Helpers    # Builder utilities
+│   │   └── Hooks      # Webhook hook system builder
+│   ├── Helpers/       # Helper mixins for extensions
+│   │   ├── Base       # Base helper mixin
+│   │   ├── Core       # Core helper mixin
 │   │   ├── Cache      # Cache access helper
 │   │   ├── Data       # Database access helper
 │   │   ├── Logger     # Logging helper
 │   │   ├── Transport  # AMQP transport helper
-│   │   ├── Task       # Task management helper
+│   │   ├── Task       # Task management helper (generate_task_id)
 │   │   └── Lex        # LEX metadata helper
 │   ├── Data/          # Extension data layer
 │   │   ├── Migrator   # Extension-specific migrations
 │   │   └── Model      # Extension-specific models
+│   ├── Hooks/
+│   │   └── Base       # Webhook hook system base class
 │   └── Transport      # Extension transport setup
 │
-├── Events             # In-process pub/sub event bus
-│                      # Lifecycle: service.ready, service.shutting_down, extension.loaded
-│                      # Runner: task.completed, task.failed
-│
-├── Ingress            # Transport abstraction layer
-│                      # Source-agnostic entry point for runner invocation
-│                      # AMQP subscription, HTTP adapter (webhooks/API)
-│
-├── API (Sinatra)      # Full REST API under /api/ prefix
+├── API (Sinatra)      # Full REST API under /api/ prefix, served by Puma
 │   ├── Helpers        # json_response, json_collection, json_error, pagination, redact_hash
+│   │                  # parse_request_body, paginate dataset
 │   ├── Routes/
 │   │   ├── Tasks      # CRUD + trigger via Ingress, task logs
 │   │   ├── Extensions # Nested: extensions/runners/functions + invoke
@@ -78,254 +102,265 @@ Legion (lib/legion.rb)
 │   │   ├── Relationships # Stub (501) - no data model yet
 │   │   ├── Chains     # Stub (501) - no data model yet
 │   │   ├── Settings   # Read/write settings with redaction + readonly guards
-│   │   ├── Events     # SSE stream + polling fallback (ring buffer)
+│   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   └── Hooks      # List + trigger registered extension hooks
-│   └── Middleware/
-│       └── Auth       # No-op placeholder (TODO: JWT + API keys)
+│   ├── Middleware/
+│   │   └── Auth       # No-op placeholder (TODO: JWT + API keys)
+│   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
+│                      # Populated by extensions via Legion::API.register_hook(...)
 │
 ├── MCP (mcp gem)      # MCP server for AI agent integration
-│   ├── Server         # MCP::Server factory, tool/resource registration
+│   ├── MCP.server     # Singleton factory: Legion::MCP.server returns MCP::Server instance
+│   ├── Server         # MCP::Server builder, tool/resource registration
 │   ├── Tools/         # 24 MCP::Tool subclasses (legion.* namespace)
 │   │   ├── RunTask         # Agentic: dot notation task execution
 │   │   ├── DescribeRunner  # Agentic: runner/function discovery
-│   │   ├── Tasks           # CRUD: list, get, delete, get_logs
-│   │   ├── Chains          # CRUD: list, create, update, delete
-│   │   ├── Relationships   # CRUD: list, create, update, delete
-│   │   ├── Extensions      # list, get, enable, disable
-│   │   ├── Schedules       # CRUD: list, create, update, delete
-│   │   └── System          # get_status, get_config (redacted)
-│   └── Resources/     # MCP Resources (read-only context)
+│   │   ├── List/Get/Delete Task + GetTaskLogs
+│   │   ├── List/Create/Update/Delete Chain
+│   │   ├── List/Create/Update/Delete Relationship
+│   │   ├── List/Get/Enable/Disable Extension
+│   │   ├── List/Create/Update/Delete Schedule
+│   │   └── GetStatus, GetConfig
+│   └── Resources/
 │       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
-│       └── ExtensionInfo   # legion://extensions/{name} - extension detail
-│
-├── Readiness          # Startup readiness tracking (replaced sleep hacks)
+│       └── ExtensionInfo   # legion://extensions/{name} - extension detail template
 │
 ├── Runner             # Task execution engine
 │   ├── Log            # Task logging
 │   └── Status         # Task status tracking
 │
 ├── Supervision        # Process supervision
-├── Lex                # LEX gem discovery and loading
-├── CLI (Thor)         # Unified command-line interface (Legion::CLI::Main)
-│   ├── Output         # Formatter: color tables, JSON mode, status indicators
-│   ├── Connection     # Lazy connection manager (only connect to what's needed)
-│   ├── Start          # Daemon startup (replaces old exe/legionio OptionParser)
-│   ├── Status         # Service status (probes HTTP API or shows static info)
-│   ├── Lex            # Extension management: list, info, create, enable, disable
-│   ├── Task           # Task management: list, show, logs, run (dot notation), purge
-│   ├── Chain          # Chain management: list, create, delete
-│   ├── Config         # Config tools: show (redacted), path, validate
-│   ├── Generate       # Code generators: runner, actor, exchange, queue, message
-│   └── Mcp            # MCP server: stdio (default), http (streamable)
-└── Version
+├── Lex                # Legacy LEX gem discovery (see Extensions for current code)
+│
+└── CLI (Thor)         # Unified CLI: exe/legion -> Legion::CLI::Main
+    ├── Output::Formatter  # color tables, JSON mode, status indicators, ANSI stripping
+    ├── Connection         # Lazy connection manager (ensure_settings, ensure_transport, etc.)
+    ├── Error              # CLI-specific error class
+    ├── Start              # `legion start` - daemon boot via Legion::Process
+    ├── Status             # `legion status` - probes API or shows static info
+    ├── Check              # `legion check` - smoke-test subsystems, 3 depth levels
+    ├── Lex                # `legion lex` - list, info, create, enable, disable + LexGenerator
+    ├── Task               # `legion task` - list, show, logs, trigger (mapped as run), purge
+    ├── Chain              # `legion chain` - list, create, delete
+    ├── Config             # `legion config` - show (redacted), path, validate
+    ├── Generate           # `legion generate` - runner, actor, exchange, queue, message
+    └── Mcp                # `legion mcp` - stdio (default) or HTTP transport
 ```
 
-### CLI (`legion` command)
+### Extension Discovery
 
-Single unified CLI entry point. All commands support `--json` for structured output and `--no-color`.
+`Legion::Extensions.find_extensions` scans `Gem::Specification.all_names` for gems starting with `lex-`. It also processes `Legion::Settings[:extensions]` for explicitly configured extensions, attempting `Gem.install` for missing ones if `auto_install` is enabled.
+
+Loader checks per extension:
+- `data_required?` — skipped if legion-data not connected
+- `cache_required?` — skipped if legion-cache not connected
+- `crypt_required?` — skipped if cluster secret not available
+- `vault_required?` — skipped if Vault not connected
+- `llm_required?` — skipped if legion-llm not connected
+
+After loading, each extension calls `autobuild` then publishes a `LexRegister` message to RabbitMQ to persist runners in the database.
+
+### CLI Details
 
 ```
 legion
-  version                          # Component versions + installed extension count
-  start [-d] [-p PID] [-t SECS]   # Start daemon (daemonize, PID file, time limit)
-  stop [-p PID]                    # Stop running daemon via PID signal
-  status                           # Running status + component health (probes API)
-  check [--extensions] [--full]    # Smoke-test subsystem connectivity (3 depth levels)
+  version                           # Component versions + installed extension count
+  start [-d] [-p PID] [-l LOG] [-t SECS] [--log-level info]
+  stop [-p PID] [--signal INT]
+  status
+  check [--extensions] [--full]     # exit code 0/1
 
   lex
-    list [-a]                      # All extensions with version/status/runners/actors
-    info <name>                    # Extension detail: runners, actors, deps, gem path
-    create <name>                  # Scaffold new LEX (gemspec, specs, CI, git init)
-    enable <name>                  # Enable extension in settings
-    disable <name>                 # Disable extension in settings
+    list [-a]
+    info <name>
+    create <name>
+    enable <name>
+    disable <name>
 
   task
-    list [-n 20] [-s status]       # Recent tasks with filters
-    show <id>                      # Task detail + arguments
-    logs <id> [-n 50]              # Task execution logs
-    run [ext.runner.func] [k:v]    # Trigger task (dot notation, flags, or interactive)
-    purge [--days 7] [-y]          # Cleanup old tasks
+    list [-n 20] [-s status] [-e extension]
+    show <id>
+    logs <id> [-n 50]
+    run <ext.runner.func> [key:val ...]  # 'run' is mapped to trigger method
+    purge [--days 7] [-y]
 
   chain
-    list [-n 20]                   # List chains
-    create <name>                  # Create chain
-    delete <id> [-y]               # Delete chain (with confirmation)
+    list [-n 20]
+    create <name>
+    delete <id> [-y]
 
   config
-    show [-s section]              # Resolved config (sensitive values redacted)
-    path                           # Config search paths + env vars
-    validate                       # Check settings, transport, data health
+    show [-s section]
+    path
+    validate
 
-  generate (alias: g)              # Must run from inside a lex-* directory
-    runner <name> [--functions x]  # Add runner + spec to current LEX
-    actor <name> [--type sub]      # Add actor + spec (subscription/every/poll/once/loop)
-    exchange <name>                # Add transport exchange
-    queue <name>                   # Add transport queue
-    message <name>                 # Add transport message
+  generate (alias: g)
+    runner <name> [--functions x]
+    actor <name> [--type sub]
+    exchange <name>
+    queue <name>
+    message <name>
 
   mcp
-    stdio                          # Start MCP server with stdio transport (default)
-    http [--port 9393] [--host localhost]  # Start MCP server with streamable HTTP
+    stdio                            # default
+    http [--port 9393] [--host localhost]
 ```
 
-**Key design decisions:**
-- **Lazy connections**: Commands only connect to subsystems they need (no full service boot for queries)
-- **JSON output**: `--json` on every command for AI agents and scripting
-- **Progressive disclosure**: `legion task run` supports dot notation (`http.request.get`), flags (`-e http -r request -f get`), or interactive selection
-- **Secret redaction**: `config show` auto-redacts password/token/secret/key fields
+**CLI design rules:**
+- Thor 1.5+ reserves `run` as a method name - use `map 'run' => :trigger` in Task subcommand
+- `::Process` must be explicit inside `Legion::` namespace (resolves to `Legion::Process` otherwise)
+- `Connection` is a module with class-level `ensure_*` methods, not instance-based
+- All commands support `--json` and `--no-color` at the class_option level
 
-| Executable | Purpose |
-|-----------|---------|
-| `legion` | Unified CLI entry point (`Legion::CLI::Main`) |
+### API Design
 
-## Key Design Patterns
+- Base class: `Legion::API < Sinatra::Base`
+- All routes registered via `register Routes::ModuleName`
+- Requires `set :host_authorization, permitted: :any` (Sinatra 4.0+, else all requests get 403)
+- Response format: `{ data: ..., meta: { timestamp:, node: } }`
+- Error format: `{ error: { code:, message: }, meta: { timestamp:, node: } }`
+- `Legion::JSON.dump` takes exactly 1 positional arg — wrap kwargs in explicit `{}`
+- `Legion::JSON.load` returns symbol keys
+- Settings write: `Legion::Settings.loader.settings[:key] = value`
+- `Legion::Settings.loader.to_hash` for full settings hash
 
-### Extension System (LEX)
-Extensions are gems named `lex-*` that plug into the framework:
-- Auto-discovered via `Gem::Specification`
-- Each LEX defines runners (functions) and actors (execution modes)
-- Actors determine HOW a function runs: subscription (AMQP), polling, interval, one-shot, loop
-- Extensions register in the database via `legion-data` models
+### MCP Design
 
-### Task Relationships
-Tasks can be chained with conditions and transformations:
-```
-Task A -> [condition check] -> Task B -> [transform] -> Task C
-                                      -> Task D (parallel)
-```
-- **Conditions**: JSON rule engine (all/any/fact/operator) via `lex-conditioner`
-- **Transformations**: ERB templates via `tilt` gem for inter-service data mapping
-
-### Daemonization
-`Legion::Process` handles PID management, signal trapping (SIGINT for graceful shutdown), optional daemonization with `fork`/`setsid`, and time-limited execution.
+- Uses `mcp` gem (~> 0.8): `MCP::Server`, `MCP::Tool`, `MCP::Resource`
+- Transports: `MCP::Server::Transports::StdioTransport`, `MCP::Server::Transports::StreamableHTTPTransport`
+- HTTP transport uses rackup + puma
+- `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
+- Tool naming: `legion.snake_case_name` (dot namespace, not slash)
 
 ## Dependencies
 
-### Legion Gems (all required)
+### Runtime Gems
 | Gem | Purpose |
 |-----|---------|
 | `legion-cache` (>= 0.3) | Caching (Redis/Memcached) |
 | `legion-crypt` (>= 0.3) | Encryption, Vault, JWT |
-| `legion-json` (>= 1.2) | JSON serialization |
+| `legion-json` (>= 1.2) | JSON serialization (multi_json wrapper) |
 | `legion-logging` (>= 0.3) | Logging |
-| `legion-settings` (>= 0.3) | Configuration |
-| `legion-transport` (>= 1.2) | RabbitMQ messaging |
+| `legion-settings` (>= 0.3) | Configuration + schema validation |
+| `legion-transport` (>= 1.2) | RabbitMQ AMQP messaging |
 | `lex-node` | Node identity extension |
-
-### External Gems
-| Gem | Purpose |
-|-----|---------|
 | `concurrent-ruby` + `ext` (>= 1.2) | Thread pool, concurrency primitives |
 | `daemons` (>= 1.4) | Process daemonization |
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
-| `mcp` (~> 0.8) | MCP server SDK (Model Context Protocol) |
+| `mcp` (~> 0.8) | MCP server SDK |
 | `sinatra` (>= 4.0) | HTTP API framework |
 | `thor` (>= 1.3) | CLI framework |
 
-### Dev Dependencies
+### Optional at Runtime (loaded dynamically)
 | Gem | Purpose |
 |-----|---------|
-| `legion-data` | MySQL/SQLite persistent storage (optional at runtime) |
+| `legion-data` | MySQL/SQLite persistence (tasks, extensions, scheduling) |
+| `legion-llm` | LLM integration (Bedrock, Anthropic, OpenAI, Gemini, Ollama) |
 
-## Deployment
-
-**Docker**:
-```dockerfile
-FROM ruby:3-alpine
-RUN gem install legionio
-CMD ruby --yjit $(which legion) start
+### Dev Dependencies
 ```
-
-**Config Paths** (checked in order):
-1. `/etc/legionio/`
-2. `~/legionio/`
-3. `./settings/`
+rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
+```
 
 ## File Map
 
 | Path | Purpose |
 |------|---------|
 | `lib/legion.rb` | Entry point: `Legion.start`, `.shutdown`, `.reload` |
-| `lib/legion/service.rb` | Module orchestrator, startup sequence |
-| `lib/legion/process.rb` | Daemon lifecycle, PID, signals |
-| `lib/legion/extensions.rb` | LEX discovery and loading |
-| `lib/legion/extensions/actors/` | Actor types (every, loop, once, poll, subscription) |
-| `lib/legion/extensions/builders/` | Build actors, runners, and hooks from LEX definitions |
-| `lib/legion/extensions/hooks/base.rb` | Webhook hook system base class |
-| `lib/legion/extensions/helpers/` | Helper mixins for extensions |
-| `lib/legion/events.rb` | In-process pub/sub event bus |
-| `lib/legion/ingress.rb` | Transport abstraction (source-agnostic runner invocation) |
-| `lib/legion/api.rb` | Sinatra REST API: base app, health, readiness, error handlers, hook registry |
-| `lib/legion/api/helpers.rb` | Shared helpers: json_response, json_collection, json_error, pagination, redact_hash |
-| `lib/legion/api/tasks.rb` | Tasks routes: list, create (via Ingress), show, delete, logs |
-| `lib/legion/api/extensions.rb` | Extensions routes: nested REST (extensions/runners/functions + invoke) |
-| `lib/legion/api/nodes.rb` | Nodes routes: list (filterable), show |
-| `lib/legion/api/schedules.rb` | Schedules routes: CRUD + logs (requires lex-scheduler) |
-| `lib/legion/api/relationships.rb` | Relationships routes: stub (501, no data model yet) |
-| `lib/legion/api/chains.rb` | Chains routes: stub (501, no data model yet) |
-| `lib/legion/api/settings.rb` | Settings routes: read/write with redaction + readonly guards |
-| `lib/legion/api/events.rb` | Events routes: SSE stream + polling fallback (ring buffer) |
-| `lib/legion/api/transport.rb` | Transport routes: status, exchanges, queues, publish |
-| `lib/legion/api/hooks.rb` | Hooks routes: list registered + trigger via Ingress |
-| `lib/legion/api/middleware/auth.rb` | Auth middleware: no-op placeholder (TODO) |
-| `lib/legion/readiness.rb` | Startup readiness tracking |
+| `lib/legion/version.rb` | `Legion::VERSION` constant |
+| `lib/legion/service.rb` | Module orchestrator, startup + shutdown + reload sequences |
+| `lib/legion/process.rb` | Daemon lifecycle: PID management, daemonize, signal traps, main loop |
+| `lib/legion/readiness.rb` | Component readiness tracking (COMPONENTS constant, `ready?`, `to_h`) |
+| `lib/legion/events.rb` | In-process pub/sub: `on`, `emit`, `once`, `off`, wildcard `*` |
+| `lib/legion/ingress.rb` | Universal runner invocation: `normalize`, `run` |
+| `lib/legion/extensions.rb` | LEX discovery, loading, actor hooking, shutdown |
+| `lib/legion/extensions/core.rb` | Extension mixin (requirement flags, autobuild) |
+| `lib/legion/extensions/actors/` | Actor types: base, every, loop, once, poll, subscription, nothing, defaults |
+| `lib/legion/extensions/builders/` | Build actors, runners, helpers, hooks from definitions |
+| `lib/legion/extensions/helpers/` | Mixins: base, core, cache, data, logger, transport, task, lex |
+| `lib/legion/extensions/data/` | Extension-level migrator and model |
+| `lib/legion/extensions/hooks/base.rb` | Webhook hook base class |
+| `lib/legion/extensions/transport.rb` | Extension transport setup |
 | `lib/legion/runner.rb` | Task execution engine |
+| `lib/legion/runner/log.rb` | Task logging |
+| `lib/legion/runner/status.rb` | Task status tracking |
 | `lib/legion/supervision.rb` | Process supervision |
+| `lib/legion/lex.rb` | Legacy `Legion::Cli::LexBuilder` (preserved, not used by new CLI) |
+| **API** | |
+| `lib/legion/api.rb` | Sinatra base app, health/ready routes, error handlers, hook registry |
+| `lib/legion/api/helpers.rb` | json_response, json_collection, json_error, pagination, redact_hash |
+| `lib/legion/api/tasks.rb` | Tasks: list, create (via Ingress), show, delete, logs |
+| `lib/legion/api/extensions.rb` | Extensions: nested REST (extensions/runners/functions + invoke) |
+| `lib/legion/api/nodes.rb` | Nodes: list (filterable), show |
+| `lib/legion/api/schedules.rb` | Schedules: CRUD + logs (requires lex-scheduler) |
+| `lib/legion/api/relationships.rb` | Relationships: stub (501, no data model yet) |
+| `lib/legion/api/chains.rb` | Chains: stub (501, no data model yet) |
+| `lib/legion/api/settings.rb` | Settings: read/write with redaction + readonly guards |
+| `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
+| `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
+| `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
+| `lib/legion/api/middleware/auth.rb` | Auth: no-op placeholder (TODO: JWT + API keys) |
+| **MCP** | |
+| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
+| `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, instructions |
+| `lib/legion/mcp/tools/` | 24 MCP::Tool subclasses |
+| `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
+| `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **CLI v2** | |
-| `lib/legion/cli.rb` | Main CLI: `Legion::CLI::Main` Thor app, global flags, version, start/stop |
-| `lib/legion/cli/output.rb` | Output formatter: color, tables, JSON mode, status indicators |
-| `lib/legion/cli/connection.rb` | Lazy connection manager (idempotent `ensure_*` methods) |
-| `lib/legion/cli/error.rb` | CLI-specific error class |
-| `lib/legion/cli/start.rb` | `legion start` command (daemon boot) |
-| `lib/legion/cli/status.rb` | `legion status` command (probes API or shows static info) |
-| `lib/legion/cli/check_command.rb` | `legion check` command (smoke-test subsystem connectivity, 3 depth levels) |
-| `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + `LexGenerator` scaffolding class |
-| `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, run, purge) |
+| `lib/legion/cli.rb` | `Legion::CLI::Main` Thor app, global flags, version, start/stop/status/check |
+| `lib/legion/cli/output.rb` | `Output::Formatter`: color, tables, JSON mode, ANSI stripping |
+| `lib/legion/cli/connection.rb` | Lazy connection manager (`ensure_settings`, `ensure_transport`, etc.) |
+| `lib/legion/cli/error.rb` | `CLI::Error` exception class |
+| `lib/legion/cli/start.rb` | `legion start` — boots Legion::Process |
+| `lib/legion/cli/status.rb` | `legion status` — probes API or returns static info |
+| `lib/legion/cli/check_command.rb` | `legion check` — 3-level smoke test, exit code 0/1 |
+| `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + LexGenerator scaffolding |
+| `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, trigger/run, purge) |
 | `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
 | `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate) |
 | `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
 | `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
-| **MCP Server** | |
-| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` factory |
-| `lib/legion/mcp/server.rb` | MCP::Server builder, tool/resource registration |
-| `lib/legion/mcp/tools/` | 24 MCP::Tool subclasses (legion.* namespace) |
-| `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
-| `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
-| **Legacy CLI (preserved)** | |
-| `lib/legion/lex.rb` | Old `Legion::Cli::LexBuilder` (legacy, unused) |
-| `lib/legion/cli/task.rb` | Old task commands (preserved, not loaded by new CLI) |
-| `lib/legion/cli/trigger.rb` | Old trigger command (preserved, not loaded by new CLI) |
-| `lib/legion/cli/lex/` | Old LEX sub-generators + ERB templates |
+| **Legacy CLI (preserved, not loaded by new CLI)** | |
+| `lib/legion/cli/task.rb` | Old task commands |
+| `lib/legion/cli/trigger.rb` | Old trigger command |
+| `lib/legion/cli/chain.rb` | Old chain commands |
+| `lib/legion/cli/cohort.rb` | Old cohort commands |
+| `lib/legion/cli/function.rb` | Old function commands |
+| `lib/legion/cli/relationship.rb` | Old relationship commands |
+| `lib/legion/cli/lex/` | Old LEX sub-generators + ERB templates (still used by LexGenerator) |
 | **Executables** | |
-| `exe/legion` | Unified CLI entry point (`Legion::CLI::Main.start`) |
+| `exe/legion` | Only executable: `Legion::CLI::Main.start(ARGV)` |
 | `Dockerfile` | Docker build |
 | `docker_deploy.rb` | Build + push Docker image |
+| **Specs** | |
+| `spec/spec_helper.rb` | RSpec configuration |
 
-## Example LEX Extensions
+## Known Stubs / TODO
 
-| Extension | Purpose |
-|-----------|---------|
-| `lex-http` | HTTP requests |
-| `lex-influxdb` | InfluxDB read/write |
-| `lex-ssh` | Remote SSH commands |
-| `lex-redis` | Redis operations |
-| `lex-scheduler` | Cron/interval scheduling |
-| `lex-conditioner` | Conditional rule evaluation |
-| `lex-transformation` | ERB-based data transformation |
+| Area | Status |
+|------|--------|
+| `API::Routes::Relationships` | 501 stub - no data model |
+| `API::Routes::Chains` | 501 stub - no data model |
+| `API::Middleware::Auth` | No-op placeholder, JWT + API keys needed before production |
+| `legion-data` chains/relationships models | Not yet implemented |
 
-## Related Components
+## Rubocop Notes
 
-| Component | Relationship |
-|-----------|-------------|
-| `legion-transport` | RabbitMQ messaging layer (FIFO queues for task distribution) |
-| `legion-cache` | Optional caching for extension data |
-| `legion-crypt` | Vault secrets + message encryption |
-| `legion-data` | MySQL persistence for tasks, extensions, scheduling |
-| `legion-json` | JSON serialization foundation |
-| `legion-logging` | Logging foundation |
-| `legion-settings` | Configuration foundation |
+- `.rubocop.yml` excludes `spec/**/*` from `Metrics/BlockLength`
+- Hash alignment: `table` style enforced for both rocket and colon
+- `Naming/PredicateMethod` disabled
+
+## Development
+
+```bash
+bundle install
+bundle exec rspec
+bundle exec rubocop
+```
+
+Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.
 
 ---
 
