@@ -78,24 +78,73 @@ Legion (lib/legion.rb)
 │
 ├── Supervision        # Process supervision
 ├── Lex                # LEX gem discovery and loading
-├── CLI (Thor)         # Command-line interface
-│   ├── cohort         # Cohort management
-│   ├── function       # Function operations
-│   ├── relationship   # Relationship CRUD
-│   ├── task           # Task CRUD
-│   ├── chain          # Chain management
-│   ├── trigger        # Send tasks to workers
-│   └── lex/           # LEX management (actors, exchanges, messages, queues, runners)
+├── CLI (Thor)         # Unified command-line interface (Legion::CLI::Main)
+│   ├── Output         # Formatter: color tables, JSON mode, status indicators
+│   ├── Connection     # Lazy connection manager (only connect to what's needed)
+│   ├── Start          # Daemon startup (replaces old exe/legionio OptionParser)
+│   ├── Status         # Service status (probes HTTP API or shows static info)
+│   ├── Lex            # Extension management: list, info, create, enable, disable
+│   ├── Task           # Task management: list, show, logs, run (dot notation), purge
+│   ├── Chain          # Chain management: list, create, delete
+│   ├── Config         # Config tools: show (redacted), path, validate
+│   └── Generate       # Code generators: runner, actor, exchange, queue, message
 └── Version
 ```
 
-### CLIs
+### CLI (`legion` command)
+
+Single unified CLI entry point. All commands support `--json` for structured output and `--no-color`.
+
+```
+legion
+  version                          # Component versions + installed extension count
+  start [-d] [-p PID] [-t SECS]   # Start daemon (daemonize, PID file, time limit)
+  stop [-p PID]                    # Stop running daemon via PID signal
+  status                           # Running status + component health (probes API)
+
+  lex
+    list [-a]                      # All extensions with version/status/runners/actors
+    info <name>                    # Extension detail: runners, actors, deps, gem path
+    create <name>                  # Scaffold new LEX (gemspec, specs, CI, git init)
+    enable <name>                  # Enable extension in settings
+    disable <name>                 # Disable extension in settings
+
+  task
+    list [-n 20] [-s status]       # Recent tasks with filters
+    show <id>                      # Task detail + arguments
+    logs <id> [-n 50]              # Task execution logs
+    run [ext.runner.func] [k:v]    # Trigger task (dot notation, flags, or interactive)
+    purge [--days 7] [-y]          # Cleanup old tasks
+
+  chain
+    list [-n 20]                   # List chains
+    create <name>                  # Create chain
+    delete <id> [-y]               # Delete chain (with confirmation)
+
+  config
+    show [-s section]              # Resolved config (sensitive values redacted)
+    path                           # Config search paths + env vars
+    validate                       # Check settings, transport, data health
+
+  generate (alias: g)              # Must run from inside a lex-* directory
+    runner <name> [--functions x]  # Add runner + spec to current LEX
+    actor <name> [--type sub]      # Add actor + spec (subscription/every/poll/once/loop)
+    exchange <name>                # Add transport exchange
+    queue <name>                   # Add transport queue
+    message <name>                 # Add transport message
+```
+
+**Key design decisions:**
+- **Lazy connections**: Commands only connect to subsystems they need (no full service boot for queries)
+- **JSON output**: `--json` on every command for AI agents and scripting
+- **Progressive disclosure**: `legion task run` supports dot notation (`http.request.get`), flags (`-e http -r request -f get`), or interactive selection
+- **Secret redaction**: `config show` auto-redacts password/token/secret/key fields
 
 | Executable | Purpose |
 |-----------|---------|
-| `legionio` | Start the LegionIO daemon |
-| `legion` | Thor-based CLI for managing tasks, relationships, functions, LEXs |
-| `lex_gen` | Generate new Legion Extension scaffolding |
+| `legion` | Unified CLI entry point (`Legion::CLI::Main`) |
+| `legionio` | Legacy wrapper, delegates to `legion start` |
+| `lex_gen` | Legacy wrapper, delegates to `legion lex create` / `legion generate` |
 
 ## Key Design Patterns
 
@@ -123,26 +172,28 @@ Task A -> [condition check] -> Task B -> [transform] -> Task C
 ### Legion Gems (all required)
 | Gem | Purpose |
 |-----|---------|
-| `legion-cache` (>= 0.2.0) | Caching (Redis/Memcached) |
-| `legion-crypt` (>= 0.2.0) | Encryption and Vault |
-| `legion-json` (>= 0.2.0) | JSON serialization |
-| `legion-logging` (>= 0.2.0) | Logging |
-| `legion-settings` (>= 0.2.0) | Configuration |
-| `legion-transport` (>= 1.1.9) | RabbitMQ messaging |
+| `legion-cache` (>= 0.3) | Caching (Redis/Memcached) |
+| `legion-crypt` (>= 0.3) | Encryption, Vault, JWT |
+| `legion-json` (>= 1.2) | JSON serialization |
+| `legion-logging` (>= 0.3) | Logging |
+| `legion-settings` (>= 0.3) | Configuration |
+| `legion-transport` (>= 1.2) | RabbitMQ messaging |
 | `lex-node` | Node identity extension |
 
 ### External Gems
 | Gem | Purpose |
 |-----|---------|
-| `concurrent-ruby` + `ext` | Thread pool, concurrency primitives |
-| `daemons` | Process daemonization |
-| `oj` | Fast JSON (C extension) |
-| `thor` | CLI framework |
+| `concurrent-ruby` + `ext` (>= 1.2) | Thread pool, concurrency primitives |
+| `daemons` (>= 1.4) | Process daemonization |
+| `oj` (>= 3.16) | Fast JSON (C extension) |
+| `puma` (>= 6.0) | HTTP server for API |
+| `sinatra` (>= 4.0) | HTTP API framework |
+| `thor` (>= 1.3) | CLI framework |
 
 ### Dev Dependencies
 | Gem | Purpose |
 |-----|---------|
-| `legion-data` | MySQL persistent storage (optional at runtime) |
+| `legion-data` | MySQL/SQLite persistent storage (optional at runtime) |
 
 ## Deployment
 
@@ -175,12 +226,28 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/api.rb` | Sinatra webhook HTTP API |
 | `lib/legion/readiness.rb` | Startup readiness tracking |
 | `lib/legion/runner.rb` | Task execution engine |
-| `lib/legion/cli.rb` | Thor CLI (legion command) |
-| `lib/legion/lex.rb` | LEX gem discovery |
 | `lib/legion/supervision.rb` | Process supervision |
-| `exe/legionio` | Start daemon |
-| `exe/legion` | CLI entry point |
-| `exe/lex_gen` | Extension generator |
+| **CLI v2** | |
+| `lib/legion/cli.rb` | Main CLI: `Legion::CLI::Main` Thor app, global flags, version, start/stop |
+| `lib/legion/cli/output.rb` | Output formatter: color, tables, JSON mode, status indicators |
+| `lib/legion/cli/connection.rb` | Lazy connection manager (idempotent `ensure_*` methods) |
+| `lib/legion/cli/error.rb` | CLI-specific error class |
+| `lib/legion/cli/start.rb` | `legion start` command (daemon boot) |
+| `lib/legion/cli/status.rb` | `legion status` command (probes API or shows static info) |
+| `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + `LexGenerator` scaffolding class |
+| `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, run, purge) |
+| `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
+| `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate) |
+| `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
+| **Legacy CLI (preserved)** | |
+| `lib/legion/lex.rb` | Old `Legion::Cli::LexBuilder` (used by legacy `lex_gen`) |
+| `lib/legion/cli/task.rb` | Old task commands (preserved, not loaded by new CLI) |
+| `lib/legion/cli/trigger.rb` | Old trigger command (preserved, not loaded by new CLI) |
+| `lib/legion/cli/lex/` | Old LEX sub-generators + ERB templates |
+| **Executables** | |
+| `exe/legion` | Unified CLI entry point (`Legion::CLI::Main.start`) |
+| `exe/legionio` | Legacy wrapper, delegates to `legion start` |
+| `exe/lex_gen` | Legacy wrapper, delegates to `legion lex create` / `legion generate` |
 | `Dockerfile` | Docker build |
 | `docker_deploy.rb` | Build + push Docker image |
 
