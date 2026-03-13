@@ -78,9 +78,10 @@
   - [x] Source-agnostic entry point for runner invocation (normalize + run)
   - [x] AMQP subscription unchanged (handles encryption, ack/reject)
   - [x] HTTP adapter for webhooks/API (uses Ingress.run via Legion::API)
-- [ ] Configuration validation in legion-settings
-  - [ ] Schema definitions per module (required keys, types)
-  - [ ] Fail-fast on startup with clear error messages
+- [x] Configuration validation in legion-settings
+  - [x] Schema definitions per module (inferred from defaults + optional overrides)
+  - [x] Fail-fast on startup with clear error messages (collect all, raise once)
+  - [ ] Dev mode: warn-but-continue instead of raise
 
 ## Core Components Reference
 
