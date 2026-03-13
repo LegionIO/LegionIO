@@ -233,7 +233,7 @@ settings
 - Task has parent/child (self-referential) for chain tracking
 - Task has master/slave (self-referential) for root task tracking
 
-**Why MySQL?**: The Sequel ORM supports many databases, but the migrations use MySQL-specific DDL. This is a known limitation and a candidate for future improvement (SQLite for development).
+**Database backends**: SQLite (development), PostgreSQL, and MySQL are all supported. The adapter is selected via `Legion::Settings[:data][:adapter]` (defaults to `sqlite` if no credentials are configured).
 
 ### legionio (v1.2.1)
 
@@ -616,6 +616,50 @@ WantedBy=multi-user.target
 
 Only RabbitMQ is required. All other services are optional and gracefully degrade when unavailable.
 
+### Settings Validation
+
+legion-settings now includes automatic schema validation:
+
+```ruby
+# Types are inferred from defaults — no manual schema needed
+Legion::Settings.merge_settings('mymodule', { host: 'localhost', port: 8080 })
+
+# Optional: add constraints
+Legion::Settings.define_schema('mymodule', { driver: { enum: %w[dalli redis] } })
+
+# Validate all settings at once
+Legion::Settings.validate!  # raises ValidationError with all errors collected
+```
+
+- **Type inference**: Types derived from default values automatically
+- **Per-module on merge**: Type mismatches caught immediately when a module registers
+- **Cross-module on startup**: `validate!` runs all checks, collects errors, raises once
+- **Unknown key detection**: Typo suggestions via Levenshtein distance
+
+### Event Bus (`Legion::Events`)
+
+In-process pub/sub for lifecycle and task events:
+
+```ruby
+Legion::Events.subscribe('task.completed') { |data| log_completion(data) }
+Legion::Events.subscribe('service.ready') { |data| notify_cluster(data) }
+Legion::Events.emit('task.completed', task_id: 123, status: 'success')
+```
+
+Events: `service.ready`, `service.shutting_down`, `extension.loaded`, `task.completed`, `task.failed`
+
+### Transport Abstraction (`Legion::Ingress`)
+
+Source-agnostic entry point for runner invocation. Normalizes input regardless of source (AMQP, HTTP, direct call) and routes to `Legion::Runner.run`.
+
+### Webhook API (`Legion::API`)
+
+Sinatra-based HTTP API for receiving webhooks. Extensions can register hook endpoints via `Legion::Extensions::Hooks::Base`. The API adapter feeds through `Legion::Ingress` so webhooks follow the same execution path as AMQP messages.
+
+### Readiness (`Legion::Readiness`)
+
+Tracks startup readiness across all modules. Replaces the previous sleep-based approach with explicit readiness signals from each component.
+
 ## Version History
 
-All core gems are currently at v1.2.0 (legionio at v1.2.1). The framework requires Ruby >= 2.5.0 (modernization to 3.1+ is planned).
+All core gems are currently at v1.2.0 (legionio at v1.2.1). The framework requires Ruby >= 3.4.

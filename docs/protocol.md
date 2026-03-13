@@ -544,64 +544,21 @@ Publish an Extension Registration message to exchange `extensions` with routing 
 
 ## Known Issues and Planned Fixes
 
-The following are known bugs or gaps in the current implementation (as of v1.2.0). These are documented here to distinguish intended behavior from implementation gaps.
+The following were known bugs. Most have been fixed as of 2026-03-12.
 
-### Bug: `app_id` and `user_id` not published
+### Fixed
 
-`Message` defines `app_id` (returns `'legion'`) and `user_id` (returns RMQ user), but neither is passed in the `publish()` call. These properties are never set on outgoing messages.
+- **`app_id` and `correlation_id` now published** — Both passed to `publish()` call. `correlation_id` derives from `parent_id` or `task_id`.
+- **Duplicate `LexRegister` removed** — `messages/extension.rb` deleted.
+- **Header values preserve native types** — Integer, Float, Boolean stay typed; only others get `.to_s`.
+- **Task routing_key consolidated** — Uses `function` only. `function_name`/`name` fallbacks removed.
+- **Base `message` method filters `ENVELOPE_KEYS`** — Payload no longer contains transport metadata.
+- **DLX exchanges auto-declared** — `ensure_dlx` creates dead-letter exchanges before queue creation.
+- **`NodeCrypt#queue_name` fixed** — Returns `'node.crypt'` (was `'node.status'`).
+- **Priority reads from options** — `@options[:priority]` then settings, falls back to 0.
+- **Per-message `encrypt:` option** — Overrides global toggle per-message.
 
-**Fix**: Add `app_id:` and `user_id:` to the `exchange_dest.publish()` argument list.
+### Remaining Gaps
 
-### Bug: `correlation_id` always nil
-
-`Message#correlation_id` returns `nil` unconditionally. SubTask and CheckSubtask messages should use this to correlate back to the originating task.
-
-**Fix**: Set `correlation_id` to `task_id` or `parent_id` for messages that are responses/continuations.
-
-### Bug: Duplicate `LexRegister` class definition
-
-Both `messages/extension.rb` and `messages/lex_register.rb` define `Messages::LexRegister` with different routing keys (`extensions.register.` vs `extension_manager.register.save`). The last file loaded wins (alphabetical sort = `lex_register.rb`).
-
-**Fix**: Remove the duplicate in `extension.rb`.
-
-### Bug: Header stringification overwrites typed payload values
-
-Headers are converted to strings via `.to_s` at publish time. On the consumer side, `process_message` merges headers back into the parsed JSON message. This overwrites typed values (e.g., `task_id: 123` in JSON body becomes `task_id: "123"` after header merge).
-
-**Fix**: Either skip header merge for keys already present in the body, or convert header values back to their original types during merge.
-
-### Bug: Task routing_key has redundant fallback patterns
-
-`Messages::Task#routing_key` checks `@options[:function]`, then `@options[:function_name]`, then `@options[:name]`. This accumulated over time and should be consolidated to a single canonical key.
-
-**Fix**: Standardize on `function` as the canonical key. Remove `function_name` and `name` fallbacks.
-
-### Gap: Payload contains transport metadata
-
-`Messages::Task#message` returns the raw `@options` hash, which includes transport metadata (`routing_key`, `headers`, `content_type`, etc.) alongside business data. This makes payloads larger than necessary and blurs the boundary between envelope and content.
-
-**Fix**: Filter `@options` to exclude transport-only keys before serialization. Define a clear set of transport keys vs business payload keys. Retain the ability to inspect the full message for debugging (e.g., via a `debug` header/flag).
-
-### Gap: Dead-letter exchanges declared but not created
-
-Queue arguments reference `{lex_name}.dlx` as the dead-letter exchange, but no code creates these DLX exchanges or binds queues to them. Rejected messages are silently dropped.
-
-**Fix**: Create DLX exchanges and corresponding DLQ (dead-letter queues) during extension topology setup. Bind DLQs so rejected messages are captured and inspectable.
-
-### Gap: Priority infrastructure unused
-
-Queues declare `x-max-priority: 255` but `Message#priority` always returns `0`. No message type overrides priority.
-
-**Fix**: Allow priority to be set per-message via options. Consider defining priority levels for system messages (e.g., task updates and cluster secret requests could be higher priority than regular tasks).
-
-### Bug: `NodeCrypt` queue name is a copy-paste error
-
-`Legion::Transport::Queues::NodeCrypt#queue_name` returns `'node.status'`, which is identical to `NodeStatus#queue_name`. Both queues resolve to the same RabbitMQ queue. `NodeCrypt` should return `'node.crypt'`.
-
-**Fix**: Change `NodeCrypt#queue_name` to return `'node.crypt'`.
-
-### Gap: No per-message encryption control
-
-`Message#encrypt?` checks a global setting (`transport.messages.encrypt`). There is no way to encrypt specific message types while leaving others plaintext.
-
-**Fix**: Allow `encrypt` to be set per-message via options, falling back to the global setting. System messages like `RequestClusterSecret` already override `encrypt?` to return `false`; extend this pattern to all message types.
+- Priority levels are not yet standardized for system vs user messages
+- No automatic DLQ consumer for inspecting rejected messages
