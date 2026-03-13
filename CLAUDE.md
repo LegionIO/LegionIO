@@ -143,7 +143,8 @@ Legion (lib/legion.rb)
     ├── Lex                # `legion lex` - list, info, create, enable, disable + LexGenerator
     ├── Task               # `legion task` - list, show, logs, trigger (mapped as run), purge
     ├── Chain              # `legion chain` - list, create, delete
-    ├── Config             # `legion config` - show (redacted), path, validate
+    ├── Config             # `legion config` - show (redacted), path, validate, scaffold
+    ├── ConfigScaffold     # `legion config scaffold` - generates starter JSON config files
     ├── Generate           # `legion generate` - runner, actor, exchange, queue, message
     └── Mcp                # `legion mcp` - stdio (default) or HTTP transport
 ```
@@ -194,6 +195,7 @@ legion
     show [-s section]
     path
     validate
+    scaffold [--dir ./settings] [--only transport,data,...] [--full] [--force]
 
   generate (alias: g)
     runner <name> [--functions x]
@@ -212,6 +214,7 @@ legion
 - `::Process` must be explicit inside `Legion::` namespace (resolves to `Legion::Process` otherwise)
 - `Connection` is a module with class-level `ensure_*` methods, not instance-based
 - All commands support `--json` and `--no-color` at the class_option level
+- `::JSON` must be explicit inside `Legion::` namespace (resolves to `Legion::JSON` otherwise) — affects `pretty_generate` in config scaffold
 
 ### API Design
 
@@ -319,7 +322,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + LexGenerator scaffolding |
 | `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, trigger/run, purge) |
 | `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
-| `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate) |
+| `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate, scaffold) |
+| `lib/legion/cli/config_scaffold.rb` | `legion config scaffold` — generates starter JSON config files per subsystem |
 | `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
 | `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
 | **Legacy CLI (preserved, not loaded by new CLI)** | |
