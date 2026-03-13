@@ -1,3 +1,5 @@
+require_relative 'readiness'
+
 module Legion
   class Service
     def modules
@@ -13,16 +15,30 @@ module Legion
       if crypt
         require 'legion/crypt'
         Legion::Crypt.start
+        Legion::Readiness.mark_ready(:crypt)
       end
 
-      setup_transport if transport
+      if transport
+        setup_transport
+        Legion::Readiness.mark_ready(:transport)
+      end
 
-      require 'legion/cache' if cache
+      if cache
+        require 'legion/cache'
+        Legion::Readiness.mark_ready(:cache)
+      end
 
-      setup_data if data
+      if data
+        setup_data
+        Legion::Readiness.mark_ready(:data)
+      end
+
       setup_supervision if supervision
-      require 'legion/runner'
-      load_extensions if extensions
+
+      if extensions
+        load_extensions
+        Legion::Readiness.mark_ready(:extensions)
+      end
 
       Legion::Crypt.cs if crypt
       Legion::Settings[:client][:ready] = true
@@ -61,6 +77,7 @@ module Legion
 
       Legion::Logging.info "Using directory #{config_directory} for settings"
       Legion::Settings.load(config_dir: config_directory)
+      Legion::Readiness.mark_ready(:settings)
       Legion::Logging.info('Legion::Settings Loaded')
     end
 
@@ -84,32 +101,60 @@ module Legion
       Legion::Logging.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
-      sleep(0.5)
+
       Legion::Extensions.shutdown
-      sleep(1)
+      Legion::Readiness.mark_not_ready(:extensions)
+
       Legion::Data.shutdown if Legion::Settings[:data][:connected]
+      Legion::Readiness.mark_not_ready(:data)
+
       Legion::Cache.shutdown
+      Legion::Readiness.mark_not_ready(:cache)
+
       Legion::Transport::Connection.shutdown
+      Legion::Readiness.mark_not_ready(:transport)
+
       Legion::Crypt.shutdown
+      Legion::Readiness.mark_not_ready(:crypt)
+
+      Legion::Settings[:client][:ready] = false
     end
 
     def reload
       Legion::Logging.info 'Legion::Service.reload was called'
-      Legion::Extensions.shutdown
-      sleep(1)
-      Legion::Data.shutdown
-      Legion::Cache.shutdown
-      Legion::Transport::Connection.shutdown
-      Legion::Crypt.shutdown
       Legion::Settings[:client][:ready] = false
 
-      sleep(5)
+      Legion::Extensions.shutdown
+      Legion::Readiness.mark_not_ready(:extensions)
+
+      Legion::Data.shutdown
+      Legion::Readiness.mark_not_ready(:data)
+
+      Legion::Cache.shutdown
+      Legion::Readiness.mark_not_ready(:cache)
+
+      Legion::Transport::Connection.shutdown
+      Legion::Readiness.mark_not_ready(:transport)
+
+      Legion::Crypt.shutdown
+      Legion::Readiness.mark_not_ready(:crypt)
+
+      Legion::Readiness.wait_until_not_ready(:transport, :data, :cache, :crypt)
+
       setup_settings
       Legion::Crypt.start
+      Legion::Readiness.mark_ready(:crypt)
+
       setup_transport
+      Legion::Readiness.mark_ready(:transport)
+
       setup_data
+      Legion::Readiness.mark_ready(:data)
+
       setup_supervision
+
       load_extensions
+      Legion::Readiness.mark_ready(:extensions)
 
       Legion::Crypt.cs
       Legion::Settings[:client][:ready] = true
