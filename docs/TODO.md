@@ -98,7 +98,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
 
 ### Phase 1: Core Cognitive Loop (MVP — single agent, single human, no mesh)
 
-- [ ] **lex-memory** — Memory trace system
+- [x] **lex-memory** — Memory trace system
   - Spec: `specs/memory-system-spec.md`
   - 7 trace types: FIRMWARE, IDENTITY, PROCEDURAL, TRUST, SEMANTIC, EPISODIC, SENSORY
   - MemoryTrace struct: 20+ fields (trace_id, type, content_embedding, strength, base_decay_rate, emotional_valence, emotional_intensity, domain_tags, origin, storage_tier, associated_traces, etc.)
@@ -114,7 +114,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: legion-data (PostgreSQL), legion-cache (Redis), legion-crypt (encryption at rest)
   - **Priority: CRITICAL — everything depends on this**
 
-- [ ] **lex-emotion** — Emotional subsystem
+- [x] **lex-emotion** — Emotional subsystem
   - Spec: `specs/emotional-subsystem-spec.md`
   - 4-dimensional valence model: urgency [0-1], importance [0-1], novelty [0-1], familiarity [0-1]
   - Per-dimension normalization with exponential moving average baselines (alpha=0.05)
@@ -127,7 +127,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory (retrieval for gut instinct), legion-llm (embedding for novelty scoring)
   - **Priority: CRITICAL — feeds into every tick phase**
 
-- [ ] **lex-tick** — Tick loop orchestrator
+- [x] **lex-tick** — Tick loop orchestrator
   - Spec: `specs/tick-loop-spec.md`
   - 11 phases per full active tick: sensory -> emotional -> memory retrieval -> entropy check -> working memory integration -> procedural check -> prediction -> mesh interface -> gut instinct -> action selection -> memory consolidation
   - 3 tick modes: Dormant (~1/hour), Sentinel (~1/min), Full Active (multiple/sec)
@@ -143,7 +143,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory, lex-emotion, lex-identity, lex-consent, legion-llm
   - **Priority: CRITICAL — the central processing loop**
 
-- [ ] **lex-identity** — Identity model and behavioral entropy
+- [x] **lex-identity** — Identity model and behavioral entropy
   - Spec: `specs/trust-identity-spec.md`, `specs/entropy-management-spec.md`
   - 6 identity dimensions: communication_cadence, vocabulary_patterns, emotional_response_signatures, decision_style, contextual_consistency, domain_expertise_profile
   - Per-dimension baselines with observation counts and variance ranges
@@ -156,7 +156,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory (IDENTITY traces), legion-crypt (Ed25519, key management)
   - **Priority: HIGH — needed for entropy checks in tick loop**
 
-- [ ] **lex-consent** — Consent gradient
+- [x] **lex-consent** — Consent gradient
   - Spec: `specs/consent-gradient-spec.md`
   - 4 tiers: Fully Autonomous, Act-and-Notify, Consult First, Human Only
   - Per-domain consent tracking (calendar, financial, communications, legal, health, etc.)
@@ -171,7 +171,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory (judgment history), lex-conditioner (rule evaluation)
   - **Priority: HIGH — gates action selection in tick loop**
 
-- [ ] **lex-prediction** — Prediction engine
+- [x] **lex-prediction** — Prediction engine
   - Spec: `specs/prediction-engine-spec.md`
   - 4 reasoning modes: fault localization, counterfactual reasoning, future projection, lateral transfer
   - Temporal pattern recognition across memory traces
@@ -184,7 +184,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory (trace retrieval, causal chains), lex-emotion (emotional forecasting), legion-llm (LLM inference for reasoning)
   - **Priority: MEDIUM — MVP can start with mode 1 only**
 
-- [ ] **lex-coldstart** — Cold start / imprint window
+- [x] **lex-coldstart** — Cold start / imprint window
   - Spec: `specs/cold-start-spec.md`, `specs/imprint-calibration-methodology.md`
   - 3 layers: firmware installation, imprint window, continuous learning
   - Firmware loader: 5 chromosomal directives as FIRMWARE traces (strength=1.0, decay=0.0)
@@ -198,7 +198,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
 
 ### Phase 2: Conflict, Trust, and Governance (multi-agent, mesh-ready)
 
-- [ ] **lex-conflict** — Conflict resolution protocol
+- [x] **lex-conflict** — Conflict resolution protocol
   - Spec: `specs/conflict-resolution-spec.md`
   - Conflict detection at 3 tick phases: gut instinct divergence (phase 9), mesh consensus disagreement (phase 8-9), human instruction conflict (phase 10)
   - Severity classification: low (inform), medium (persist), high (refuse-with-explanation)
@@ -209,7 +209,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-emotion (gut instinct divergence), lex-memory (contributing traces), lex-consent (domain boundaries)
   - **Priority: MEDIUM — needed for genuine partnership behavior**
 
-- [ ] **lex-trust** — Trust network
+- [x] **lex-trust** — Trust network
   - Spec: `specs/trust-identity-spec.md`
   - 3 trust layers: human-agent, agent-agent, agent-organization
   - Domain-specific trust (separate score per domain per target agent)
@@ -223,7 +223,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-memory (TRUST traces), lex-mesh (inter-agent interaction data)
   - **Priority: MEDIUM — needed before mesh goes live**
 
-- [ ] **lex-governance** — Governance protocol
+- [x] **lex-governance** — Governance protocol
   - Spec: `specs/governance-protocol-spec.md`, `specs/governance-council-procedures.md`
   - 4 governance layers: agent-level validation, anomaly detection, human deliberation, transparency
   - Layer 1: each agent validates incoming mesh data against local experience
@@ -237,7 +237,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-mesh (mesh data flow), lex-trust (agent trust scores), lex-identity (entropy for rogue detection)
   - **Priority: LOW — needed at scale, not for MVP**
 
-- [ ] **lex-extinction** — Extinction protocol
+- [x] **lex-extinction** — Extinction protocol
   - Spec: `specs/extinction-protocol-spec.md`
   - 4 escalation levels: mesh isolation, forced sentinel, full suspension, cryptographic erasure
   - Level 1 (reversible): halt inter-agent communication, agents serve from local memory
@@ -252,7 +252,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
 
 ### Phase 3: Mesh and Swarm (federation, multi-agent coordination)
 
-- [ ] **lex-mesh** — Agent-to-agent mesh network
+- [x] **lex-mesh** — Agent-to-agent mesh network
   - Spec: `specs/mesh-protocol-spec.md`, `spec/agent-network-communications.md`
   - Federated hybrid topology (DNS-plus-direct-connection pattern)
   - 3 protocols: gRPC (primary spine), WebSocket (presence), REST (admin/discovery)
@@ -269,7 +269,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-trust (handshake trust validation), lex-identity (cryptographic authentication), legion-crypt (mTLS, Ed25519 signatures, AES-256-GCM)
   - **Priority: MEDIUM — required for multi-agent but not MVP**
 
-- [ ] **lex-swarm** — Swarm pipeline orchestration
+- [x] **lex-swarm** — Swarm pipeline orchestration
   - Spec: `specs/swarm-implementation-spec.md`, `swarms/github-swarm-mvp-architecture.md`
   - Charter system: scoped problem domain with explicit boundaries, approved/prohibited actions, resource limits, human approval gates
   - Pipeline roles: Finder, Fixer, Validator, Publisher (each is a runner type)
@@ -283,7 +283,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
   - Dependencies: lex-mesh (pattern publishing), legion-transport (queue topology), legion-llm (inference)
   - **Priority: HIGH — first implementation target per spec (de-risks infrastructure)**
 
-- [ ] **lex-swarm-github** — GitHub swarm pipeline (first swarm implementation)
+- [x] **lex-swarm-github** — GitHub swarm pipeline (first swarm implementation)
   - Spec: `swarms/github-swarm-mvp-architecture.md`
   - Pipeline: GitHub Event -> Dumb Publisher -> Finders -> Fixers -> Validators -> PR Swarm
   - GitHub is the state store (labels as distributed state machine)
@@ -304,7 +304,7 @@ Each maps directly to a cognitive subsystem or architectural component from the 
 
 ### Phase 4: Private Core and Security (production hardening)
 
-- [ ] **lex-privatecore** — Private core boundary enforcement
+- [x] **lex-privatecore** — Private core boundary enforcement
   - Spec: `design/private-core-security.md`, `design/cryptographic-identity.md`
   - Outward-facing wall protecting partnership from external parties
   - PII stripping: nothing identifying crosses the boundary without consent
