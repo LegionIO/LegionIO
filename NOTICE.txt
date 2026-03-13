@@ -1,9 +1,0 @@
-LegionIO
-Copyright 2021 Optum
-
-Project Description:
-====================
-LegionIO is an automation framework for create IFTTT style relationships, scheduling and managing sync and async tasks/jobs
-
-Author(s):
-Esity

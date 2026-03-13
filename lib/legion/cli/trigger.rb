@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   class Cli
     class Trigger < Thor
@@ -9,6 +11,7 @@ module Legion
       def queue(*args) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/MethodLength
         Legion::Service.new(cache: false, crypt: false, extensions: false, log_level: 'error')
         include Legion::Extensions::Helpers::Task
+
         response = if options['extension'].is_a? String
                      options[:extension]
                    else
@@ -16,7 +19,7 @@ module Legion
                    end
         trigger_extension = Legion::Data::Model::Extension.where(name: response).first
         runners = Legion::Data::Model::Runner.where(extension_id: trigger_extension.values[:id])
-        if runners.count == 1
+        if runners.one?
           trigger_runner = runners.first
           say "Auto selecting #{trigger_runner.values[:name]} since it is the only option for runners"
         else
@@ -26,7 +29,7 @@ module Legion
 
         functions = Legion::Data::Model::Function.where(runner_id: trigger_runner.values[:id])
 
-        if functions.count == 1
+        if functions.one?
           trigger_function = functions.first
           say "Auto selecting #{trigger_function.values[:name]} since it is the only option for functions"
         else
@@ -41,7 +44,7 @@ module Legion
         say "#{trigger_runner.values[:namespace]}.#{trigger_function.values[:name]} selected as trigger", :green, :italicized
         payload = {}
         auto_opts = {}
-        unless args.count.zero?
+        unless args.none?
           args.each do |arg|
             test = arg.split(':')
             auto_opts[test[0].to_sym] = test[1]

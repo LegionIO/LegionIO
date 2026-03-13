@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   class Cli
     class Function < Thor
@@ -8,7 +10,7 @@ module Legion
         response = ask 'trigger extension?', limited_to: Legion::Data::Model::Extension.map(:name)
         trigger_extension = Legion::Data::Model::Extension.where(name: response).first
         runners = Legion::Data::Model::Runner.where(extension_id: trigger_extension.values[:id])
-        if runners.count == 1
+        if runners.one?
           trigger_runner = runners.first
           say "Auto selecting #{trigger_runner.values[:name]} since it is the only option"
         else
@@ -18,7 +20,7 @@ module Legion
 
         functions = Legion::Data::Model::Function.where(runner_id: trigger_runner.values[:id])
 
-        if functions.count == 1
+        if functions.one?
           trigger_function = functions.first
           say "Auto selecting #{trigger_function.values[:name]} since it is the only option"
         else

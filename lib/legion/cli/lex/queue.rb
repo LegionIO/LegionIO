@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   class Cli
     module Lex
@@ -29,7 +31,6 @@ module Legion
           remove_file("spec/queues/#{name}_spec.rb")
           remove_file("spec/transport/queues/#{name}_spec.rb")
 
-          # puts Dir.pwd # /Users/miverso2/Rubymine/lex/wip/lex-conflux
           if Dir.exist? "#{Dir.pwd}/lib/legion/extensions/#{lex}/transport/queues/"
             remove_dir("#{Dir.pwd}/lib/legion/extensions/#{lex}/transport/queues") if Dir.empty?("#{Dir.pwd}/lib/legion/extensions/#{lex}/transport/queues/")
             remove_dir("#{Dir.pwd}/lib/legion/extensions/#{lex}/transport") if Dir.empty?("#{Dir.pwd}/lib/legion/extensions/#{lex}/transport")

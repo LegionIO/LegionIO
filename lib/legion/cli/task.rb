@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   class Cli
     class Task < Thor

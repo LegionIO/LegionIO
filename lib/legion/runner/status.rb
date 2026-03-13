@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   module Runner
     module Status
@@ -12,10 +14,10 @@ module Legion
         end
       end
 
-      def self.update_rmq(task_id:, status: 'task.completed', **opts)
+      def self.update_rmq(task_id:, status: 'task.completed', **)
         return if status.nil?
 
-        Legion::Transport::Messages::TaskUpdate.new(task_id: task_id, status: status, **opts).publish
+        Legion::Transport::Messages::TaskUpdate.new(task_id: task_id, status: status, **).publish
       rescue StandardError => e
         Legion::Logging.fatal e.message
         Legion::Logging.fatal e.backtrace
@@ -25,7 +27,7 @@ module Legion
         retry if (retries += 1) < 5
       end
 
-      def self.update_db(task_id:, status: 'task.completed', **opts)
+      def self.update_db(task_id:, status: 'task.completed', **)
         return if status.nil?
 
         task = Legion::Data::Model::Task[task_id]
@@ -34,7 +36,7 @@ module Legion
         Legion::Logging.warn e.message
         Legion::Logging.warn 'Legion::Runner.update_status_db failed, defaulting to rabbitmq'
         Legion::Logging.warn e.backtrace
-        update_rmq(task_id: task_id, status: status, **opts)
+        update_rmq(task_id: task_id, status: status, **)
       end
 
       def self.generate_task_id(runner_class:, function:, status: 'task.queued', **opts)

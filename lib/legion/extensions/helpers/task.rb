@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'legion/transport'
 require 'legion/transport/messages/task_update'
 require 'legion/transport/messages/task_log'

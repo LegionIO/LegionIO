@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sequel/extensions/migration'
 
 module Legion
@@ -22,7 +24,7 @@ module Legion
 
         def schema_dataset
           dataset = Legion::Data::Connection.sequel.from(default_schema_table).where(namespace: @extension)
-          return dataset if dataset.count.positive?
+          return dataset if dataset.any?
 
           Legion::Data::Model::Extension.insert(active: 1, namespace: @extension, name: @lex_name)
           Legion::Data::Connection.sequel.from(default_schema_table).where(namespace: @extension)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   class Cli
     module Lex
@@ -56,7 +58,7 @@ module Legion
 
           insert_into_file("spec/runners/#{name}_spec.rb", after: "it { should be_a Module }\n") do
             result = "  it { is_expected.to respond_to(:#{function}).with_any_keywords }\n"
-            result.concat "  it { is_expected.to respond_to(:#{function}).with_keywords(:#{@arg_keys.join(', :')}) }\n" if @arg_keys.count.positive?
+            result.concat "  it { is_expected.to respond_to(:#{function}).with_keywords(:#{@arg_keys.join(', :')}) }\n" if @arg_keys.any?
             result
           end
 

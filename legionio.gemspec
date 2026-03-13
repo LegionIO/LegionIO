@@ -18,18 +18,18 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = '>= 3.4'
 
   spec.metadata = {
-    'bug_tracker_uri'   => 'https://github.com/LegionIO/LegionIO/issues',
-    'changelog_uri'     => 'https://github.com/LegionIO/LegionIO/blob/main/CHANGELOG.md',
-    'documentation_uri' => 'https://github.com/LegionIO/LegionIO',
-    'homepage_uri'      => 'https://github.com/LegionIO/LegionIO',
-    'source_code_uri'   => 'https://github.com/LegionIO/LegionIO',
-    'wiki_uri'          => 'https://github.com/LegionIO/LegionIO'
+    'bug_tracker_uri'       => 'https://github.com/LegionIO/LegionIO/issues',
+    'changelog_uri'         => 'https://github.com/LegionIO/LegionIO/blob/main/CHANGELOG.md',
+    'documentation_uri'     => 'https://github.com/LegionIO/LegionIO',
+    'homepage_uri'          => 'https://github.com/LegionIO/LegionIO',
+    'source_code_uri'       => 'https://github.com/LegionIO/LegionIO',
+    'wiki_uri'              => 'https://github.com/LegionIO/LegionIO',
+    'rubygems_mfa_required' => 'true'
   }
 
   spec.files = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(test|spec|features)/})
   end
-  spec.test_files = spec.files.select { |p| p =~ %r{^test/.*_test.rb} }
 
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }

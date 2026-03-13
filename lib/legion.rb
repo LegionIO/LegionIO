@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Process.setproctitle('Legion')
 require 'concurrent'
 require 'securerandom'

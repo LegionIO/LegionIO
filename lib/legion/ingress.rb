@@ -26,9 +26,9 @@ module Legion
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
       def run(payload:, runner_class: nil, function: nil, source: 'unknown',
-              check_subtask: true, generate_task: true, **opts)
+              check_subtask: true, generate_task: true, **)
         message = normalize(payload: payload, runner_class: runner_class,
-                            function: function, source: source, **opts)
+                            function: function, source: source, **)
 
         rc = message.delete(:runner_class)
         fn = message.delete(:function)
@@ -39,8 +39,8 @@ module Legion
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
         Legion::Runner.run(
-          runner_class: rc,
-          function: fn,
+          runner_class:  rc,
+          function:      fn,
           check_subtask: check_subtask,
           generate_task: generate_task,
           **message

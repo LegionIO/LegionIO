@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # require 'legion/cli/version'
 require 'thor'
 require 'legion'
@@ -15,6 +17,7 @@ require 'legion/cli/function'
 module Legion
   class CLI < Thor
     include Thor::Actions
+
     check_unknown_options!
 
     def self.exit_on_failure?

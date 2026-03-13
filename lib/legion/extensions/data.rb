@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'legion/extensions/data/migrator'
 require 'legion/extensions/data/model'
 
@@ -11,13 +13,13 @@ module Legion
         Legion::Logging.fatal 'testing inside run'
         @models = []
         @migrations = []
-        if Dir[File.expand_path("#{data_path}/migrations/*.rb")].count.positive?
+        if Dir[File.expand_path("#{data_path}/migrations/*.rb")].any?
           log.debug('Has migrations, checking status')
           run
         end
 
         models = Dir[File.expand_path("#{data_path}/models/*.rb")]
-        if models.count.positive?
+        if models.any?
           log.debug('Including LEX models')
           models.each do |file|
             require file

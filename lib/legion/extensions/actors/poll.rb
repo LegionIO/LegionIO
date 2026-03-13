@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'base'
 require 'time'
 
@@ -8,7 +10,8 @@ module Legion
         include Legion::Extensions::Actors::Base
 
         def initialize # rubocop:disable Metrics/AbcSize
-          log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, timeout_interval: timeout, run_now: run_now?, check_subtask: check_subtask? }}"
+          log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, timeout_interval: timeout, run_now: run_now?,
+check_subtask: check_subtask? }}"
           @timer = Concurrent::TimerTask.new(execution_interval: time, timeout_interval: timeout, run_now: run_now?) do
             t1 = Time.now
             log.debug "Running #{self.class}"
@@ -23,7 +26,7 @@ module Legion
                   obj1.between?(obj2 * (1 - int_percentage_normalize), obj2 * (1 + int_percentage_normalize))
                 end
               end
-              results[:changed] = results[:diff].count.positive?
+              results[:changed] = results[:diff].any?
 
               Legion::Logging.info results[:diff] if results[:changed]
               Legion::Transport::Messages::CheckSubtask.new(runner_class: runner_class.to_s,

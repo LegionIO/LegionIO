@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'legion/extensions/core'
 require 'legion/runner'
 
@@ -63,7 +65,7 @@ module Legion
         return unless gem_load(values[:gem_name], extension)
 
         extension = Kernel.const_get(values[:extension_class])
-        extension.extend Legion::Extensions::Core unless extension.singleton_class.included_modules.include? Legion::Extensions::Core
+        extension.extend Legion::Extensions::Core unless extension.singleton_class.include?(Legion::Extensions::Core)
 
         min_version = Legion::Settings[:extensions][values[:extension_name]][:min_version] || nil
         Legion::Logging.fatal values if min_version.is_a?(String) && Gem::Version.new(values[:version]) >= Gem::Version.new(min_version)
@@ -95,13 +97,13 @@ module Legion
         Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners).publish
 
         if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Array)
-          extension.meta_actors.each do |_key, actor|
+          extension.meta_actors.each_value do |actor|
             extension.log.debug("hooking meta actor: #{actor}") if has_logger
             hook_actor(**actor)
           end
         end
 
-        extension.actors.each do |_key, actor|
+        extension.actors.each_value do |actor|
           extension.log.debug("hooking literal actor: #{actor}") if has_logger
           hook_actor(**actor)
         end
@@ -212,7 +214,6 @@ module Legion
           }
 
           enabled += 1
-
         rescue StandardError, Gem::MissingSpecError => e
           Legion::Logging.error "Failed to auto install #{extension}, e: #{e.message}"
         end

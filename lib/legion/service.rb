@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'readiness'
 
 module Legion
@@ -62,7 +64,7 @@ module Legion
     def default_paths
       [
         '/etc/legionio',
-        "#{ENV['home']}/legionio",
+        "#{ENV.fetch('home', nil)}/legionio",
         '~/legionio',
         './settings'
       ]

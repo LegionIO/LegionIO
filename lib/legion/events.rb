@@ -22,7 +22,7 @@ module Legion
 
       def emit(event_name, **payload)
         event = {
-          event: event_name.to_s,
+          event:     event_name.to_s,
           timestamp: Time.now,
           **payload
         }

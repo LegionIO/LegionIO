@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'base'
 require 'date'
 
@@ -81,11 +83,7 @@ module Legion
                     end
           if include_metadata_in_message?
             message = message.merge(metadata.headers.transform_keys(&:to_sym)) unless metadata.headers.nil?
-            message[:routing_key] = if Legion::Transport::TYPE == 'march_hare'
-                                      metadata.routing_key
-                                    else
-                                      delivery_info[:routing_key]
-                                    end
+            message[:routing_key] = delivery_info[:routing_key]
           end
 
           message[:timestamp] = (message[:timestamp_in_ms] / 1000).round if message.key?(:timestamp_in_ms) && !message.key?(:timestamp)
@@ -94,9 +92,9 @@ module Legion
         end
 
         def find_function(message = {})
-          return runner_function if actor_class.instance_methods(false).include?(:runner_function)
-          return function if actor_class.instance_methods(false).include?(:function)
-          return action if actor_class.instance_methods(false).include?(:action)
+          return runner_function if actor_class.method_defined?(:runner_function, false)
+          return function if actor_class.method_defined?(:function, false)
+          return action if actor_class.method_defined?(:action, false)
           return message[:function] if message.key? :function
 
           function

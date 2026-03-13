@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   module Extensions
     module Transport
@@ -35,7 +37,7 @@ module Legion
 
       def require_transport_items
         { exchanges: @exchanges, queues: @queues, consumers: @consumers, messages: @messages }.each do |item, obj|
-          Dir[File.expand_path("#{transport_path}/#{item}/*.rb")].sort.each do |file|
+          Dir[File.expand_path("#{transport_path}/#{item}/*.rb")].each do |file|
             require file
             file_name = file.to_s.split('/').last.split('.').first
             obj.push(file_name) unless obj.include?(file_name)
@@ -140,11 +142,9 @@ module Legion
 
       def e_to_q
         [] if !@exchanges.count != 1
-        auto = []
-        @queues.each do |queue|
-          auto.push(from: @exchanges.first, to: queue, routing_key: queue)
+        @queues.map do |queue|
+          { from: @exchanges.first, to: queue, routing_key: queue }
         end
-        auto
       end
 
       def e_to_e

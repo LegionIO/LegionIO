@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'runner/log'
 require_relative 'runner/status'
 require 'legion/transport'

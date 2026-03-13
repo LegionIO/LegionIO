@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'builders/actors'
 require_relative 'builders/helpers'
 require_relative 'builders/hooks'
@@ -122,7 +124,7 @@ module Legion
         # Find the first runner class as default for hooks that don't specify one
         default_runner = @runners.values.first&.dig(:runner_class)
 
-        @hooks.each do |_name, hook_info|
+        @hooks.each_value do |hook_info|
           Legion::API.register_hook(
             lex_name:       extension_name,
             hook_name:      hook_info[:hook_name],

@@ -39,9 +39,7 @@ module Legion
       body = request.body.read
       hook = hook_entry[:hook_class].new
 
-      unless hook.verify(request.env, body)
-        halt 401, Legion::JSON.dump(error: 'unauthorized')
-      end
+      halt 401, Legion::JSON.dump(error: 'unauthorized') unless hook.verify(request.env, body)
 
       payload = parse_body(body)
       function = hook.route(request.env, payload)

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'thor'
 require 'legion/cli/version'
 require 'legion/cli/lex/actor'

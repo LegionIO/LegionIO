@@ -41,8 +41,8 @@ module Legion
       end
 
       def to_h
-        COMPONENTS.each_with_object({}) do |c, h|
-          h[c] = status[c] == true
+        COMPONENTS.to_h do |c|
+          [c, status[c] == true]
         end
       end
     end

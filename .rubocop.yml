@@ -1,90 +1,48 @@
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+
 Layout/LineLength:
   Max: 160
-  IgnoredPatterns:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics:
-  IgnorePatterns:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics/MethodLength:
-  Max: 50
-  IgnoredMethods:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics/ClassLength:
-  Max: 1500
-Metrics/ModuleLength:
-  Max: 1500
-Metrics/BlockLength:
-  Max: 40
-  IgnoredMethods:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics/AbcSize:
-  Max: 60
-  IgnoredMethods:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics/CyclomaticComplexity:
-  Max: 15
-  IgnoredMethods:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
-Metrics/PerceivedComplexity:
-  Max: 17
-  IgnoredMethods:
-    - .unknown
-    - .fatal
-    - .error
-    - .warn
-    - .info
-    - .debug
-    - .trace
+
 Layout/SpaceAroundEqualsInParameterDefault:
   EnforcedStyle: space
-Style/SymbolArray:
-  Enabled: true
+
 Layout/HashAlignment:
   EnforcedHashRocketStyle: table
   EnforcedColonStyle: table
+
+Metrics/MethodLength:
+  Max: 50
+
+Metrics/ClassLength:
+  Max: 1500
+
+Metrics/ModuleLength:
+  Max: 1500
+
+Metrics/BlockLength:
+  Max: 40
+
+Metrics/AbcSize:
+  Max: 60
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/PerceivedComplexity:
+  Max: 17
+
 Style/Documentation:
   Enabled: false
-AllCops:
-  TargetRubyVersion: 2.5
-  NewCops: enable
-  SuggestExtensions: false
+
+Style/SymbolArray:
+  Enabled: true
+
 Style/FrozenStringLiteralComment:
-  Enabled: false
+  Enabled: true
+  EnforcedStyle: always
+
 Naming/FileName:
   Enabled: false

@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require './lib/legion/version'
 puts "Building docker image for Legion v#{Legion::VERSION}"

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Legion
   module Runner
     module Log
