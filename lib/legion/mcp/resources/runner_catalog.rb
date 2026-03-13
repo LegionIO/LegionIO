@@ -5,10 +5,10 @@ module Legion
     module Resources
       module RunnerCatalog
         RESOURCE = ::MCP::Resource.new(
-          uri: 'legion://runners',
-          name: 'runner-catalog',
+          uri:         'legion://runners',
+          name:        'runner-catalog',
           description: 'All available extension.runner.function paths in this Legion instance.',
-          mime_type: 'application/json'
+          mime_type:   'application/json'
         )
 
         class << self
@@ -29,19 +29,17 @@ module Legion
           private
 
           def catalog_json
-            unless data_connected?
-              return Legion::JSON.dump({ error: 'legion-data is not connected' })
-            end
+            return Legion::JSON.dump({ error: 'legion-data is not connected' }) unless data_connected?
 
             extensions = Legion::Data::Model::Extension.all
             catalog = extensions.map do |ext|
               runners = Legion::Data::Model::Runner.where(extension_id: ext.values[:id]).all
               {
                 extension: ext.values[:name],
-                runners: runners.map do |r|
+                runners:   runners.map do |r|
                   functions = Legion::Data::Model::Function.where(runner_id: r.values[:id]).all
                   {
-                    runner: r.values[:namespace],
+                    runner:    r.values[:namespace],
                     functions: functions.map { |f| f.values[:name] }
                   }
                 end

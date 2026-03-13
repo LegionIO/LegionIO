@@ -8,7 +8,7 @@ RSpec.describe Legion::MCP::Tools::RunTask do
     context 'with invalid dot notation' do
       it 'returns error for too few parts' do
         response = described_class.call(task: 'http.request')
-        expect(response).to be_a(::MCP::Tool::Response)
+        expect(response).to be_a(MCP::Tool::Response)
         expect(response.error?).to be true
         expect(response.content.first[:text]).to include('Invalid dot notation')
       end
@@ -39,8 +39,8 @@ RSpec.describe Legion::MCP::Tools::RunTask do
         expect(Legion::Ingress).to have_received(:run).with(
           hash_including(
             runner_class: 'Legion::Extensions::Http::Runners::Request',
-            function: :get,
-            source: 'mcp'
+            function:     :get,
+            source:       'mcp'
           )
         )
       end

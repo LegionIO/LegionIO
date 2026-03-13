@@ -11,7 +11,7 @@ module Legion
           properties: {
             name: { type: 'string', description: 'Chain name' }
           },
-          required: ['name']
+          required:   ['name']
         )
 
         class << self
@@ -28,7 +28,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def chain_model? = Legion::Data::Model.const_defined?(:Chain)
 
           def text_response(data)

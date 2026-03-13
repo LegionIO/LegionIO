@@ -13,9 +13,21 @@ module Legion
           def call
             status = {
               version:    Legion::VERSION,
-              ready:      (Legion::Readiness.ready? rescue false),
-              components: (Legion::Readiness.to_h rescue {}),
-              node:       (Legion::Settings[:client][:name] rescue 'unknown')
+              ready:      begin
+                Legion::Readiness.ready?
+              rescue StandardError
+                false
+              end,
+              components: begin
+                Legion::Readiness.to_h
+              rescue StandardError
+                {}
+              end,
+              node:       begin
+                Legion::Settings[:client][:name]
+              rescue StandardError
+                'unknown'
+              end
             }
             text_response(status)
           rescue StandardError => e

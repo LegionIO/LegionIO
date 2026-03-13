@@ -11,7 +11,7 @@ module Legion
           properties: {
             id: { type: 'integer', description: 'Relationship ID' }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -30,7 +30,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def relationship_model? = Legion::Data::Model.const_defined?(:Relationship)
 
           def text_response(data)

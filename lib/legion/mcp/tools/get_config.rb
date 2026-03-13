@@ -21,9 +21,7 @@ module Legion
 
             if section
               key = section.to_sym
-              unless settings.key?(key)
-                return error_response("Setting '#{section}' not found")
-              end
+              return error_response("Setting '#{section}' not found") unless settings.key?(key)
 
               value = settings[key]
               value = redact_hash(value) if value.is_a?(Hash)

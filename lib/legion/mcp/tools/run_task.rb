@@ -9,25 +9,23 @@ module Legion
 
         input_schema(
           properties: {
-            task: {
-              type: 'string',
+            task:   {
+              type:        'string',
               description: 'Dot notation path: extension.runner.function (e.g., "http.request.get")'
             },
             params: {
-              type: 'object',
-              description: 'Parameters to pass to the task function',
+              type:                 'object',
+              description:          'Parameters to pass to the task function',
               additionalProperties: true
             }
           },
-          required: ['task']
+          required:   ['task']
         )
 
         class << self
           def call(task:, params: {})
             parts = task.split('.')
-            unless parts.length == 3
-              return error_response("Invalid dot notation '#{task}'. Expected format: extension.runner.function")
-            end
+            return error_response("Invalid dot notation '#{task}'. Expected format: extension.runner.function") unless parts.length == 3
 
             ext_name, runner_name, function_name = parts
             runner_class = resolve_runner_class(ext_name, runner_name)

@@ -9,10 +9,10 @@ module Legion
 
         input_schema(
           properties: {
-            id: { type: 'integer', description: 'Task ID' },
+            id:    { type: 'integer', description: 'Task ID' },
             limit: { type: 'integer', description: 'Max log entries (default 50)' }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -22,7 +22,7 @@ module Legion
             task = Legion::Data::Model::Task[id.to_i]
             return error_response("Task #{id} not found") unless task
 
-            limit = [[limit.to_i, 1].max, 100].min
+            limit = limit.to_i.clamp(1, 100)
             logs = Legion::Data::Model::TaskLog
                    .where(task_id: id.to_i)
                    .order(Sequel.desc(:id))
@@ -36,7 +36,11 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
 
           def text_response(data)
             ::MCP::Tool::Response.new([{ type: 'text', text: Legion::JSON.dump(data) }])

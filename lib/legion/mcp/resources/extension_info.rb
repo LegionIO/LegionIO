@@ -13,9 +13,9 @@ module Legion
             [
               ::MCP::ResourceTemplate.new(
                 uri_template: 'legion://extensions/{name}',
-                name: 'extension-info',
-                description: 'Detailed info about a Legion extension including runners, actors, and functions.',
-                mime_type: 'application/json'
+                name:         'extension-info',
+                description:  'Detailed info about a Legion extension including runners, actors, and functions.',
+                mime_type:    'application/json'
               )
             ]
           end

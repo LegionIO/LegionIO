@@ -7,7 +7,7 @@ RSpec.describe Legion::MCP::Tools::GetConfig do
   describe '.call' do
     it 'returns redacted config' do
       response = described_class.call
-      expect(response).to be_a(::MCP::Tool::Response)
+      expect(response).to be_a(MCP::Tool::Response)
       expect(response.error?).to be false
     end
 

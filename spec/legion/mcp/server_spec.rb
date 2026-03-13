@@ -8,7 +8,7 @@ RSpec.describe Legion::MCP::Server do
     subject(:server) { described_class.build }
 
     it 'returns an MCP::Server instance' do
-      expect(server).to be_a(::MCP::Server)
+      expect(server).to be_a(MCP::Server)
     end
 
     it 'registers the correct name' do
@@ -20,31 +20,16 @@ RSpec.describe Legion::MCP::Server do
     end
 
     it 'registers all tool classes' do
-      tool_names = server.tools.keys
-      expect(tool_names).to include('legion.run_task')
-      expect(tool_names).to include('legion.describe_runner')
-      expect(tool_names).to include('legion.list_tasks')
-      expect(tool_names).to include('legion.get_task')
-      expect(tool_names).to include('legion.delete_task')
-      expect(tool_names).to include('legion.get_task_logs')
-      expect(tool_names).to include('legion.list_chains')
-      expect(tool_names).to include('legion.create_chain')
-      expect(tool_names).to include('legion.update_chain')
-      expect(tool_names).to include('legion.delete_chain')
-      expect(tool_names).to include('legion.list_relationships')
-      expect(tool_names).to include('legion.create_relationship')
-      expect(tool_names).to include('legion.update_relationship')
-      expect(tool_names).to include('legion.delete_relationship')
-      expect(tool_names).to include('legion.list_extensions')
-      expect(tool_names).to include('legion.get_extension')
-      expect(tool_names).to include('legion.enable_extension')
-      expect(tool_names).to include('legion.disable_extension')
-      expect(tool_names).to include('legion.list_schedules')
-      expect(tool_names).to include('legion.create_schedule')
-      expect(tool_names).to include('legion.update_schedule')
-      expect(tool_names).to include('legion.delete_schedule')
-      expect(tool_names).to include('legion.get_status')
-      expect(tool_names).to include('legion.get_config')
+      expected = %w[
+        legion.run_task legion.describe_runner
+        legion.list_tasks legion.get_task legion.delete_task legion.get_task_logs
+        legion.list_chains legion.create_chain legion.update_chain legion.delete_chain
+        legion.list_relationships legion.create_relationship legion.update_relationship legion.delete_relationship
+        legion.list_extensions legion.get_extension legion.enable_extension legion.disable_extension
+        legion.list_schedules legion.create_schedule legion.update_schedule legion.delete_schedule
+        legion.get_status legion.get_config
+      ]
+      expect(server.tools.keys).to include(*expected)
     end
 
     it 'registers exactly 24 tools' do

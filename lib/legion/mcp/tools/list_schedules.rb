@@ -10,7 +10,7 @@ module Legion
         input_schema(
           properties: {
             active: { type: 'boolean', description: 'Filter by active status' },
-            limit: { type: 'integer', description: 'Max results (default 25, max 100)' }
+            limit:  { type: 'integer', description: 'Max results (default 25, max 100)' }
           }
         )
 
@@ -19,7 +19,7 @@ module Legion
             return error_response('legion-data is not connected') unless data_connected?
             return error_response('lex-scheduler is not loaded') unless scheduler_loaded?
 
-            limit = [[limit.to_i, 1].max, 100].min
+            limit = limit.to_i.clamp(1, 100)
             dataset = Legion::Extensions::Scheduler::Data::Model::Schedule.order(:id)
             dataset = dataset.where(active: true) if active == true
             text_response(dataset.limit(limit).all.map(&:values))
@@ -29,7 +29,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def scheduler_loaded? = defined?(Legion::Extensions::Scheduler)
 
           def text_response(data)

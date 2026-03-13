@@ -7,7 +7,7 @@ RSpec.describe Legion::MCP::Tools::GetStatus do
   describe '.call' do
     it 'returns service status' do
       response = described_class.call
-      expect(response).to be_a(::MCP::Tool::Response)
+      expect(response).to be_a(MCP::Tool::Response)
       expect(response.error?).to be false
 
       data = Legion::JSON.load(response.content.first[:text])

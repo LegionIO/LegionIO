@@ -11,7 +11,7 @@ module Legion
           properties: {
             id: { type: 'integer', description: 'Schedule ID' }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -30,7 +30,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def scheduler_loaded? = defined?(Legion::Extensions::Scheduler)
 
           def text_response(data)

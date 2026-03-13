@@ -10,7 +10,7 @@ module Legion
         input_schema(
           properties: {
             runner: {
-              type: 'string',
+              type:        'string',
               description: 'Dot notation path: extension.runner (e.g., "http.request"). Omit to list all.'
             }
           }
@@ -40,7 +40,7 @@ module Legion
             runners = Legion::Data::Model::Runner.all
             matching = runners.select do |r|
               ns = r.values[:namespace]&.downcase
-              ns&.include?(parts[0]) && ns&.include?(parts[1])
+              ns&.include?(parts[0]) && ns.include?(parts[1])
             end
 
             return error_response("No runner found matching '#{runner}'") if matching.empty?
@@ -48,7 +48,7 @@ module Legion
             results = matching.map do |r|
               functions = Legion::Data::Model::Function.where(runner_id: r.values[:id]).all
               {
-                runner: r.values[:namespace],
+                runner:    r.values[:namespace],
                 runner_id: r.values[:id],
                 functions: functions.map { |f| { id: f.values[:id], name: f.values[:name] } }
               }
@@ -62,12 +62,12 @@ module Legion
             catalog = extensions.map do |ext|
               runners = Legion::Data::Model::Runner.where(extension_id: ext.values[:id]).all
               {
-                extension: ext.values[:name],
+                extension:    ext.values[:name],
                 extension_id: ext.values[:id],
-                runners: runners.map do |r|
+                runners:      runners.map do |r|
                   functions = Legion::Data::Model::Function.where(runner_id: r.values[:id]).all
                   {
-                    runner: r.values[:namespace],
+                    runner:    r.values[:namespace],
                     runner_id: r.values[:id],
                     functions: functions.map { |f| { id: f.values[:id], name: f.values[:name] } }
                   }

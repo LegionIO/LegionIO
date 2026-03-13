@@ -9,14 +9,14 @@ module Legion
 
         input_schema(
           properties: {
-            id: { type: 'integer', description: 'Schedule ID' },
-            cron: { type: 'string', description: 'New cron expression' },
-            interval: { type: 'integer', description: 'New interval in seconds' },
-            active: { type: 'boolean', description: 'Active status' },
+            id:          { type: 'integer', description: 'Schedule ID' },
+            cron:        { type: 'string', description: 'New cron expression' },
+            interval:    { type: 'integer', description: 'New interval in seconds' },
+            active:      { type: 'boolean', description: 'Active status' },
             function_id: { type: 'integer', description: 'New function ID' },
-            payload: { type: 'object', description: 'New payload', additionalProperties: true }
+            payload:     { type: 'object', description: 'New payload', additionalProperties: true }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -43,7 +43,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def scheduler_loaded? = defined?(Legion::Extensions::Scheduler)
 
           def text_response(data)

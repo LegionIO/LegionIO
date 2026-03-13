@@ -32,7 +32,7 @@ module Legion
 
         app = build_rack_app(transport)
 
-        $stderr.puts "Legion MCP server listening on http://#{options[:host]}:#{options[:port]}"
+        warn "Legion MCP server listening on http://#{options[:host]}:#{options[:port]}"
         Rackup::Handler.get('puma').run(app, Port: options[:port], Host: options[:host])
       end
 

@@ -9,10 +9,10 @@ module Legion
 
         input_schema(
           properties: {
-            id: { type: 'integer', description: 'Chain ID' },
+            id:   { type: 'integer', description: 'Chain ID' },
             name: { type: 'string', description: 'New chain name' }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -32,7 +32,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def chain_model? = Legion::Data::Model.const_defined?(:Chain)
 
           def text_response(data)

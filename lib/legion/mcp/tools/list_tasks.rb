@@ -9,9 +9,9 @@ module Legion
 
         input_schema(
           properties: {
-            status: { type: 'string', description: 'Filter by task status' },
+            status:      { type: 'string', description: 'Filter by task status' },
             function_id: { type: 'integer', description: 'Filter by function ID' },
-            limit: { type: 'integer', description: 'Max results (default 25, max 100)' }
+            limit:       { type: 'integer', description: 'Max results (default 25, max 100)' }
           }
         )
 
@@ -19,7 +19,7 @@ module Legion
           def call(status: nil, function_id: nil, limit: 25)
             return error_response('legion-data is not connected') unless data_connected?
 
-            limit = [[limit.to_i, 1].max, 100].min
+            limit = limit.to_i.clamp(1, 100)
             dataset = Legion::Data::Model::Task.order(Sequel.desc(:id))
             dataset = dataset.where(status: status) if status
             dataset = dataset.where(function_id: function_id.to_i) if function_id
@@ -30,7 +30,11 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
 
           def text_response(data)
             ::MCP::Tool::Response.new([{ type: 'text', text: Legion::JSON.dump(data) }])

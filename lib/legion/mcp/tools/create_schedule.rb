@@ -10,12 +10,12 @@ module Legion
         input_schema(
           properties: {
             function_id: { type: 'integer', description: 'Function ID to schedule' },
-            cron: { type: 'string', description: 'Cron expression (e.g., "*/5 * * * *")' },
-            interval: { type: 'integer', description: 'Interval in seconds' },
-            active: { type: 'boolean', description: 'Whether schedule is active (default true)' },
-            payload: { type: 'object', description: 'Payload to pass to the function', additionalProperties: true }
+            cron:        { type: 'string', description: 'Cron expression (e.g., "*/5 * * * *")' },
+            interval:    { type: 'integer', description: 'Interval in seconds' },
+            active:      { type: 'boolean', description: 'Whether schedule is active (default true)' },
+            payload:     { type: 'object', description: 'Payload to pass to the function', additionalProperties: true }
           },
-          required: ['function_id']
+          required:   ['function_id']
         )
 
         class << self
@@ -42,7 +42,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def scheduler_loaded? = defined?(Legion::Extensions::Scheduler)
 
           def text_response(data)

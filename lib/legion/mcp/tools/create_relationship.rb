@@ -10,9 +10,9 @@ module Legion
         input_schema(
           properties: {
             trigger_function_id: { type: 'integer', description: 'Function ID that triggers this relationship' },
-            target_function_id: { type: 'integer', description: 'Function ID to be triggered' }
+            target_function_id:  { type: 'integer', description: 'Function ID to be triggered' }
           },
-          required: %w[trigger_function_id target_function_id]
+          required:   %w[trigger_function_id target_function_id]
         )
 
         class << self
@@ -29,7 +29,12 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
+
           def relationship_model? = Legion::Data::Model.const_defined?(:Relationship)
 
           def text_response(data)

@@ -11,7 +11,7 @@ module Legion
           properties: {
             id: { type: 'integer', description: 'Extension ID' }
           },
-          required: ['id']
+          required:   ['id']
         )
 
         class << self
@@ -30,7 +30,11 @@ module Legion
 
           private
 
-          def data_connected? = (Legion::Settings[:data][:connected] rescue false)
+          def data_connected?
+            Legion::Settings[:data][:connected]
+          rescue StandardError
+            false
+          end
 
           def text_response(data)
             ::MCP::Tool::Response.new([{ type: 'text', text: Legion::JSON.dump(data) }])
