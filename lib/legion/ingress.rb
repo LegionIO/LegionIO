@@ -25,10 +25,11 @@ module Legion
 
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
-      def run(payload:, runner_class: nil, function: nil, source: 'unknown',
-              check_subtask: true, generate_task: true, **)
+      def run(payload:, runner_class: nil, function: nil, source: 'unknown', **opts)
+        check_subtask = opts.fetch(:check_subtask, true)
+        generate_task = opts.fetch(:generate_task, true)
         message = normalize(payload: payload, runner_class: runner_class,
-                            function: function, source: source, **)
+                            function: function, source: source, **opts.except(:check_subtask, :generate_task))
 
         rc = message.delete(:runner_class)
         fn = message.delete(:function)

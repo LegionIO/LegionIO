@@ -31,20 +31,20 @@
 ## In Progress
 
 ### Change: Fix and Clean
-- [ ] Add `frozen_string_literal: true` to all Ruby files (core gems + core LEXs)
-- [ ] Update Dockerfile (`ruby:3.4-alpine`, `--yjit` instead of `--jit`)
+- [x] Add `frozen_string_literal: true` to all Ruby files (already done via rubocop -A)
+- [x] Update Dockerfile (`ruby:3.4-alpine`, `--yjit` instead of `--jit`)
 
-### Bugs: legion-transport (from protocol spec review)
-- [ ] `app_id` and `user_id` defined but not passed to `publish()` call
-- [ ] `correlation_id` always returns nil (should link subtasks to parent task_id)
-- [ ] Duplicate `LexRegister` class in `messages/extension.rb` and `messages/lex_register.rb` (remove `extension.rb`)
-- [ ] Header `.to_s` stringification overwrites typed JSON body values on consumer merge
-- [ ] Task routing_key has redundant fallbacks (`function`, `function_name`, `name`) - consolidate to `function`
-- [ ] Payload leaks transport metadata (filter `@options` to separate envelope from business data)
-- [ ] DLX exchanges declared in queue args but never created (rejected messages silently dropped)
-- [ ] `NodeCrypt#queue_name` returns `'node.status'` (copy-paste bug, should be `'node.crypt'`)
-- [ ] Priority always 0 despite queues supporting 0-255 (allow per-message priority via options)
-- [ ] No per-message encryption control (only global toggle, need per-message option)
+### Bugs: legion-transport (from protocol spec review) - ALL FIXED
+- [x] `app_id` and `correlation_id` now passed to `publish()` call; `app_id` method fixed
+- [x] `correlation_id` derives from `parent_id` or `task_id` (links subtasks to parent)
+- [x] Duplicate `LexRegister` removed (`messages/extension.rb` deleted)
+- [x] Header values preserve native types (Integer, Float, Boolean); only others get `.to_s`
+- [x] Task routing_key consolidated to `function` only (removed `function_name`/`name` fallbacks)
+- [x] Base `message` method filters `ENVELOPE_KEYS` from payload
+- [x] DLX exchanges auto-declared via `ensure_dlx` before queue creation
+- [x] `NodeCrypt#queue_name` fixed: `'node.crypt'` (was `'node.status'`)
+- [x] Priority reads from `@options[:priority]` then settings, falls back to 0
+- [x] Per-message `encrypt:` option overrides global toggle
 
 ### Add: New Functionality
 

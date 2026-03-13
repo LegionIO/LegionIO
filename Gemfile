@@ -11,3 +11,4 @@ group :test do
   gem 'rubocop-rspec'
   gem 'simplecov'
 end
+gem 'legion-data'

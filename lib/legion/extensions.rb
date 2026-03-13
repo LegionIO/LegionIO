@@ -58,7 +58,14 @@ module Legion
           @loaded_extensions.push(extension)
           sleep(0.1)
         end
-        Legion::Logging.info "#{@extensions.count} extensions loaded with subscription:#{@subscription_tasks.count},every:#{@timer_tasks.count},poll:#{@poll_tasks.count},once:#{@once_tasks.count},loop:#{@loop_tasks.count}"
+        Legion::Logging.info(
+          "#{@extensions.count} extensions loaded with " \
+          "subscription:#{@subscription_tasks.count}," \
+          "every:#{@timer_tasks.count}," \
+          "poll:#{@poll_tasks.count}," \
+          "once:#{@once_tasks.count}," \
+          "loop:#{@loop_tasks.count}"
+        )
       end
 
       def load_extension(extension, values) # rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity, Metrics/AbcSize

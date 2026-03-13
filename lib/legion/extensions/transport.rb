@@ -141,7 +141,8 @@ module Legion
       end
 
       def e_to_q
-        [] if !@exchanges.count != 1
+        return [] if @exchanges.count != 1
+
         @queues.map do |queue|
           { from: @exchanges.first, to: queue, routing_key: queue }
         end

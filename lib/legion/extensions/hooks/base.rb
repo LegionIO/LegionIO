@@ -126,11 +126,11 @@ module Legion
           find_setting(secret_name)
         end
 
-        def secure_compare(a, b)
-          return false if a.nil? || b.nil?
-          return false if a.bytesize != b.bytesize
+        def secure_compare(left, right)
+          return false if left.nil? || right.nil?
+          return false if left.bytesize != right.bytesize
 
-          a.bytes.zip(b.bytes).reduce(0) { |acc, (x, y)| acc | (x ^ y) }.zero?
+          left.bytes.zip(right.bytes).reduce(0) { |acc, (x, y)| acc | (x ^ y) }.zero?
         end
       end
     end
