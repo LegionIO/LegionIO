@@ -65,6 +65,11 @@
   - [ ] lex-scheduler (cron parsing, interval, distributed lock)
   - [ ] lex-node (node identity registration)
   - [ ] lex-tasker (task management)
+- [ ] Standalone Client pattern for LEX gems
+  - [ ] Document Client class convention in lex_gen template
+  - [ ] Refactor runner methods to accept config as keyword args (not read from `settings` directly)
+  - [ ] Add Client class to key LEXs: lex-http, lex-redis, lex-slack, lex-ssh
+  - [ ] Update remaining LEXs incrementally
 - [ ] CLI: schedule management commands
   - [ ] `legion schedule list`
   - [ ] `legion schedule add`
