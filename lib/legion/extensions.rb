@@ -106,6 +106,7 @@ module Legion
           hook_actor(**actor)
         end
         extension.log.info "Loaded v#{extension::VERSION}"
+        Legion::Events.emit('extension.loaded', name: values[:extension_name], version: values[:version])
       rescue StandardError => e
         Legion::Logging.error e.message
         Legion::Logging.error e.backtrace

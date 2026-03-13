@@ -43,6 +43,8 @@ module Legion
       raise e unless catch_exceptions
     ensure
       status = 'task.completed' if status.nil?
+      Legion::Events.emit("task.#{status == 'task.completed' ? 'completed' : 'failed'}",
+                          task_id: task_id, runner_class: runner_class.to_s, function: function, status: status)
       Legion::Runner::Status.update(task_id: task_id, status: status) unless task_id.nil?
       if check_subtask && status == 'task.completed'
         Legion::Transport::Messages::CheckSubtask.new(runner_class:  runner_class,

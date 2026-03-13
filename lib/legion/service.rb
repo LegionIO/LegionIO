@@ -42,6 +42,7 @@ module Legion
 
       Legion::Crypt.cs if crypt
       Legion::Settings[:client][:ready] = true
+      Legion::Events.emit('service.ready')
     end
 
     def setup_data
@@ -101,6 +102,7 @@ module Legion
       Legion::Logging.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
+      Legion::Events.emit('service.shutting_down')
 
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
@@ -118,6 +120,7 @@ module Legion
       Legion::Readiness.mark_not_ready(:crypt)
 
       Legion::Settings[:client][:ready] = false
+      Legion::Events.emit('service.shutdown')
     end
 
     def reload
@@ -158,6 +161,7 @@ module Legion
 
       Legion::Crypt.cs
       Legion::Settings[:client][:ready] = true
+      Legion::Events.emit('service.ready')
       Legion::Logging.info 'Legion has been reloaded'
     end
 
