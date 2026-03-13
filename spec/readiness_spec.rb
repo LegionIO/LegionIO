@@ -1,0 +1,102 @@
+# frozen_string_literal: true
+
+require 'spec_helper'
+require 'legion/readiness'
+
+RSpec.describe Legion::Readiness do
+  before { described_class.reset }
+  after { described_class.reset }
+
+  describe 'COMPONENTS' do
+    it 'includes expected component symbols' do
+      expect(described_class::COMPONENTS).to include(:settings, :crypt, :transport, :cache, :data, :extensions, :api)
+    end
+
+    it 'is frozen' do
+      expect(described_class::COMPONENTS).to be_frozen
+    end
+  end
+
+  describe 'DRAIN_TIMEOUT' do
+    it 'is 5' do
+      expect(described_class::DRAIN_TIMEOUT).to eq(5)
+    end
+  end
+
+  describe '.mark_ready' do
+    it 'marks a component as ready' do
+      described_class.mark_ready(:settings)
+      expect(described_class.ready?(:settings)).to eq(true)
+    end
+  end
+
+  describe '.mark_not_ready' do
+    it 'marks a component as not ready' do
+      described_class.mark_ready(:settings)
+      described_class.mark_not_ready(:settings)
+      expect(described_class.ready?(:settings)).to eq(false)
+    end
+  end
+
+  describe '.ready?' do
+    it 'returns false for unmarked components' do
+      expect(described_class.ready?(:settings)).to eq(false)
+    end
+
+    it 'returns true when a specific component is marked ready' do
+      described_class.mark_ready(:cache)
+      expect(described_class.ready?(:cache)).to eq(true)
+    end
+
+    it 'returns false when called without args and not all components are ready' do
+      described_class.mark_ready(:settings)
+      expect(described_class.ready?).to eq(false)
+    end
+
+    it 'returns true when all components are ready' do
+      described_class::COMPONENTS.each { |c| described_class.mark_ready(c) }
+      expect(described_class.ready?).to eq(true)
+    end
+  end
+
+  describe '.reset' do
+    it 'clears all component status' do
+      described_class.mark_ready(:settings)
+      described_class.mark_ready(:cache)
+      described_class.reset
+      expect(described_class.ready?(:settings)).to eq(false)
+      expect(described_class.ready?(:cache)).to eq(false)
+    end
+  end
+
+  describe '.to_h' do
+    it 'returns a hash with all components' do
+      result = described_class.to_h
+      expect(result).to be_a(Hash)
+      described_class::COMPONENTS.each do |c|
+        expect(result).to have_key(c)
+      end
+    end
+
+    it 'returns boolean values' do
+      described_class.mark_ready(:settings)
+      result = described_class.to_h
+      expect(result[:settings]).to eq(true)
+      expect(result[:cache]).to eq(false)
+    end
+  end
+
+  describe '.status' do
+    it 'returns a hash' do
+      expect(described_class.status).to be_a(Hash)
+    end
+  end
+
+  describe '.wait_until_not_ready' do
+    it 'returns immediately when components are already not ready' do
+      start = Time.now
+      described_class.wait_until_not_ready(:settings, timeout: 1)
+      expect(Time.now - start).to be < 1
+    end
+  end
+end
