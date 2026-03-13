@@ -17,14 +17,13 @@ module Legion
       def self.update_rmq(task_id:, status: 'task.completed', **)
         return if status.nil?
 
+        retries = 0
         Legion::Transport::Messages::TaskUpdate.new(task_id: task_id, status: status, **).publish
       rescue StandardError => e
-        Legion::Logging.fatal e.message
+        retries += 1
+        Legion::Logging.fatal "#{e.message} (attempt #{retries}/3)"
         Legion::Logging.fatal e.backtrace
-        retries ||= 0
-        Legion::Logging.fatal 'Will retry in 3 seconds' if retries < 5
-        sleep(3)
-        retry if (retries += 1) < 5
+        retry if retries < 3
       end
 
       def self.update_db(task_id:, status: 'task.completed', **)

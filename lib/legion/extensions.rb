@@ -56,7 +56,6 @@ module Legion
             next
           end
           @loaded_extensions.push(extension)
-          sleep(0.1)
         end
         Legion::Logging.info(
           "#{@extensions.count} extensions loaded with " \

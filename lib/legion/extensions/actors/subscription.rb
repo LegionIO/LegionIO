@@ -101,7 +101,7 @@ module Legion
         end
 
         def subscribe
-          sleep(delay_start)
+          sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
           on_cancellation = block { cancel }
 
