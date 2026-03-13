@@ -8,7 +8,7 @@ module Legion
       # Use Legion::JSON if available, fall back to stdlib
       def self.encode_json(data)
         if defined?(Legion::JSON) && Legion::JSON.respond_to?(:dump)
-          Output.encode_json(data)
+          Legion::JSON.dump(data)
         else
           JSON.pretty_generate(data)
         end
