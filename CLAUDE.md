@@ -1,14 +1,13 @@
 # LegionIO: Async Job Engine and Task Framework
 
 **Repository Level 3 Documentation**
-- **Category**: `/Users/miverso2/rubymine/arc/CLAUDE.md`
-- **Workspace**: `/Users/miverso2/rubymine/CLAUDE.md`
+- **Parent**: `/Users/miverso2/rubymine/legion/CLAUDE.md`
 
 ## Purpose
 
 The primary gem for the LegionIO framework. An extensible async job engine for scheduling tasks, creating relationships between services, and running them concurrently via RabbitMQ. Orchestrates all `legion-*` gems and loads Legion Extensions (LEXs).
 
-**GitHub**: https://github.com/Optum/LegionIO
+**GitHub**: https://github.com/LegionIO/LegionIO
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 
@@ -60,6 +59,18 @@ Legion (lib/legion.rb)
 │   │   ├── Migrator   # Extension-specific migrations
 │   │   └── Model      # Extension-specific models
 │   └── Transport      # Extension transport setup
+│
+├── Events             # In-process pub/sub event bus
+│                      # Lifecycle: service.ready, service.shutting_down, extension.loaded
+│                      # Runner: task.completed, task.failed
+│
+├── Ingress            # Transport abstraction layer
+│                      # Source-agnostic entry point for runner invocation
+│                      # AMQP subscription, HTTP adapter (webhooks/API)
+│
+├── API (Sinatra)      # Webhook HTTP API (Legion::API)
+│
+├── Readiness          # Startup readiness tracking (replaced sleep hacks)
 │
 ├── Runner             # Task execution engine
 │   ├── Log            # Task logging
@@ -156,8 +167,13 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/process.rb` | Daemon lifecycle, PID, signals |
 | `lib/legion/extensions.rb` | LEX discovery and loading |
 | `lib/legion/extensions/actors/` | Actor types (every, loop, once, poll, subscription) |
-| `lib/legion/extensions/builders/` | Build actors and runners from LEX definitions |
+| `lib/legion/extensions/builders/` | Build actors, runners, and hooks from LEX definitions |
+| `lib/legion/extensions/hooks/base.rb` | Webhook hook system base class |
 | `lib/legion/extensions/helpers/` | Helper mixins for extensions |
+| `lib/legion/events.rb` | In-process pub/sub event bus |
+| `lib/legion/ingress.rb` | Transport abstraction (source-agnostic runner invocation) |
+| `lib/legion/api.rb` | Sinatra webhook HTTP API |
+| `lib/legion/readiness.rb` | Startup readiness tracking |
 | `lib/legion/runner.rb` | Task execution engine |
 | `lib/legion/cli.rb` | Thor CLI (legion command) |
 | `lib/legion/lex.rb` | LEX gem discovery |
