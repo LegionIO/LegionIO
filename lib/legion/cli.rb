@@ -15,6 +15,7 @@ module Legion
     autoload :Chain,    'legion/cli/chain_command'
     autoload :Config,   'legion/cli/config_command'
     autoload :Generate, 'legion/cli/generate_command'
+    autoload :Check,    'legion/cli/check_command'
     autoload :Mcp,      'legion/cli/mcp_command'
 
     class Main < Thor
@@ -90,6 +91,22 @@ module Legion
       desc 'status', 'Show running service status'
       def status
         Legion::CLI::Status.run(formatter, options)
+      end
+
+      desc 'check', 'Verify Legion can start successfully'
+      long_desc <<~DESC
+        Smoke-test Legion subsystem connectivity. Tries each subsystem,
+        reports pass/fail, then shuts down.
+
+        Default: check settings, crypt, transport, cache, data connections.
+        --extensions: also load and wire up all LEX gems.
+        --full: full boot cycle including API server.
+      DESC
+      option :extensions, type: :boolean, default: false, desc: 'Also load extensions'
+      option :full, type: :boolean, default: false, desc: 'Full boot cycle (extensions + API)'
+      def check
+        exit_code = Legion::CLI::Check.run(formatter, options)
+        exit(exit_code) if exit_code != 0
       end
 
       desc 'lex SUBCOMMAND', 'Manage Legion extensions (LEXs)'
