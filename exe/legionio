@@ -1,53 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-$LOAD_PATH << File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+# Legacy entry point - delegates to `legion start`
+# Kept for backward compatibility with existing deployments.
 
-require 'optparse'
-options = { action: :run }
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
-daemonize_help = 'run daemonized in the background (default: false)'
-pidfile_help   = 'the pid filename'
-logfile_help   = 'the log filename'
-include_help   = 'an additional $LOAD_PATH (may be used more than once)'
-debug_help     = 'set $DEBUG to true'
-warn_help      = 'enable warnings'
-time_help      = 'only run legion for X seconds'
-
-op = OptionParser.new
-op.banner =  'An example of how to daemonize a long running Ruby process.'
-op.separator ''
-op.separator 'Usage: server [options]'
-op.separator ''
-
-op.separator ''
-op.separator 'Process options:'
-op.on('-d', '--daemonize',   daemonize_help) {         options[:daemonize] = true  }
-op.on('-p', '--pid PIDFILE', pidfile_help)   { |value| options[:pidfile]   = value }
-op.on('-l', '--log LOGFILE', logfile_help)   { |value| options[:logfile]   = value }
-op.on('-t', '--time 10', time_help)          { |value| options[:time_limit] = value }
-
-op.separator ''
-op.separator 'Ruby options:'
-op.on('-I', '--include PATH', include_help) do |value|
-  $LOAD_PATH.unshift(*value.split(':').map do |v|
-                       File.expand_path(v)
-                     end)
-end
-op.on('--debug',        debug_help)   { $DEBUG = true }
-op.on('--warn',         warn_help)    { $-w = true    }
-
-op.separator ''
-op.separator 'Common options:'
-op.on('-h', '--help')    { options[:action] = :help    }
-op.on('-v', '--version') { options[:action] = :version }
-
-op.separator ''
-op.parse!(ARGV)
-
-unless options[:action] == :help
-  require 'legion'
-  Legion.start
-  require 'legion/process'
-  Legion::Process.new(options).run!
-end
+require 'legion/cli'
+Legion::CLI::Main.start(['start'] + ARGV)
