@@ -25,7 +25,7 @@ RSpec.describe 'Settings API' do
       get '/api/settings/client'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:data]['key']).to eq('client')
+      expect(body[:data][:key]).to eq('client')
     end
 
     it 'returns 404 for unknown setting' do

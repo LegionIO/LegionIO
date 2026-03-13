@@ -18,7 +18,7 @@ RSpec.describe Legion::API::Helpers do
       expect(body).to have_key(:data)
       expect(body).to have_key(:meta)
       expect(body[:meta]).to have_key(:timestamp)
-      expect(body[:meta]['node']).to eq('test-node')
+      expect(body[:meta][:node]).to eq('test-node')
     end
   end
 
@@ -27,7 +27,7 @@ RSpec.describe Legion::API::Helpers do
       get '/api/nonexistent'
       expect(last_response.status).to eq(404)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['code']).to eq('not_found')
+      expect(body[:error][:code]).to eq('not_found')
     end
   end
 
@@ -36,7 +36,7 @@ RSpec.describe Legion::API::Helpers do
       get '/api/tasks'
       expect(last_response.status).to eq(503)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['code']).to eq('data_unavailable')
+      expect(body[:error][:code]).to eq('data_unavailable')
     end
   end
 end

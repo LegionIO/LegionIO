@@ -46,14 +46,14 @@ RSpec.describe 'Transport API' do
       post '/api/transport/publish', Legion::JSON.dump({ routing_key: 'test' }), 'CONTENT_TYPE' => 'application/json'
       expect(last_response.status).to eq(422)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['message']).to include('exchange')
+      expect(body[:error][:message]).to include('exchange')
     end
 
     it 'requires routing_key field' do
       post '/api/transport/publish', Legion::JSON.dump({ exchange: 'test' }), 'CONTENT_TYPE' => 'application/json'
       expect(last_response.status).to eq(422)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['message']).to include('routing_key')
+      expect(body[:error][:message]).to include('routing_key')
     end
   end
 end

@@ -36,22 +36,6 @@ module Legion
           end
         end
 
-        private
-
-        def redact_hash(hash)
-          return hash unless hash.is_a?(Hash)
-
-          hash.each_with_object({}) do |(k, v), result|
-            key_sym = k.to_sym
-            result[k] = if v.is_a?(Hash)
-                          redact_hash(v)
-                        elsif SENSITIVE_KEYS.any? { |s| key_sym.to_s.include?(s.to_s) }
-                          '[REDACTED]'
-                        else
-                          v
-                        end
-          end
-        end
       end
     end
   end

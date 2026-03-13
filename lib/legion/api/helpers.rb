@@ -67,6 +67,21 @@ module Legion
         record
       end
 
+      def redact_hash(hash, sensitive_keys: %i[password secret token key cert private_key api_key])
+        return hash unless hash.is_a?(Hash)
+
+        hash.each_with_object({}) do |(k, v), result|
+          key_sym = k.to_sym
+          result[k] = if v.is_a?(Hash)
+                        redact_hash(v, sensitive_keys: sensitive_keys)
+                      elsif sensitive_keys.any? { |s| key_sym.to_s.include?(s.to_s) }
+                        '[REDACTED]'
+                      else
+                        v
+                      end
+        end
+      end
+
       private
 
       def response_meta

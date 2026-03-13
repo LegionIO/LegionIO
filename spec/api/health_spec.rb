@@ -16,8 +16,8 @@ RSpec.describe 'Health and Readiness API' do
       get '/api/health'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:data]['status']).to eq('ok')
-      expect(body[:data]['version']).to eq(Legion::VERSION)
+      expect(body[:data][:status]).to eq('ok')
+      expect(body[:data][:version]).to eq(Legion::VERSION)
     end
   end
 

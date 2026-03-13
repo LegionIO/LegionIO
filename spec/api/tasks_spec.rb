@@ -23,14 +23,14 @@ RSpec.describe 'Tasks API' do
       post '/api/tasks', Legion::JSON.dump({ function: 'test' }), 'CONTENT_TYPE' => 'application/json'
       expect(last_response.status).to eq(422)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['code']).to eq('missing_field')
+      expect(body[:error][:code]).to eq('missing_field')
     end
 
     it 'returns 422 when function is missing' do
       post '/api/tasks', Legion::JSON.dump({ runner_class: 'SomeRunner' }), 'CONTENT_TYPE' => 'application/json'
       expect(last_response.status).to eq(422)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error]['code']).to eq('missing_field')
+      expect(body[:error][:code]).to eq('missing_field')
     end
   end
 
