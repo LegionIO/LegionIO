@@ -3,7 +3,6 @@
 require 'spec_helper'
 require 'legion/events'
 
-# rubocop:disable Metrics/BlockLength
 RSpec.describe Legion::Events do
   before { described_class.clear }
   after { described_class.clear }
@@ -118,4 +117,3 @@ RSpec.describe Legion::Events do
     end
   end
 end
-# rubocop:enable Metrics/BlockLength
