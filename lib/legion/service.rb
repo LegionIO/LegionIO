@@ -29,12 +29,6 @@ module Legion
     end
 
     def setup_data
-      if RUBY_ENGINE == 'truffleruby'
-        Legion::Logging.error 'Legion::Data does not support truffleruby, please use MRI for any LEX that require it '
-        Legion::Settings[:data][:connected] = false
-        return false
-      end
-
       require 'legion/data'
       Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
       Legion::Data.setup
