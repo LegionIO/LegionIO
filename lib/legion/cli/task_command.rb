@@ -108,7 +108,7 @@ module Legion
         end
       end
 
-      desc 'run FUNCTION', 'Trigger a task directly'
+      desc 'trigger FUNCTION', 'Trigger a task directly'
       long_desc <<~DESC
         Run a function directly by specifying it as extension.runner.function
         or interactively select from available options.
@@ -122,7 +122,8 @@ module Legion
       option :runner, type: :string, aliases: ['-r'], desc: 'Runner name'
       option :function, type: :string, aliases: ['-f'], desc: 'Function name'
       option :delay, type: :numeric, default: 0, desc: 'Delay execution by N seconds'
-      def run(function_spec = nil, *args)
+      map 'run' => :trigger
+      def trigger(function_spec = nil, *args)
         out = formatter
         with_data do
           with_transport do
