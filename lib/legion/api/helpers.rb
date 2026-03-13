@@ -82,6 +82,37 @@ module Legion
         end
       end
 
+      def transport_subclasses(base_class)
+        ObjectSpace.each_object(Class)
+                   .select { |klass| klass < base_class }
+                   .map { |klass| { name: klass.name } }
+                   .sort_by { |h| h[:name].to_s }
+      rescue NameError
+        []
+      end
+
+      def build_schedule_attrs(body)
+        attrs = { function_id: body[:function_id].to_i, active: body.fetch(:active, true), last_run: Time.at(0) }
+        attrs[:cron] = body[:cron] if body[:cron]
+        attrs[:interval] = body[:interval].to_i if body[:interval]
+        attrs[:task_ttl] = body[:task_ttl].to_i if body[:task_ttl]
+        attrs[:payload] = Legion::JSON.dump(body[:payload] || {})
+        attrs[:transformation] = body[:transformation] if body[:transformation]
+        attrs
+      end
+
+      def build_schedule_updates(body)
+        updates = {}
+        updates[:cron] = body[:cron] if body.key?(:cron)
+        updates[:interval] = body[:interval].to_i if body.key?(:interval)
+        updates[:active] = body[:active] if body.key?(:active)
+        updates[:task_ttl] = body[:task_ttl].to_i if body.key?(:task_ttl)
+        updates[:function_id] = body[:function_id].to_i if body.key?(:function_id)
+        updates[:payload] = Legion::JSON.dump(body[:payload]) if body.key?(:payload)
+        updates[:transformation] = body[:transformation] if body.key?(:transformation)
+        updates
+      end
+
       private
 
       def response_meta

@@ -35,7 +35,6 @@ module Legion
             json_response({ key: key, value: body[:value] })
           end
         end
-
       end
     end
   end

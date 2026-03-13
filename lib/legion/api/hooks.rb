@@ -5,19 +5,24 @@ module Legion
     module Routes
       module Hooks
         def self.registered(app)
+          register_list(app)
+          register_trigger(app)
+        end
+
+        def self.register_list(app)
           app.get '/api/hooks' do
             hooks = Legion::API.registered_hooks.map do |h|
               {
-                lex_name:       h[:lex_name],
-                hook_name:      h[:hook_name],
-                hook_class:     h[:hook_class].to_s,
-                default_runner: h[:default_runner].to_s,
-                endpoint:       "/api/hooks/#{h[:lex_name]}/#{h[:hook_name]}"
+                lex_name: h[:lex_name], hook_name: h[:hook_name],
+                hook_class: h[:hook_class].to_s, default_runner: h[:default_runner].to_s,
+                endpoint: "/api/hooks/#{h[:lex_name]}/#{h[:hook_name]}"
               }
             end
             json_response(hooks)
           end
+        end
 
+        def self.register_trigger(app)
           app.post '/api/hooks/:lex_name/?:hook_name?' do
             content_type :json
             lex_name = params[:lex_name].downcase
@@ -39,20 +44,20 @@ module Legion
             halt 500, json_error('no_runner', 'no runner class configured for this hook', status_code: 500) if runner.nil?
 
             result = Legion::Ingress.run(
-              payload:       payload,
-              runner_class:  runner,
-              function:      function,
-              source:        'webhook',
-              check_subtask: true,
-              generate_task: true
+              payload: payload, runner_class: runner, function: function,
+              source: 'webhook', check_subtask: true, generate_task: true
             )
 
-            json_response({ task_id: result[:task_id], status: result[:status] }, status_code: 200)
+            json_response({ task_id: result[:task_id], status: result[:status] })
           rescue StandardError => e
             Legion::Logging.error "Hook error: #{e.message}"
             Legion::Logging.error e.backtrace&.first(5)
             json_error('internal_error', e.message, status_code: 500)
           end
+        end
+
+        class << self
+          private :register_list, :register_trigger
         end
       end
     end
