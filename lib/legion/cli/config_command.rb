@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'config_scaffold'
+
 module Legion
   module CLI
     class Config < Thor
@@ -144,6 +146,24 @@ module Legion
           out.error("Configuration has #{issues.size} issue(s)")
           raise SystemExit, 1
         end
+      end
+
+      desc 'scaffold', 'Generate starter config files for each subsystem'
+      long_desc <<~DESC
+        Generates JSON config files for LegionIO subsystems (transport, data, cache,
+        crypt, logging, llm). Files are written to --dir (default: ./settings/).
+
+        By default, generates minimal starter files with only the most commonly
+        changed fields. Use --full for the complete schema with all defaults.
+      DESC
+      option :dir, type: :string, default: './settings', desc: 'Output directory'
+      option :only, type: :string, desc: 'Comma-separated subsystems (transport,data,cache,crypt,logging,llm)'
+      option :full, type: :boolean, default: false, desc: 'Include all fields with defaults'
+      option :force, type: :boolean, default: false, desc: 'Overwrite existing files'
+      def scaffold
+        out = formatter
+        exit_code = ConfigScaffold.run(out, options)
+        raise SystemExit, exit_code if exit_code != 0
       end
 
       no_commands do # rubocop:disable Metrics/BlockLength
