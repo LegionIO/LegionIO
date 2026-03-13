@@ -68,7 +68,36 @@ Legion (lib/legion.rb)
 │                      # Source-agnostic entry point for runner invocation
 │                      # AMQP subscription, HTTP adapter (webhooks/API)
 │
-├── API (Sinatra)      # Webhook HTTP API (Legion::API)
+├── API (Sinatra)      # Full REST API under /api/ prefix
+│   ├── Helpers        # json_response, json_collection, json_error, pagination, redact_hash
+│   ├── Routes/
+│   │   ├── Tasks      # CRUD + trigger via Ingress, task logs
+│   │   ├── Extensions # Nested: extensions/runners/functions + invoke
+│   │   ├── Nodes      # List/show nodes (filterable by active/status)
+│   │   ├── Schedules  # CRUD for lex-scheduler schedules + logs
+│   │   ├── Relationships # Stub (501) - no data model yet
+│   │   ├── Chains     # Stub (501) - no data model yet
+│   │   ├── Settings   # Read/write settings with redaction + readonly guards
+│   │   ├── Events     # SSE stream + polling fallback (ring buffer)
+│   │   ├── Transport  # Connection status, exchanges, queues, publish
+│   │   └── Hooks      # List + trigger registered extension hooks
+│   └── Middleware/
+│       └── Auth       # No-op placeholder (TODO: JWT + API keys)
+│
+├── MCP (mcp gem)      # MCP server for AI agent integration
+│   ├── Server         # MCP::Server factory, tool/resource registration
+│   ├── Tools/         # 24 MCP::Tool subclasses (legion.* namespace)
+│   │   ├── RunTask         # Agentic: dot notation task execution
+│   │   ├── DescribeRunner  # Agentic: runner/function discovery
+│   │   ├── Tasks           # CRUD: list, get, delete, get_logs
+│   │   ├── Chains          # CRUD: list, create, update, delete
+│   │   ├── Relationships   # CRUD: list, create, update, delete
+│   │   ├── Extensions      # list, get, enable, disable
+│   │   ├── Schedules       # CRUD: list, create, update, delete
+│   │   └── System          # get_status, get_config (redacted)
+│   └── Resources/     # MCP Resources (read-only context)
+│       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
+│       └── ExtensionInfo   # legion://extensions/{name} - extension detail
 │
 ├── Readiness          # Startup readiness tracking (replaced sleep hacks)
 │
@@ -87,7 +116,8 @@ Legion (lib/legion.rb)
 │   ├── Task           # Task management: list, show, logs, run (dot notation), purge
 │   ├── Chain          # Chain management: list, create, delete
 │   ├── Config         # Config tools: show (redacted), path, validate
-│   └── Generate       # Code generators: runner, actor, exchange, queue, message
+│   ├── Generate       # Code generators: runner, actor, exchange, queue, message
+│   └── Mcp            # MCP server: stdio (default), http (streamable)
 └── Version
 ```
 
@@ -132,6 +162,10 @@ legion
     exchange <name>                # Add transport exchange
     queue <name>                   # Add transport queue
     message <name>                 # Add transport message
+
+  mcp
+    stdio                          # Start MCP server with stdio transport (default)
+    http [--port 9393] [--host localhost]  # Start MCP server with streamable HTTP
 ```
 
 **Key design decisions:**
@@ -187,6 +221,7 @@ Task A -> [condition check] -> Task B -> [transform] -> Task C
 | `daemons` (>= 1.4) | Process daemonization |
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
+| `mcp` (~> 0.8) | MCP server SDK (Model Context Protocol) |
 | `sinatra` (>= 4.0) | HTTP API framework |
 | `thor` (>= 1.3) | CLI framework |
 
@@ -223,7 +258,19 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/extensions/helpers/` | Helper mixins for extensions |
 | `lib/legion/events.rb` | In-process pub/sub event bus |
 | `lib/legion/ingress.rb` | Transport abstraction (source-agnostic runner invocation) |
-| `lib/legion/api.rb` | Sinatra webhook HTTP API |
+| `lib/legion/api.rb` | Sinatra REST API: base app, health, readiness, error handlers, hook registry |
+| `lib/legion/api/helpers.rb` | Shared helpers: json_response, json_collection, json_error, pagination, redact_hash |
+| `lib/legion/api/tasks.rb` | Tasks routes: list, create (via Ingress), show, delete, logs |
+| `lib/legion/api/extensions.rb` | Extensions routes: nested REST (extensions/runners/functions + invoke) |
+| `lib/legion/api/nodes.rb` | Nodes routes: list (filterable), show |
+| `lib/legion/api/schedules.rb` | Schedules routes: CRUD + logs (requires lex-scheduler) |
+| `lib/legion/api/relationships.rb` | Relationships routes: stub (501, no data model yet) |
+| `lib/legion/api/chains.rb` | Chains routes: stub (501, no data model yet) |
+| `lib/legion/api/settings.rb` | Settings routes: read/write with redaction + readonly guards |
+| `lib/legion/api/events.rb` | Events routes: SSE stream + polling fallback (ring buffer) |
+| `lib/legion/api/transport.rb` | Transport routes: status, exchanges, queues, publish |
+| `lib/legion/api/hooks.rb` | Hooks routes: list registered + trigger via Ingress |
+| `lib/legion/api/middleware/auth.rb` | Auth middleware: no-op placeholder (TODO) |
 | `lib/legion/readiness.rb` | Startup readiness tracking |
 | `lib/legion/runner.rb` | Task execution engine |
 | `lib/legion/supervision.rb` | Process supervision |
@@ -239,6 +286,13 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
 | `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate) |
 | `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
+| `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
+| **MCP Server** | |
+| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` factory |
+| `lib/legion/mcp/server.rb` | MCP::Server builder, tool/resource registration |
+| `lib/legion/mcp/tools/` | 24 MCP::Tool subclasses (legion.* namespace) |
+| `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
+| `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **Legacy CLI (preserved)** | |
 | `lib/legion/lex.rb` | Old `Legion::Cli::LexBuilder` (used by legacy `lex_gen`) |
 | `lib/legion/cli/task.rb` | Old task commands (preserved, not loaded by new CLI) |

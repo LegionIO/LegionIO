@@ -15,6 +15,7 @@ module Legion
     autoload :Chain,    'legion/cli/chain_command'
     autoload :Config,   'legion/cli/config_command'
     autoload :Generate, 'legion/cli/generate_command'
+    autoload :Mcp,      'legion/cli/mcp_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -106,6 +107,9 @@ module Legion
       desc 'generate SUBCOMMAND', 'Code generators for LEX components'
       map 'g' => :generate
       subcommand 'generate', Legion::CLI::Generate
+
+      desc 'mcp SUBCOMMAND', 'Start MCP server for AI agent integration'
+      subcommand 'mcp', Legion::CLI::Mcp
 
       no_commands do
         def formatter
