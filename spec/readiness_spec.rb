@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'legion/readiness'
 
+# rubocop:disable Metrics/BlockLength
 RSpec.describe Legion::Readiness do
   before { described_class.reset }
   after { described_class.reset }
@@ -100,3 +101,4 @@ RSpec.describe Legion::Readiness do
     end
   end
 end
+# rubocop:enable Metrics/BlockLength

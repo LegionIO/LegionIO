@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'legion/ingress'
 
+# rubocop:disable Metrics/BlockLength
 RSpec.describe Legion::Ingress do
   describe '.normalize' do
     it 'normalizes a hash payload' do
@@ -84,3 +85,4 @@ RSpec.describe Legion::Ingress do
     end
   end
 end
+# rubocop:enable Metrics/BlockLength
