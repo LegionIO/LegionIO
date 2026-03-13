@@ -38,6 +38,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'concurrent-ruby-ext', '>= 1.2'
   spec.add_dependency 'daemons', '>= 1.4'
   spec.add_dependency 'oj', '>= 3.16'
+  spec.add_dependency 'puma', '>= 6.0'
+  spec.add_dependency 'sinatra', '>= 4.0'
   spec.add_dependency 'thor', '>= 1.3'
 
   spec.add_dependency 'legion-cache', '>= 0.3'

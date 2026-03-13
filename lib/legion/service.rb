@@ -6,7 +6,7 @@ module Legion
       [Legion::Crypt, Legion::Transport, Legion::Cache, Legion::Data, Legion::Supervision].freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, crypt: true, log_level: 'info') # rubocop:disable Metrics/ParameterLists
+    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, crypt: true, api: true, log_level: 'info') # rubocop:disable Metrics/ParameterLists
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
@@ -41,6 +41,9 @@ module Legion
       end
 
       Legion::Crypt.cs if crypt
+
+      @api_enabled = api
+      setup_api if api
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
     end
@@ -87,6 +90,27 @@ module Legion
       Legion::Logging.setup(log_level: log_level, level: log_level, trace: true)
     end
 
+    def setup_api
+      require 'legion/api'
+      api_settings = Legion::Settings[:api] || {}
+      port = api_settings[:port] || 4567
+      bind = api_settings[:bind] || '0.0.0.0'
+
+      @api_thread = Thread.new do
+        Legion::API.set :port, port
+        Legion::API.set :bind, bind
+        Legion::API.set :server, :puma
+        Legion::API.set :environment, :production
+        Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
+        Legion::API.run!
+      end
+      Legion::Readiness.mark_ready(:api)
+    rescue LoadError => e
+      Legion::Logging.warn "Legion API dependencies not available: #{e.message}"
+    rescue StandardError => e
+      Legion::Logging.warn "Legion API failed to start: #{e.message}"
+    end
+
     def setup_transport
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
@@ -98,11 +122,24 @@ module Legion
       @supervision = Legion::Supervision.setup
     end
 
+    def shutdown_api
+      return unless @api_thread
+
+      Legion::API.quit! if defined?(Legion::API) && Legion::API.running?
+      @api_thread.kill
+      @api_thread = nil
+      Legion::Readiness.mark_not_ready(:api)
+    rescue StandardError => e
+      Legion::Logging.warn "API shutdown error: #{e.message}"
+    end
+
     def shutdown
       Legion::Logging.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
       Legion::Events.emit('service.shutting_down')
+
+      shutdown_api
 
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
@@ -126,6 +163,8 @@ module Legion
     def reload
       Legion::Logging.info 'Legion::Service.reload was called'
       Legion::Settings[:client][:ready] = false
+
+      shutdown_api
 
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
@@ -160,6 +199,7 @@ module Legion
       Legion::Readiness.mark_ready(:extensions)
 
       Legion::Crypt.cs
+      setup_api if @api_enabled
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
       Legion::Logging.info 'Legion has been reloaded'

@@ -1,5 +1,6 @@
 require_relative 'builders/actors'
 require_relative 'builders/helpers'
+require_relative 'builders/hooks'
 require_relative 'builders/runners'
 
 require_relative 'helpers/core'
@@ -17,6 +18,7 @@ require_relative 'actors/once'
 require_relative 'actors/poll'
 require_relative 'actors/subscription'
 require_relative 'actors/nothing'
+require_relative 'hooks/base'
 
 module Legion
   module Extensions
@@ -27,6 +29,7 @@ module Legion
       include Legion::Extensions::Builder::Runners
       include Legion::Extensions::Builder::Helpers
       include Legion::Extensions::Builder::Actors
+      include Legion::Extensions::Builder::Hooks
 
       def autobuild
         @actors = {}
@@ -43,6 +46,8 @@ module Legion
         build_helpers
         build_runners
         build_actors
+        build_hooks
+        register_hooks
       end
 
       def data_required?
@@ -108,6 +113,23 @@ module Legion
 
       def default_settings
         {}
+      end
+
+      def register_hooks
+        return if @hooks.nil? || @hooks.empty?
+        return unless defined?(Legion::API)
+
+        # Find the first runner class as default for hooks that don't specify one
+        default_runner = @runners.values.first&.dig(:runner_class)
+
+        @hooks.each do |_name, hook_info|
+          Legion::API.register_hook(
+            lex_name:       extension_name,
+            hook_name:      hook_info[:hook_name],
+            hook_class:     hook_info[:hook_class],
+            default_runner: hook_info[:hook_class].new.runner_class || default_runner
+          )
+        end
       end
 
       def auto_generate_transport
