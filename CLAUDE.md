@@ -131,6 +131,7 @@ legion
   start [-d] [-p PID] [-t SECS]   # Start daemon (daemonize, PID file, time limit)
   stop [-p PID]                    # Stop running daemon via PID signal
   status                           # Running status + component health (probes API)
+  check [--extensions] [--full]    # Smoke-test subsystem connectivity (3 depth levels)
 
   lex
     list [-a]                      # All extensions with version/status/runners/actors
@@ -177,8 +178,6 @@ legion
 | Executable | Purpose |
 |-----------|---------|
 | `legion` | Unified CLI entry point (`Legion::CLI::Main`) |
-| `legionio` | Legacy wrapper, delegates to `legion start` |
-| `lex_gen` | Legacy wrapper, delegates to `legion lex create` / `legion generate` |
 
 ## Key Design Patterns
 
@@ -236,7 +235,7 @@ Task A -> [condition check] -> Task B -> [transform] -> Task C
 ```dockerfile
 FROM ruby:3-alpine
 RUN gem install legionio
-CMD ruby --jit $(which legionio)
+CMD ruby --yjit $(which legion) start
 ```
 
 **Config Paths** (checked in order):
@@ -281,6 +280,7 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/cli/error.rb` | CLI-specific error class |
 | `lib/legion/cli/start.rb` | `legion start` command (daemon boot) |
 | `lib/legion/cli/status.rb` | `legion status` command (probes API or shows static info) |
+| `lib/legion/cli/check_command.rb` | `legion check` command (smoke-test subsystem connectivity, 3 depth levels) |
 | `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + `LexGenerator` scaffolding class |
 | `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, run, purge) |
 | `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
@@ -294,14 +294,12 @@ CMD ruby --jit $(which legionio)
 | `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
 | `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **Legacy CLI (preserved)** | |
-| `lib/legion/lex.rb` | Old `Legion::Cli::LexBuilder` (used by legacy `lex_gen`) |
+| `lib/legion/lex.rb` | Old `Legion::Cli::LexBuilder` (legacy, unused) |
 | `lib/legion/cli/task.rb` | Old task commands (preserved, not loaded by new CLI) |
 | `lib/legion/cli/trigger.rb` | Old trigger command (preserved, not loaded by new CLI) |
 | `lib/legion/cli/lex/` | Old LEX sub-generators + ERB templates |
 | **Executables** | |
 | `exe/legion` | Unified CLI entry point (`Legion::CLI::Main.start`) |
-| `exe/legionio` | Legacy wrapper, delegates to `legion start` |
-| `exe/lex_gen` | Legacy wrapper, delegates to `legion lex create` / `legion generate` |
 | `Dockerfile` | Docker build |
 | `docker_deploy.rb` | Build + push Docker image |
 

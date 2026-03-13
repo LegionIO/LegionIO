@@ -15,7 +15,7 @@
 - Settings keys: snake_case symbols (`:host`, `:api_key`, `:max_retries`)
 
 ### Dependencies
-- LEX gems should NOT depend on `legionio` — they are loaded by the framework at runtime
+- LEX gems should NOT depend on the `legionio` gem — they are loaded by the framework at runtime
 - Only depend on what you directly use (e.g., `faraday` for HTTP, `redis` for Redis)
 - Use `legion-json` for JSON operations (not `json` or `oj` directly)
 - Put test-only dependencies in the Gemfile, not the gemspec
@@ -238,7 +238,7 @@ Level 3: /legion/{repo}/CLAUDE.md (individual repo)
 
 ## Common Pitfalls
 
-1. **Don't depend on `legionio` in your gemspec** — the framework loads you, not the other way around
+1. **Don't depend on the `legionio` gem in your gemspec** — the framework loads you, not the other way around
 2. **Don't read `settings` inside runner methods** — accept config as keyword args
 3. **Don't forget the `**` splat** — framework metadata will break your method without it
 4. **Don't put test deps in gemspec** — use Gemfile for development dependencies

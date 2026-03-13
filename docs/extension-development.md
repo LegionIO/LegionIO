@@ -99,7 +99,7 @@ Gem::Specification.new do |spec|
 end
 ```
 
-Note: Do NOT add `legionio` as a dependency. LEX gems should only depend on what they directly use. The framework loads them at runtime.
+Note: Do NOT add the `legionio` gem as a dependency. LEX gems should only depend on what they directly use. The framework loads them at runtime.
 
 ## Full Extension Structure
 
@@ -442,7 +442,7 @@ Before publishing a LEX:
 - [ ] `default_settings` defined if extension has configurable options
 - [ ] Client class provided for standalone use
 - [ ] Helpers are pure (explicit args, no global state)
-- [ ] Gemspec does NOT depend on `legionio`
+- [ ] Gemspec does NOT depend on the `legionio` gem
 - [ ] Ruby >= 3.4 in gemspec
 - [ ] `frozen_string_literal: true` in all files
 - [ ] RSpec tests for runner methods

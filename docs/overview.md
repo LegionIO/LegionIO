@@ -235,7 +235,7 @@ settings
 
 **Database backends**: SQLite (development), PostgreSQL, and MySQL are all supported. The adapter is selected via `Legion::Settings[:data][:adapter]` (defaults to `sqlite` if no credentials are configured).
 
-### legionio (v1.2.1)
+### legionio gem (v1.2.1)
 
 The main framework gem. Orchestrates all other gems and provides the extension system.
 
@@ -359,7 +359,7 @@ Thor-based command-line interface:
 | `legion function` | Function queries |
 | `legion cohort` | Cohort management |
 
-**`legionio` command**: Starts the daemon process.
+**`legion start` command**: Starts the daemon process.
 
 ## Task Relationships and Chaining
 
@@ -586,7 +586,7 @@ Extensions read their config from `Legion::Settings[:extensions][:extension_name
 ```dockerfile
 FROM ruby:3-alpine
 RUN gem install legionio
-CMD ruby --jit $(which legionio)
+CMD ruby --yjit $(which legion) start
 ```
 
 ### Systemd
@@ -597,7 +597,7 @@ Description=LegionIO
 After=rabbitmq-server.service mysql.service
 
 [Service]
-ExecStart=/usr/local/bin/legionio
+ExecStart=/usr/local/bin/legion start
 Restart=always
 User=legion
 
@@ -662,4 +662,4 @@ Tracks startup readiness across all modules. Replaces the previous sleep-based a
 
 ## Version History
 
-All core gems are currently at v1.2.0 (legionio at v1.2.1). The framework requires Ruby >= 3.4.
+All core gems are currently at v1.2.0 (the `legionio` gem at v1.2.1). The framework requires Ruby >= 3.4.

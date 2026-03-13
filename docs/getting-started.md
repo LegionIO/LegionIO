@@ -48,19 +48,29 @@ Minimal config (`settings/transport.json`):
 }
 ```
 
-### 3. Start the Daemon
+### 3. Verify Connectivity
+
+Before starting the daemon, verify all subsystems can connect:
 
 ```bash
-legionio
+legion check
+```
+
+This tests settings, crypt, transport (RabbitMQ), cache, and data (DB) connections, then shuts down. Add `--extensions` to also verify extension loading, or `--full` for a complete boot cycle including the API server.
+
+### 4. Start the Daemon
+
+```bash
+legion start
 ```
 
 Or with YJIT (recommended for Ruby 3.4):
 
 ```bash
-ruby --yjit $(which legionio)
+ruby --yjit $(which legion) start
 ```
 
-### 4. Install Extensions
+### 5. Install Extensions
 
 Extensions are auto-discovered from installed gems:
 
@@ -70,7 +80,7 @@ gem install lex-http lex-redis lex-slack
 
 Restart LegionIO and it will automatically load any `lex-*` gems found.
 
-### 5. Send a Task
+### 6. Send a Task
 
 Using the CLI:
 
@@ -102,7 +112,7 @@ Or build your own:
 ```dockerfile
 FROM ruby:3.4-alpine
 RUN gem install legionio lex-http lex-redis
-CMD ruby --yjit $(which legionio)
+CMD ruby --yjit $(which legion) start
 ```
 
 ## Development Mode

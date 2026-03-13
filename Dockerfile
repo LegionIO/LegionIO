@@ -6,4 +6,4 @@ RUN apk update && apk add build-base postgresql-dev mysql-client mariadb-dev tzd
 
 COPY . ./
 RUN gem install legionio tzinfo-data tzinfo --no-document --no-prerelease
-CMD ruby --yjit $(which legionio)
+CMD ruby --yjit $(which legion)

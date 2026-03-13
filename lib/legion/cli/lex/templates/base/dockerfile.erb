@@ -2,4 +2,4 @@ FROM legionio/legion:latest
 LABEL maintainer="Matthew Iverson <matthewdiverson@gmail.com>"
 
 RUN gem install lex-<%= config[:lex] %> legion-data --no-document --no-prerelease
-CMD ruby $(which legionio)
+CMD ruby $(which legion)

@@ -22,11 +22,14 @@ It supports both conditions and transformation. The idea of a transformation is 
 and expect them to know how to talk to each other. 
 
 ### Running
-Run `gem install legionio` to install legion. If you want to use database features, you will need to 
-run `gem install legion-data` also. 
+Run `gem install legionio` to install legion. If you want to use database features, you will need to
+run `gem install legion-data` also.
 
-After installing gem you can use the commands `legionio` to start legion, `legion` to access things
-and `lex_gen` to generate a new legion extension
+After installing the gem, use the `legion` command for everything:
+- `legion start` to start the daemon
+- `legion lex create <name>` to generate a new extension
+- `legion task run` to trigger tasks
+- `legion --help` for all available commands
 
 ### Example Legion Extensions(LEX)
 * [lex-http](https://github.com/LegionIO/lex-http) - Gives legion the ability to make http requests
