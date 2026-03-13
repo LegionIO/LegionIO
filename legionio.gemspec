@@ -34,6 +34,8 @@ Gem::Specification.new do |spec|
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
 
+  spec.add_dependency 'mcp', '~> 0.8'
+
   spec.add_dependency 'concurrent-ruby', '>= 1.2'
   spec.add_dependency 'concurrent-ruby-ext', '>= 1.2'
   spec.add_dependency 'daemons', '>= 1.4'

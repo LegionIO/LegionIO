@@ -2,70 +2,76 @@
 
 require 'sinatra/base'
 require 'legion/json'
+require_relative 'events'
+require_relative 'readiness'
+
+require_relative 'api/helpers'
+require_relative 'api/tasks'
+require_relative 'api/extensions'
+require_relative 'api/nodes'
+require_relative 'api/schedules'
+require_relative 'api/relationships'
+require_relative 'api/chains'
+require_relative 'api/settings'
+require_relative 'api/events'
+require_relative 'api/transport'
+require_relative 'api/hooks'
 
 module Legion
   class API < Sinatra::Base
+    helpers Legion::API::Helpers
+
     set :show_exceptions, false
     set :raise_errors, false
 
     configure do
       enable :logging
+      set :host_authorization, permitted: :any
     end
 
-    # Health and readiness endpoints
-    get '/health' do
-      content_type :json
-      Legion::JSON.dump(status: 'ok', version: Legion::VERSION)
+    # Health and readiness
+    get '/api/health' do
+      json_response({ status: 'ok', version: Legion::VERSION })
     end
 
-    get '/ready' do
-      content_type :json
+    get '/api/ready' do
       ready = Legion::Readiness.ready?
-      status ready ? 200 : 503
-      Legion::JSON.dump(ready: ready, components: Legion::Readiness.to_h)
+      json_response({ ready: ready, components: Legion::Readiness.to_h }, status_code: ready ? 200 : 503)
     end
 
-    # Hook endpoints are registered dynamically as extensions load.
-    # POST /hook/:lex_name           → uses the default (or only) hook
-    # POST /hook/:lex_name/:hook_name → uses a specific named hook
-    post '/hook/:lex_name/?:hook_name?' do
+    # Global error handlers
+    not_found do
       content_type :json
-      lex_name = params[:lex_name].downcase
-      hook_name = params[:hook_name]&.downcase
-
-      hook_entry = Legion::API.find_hook(lex_name, hook_name)
-      halt 404, Legion::JSON.dump(error: 'no hook registered', lex: lex_name) if hook_entry.nil?
-
-      body = request.body.read
-      hook = hook_entry[:hook_class].new
-
-      halt 401, Legion::JSON.dump(error: 'unauthorized') unless hook.verify(request.env, body)
-
-      payload = parse_body(body)
-      function = hook.route(request.env, payload)
-      halt 422, Legion::JSON.dump(error: 'unhandled event') if function.nil?
-
-      runner = hook.runner_class || hook_entry[:default_runner]
-      halt 500, Legion::JSON.dump(error: 'no runner class for hook') if runner.nil?
-
-      result = Legion::Ingress.run(
-        payload:       payload,
-        runner_class:  runner,
-        function:      function,
-        source:        'webhook',
-        check_subtask: true,
-        generate_task: true
-      )
-
-      status 200
-      Legion::JSON.dump(success: true, task_id: result[:task_id], status: result[:status])
-    rescue StandardError => e
-      Legion::Logging.error "Hook error: #{e.message}"
-      Legion::Logging.error e.backtrace&.first(5)
-      halt 500, Legion::JSON.dump(error: 'internal_error', message: e.message)
+      Legion::JSON.dump({
+                          error: { code: 'not_found', message: "no route matches #{request.request_method} #{request.path_info}" },
+                          meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
+                        })
     end
 
-    # Hook registry — extensions register their hooks here during autobuild
+    error do
+      content_type :json
+      err = env['sinatra.error']
+      Legion::Logging.error "Unhandled API error: #{err.message}"
+      Legion::Logging.error err.backtrace&.first(10)
+      Legion::JSON.dump({
+                          error: { code: 'internal_error', message: err.message },
+                          meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
+                        })
+    end
+
+    # Mount route modules
+    register Routes::Tasks
+    register Routes::Extensions
+    register Routes::Nodes
+    register Routes::Schedules
+    register Routes::Relationships
+    register Routes::Chains
+    register Routes::Settings
+    register Routes::Events
+    register Routes::Transport
+    register Routes::Hooks
+
+    # Hook registry (preserved from original implementation)
     class << self
       def hook_registry
         @hook_registry ||= {}
@@ -79,14 +85,13 @@ module Legion
           hook_class:     hook_class,
           default_runner: default_runner
         }
-        Legion::Logging.debug "Registered hook endpoint: POST /hook/#{key}"
+        Legion::Logging.debug "Registered hook endpoint: POST /api/hooks/#{key}"
       end
 
       def find_hook(lex_name, hook_name = nil)
         if hook_name
           hook_registry["#{lex_name}/#{hook_name}"]
         else
-          # Find the default hook for this lex (first one, or one named 'webhook')
           hook_registry["#{lex_name}/webhook"] ||
             hook_registry.values.find { |h| h[:lex_name] == lex_name }
         end
@@ -95,16 +100,6 @@ module Legion
       def registered_hooks
         hook_registry.values
       end
-    end
-
-    private
-
-    def parse_body(body)
-      return {} if body.nil? || body.empty?
-
-      Legion::JSON.load(body)
-    rescue StandardError
-      { raw: body }
     end
   end
 end

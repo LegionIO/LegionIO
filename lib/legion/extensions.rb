@@ -97,6 +97,11 @@ module Legion
           return false
         end
 
+        if extension.llm_required? && (!Legion::Settings.key?(:llm) || Legion::Settings[:llm][:connected] == false)
+          Legion::Logging.warn "#{values[:extension_name]} requires Legion::LLM but isn't enabled, skipping"
+          return false
+        end
+
         has_logger = extension.respond_to?(:log)
         extension.autobuild
 

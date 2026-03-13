@@ -48,17 +48,18 @@
 
 ### Add: New Functionality
 
-- [ ] Test coverage: legion-json
-  - [ ] JSON load/dump
-  - [ ] Symbolized keys default
-  - [ ] Edge cases (nil, empty, nested)
-  - [ ] Error handling (InvalidJson, ParseError)
-- [ ] Test coverage: legion-settings
-  - [ ] File loading
-  - [ ] Directory loading
-  - [ ] Env var overrides
-  - [ ] Deep merge behavior
-  - [ ] Auto-load on access
+- [x] Test coverage: legion-json (45 specs, 100% coverage — already complete)
+- [x] Test coverage: legion-settings (107 specs, 94.04% coverage)
+  - [x] File loading, directory loading, env var overrides
+  - [x] Deep merge behavior, indifferent access, hexdigest
+  - [x] Settings module singleton interface (load, [], merge_settings, validate!)
+  - [x] Fixed Ruby 3.4 FrozenError in read_config_file BOM stripping
+- [x] Test coverage: legion-cache (42 unit tests, work without live servers)
+  - [x] Settings defaults, driver selection, pool module, interface verification
+- [x] Test coverage: legion-crypt (52 specs)
+  - [x] Settings/vault config, cluster secret, cipher encrypt/decrypt
+- [x] Test coverage: LegionIO (55 specs, 43% coverage)
+  - [x] Events pub/sub, Readiness tracker, Ingress normalizer
 - [ ] Test coverage: core LEXs
   - [ ] lex-conditioner (all/any/fact/operator rule engine)
   - [ ] lex-transformer (ERB template rendering)

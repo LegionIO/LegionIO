@@ -13,6 +13,12 @@ require_relative 'helpers/transport'
 require_relative 'helpers/data'
 require_relative 'helpers/cache'
 
+begin
+  require 'legion/llm/helpers/llm'
+rescue LoadError
+  # legion-llm not installed, helper not available
+end
+
 require_relative 'actors/base'
 require_relative 'actors/every'
 require_relative 'actors/loop'
@@ -69,6 +75,10 @@ module Legion
       end
 
       def vault_required?
+        false
+      end
+
+      def llm_required?
         false
       end
 

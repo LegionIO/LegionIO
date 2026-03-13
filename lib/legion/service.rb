@@ -5,10 +5,12 @@ require_relative 'readiness'
 module Legion
   class Service
     def modules
-      [Legion::Crypt, Legion::Transport, Legion::Cache, Legion::Data, Legion::Supervision].freeze
+      base = [Legion::Crypt, Legion::Transport, Legion::Cache, Legion::Data, Legion::Supervision]
+      base << Legion::LLM if defined?(Legion::LLM)
+      base.freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, crypt: true, api: true, log_level: 'info') # rubocop:disable Metrics/ParameterLists
+    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, crypt: true, api: true, llm: true, log_level: 'info') # rubocop:disable Metrics/ParameterLists
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
@@ -33,6 +35,11 @@ module Legion
       if data
         setup_data
         Legion::Readiness.mark_ready(:data)
+      end
+
+      if llm
+        setup_llm
+        Legion::Readiness.mark_ready(:llm)
       end
 
       setup_supervision if supervision
@@ -113,6 +120,16 @@ module Legion
       Legion::Logging.warn "Legion API failed to start: #{e.message}"
     end
 
+    def setup_llm
+      require 'legion/llm'
+      Legion::Settings.merge_settings('llm', Legion::LLM::Settings.default)
+      Legion::LLM.start
+    rescue LoadError
+      Legion::Logging.info 'Legion::LLM gem is not installed, starting without LLM support'
+    rescue StandardError => e
+      Legion::Logging.warn "Legion::LLM failed to load: #{e.message}"
+    end
+
     def setup_transport
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
@@ -145,6 +162,11 @@ module Legion
 
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
+
+      if Legion::Settings.key?(:llm) && Legion::Settings[:llm][:connected]
+        Legion::LLM.shutdown
+        Legion::Readiness.mark_not_ready(:llm)
+      end
 
       Legion::Data.shutdown if Legion::Settings[:data][:connected]
       Legion::Readiness.mark_not_ready(:data)
