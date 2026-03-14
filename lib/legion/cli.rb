@@ -17,6 +17,8 @@ module Legion
     autoload :Generate, 'legion/cli/generate_command'
     autoload :Check,    'legion/cli/check_command'
     autoload :Mcp,      'legion/cli/mcp_command'
+    autoload :Worker,    'legion/cli/worker_command'
+    autoload :Coldstart, 'legion/cli/coldstart_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -61,6 +63,7 @@ module Legion
       option :logfile, type: :string, aliases: ['-l'], desc: 'Log file path'
       option :time_limit, type: :numeric, aliases: ['-t'], desc: 'Run for N seconds then exit'
       option :log_level, type: :string, default: 'info', desc: 'Log level (debug, info, warn, error)'
+      option :api, type: :boolean, default: true, desc: 'Start the HTTP API server'
       def start
         Legion::CLI::Start.run(options)
       end
@@ -127,6 +130,12 @@ module Legion
 
       desc 'mcp SUBCOMMAND', 'Start MCP server for AI agent integration'
       subcommand 'mcp', Legion::CLI::Mcp
+
+      desc 'worker SUBCOMMAND', 'Manage digital workers'
+      subcommand 'worker', Legion::CLI::Worker
+
+      desc 'coldstart SUBCOMMAND', 'Cold start bootstrap and Claude memory ingestion'
+      subcommand 'coldstart', Legion::CLI::Coldstart
 
       no_commands do
         def formatter
