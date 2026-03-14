@@ -19,6 +19,7 @@ module Legion
     autoload :Mcp,      'legion/cli/mcp_command'
     autoload :Worker,    'legion/cli/worker_command'
     autoload :Coldstart, 'legion/cli/coldstart_command'
+    autoload :Chat,      'legion/cli/chat_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -136,6 +137,9 @@ module Legion
 
       desc 'coldstart SUBCOMMAND', 'Cold start bootstrap and Claude memory ingestion'
       subcommand 'coldstart', Legion::CLI::Coldstart
+
+      desc 'chat SUBCOMMAND', 'Interactive AI conversation'
+      subcommand 'chat', Legion::CLI::Chat
 
       desc 'dream', 'Trigger a dream cycle on the running daemon'
       option :wait, type: :boolean, default: false, desc: 'Wait for dream cycle to complete'
