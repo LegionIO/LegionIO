@@ -162,6 +162,7 @@ The daemon exposes a REST API on port 4567 (configurable). All routes are under 
 | `GET /api/transport` | RabbitMQ connection status |
 | `GET /api/events` | SSE event stream |
 | `GET/POST/PUT/DELETE /api/workers` | Digital worker lifecycle management |
+| `POST /api/coldstart/ingest` | Trigger lex-coldstart context ingestion |
 
 Response envelope:
 

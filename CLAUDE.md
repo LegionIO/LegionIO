@@ -105,7 +105,8 @@ Legion (lib/legion.rb)
 │   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   ├── Hooks      # List + trigger registered extension hooks
-│   │   └── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
+│   │   ├── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
+│   │   └── Coldstart  # `POST /api/coldstart/ingest` — trigger lex-coldstart ingest from API
 │   ├── Middleware/
 │   │   └── Auth       # JWT Bearer auth middleware (real validation, skip paths for health/ready)
 │   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
@@ -329,6 +330,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
 | `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
 | `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
+| `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | **MCP** | |
