@@ -58,7 +58,7 @@ module Legion
           at:        Time.now.utc
         }
 
-        Legion::Events.emit('worker.risk_tier_changed', event) if defined?(Legion::Events)
+        Legion::Events.emit('worker.risk_tier_changed', **event) if defined?(Legion::Events)
         Legion::Logging.info "[risk_tier] worker=#{worker.worker_id} tier: #{old_tier || 'none'} -> #{tier} by=#{by}"
 
         { assigned: true }.merge(event)

@@ -182,7 +182,7 @@ legion mcp http       # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**29 tools** in the `legion.*` namespace:
+**30 tools** in the `legion.*` namespace:
 
 - `legion.run_task` - execute any task by dot notation (e.g., `http.request.get`)
 - `legion.describe_runner` - discover available functions on a runner
@@ -193,6 +193,7 @@ legion mcp http --port 8080 --host 0.0.0.0
 - `legion.list_schedules`, `legion.create_schedule`, `legion.update_schedule`, `legion.delete_schedule`
 - `legion.get_status`, `legion.get_config`
 - `legion.list_workers`, `legion.show_worker`, `legion.worker_lifecycle`, `legion.worker_costs`, `legion.team_summary`
+- `legion.routing_stats` - LLM routing statistics by provider, model, and routing reason
 
 **Resources**: `legion://runners` (full runner catalog), `legion://extensions/{name}` (extension detail template)
 

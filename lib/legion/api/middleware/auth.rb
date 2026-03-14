@@ -48,7 +48,7 @@ module Legion
             return unauthorized('invalid API key')
           end
 
-          unauthorized('missing Authorization header or X-API-Key')
+          unauthorized('missing Authorization header')
         end
 
         private

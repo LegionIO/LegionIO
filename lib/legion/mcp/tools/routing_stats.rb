@@ -10,8 +10,7 @@ module Legion
         input_schema(
           properties: {
             worker_id: { type: 'string', description: 'Optional: filter stats to a specific worker UUID' }
-          },
-          required:   []
+          }
         )
 
         class << self

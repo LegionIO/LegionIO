@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'rack/test'
+require 'legion/crypt'
 require 'legion/api'
 
 module ApiSpecSetup

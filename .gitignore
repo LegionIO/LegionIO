@@ -13,3 +13,9 @@
 # rspec failure tracking
 .rspec_status
 legionio.key
+# runtime artifacts
+.DS_Store
+legionio.db
+logs/
+# local settings (may contain secrets)
+settings/

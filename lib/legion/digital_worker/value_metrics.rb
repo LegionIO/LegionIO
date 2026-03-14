@@ -17,14 +17,30 @@ module Legion
           recorded_at: Time.now.utc
         }
 
-        Legion::Data.connection[:value_metrics].insert(record) if defined?(Legion::Data) && Legion::Data.connection.table_exists?(:value_metrics)
+        Legion::Data.connection[:value_metrics].insert(record) if data_connected?
 
         Legion::Logging.debug "[value_metrics] recorded: worker=#{worker_id} #{metric_name}=#{value} (#{metric_type})"
         record
       end
 
+      def self.latest_value(dataset)
+        order_expr = defined?(::Sequel) ? ::Sequel.desc(:recorded_at) : :recorded_at
+        dataset.order(order_expr).first&.dig(:value)
+      end
+      private_class_method :latest_value
+
+      def self.data_connected?
+        defined?(Legion::Data) &&
+          Legion::Data.respond_to?(:connection) &&
+          Legion::Data.connection.respond_to?(:table_exists?) &&
+          Legion::Data.connection.table_exists?(:value_metrics)
+      rescue StandardError
+        false
+      end
+      private_class_method :data_connected?
+
       def self.for_worker(worker_id:, metric_name: nil, since: nil)
-        return [] unless defined?(Legion::Data) && Legion::Data.connection.table_exists?(:value_metrics)
+        return [] unless data_connected?
 
         ds = Legion::Data.connection[:value_metrics].where(worker_id: worker_id)
         ds = ds.where(metric_name: metric_name.to_s) if metric_name
@@ -33,7 +49,7 @@ module Legion
       end
 
       def self.summary(worker_id:)
-        return {} unless defined?(Legion::Data) && Legion::Data.connection.table_exists?(:value_metrics)
+        return {} unless data_connected?
 
         ds = Legion::Data.connection[:value_metrics].where(worker_id: worker_id)
         metrics = ds.select(:metric_name).distinct.select_map(:metric_name)
@@ -46,7 +62,7 @@ module Legion
             avg:    subset.avg(:value)&.round(4) || 0,
             min:    subset.min(:value) || 0,
             max:    subset.max(:value) || 0,
-            latest: subset.order(Sequel.desc(:recorded_at)).first&.dig(:value)
+            latest: latest_value(subset)
           }
         end
       end

@@ -104,7 +104,8 @@ Legion (lib/legion.rb)
 │   │   ├── Settings   # Read/write settings with redaction + readonly guards
 │   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
-│   │   └── Hooks      # List + trigger registered extension hooks
+│   │   ├── Hooks      # List + trigger registered extension hooks
+│   │   └── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
 │   ├── Middleware/
 │   │   └── Auth       # JWT Bearer auth middleware (real validation, skip paths for health/ready)
 │   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
@@ -113,7 +114,7 @@ Legion (lib/legion.rb)
 ├── MCP (mcp gem)      # MCP server for AI agent integration
 │   ├── MCP.server     # Singleton factory: Legion::MCP.server returns MCP::Server instance
 │   ├── Server         # MCP::Server builder, tool/resource registration
-│   ├── Tools/         # 29 MCP::Tool subclasses (legion.* namespace)
+│   ├── Tools/         # 30 MCP::Tool subclasses (legion.* namespace)
 │   │   ├── RunTask         # Agentic: dot notation task execution
 │   │   ├── DescribeRunner  # Agentic: runner/function discovery
 │   │   ├── List/Get/Delete Task + GetTaskLogs
@@ -122,7 +123,7 @@ Legion (lib/legion.rb)
 │   │   ├── List/Get/Enable/Disable Extension
 │   │   ├── List/Create/Update/Delete Schedule
 │   │   ├── GetStatus, GetConfig
-│   │   └── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary
+│   │   └── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary, RoutingStats
 │   └── Resources/
 │       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
 │       └── ExtensionInfo   # legion://extensions/{name} - extension detail template
@@ -327,7 +328,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
 | `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
-| `lib/legion/api/workers.rb` | Workers: digital worker lifecycle REST endpoints (`/api/workers/*`) |
+| `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | **MCP** | |
@@ -338,7 +339,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/digital_worker/registry.rb` | In-process worker registry |
 | `lib/legion/digital_worker/risk_tier.rb` | AIRB risk tier + governance constraints |
 | `lib/legion/digital_worker/value_metrics.rb` | Token/cost/latency tracking |
-| `lib/legion/mcp/tools/` | 29 MCP::Tool subclasses |
+| `lib/legion/mcp/tools/` | 30 MCP::Tool subclasses |
 | `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
 | `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **CLI v2** | |
@@ -379,7 +380,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 |------|--------|
 | `API::Routes::Relationships` | 501 stub - no data model |
 | `API::Routes::Chains` | 501 stub - no data model |
-| `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation implemented, API key auth not yet added |
+| `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation and API key (`X-API-Key` header) auth both implemented |
 | `legion-data` chains/relationships models | Not yet implemented |
 
 ## Rubocop Notes

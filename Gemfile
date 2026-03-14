@@ -38,6 +38,8 @@ gem 'lex-cortex',       path: '../extensions-agentic/lex-cortex'
 gem 'lex-dream',        path: '../extensions-agentic/lex-dream'
 gem 'lex-mesh',         path: '../extensions-agentic/lex-mesh'
 
+gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams'
+
 group :test do
   gem 'rack-test'
   gem 'rake'
