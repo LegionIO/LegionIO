@@ -16,7 +16,7 @@ module Legion
             dir = File.expand_path(directory || Dir.pwd)
             return "Error: directory not found: #{dir}" unless Dir.exist?(dir)
 
-            matches = Dir.glob(File.join(dir, pattern)).sort
+            matches = Dir.glob(File.join(dir, pattern))
             return "No files matching #{pattern} in #{dir}" if matches.empty?
 
             relative = matches.map { |f| f.sub("#{dir}/", '') }

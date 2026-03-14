@@ -18,13 +18,13 @@ module Legion
           }
         end
 
-        def send_message(message, on_tool_call: nil, on_tool_result: nil, &block)
+        def send_message(message, on_tool_call: nil, on_tool_result: nil, &)
           @stats[:messages_sent] += 1
 
           @chat.on_tool_call { |tc| on_tool_call&.call(tc) }
           @chat.on_tool_result { |tr| on_tool_result&.call(tr) }
 
-          response = @chat.ask(message, &block)
+          response = @chat.ask(message, &)
           @stats[:messages_received] += 1
 
           # Track token usage if available

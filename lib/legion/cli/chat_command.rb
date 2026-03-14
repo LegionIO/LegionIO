@@ -61,10 +61,10 @@ module Legion
 
         if options[:output_format] == 'json'
           out.json({
-            response: response.content,
-            model:    session.model_id,
-            stats:    session.stats
-          })
+                     response: response.content,
+                     model:    session.model_id,
+                     stats:    session.stats
+                   })
         else
           puts unless response.content&.end_with?("\n")
         end
@@ -91,7 +91,7 @@ module Legion
 
         def create_chat
           opts = {}
-          opts[:model]    = options[:model]           if options[:model]
+          opts[:model]    = options[:model] if options[:model]
           opts[:provider] = options[:provider]&.to_sym if options[:provider]
 
           require 'legion/cli/chat/tool_registry'
@@ -126,9 +126,9 @@ module Legion
             print out.dim(' > ')
 
             begin
-              response = @session.send_message(
+              @session.send_message(
                 stripped,
-                on_tool_call: lambda { |tc|
+                on_tool_call:   lambda { |tc|
                   puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
                 },
                 on_tool_result: lambda { |tr|
@@ -184,12 +184,12 @@ module Legion
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-            '/help'    => 'Show this help',
-            '/quit'    => 'Exit chat',
-            '/cost'    => 'Show session stats',
-            '/clear'   => 'Clear conversation history',
-            '/model X' => 'Switch model'
-          })
+                       '/help'    => 'Show this help',
+                       '/quit'    => 'Exit chat',
+                       '/cost'    => 'Show session stats',
+                       '/clear'   => 'Clear conversation history',
+                       '/model X' => 'Switch model'
+                     })
           puts
         end
 
