@@ -141,6 +141,12 @@ module Legion
       desc 'chat SUBCOMMAND', 'Interactive AI conversation'
       subcommand 'chat', Legion::CLI::Chat
 
+      desc 'ask TEXT', 'Quick AI prompt (shortcut for chat prompt)'
+      map %w[-p --prompt] => :ask
+      def ask(*text)
+        Legion::CLI::Chat.start(['prompt', text.join(' ')] + ARGV.select { |a| a.start_with?('--') })
+      end
+
       desc 'dream', 'Trigger a dream cycle on the running daemon'
       option :wait, type: :boolean, default: false, desc: 'Wait for dream cycle to complete'
       def dream

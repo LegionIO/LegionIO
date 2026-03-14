@@ -42,12 +42,37 @@ module Legion
       end
       default_task :interactive
 
-      desc 'prompt TEXT', 'Send a single prompt (headless mode)'
+      desc 'prompt TEXT', 'Send a single prompt and exit (headless mode)'
       option :output_format, type: :string, default: 'text', desc: 'Output format: text, json'
       option :max_turns, type: :numeric, default: 10, desc: 'Maximum tool-use turns'
       def prompt(text)
         out = formatter
-        out.warn("Headless mode not yet implemented. Prompt: #{text}")
+        setup_connection
+
+        chat_obj = create_chat
+        system_prompt = build_system_prompt
+        session = Chat::Session.new(chat: chat_obj, system_prompt: system_prompt)
+
+        response = if options[:output_format] == 'json'
+                     session.send_message(text)
+                   else
+                     session.send_message(text) { |chunk| print chunk.content if chunk.content }
+                   end
+
+        if options[:output_format] == 'json'
+          out.json({
+            response: response.content,
+            model:    session.model_id,
+            stats:    session.stats
+          })
+        else
+          puts unless response.content&.end_with?("\n")
+        end
+      rescue CLI::Error => e
+        out.error(e.message)
+        raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
 
       no_commands do
@@ -101,7 +126,16 @@ module Legion
             print out.dim(' > ')
 
             begin
-              response = @session.send_message(stripped) do |chunk|
+              response = @session.send_message(
+                stripped,
+                on_tool_call: lambda { |tc|
+                  puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
+                },
+                on_tool_result: lambda { |tr|
+                  result_preview = tr.to_s.lines.first(3).join.rstrip
+                  puts out.dim("  [result] #{result_preview}")
+                }
+              ) do |chunk|
                 print chunk.content if chunk.content
               end
               puts
