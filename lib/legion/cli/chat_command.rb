@@ -65,27 +65,18 @@ module Legion
           opts = {}
           opts[:model]    = options[:model]           if options[:model]
           opts[:provider] = options[:provider]&.to_sym if options[:provider]
-          Legion::LLM.chat(**opts)
+
+          require 'legion/cli/chat/tool_registry'
+          chat = Legion::LLM.chat(**opts)
+          chat.with_tools(*Chat::ToolRegistry.builtin_tools)
+          chat
         end
 
         def build_system_prompt
           return options[:system] if options[:system]
 
-          parts = []
-          parts << 'You are Legion, an AI assistant powered by the LegionIO framework.'
-          parts << 'You have access to tools for file operations, shell commands, and search.'
-          parts << 'Be concise and helpful. Use markdown formatting.'
-
-          %w[LEGION.md CLAUDE.md].each do |name|
-            path = File.join(Dir.pwd, name)
-            if File.exist?(path)
-              content = File.read(path, encoding: 'utf-8')
-              parts << "\n# Project Context (#{name})\n#{content}"
-              break
-            end
-          end
-
-          parts.join("\n\n")
+          require 'legion/cli/chat/context'
+          Chat::Context.to_system_prompt(Dir.pwd)
         end
 
         def repl_loop(out)
