@@ -67,13 +67,14 @@ module Legion
         )
       end
 
-      def load_extension(extension, values) # rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity, Metrics/AbcSize
+      def load_extension(extension, values) # rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength
         return unless gem_load(values[:gem_name], extension)
 
         extension = Kernel.const_get(values[:extension_class])
         extension.extend Legion::Extensions::Core unless extension.singleton_class.include?(Legion::Extensions::Core)
 
-        min_version = Legion::Settings[:extensions][values[:extension_name]][:min_version] || nil
+        ext_settings = Legion::Settings[:extensions][values[:extension_name]]
+        min_version = ext_settings[:min_version] if ext_settings.is_a?(Hash)
         Legion::Logging.fatal values if min_version.is_a?(String) && Gem::Version.new(values[:version]) >= Gem::Version.new(min_version)
 
         if extension.data_required? && Legion::Settings[:data][:connected] == false
@@ -120,6 +121,25 @@ module Legion
         end
         extension.log.info "Loaded v#{extension::VERSION}"
         Legion::Events.emit('extension.loaded', name: values[:extension_name], version: values[:version])
+
+        begin
+          if defined?(Legion::Data) && defined?(Legion::Data::Model::DigitalWorker)
+            worker_id = "lex-#{values[:extension_name]}"
+            worker = Legion::Data::Model::DigitalWorker.find_or_create(worker_id: worker_id) do |w|
+              w.name            = values[:extension_name]
+              w.extension_name  = values[:extension_name]
+              w.lifecycle_state = 'active'
+              w.risk_tier       = 'low'
+              w.team            = 'extensions'
+              w.consent_tier    = 'supervised'
+              w.entra_app_id    = worker_id
+              w.owner_msid      = 'system'
+            end
+            worker.update(updated_at: Time.now) if worker.updated_at
+          end
+        rescue StandardError
+          nil
+        end
       rescue StandardError => e
         Legion::Logging.error e.message
         Legion::Logging.error e.backtrace

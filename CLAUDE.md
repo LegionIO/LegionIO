@@ -106,14 +106,14 @@ Legion (lib/legion.rb)
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   └── Hooks      # List + trigger registered extension hooks
 │   ├── Middleware/
-│   │   └── Auth       # No-op placeholder (TODO: JWT + API keys)
+│   │   └── Auth       # JWT Bearer auth middleware (real validation, skip paths for health/ready)
 │   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
 │                      # Populated by extensions via Legion::API.register_hook(...)
 │
 ├── MCP (mcp gem)      # MCP server for AI agent integration
 │   ├── MCP.server     # Singleton factory: Legion::MCP.server returns MCP::Server instance
 │   ├── Server         # MCP::Server builder, tool/resource registration
-│   ├── Tools/         # 24 MCP::Tool subclasses (legion.* namespace)
+│   ├── Tools/         # 29 MCP::Tool subclasses (legion.* namespace)
 │   │   ├── RunTask         # Agentic: dot notation task execution
 │   │   ├── DescribeRunner  # Agentic: runner/function discovery
 │   │   ├── List/Get/Delete Task + GetTaskLogs
@@ -121,10 +121,17 @@ Legion (lib/legion.rb)
 │   │   ├── List/Create/Update/Delete Relationship
 │   │   ├── List/Get/Enable/Disable Extension
 │   │   ├── List/Create/Update/Delete Schedule
-│   │   └── GetStatus, GetConfig
+│   │   ├── GetStatus, GetConfig
+│   │   └── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary
 │   └── Resources/
 │       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
 │       └── ExtensionInfo   # legion://extensions/{name} - extension detail template
+│
+├── DigitalWorker      # Digital worker platform (AI-as-labor governance)
+│   ├── Lifecycle      # Worker state machine (active/paused/retired/terminated)
+│   ├── Registry       # In-process worker registry
+│   ├── RiskTier       # AIRB risk tier classification + governance constraints
+│   └── ValueMetrics   # Token/cost/latency value tracking
 │
 ├── Runner             # Task execution engine
 │   ├── Log            # Task logging
@@ -146,7 +153,9 @@ Legion (lib/legion.rb)
     ├── Config             # `legion config` - show (redacted), path, validate, scaffold
     ├── ConfigScaffold     # `legion config scaffold` - generates starter JSON config files
     ├── Generate           # `legion generate` - runner, actor, exchange, queue, message
-    └── Mcp                # `legion mcp` - stdio (default) or HTTP transport
+    ├── Mcp                # `legion mcp` - stdio (default) or HTTP transport
+    ├── Worker             # `legion worker` - digital worker lifecycle management
+    └── Coldstart          # `legion coldstart` - ingest CLAUDE.md/MEMORY.md into lex-memory
 ```
 
 ### Extension Discovery
@@ -207,6 +216,20 @@ legion
   mcp
     stdio                            # default
     http [--port 9393] [--host localhost]
+
+  worker
+    list [-s status] [-t risk_tier]
+    show <id>
+    pause <id>
+    activate <id>
+    retire <id>
+    terminate <id>
+    costs [--days 30]
+
+  coldstart
+    ingest <path>                    # file or directory, parses CLAUDE.md / MEMORY.md
+    preview <path>                   # dry-run, shows traces without storing
+    status
 ```
 
 **CLI design rules:**
@@ -304,11 +327,18 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
 | `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
-| `lib/legion/api/middleware/auth.rb` | Auth: no-op placeholder (TODO: JWT + API keys) |
+| `lib/legion/api/workers.rb` | Workers: digital worker lifecycle REST endpoints (`/api/workers/*`) |
+| `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
+| `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | **MCP** | |
 | `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
 | `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, instructions |
-| `lib/legion/mcp/tools/` | 24 MCP::Tool subclasses |
+| `lib/legion/digital_worker.rb` | DigitalWorker module entry point |
+| `lib/legion/digital_worker/lifecycle.rb` | Worker state machine |
+| `lib/legion/digital_worker/registry.rb` | In-process worker registry |
+| `lib/legion/digital_worker/risk_tier.rb` | AIRB risk tier + governance constraints |
+| `lib/legion/digital_worker/value_metrics.rb` | Token/cost/latency tracking |
+| `lib/legion/mcp/tools/` | 29 MCP::Tool subclasses |
 | `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
 | `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **CLI v2** | |
@@ -326,6 +356,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/config_scaffold.rb` | `legion config scaffold` — generates starter JSON config files per subsystem |
 | `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
 | `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
+| `lib/legion/cli/worker_command.rb` | `legion worker` subcommands (list, show, pause, retire, terminate, activate, costs) |
+| `lib/legion/cli/coldstart_command.rb` | `legion coldstart` subcommands (ingest, preview, status) |
 | **Legacy CLI (preserved, not loaded by new CLI)** | |
 | `lib/legion/cli/task.rb` | Old task commands |
 | `lib/legion/cli/trigger.rb` | Old trigger command |
@@ -347,7 +379,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 |------|--------|
 | `API::Routes::Relationships` | 501 stub - no data model |
 | `API::Routes::Chains` | 501 stub - no data model |
-| `API::Middleware::Auth` | No-op placeholder, JWT + API keys needed before production |
+| `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation implemented, API key auth not yet added |
 | `legion-data` chains/relationships models | Not yet implemented |
 
 ## Rubocop Notes

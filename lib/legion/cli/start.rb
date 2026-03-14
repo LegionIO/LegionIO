@@ -11,7 +11,8 @@ module Legion
           require 'legion/service'
           require 'legion/process'
 
-          Legion::Service.new(log_level: log_level)
+          api = options.fetch(:api, true)
+          Legion.instance_variable_set(:@service, Legion::Service.new(log_level: log_level, api: api))
           Legion::Logging.info("Started Legion v#{Legion::VERSION}")
 
           process_opts = {

@@ -10,7 +10,6 @@ module Legion
       include Legion::Extensions::Helpers::Logger
 
       def build
-        Legion::Logging.fatal 'testing inside run'
         @models = []
         @migrations = []
         if Dir[File.expand_path("#{data_path}/migrations/*.rb")].any?
@@ -50,8 +49,6 @@ module Legion
       end
 
       def run
-        Legion::Logging.fatal 'testing inside run'
-
         return true if migrate_class.is_current?
 
         log.debug('Running LEX schema migrator')

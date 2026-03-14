@@ -140,10 +140,9 @@ module Legion
             queues:       {
               manual_ack:  true,
               durable:     true,
-              exclusive:   false,
               block:       false,
               auto_delete: false,
-              arguments:   { 'x-max-priority': 255, 'x-overflow': 'reject-publish' }
+              arguments:   { 'x-queue-type': 'quorum' }
             },
             connection:   {
               host:                      '127.0.0.1',

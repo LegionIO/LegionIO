@@ -14,6 +14,7 @@ module Legion
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
+      reconfigure_logging(log_level)
       Legion::Logging.info("node name: #{Legion::Settings[:client][:name]}")
 
       if crypt
@@ -51,8 +52,9 @@ module Legion
 
       Legion::Crypt.cs if crypt
 
-      @api_enabled = api
-      setup_api if api
+      api_settings = Legion::Settings[:api] || {}
+      @api_enabled = api && api_settings.fetch(:enabled, true)
+      setup_api if @api_enabled
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
     end
@@ -99,6 +101,17 @@ module Legion
       Legion::Logging.setup(log_level: log_level, level: log_level, trace: true)
     end
 
+    def reconfigure_logging(cli_level)
+      logging_settings = Legion::Settings[:logging] || {}
+      level = cli_level || logging_settings[:level] || 'info'
+      Legion::Logging.setup(
+        level:      level,
+        log_file:   logging_settings[:log_file],
+        log_stdout: logging_settings[:log_stdout],
+        trace:      logging_settings.fetch(:trace, true)
+      )
+    end
+
     def setup_api
       require 'legion/api'
       api_settings = Legion::Settings[:api] || {}
@@ -111,7 +124,7 @@ module Legion
         Legion::API.set :server, :puma
         Legion::API.set :environment, :production
         Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
-        Legion::API.run!
+        Legion::API.run!(traps: false)
       end
       Legion::Readiness.mark_ready(:api)
     rescue LoadError => e
@@ -163,7 +176,7 @@ module Legion
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
 
-      if Legion::Settings.key?(:llm) && Legion::Settings[:llm][:connected]
+      if Legion::Settings[:llm]&.dig(:connected)
         Legion::LLM.shutdown
         Legion::Readiness.mark_not_ready(:llm)
       end

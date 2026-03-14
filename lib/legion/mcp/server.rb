@@ -24,6 +24,12 @@ require_relative 'tools/update_schedule'
 require_relative 'tools/delete_schedule'
 require_relative 'tools/get_status'
 require_relative 'tools/get_config'
+require_relative 'tools/list_workers'
+require_relative 'tools/show_worker'
+require_relative 'tools/worker_lifecycle'
+require_relative 'tools/worker_costs'
+require_relative 'tools/team_summary'
+require_relative 'tools/routing_stats'
 require_relative 'resources/runner_catalog'
 require_relative 'resources/extension_info'
 
@@ -54,7 +60,13 @@ module Legion
         Tools::UpdateSchedule,
         Tools::DeleteSchedule,
         Tools::GetStatus,
-        Tools::GetConfig
+        Tools::GetConfig,
+        Tools::ListWorkers,
+        Tools::ShowWorker,
+        Tools::WorkerLifecycle,
+        Tools::WorkerCosts,
+        Tools::TeamSummary,
+        Tools::RoutingStats
       ].freeze
 
       class << self

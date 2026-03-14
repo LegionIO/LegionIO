@@ -76,6 +76,10 @@ module Legion
                   def exchange_name
                     "#{super}.dlx"
                   end
+
+                  def default_type
+                    'fanout'
+                  end
                 end)
               end
 

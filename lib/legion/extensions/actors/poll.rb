@@ -10,9 +10,9 @@ module Legion
         include Legion::Extensions::Actors::Base
 
         def initialize # rubocop:disable Metrics/AbcSize
-          log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, timeout_interval: timeout, run_now: run_now?,
+          log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, run_now: run_now?,
 check_subtask: check_subtask? }}"
-          @timer = Concurrent::TimerTask.new(execution_interval: time, timeout_interval: timeout, run_now: run_now?) do
+          @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
             t1 = Time.now
             log.debug "Running #{self.class}"
             old_result = Legion::Cache.get(cache_name)

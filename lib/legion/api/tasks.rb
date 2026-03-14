@@ -44,7 +44,25 @@ module Legion
           app.get '/api/tasks/:id' do
             require_data!
             task = find_or_halt(Legion::Data::Model::Task, params[:id])
-            json_response(task.values)
+            data = task.values
+
+            if defined?(Legion::Data) && Legion::Data.connection.table_exists?(:metering_records)
+              metering = Legion::Data.connection[:metering_records].where(task_id: params[:id].to_i)
+              if metering.any?
+                data[:metering] = {
+                  total_tokens:    metering.sum(:total_tokens) || 0,
+                  input_tokens:    metering.sum(:input_tokens) || 0,
+                  output_tokens:   metering.sum(:output_tokens) || 0,
+                  thinking_tokens: metering.sum(:thinking_tokens) || 0,
+                  total_calls:     metering.count,
+                  avg_latency_ms:  metering.avg(:latency_ms)&.round(1) || 0,
+                  provider:        metering.select_map(:provider).uniq,
+                  model:           metering.select_map(:model_id).uniq
+                }
+              end
+            end
+
+            json_response(data)
           end
 
           app.delete '/api/tasks/:id' do

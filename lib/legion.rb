@@ -4,6 +4,7 @@ Process.setproctitle('Legion')
 require 'concurrent'
 require 'securerandom'
 require 'legion/version'
+require 'legion/logging'
 require 'legion/events'
 require 'legion/ingress'
 require 'legion/process'

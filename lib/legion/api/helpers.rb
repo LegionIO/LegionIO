@@ -113,6 +113,22 @@ module Legion
         updates
       end
 
+      def current_claims
+        env['legion.auth']
+      end
+
+      def current_worker_id
+        env['legion.worker_id']
+      end
+
+      def current_owner_msid
+        env['legion.owner_msid']
+      end
+
+      def authenticated?
+        !current_claims.nil?
+      end
+
       private
 
       def response_meta

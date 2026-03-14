@@ -9,7 +9,7 @@ module Legion
         include Legion::Extensions::Actors::Base
 
         def initialize(**_opts)
-          @timer = Concurrent::TimerTask.new(execution_interval: time, timeout_interval: timeout, run_now: run_now?) do
+          @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
             use_runner? ? runner : manual
           end
 

@@ -161,6 +161,7 @@ The daemon exposes a REST API on port 4567 (configurable). All routes are under 
 | `GET /api/settings` | Config (sensitive values redacted) |
 | `GET /api/transport` | RabbitMQ connection status |
 | `GET /api/events` | SSE event stream |
+| `GET/POST/PUT/DELETE /api/workers` | Digital worker lifecycle management |
 
 Response envelope:
 
@@ -181,7 +182,7 @@ legion mcp http       # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**24 tools** in the `legion.*` namespace:
+**29 tools** in the `legion.*` namespace:
 
 - `legion.run_task` - execute any task by dot notation (e.g., `http.request.get`)
 - `legion.describe_runner` - discover available functions on a runner
@@ -191,6 +192,7 @@ legion mcp http --port 8080 --host 0.0.0.0
 - `legion.list_relationships`, `legion.create_relationship`, `legion.update_relationship`, `legion.delete_relationship`
 - `legion.list_schedules`, `legion.create_schedule`, `legion.update_schedule`, `legion.delete_schedule`
 - `legion.get_status`, `legion.get_config`
+- `legion.list_workers`, `legion.show_worker`, `legion.worker_lifecycle`, `legion.worker_costs`, `legion.team_summary`
 
 **Resources**: `legion://runners` (full runner catalog), `legion://extensions/{name}` (extension detail template)
 
