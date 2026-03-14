@@ -30,6 +30,7 @@ module Legion
 
       if cache
         require 'legion/cache'
+        Legion::Cache.setup
         Legion::Readiness.mark_ready(:cache)
       end
 
@@ -48,6 +49,10 @@ module Legion
       if extensions
         load_extensions
         Legion::Readiness.mark_ready(:extensions)
+      end
+
+      if defined?(Legion::Extensions::Memory::Helpers::ErrorTracer)
+        Legion::Extensions::Memory::Helpers::ErrorTracer.setup
       end
 
       Legion::Crypt.cs if crypt
