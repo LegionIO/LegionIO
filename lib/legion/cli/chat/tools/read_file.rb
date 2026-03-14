@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'ruby_llm'
+require 'legion/cli/chat_command'
 
 module Legion
   module CLI

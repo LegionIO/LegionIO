@@ -7,6 +7,8 @@ require 'legion/cli/chat/tools/search_files'
 require 'legion/cli/chat/tools/search_content'
 require 'legion/cli/chat/tools/run_command'
 
+require 'legion/cli/chat_command'
+
 module Legion
   module CLI
     class Chat

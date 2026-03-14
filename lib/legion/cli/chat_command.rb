@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'thor'
+require 'legion/cli/output'
+
 module Legion
   module CLI
     class Chat < Thor

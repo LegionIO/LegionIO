@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'legion/cli/chat_command'
 require 'shellwords'
 
 module Legion
