@@ -49,7 +49,7 @@ module Legion
           end
         end
 
-        def self.register_member(app)
+        def self.register_member(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/workers/:id' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
@@ -96,7 +96,7 @@ module Legion
           end
         end
 
-        def self.register_sub_resources(app)
+        def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
           app.get '/api/workers/:id/tasks' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])

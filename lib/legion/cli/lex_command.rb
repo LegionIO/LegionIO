@@ -58,13 +58,13 @@ module Legion
 
         out.header("lex-#{lex[:name]} v#{lex[:version]}")
         out.spacer
-        out.detail(
-          name:    lex[:name],
-          version: lex[:version],
-          status:  lex[:status],
-          gem_dir: lex[:gem_dir],
-          class:   lex[:extension_class]
-        )
+        out.detail({
+                     name:    lex[:name],
+                     version: lex[:version],
+                     status:  lex[:status],
+                     gem_dir: lex[:gem_dir],
+                     class:   lex[:extension_class]
+                   })
 
         if lex[:runners].is_a?(Array) && lex[:runners].any?
           out.spacer

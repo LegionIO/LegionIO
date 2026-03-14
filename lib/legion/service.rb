@@ -51,9 +51,7 @@ module Legion
         Legion::Readiness.mark_ready(:extensions)
       end
 
-      if defined?(Legion::Extensions::Memory::Helpers::ErrorTracer)
-        Legion::Extensions::Memory::Helpers::ErrorTracer.setup
-      end
+      Legion::Extensions::Memory::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Memory::Helpers::ErrorTracer)
 
       Legion::Crypt.cs if crypt
 

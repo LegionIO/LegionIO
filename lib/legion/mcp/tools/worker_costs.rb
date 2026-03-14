@@ -12,7 +12,7 @@ module Legion
             worker_id: { type: 'string', description: 'UUID of the digital worker' },
             period:    { type: 'string', description: 'Reporting period: daily, weekly, monthly (default: weekly)' }
           },
-          required: ['worker_id']
+          required:   ['worker_id']
         )
 
         class << self
@@ -23,12 +23,12 @@ module Legion
             return error_response("Worker not found: #{worker_id}") unless worker
 
             text_response({
-              worker_id:  worker_id,
-              period:     period,
-              available:  false,
-              message:    'Cost metering is not yet available. Install lex-metering to enable worker cost tracking.',
-              worker_name: worker.values[:name]
-            })
+                            worker_id:   worker_id,
+                            period:      period,
+                            available:   false,
+                            message:     'Cost metering is not yet available. Install lex-metering to enable worker cost tracking.',
+                            worker_name: worker.values[:name]
+                          })
           rescue StandardError => e
             error_response("Failed to fetch worker costs: #{e.message}")
           end

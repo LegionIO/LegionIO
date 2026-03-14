@@ -116,8 +116,8 @@ RSpec.describe Legion::DigitalWorker::RiskTier do
   describe '.assign!' do
     let(:worker) do
       double('worker',
-             worker_id:   'abc-123',
-             risk_tier:   nil,
+             worker_id:    'abc-123',
+             risk_tier:    nil,
              consent_tier: 'supervised')
     end
 

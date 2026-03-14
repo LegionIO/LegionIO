@@ -11,7 +11,7 @@ module Legion
           properties: {
             team: { type: 'string', description: 'Team name to summarize' }
           },
-          required: ['team']
+          required:   ['team']
         )
 
         class << self
@@ -22,11 +22,11 @@ module Legion
             breakdown = workers.each_with_object(Hash.new(0)) { |w, counts| counts[w.values[:lifecycle_state]] += 1 }
 
             text_response({
-              team:             team,
-              total:            workers.size,
-              lifecycle_states: breakdown,
-              workers:          workers.map { |w| w.values.slice(:worker_id, :name, :lifecycle_state, :owner_msid, :business_role) }
-            })
+                            team:             team,
+                            total:            workers.size,
+                            lifecycle_states: breakdown,
+                            workers:          workers.map { |w| w.values.slice(:worker_id, :name, :lifecycle_state, :owner_msid, :business_role) }
+                          })
           rescue StandardError => e
             error_response("Failed to fetch team summary: #{e.message}")
           end

@@ -111,7 +111,7 @@ RSpec.describe Legion::API::Middleware::Auth do
       end
 
       it 'passes through to the app (returns 200)' do
-        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => "Bearer valid.token.here" })
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Bearer valid.token.here' })
         status, = middleware.call(env)
         expect(status).to eq(200)
       end

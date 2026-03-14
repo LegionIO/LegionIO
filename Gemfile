@@ -24,19 +24,19 @@ gem 'lex-tick', path: '../extensions-agentic/lex-tick'
 gem 'lex-emotion', path: '../extensions-agentic/lex-emotion'
 gem 'lex-prediction', path: '../extensions-agentic/lex-prediction'
 
-gem 'lex-identity',         path: '../extensions-agentic/lex-identity'
-gem 'lex-trust',         path: '../extensions-agentic/lex-trust'
-gem 'lex-coldstart',         path: '../extensions-agentic/lex-coldstart'
+gem 'lex-coldstart', path: '../extensions-agentic/lex-coldstart'
+gem 'lex-identity', path: '../extensions-agentic/lex-identity'
+gem 'lex-trust', path: '../extensions-agentic/lex-trust'
 
-gem 'lex-consent',         path: '../extensions-agentic/lex-consent'
-gem 'lex-conflict',         path: '../extensions-agentic/lex-conflict'
-gem 'lex-governance',         path: '../extensions-agentic/lex-governance'
+gem 'lex-conflict', path: '../extensions-agentic/lex-conflict'
+gem 'lex-consent', path: '../extensions-agentic/lex-consent'
 gem 'lex-extinction',         path: '../extensions-agentic/lex-extinction'
-gem 'lex-privatecore',         path: '../extensions-agentic/lex-privatecore'
+gem 'lex-governance',         path: '../extensions-agentic/lex-governance'
+gem 'lex-privatecore', path: '../extensions-agentic/lex-privatecore'
 
-gem 'lex-mesh',         path: '../extensions-agentic/lex-mesh'
 gem 'lex-cortex',       path: '../extensions-agentic/lex-cortex'
 gem 'lex-dream',        path: '../extensions-agentic/lex-dream'
+gem 'lex-mesh',         path: '../extensions-agentic/lex-mesh'
 
 group :test do
   gem 'rack-test'

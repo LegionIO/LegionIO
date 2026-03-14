@@ -137,6 +137,46 @@ module Legion
       desc 'coldstart SUBCOMMAND', 'Cold start bootstrap and Claude memory ingestion'
       subcommand 'coldstart', Legion::CLI::Coldstart
 
+      desc 'dream', 'Trigger a dream cycle on the running daemon'
+      option :wait, type: :boolean, default: false, desc: 'Wait for dream cycle to complete'
+      def dream
+        out = formatter
+        require 'net/http'
+        require 'json'
+        port = api_port
+        uri = URI("http://localhost:#{port}/api/tasks")
+        body = ::JSON.generate({
+                                 runner_class:  'Legion::Extensions::Dream::Runners::DreamCycle',
+                                 function:      'execute_dream_cycle',
+                                 async:         !options[:wait],
+                                 check_subtask: false,
+                                 generate_task: false
+                               })
+
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 5
+        http.read_timeout = options[:wait] ? 300 : 5
+        request = Net::HTTP::Post.new(uri.path, 'Content-Type' => 'application/json')
+        request.body = body
+
+        response = http.request(request)
+        parsed = ::JSON.parse(response.body, symbolize_names: true)
+
+        if options[:json]
+          out.json(parsed)
+        elsif response.is_a?(Net::HTTPSuccess)
+          out.success('Dream cycle triggered on daemon')
+          out.detail(parsed[:data] || parsed) if parsed[:data]
+        else
+          out.error("Dream cycle failed: #{parsed.dig(:error, :message) || response.code}")
+        end
+      rescue Net::ReadTimeout
+        out.success('Dream cycle triggered on daemon (running in background)')
+      rescue Errno::ECONNREFUSED
+        out.error(format('Daemon not running (connection refused on port %d)', port))
+        raise SystemExit, 1
+      end
+
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
@@ -170,6 +210,15 @@ module Legion
 
         def find_pidfile
           %w[/var/run/legion.pid /tmp/legion.pid].find { |f| File.exist?(f) }
+        end
+
+        def api_port
+          require 'legion/settings'
+          Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
+          api_settings = Legion::Settings[:api]
+          (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
+        rescue StandardError
+          4567
         end
       end
     end

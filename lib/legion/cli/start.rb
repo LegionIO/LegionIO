@@ -11,6 +11,8 @@ module Legion
           require 'legion/service'
           require 'legion/process'
 
+          clear_log_file unless options[:daemonize]
+
           api = options.fetch(:api, true)
           Legion.instance_variable_set(:@service, Legion::Service.new(log_level: log_level, api: api))
           Legion::Logging.info("Started Legion v#{Legion::VERSION}")
@@ -23,6 +25,22 @@ module Legion
           }.compact
 
           Legion::Process.new(process_opts).run!
+        end
+
+        private
+
+        def clear_log_file
+          require 'legion/settings'
+          Legion::Settings.load
+          logging = Legion::Settings[:logging]
+          return unless logging.is_a?(Hash) && logging[:log_file]
+
+          path = File.expand_path(logging[:log_file])
+          return unless File.exist?(path)
+
+          File.truncate(path, 0)
+        rescue StandardError
+          nil
         end
       end
     end

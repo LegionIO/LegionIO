@@ -11,7 +11,7 @@ module Legion
           properties: {
             worker_id: { type: 'string', description: 'UUID of the digital worker' }
           },
-          required: ['worker_id']
+          required:   ['worker_id']
         )
 
         class << self

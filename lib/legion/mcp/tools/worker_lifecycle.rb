@@ -14,7 +14,7 @@ module Legion
             by:        { type: 'string', description: 'MSID or identifier of the person performing the transition' },
             reason:    { type: 'string', description: 'Optional reason for the transition' }
           },
-          required: %w[worker_id to_state by]
+          required:   %w[worker_id to_state by]
         )
 
         class << self

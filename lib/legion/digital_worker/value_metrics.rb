@@ -17,9 +17,7 @@ module Legion
           recorded_at: Time.now.utc
         }
 
-        if defined?(Legion::Data) && Legion::Data.connection.table_exists?(:value_metrics)
-          Legion::Data.connection[:value_metrics].insert(record)
-        end
+        Legion::Data.connection[:value_metrics].insert(record) if defined?(Legion::Data) && Legion::Data.connection.table_exists?(:value_metrics)
 
         Legion::Logging.debug "[value_metrics] recorded: worker=#{worker_id} #{metric_name}=#{value} (#{metric_type})"
         record

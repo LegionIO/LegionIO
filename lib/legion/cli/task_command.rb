@@ -56,17 +56,17 @@ module Legion
 
           out.header("Task ##{v[:id]}")
           out.spacer
-          out.detail(
-            id:              v[:id],
-            status:          v[:status],
-            function_id:     v[:function_id],
-            relationship_id: v[:relationship_id],
-            runner_id:       v[:runner_id],
-            created:         v[:created],
-            updated:         v[:updated],
-            parent_id:       v[:parent_id],
-            master_id:       v[:master_id]
-          )
+          out.detail({
+                       id:              v[:id],
+                       status:          v[:status],
+                       function_id:     v[:function_id],
+                       relationship_id: v[:relationship_id],
+                       runner_id:       v[:runner_id],
+                       created:         v[:created],
+                       updated:         v[:updated],
+                       parent_id:       v[:parent_id],
+                       master_id:       v[:master_id]
+                     })
 
           if v[:args] && !v[:args].to_s.empty?
             out.spacer

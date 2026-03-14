@@ -140,6 +140,7 @@ module Legion
         rescue StandardError
           nil
         end
+        true
       rescue StandardError => e
         Legion::Logging.error e.message
         Legion::Logging.error e.backtrace

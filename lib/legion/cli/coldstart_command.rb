@@ -11,65 +11,70 @@ module Legion
       class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
       class_option :verbose,  type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
 
-      desc 'ingest PATH', 'Ingest Claude memory/CLAUDE.md files into lex-memory traces'
+      desc 'ingest [PATH...]', 'Ingest Claude memory/CLAUDE.md files into lex-memory traces'
       long_desc <<~DESC
         Parse Claude Code MEMORY.md or CLAUDE.md files and convert them into
         lex-memory traces for cold start bootstrapping.
 
-        PATH can be a single file or a directory. When given a directory,
+        Accepts any number of file or directory paths. When given a directory,
         all CLAUDE.md and MEMORY.md files are discovered recursively.
+        When no path is given, defaults to the current working directory.
 
         Use --dry-run to preview traces without storing them.
       DESC
       option :dry_run, type: :boolean, default: false, desc: 'Preview traces without storing'
       option :pattern, type: :string, default: '**/{CLAUDE,MEMORY}.md', desc: 'Glob pattern for directory mode'
-      def ingest(path)
+      def ingest(*paths)
         out = formatter
-        require_coldstart!
+        paths = [Dir.pwd] if paths.empty?
 
-        runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
+        paths.each do |path|
+          unless File.exist?(path)
+            out.error("Path not found: #{path}")
+            next
+          end
 
-        if File.file?(path)
-          result = if options[:dry_run]
-                     runner.preview_ingest(file_path: File.expand_path(path))
-                   else
-                     runner.ingest_file(file_path: File.expand_path(path))
-                   end
-          render_file_result(out, result)
-        elsif File.directory?(path)
-          result = runner.ingest_directory(
-            dir_path:     File.expand_path(path),
-            pattern:      options[:pattern],
-            store_traces: !options[:dry_run]
-          )
-          render_directory_result(out, result)
-        else
-          out.error("Path not found: #{path}")
-          raise SystemExit, 1
+          if options[:dry_run]
+            require_coldstart!
+            run_local_ingest(out, path, dry_run: true)
+            next
+          end
+
+          result = try_api_ingest(path)
+          if result
+            out.success('Ingested via running daemon (traces stored in live memory)')
+            File.directory?(path) ? render_directory_result(out, result) : render_file_result(out, result)
+          else
+            out.warn('Daemon not running, ingesting locally (traces stored in-process only)')
+            require_coldstart!
+            run_local_ingest(out, path, dry_run: false)
+          end
         end
       end
       default_task :ingest
 
-      desc 'preview PATH', 'Preview what traces would be created (alias for ingest --dry-run)'
-      def preview(path)
+      desc 'preview [PATH...]', 'Preview what traces would be created (alias for ingest --dry-run)'
+      def preview(*paths)
         out = formatter
         require_coldstart!
+        paths = [Dir.pwd] if paths.empty?
 
         runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
 
-        if File.file?(path)
-          result = runner.preview_ingest(file_path: File.expand_path(path))
-          render_file_result(out, result)
-        elsif File.directory?(path)
-          result = runner.ingest_directory(
-            dir_path:     File.expand_path(path),
-            pattern:      '**/{CLAUDE,MEMORY}.md',
-            store_traces: false
-          )
-          render_directory_result(out, result)
-        else
-          out.error("Path not found: #{path}")
-          raise SystemExit, 1
+        paths.each do |path|
+          if File.file?(path)
+            result = runner.preview_ingest(file_path: File.expand_path(path))
+            render_file_result(out, result)
+          elsif File.directory?(path)
+            result = runner.ingest_directory(
+              dir_path:     File.expand_path(path),
+              pattern:      '**/{CLAUDE,MEMORY}.md',
+              store_traces: false
+            )
+            render_directory_result(out, result)
+          else
+            out.error("Path not found: #{path}")
+          end
         end
       end
 
@@ -86,18 +91,18 @@ module Legion
         else
           out.header('Cold Start Status')
           out.spacer
-          out.detail(
-            'Firmware Loaded'    => progress[:firmware_loaded],
-            'Imprint Active'     => progress[:imprint_active],
-            'Imprint Progress'   => "#{(progress[:imprint_progress] * 100).round(1)}%",
-            'Observation Count'  => progress[:observation_count],
-            'Calibration State'  => progress[:calibration_state],
-            'Current Layer'      => progress[:current_layer]
-          )
+          out.detail({
+                       'Firmware Loaded'   => progress[:firmware_loaded],
+                       'Imprint Active'    => progress[:imprint_active],
+                       'Imprint Progress'  => "#{(progress[:imprint_progress] * 100).round(1)}%",
+                       'Observation Count' => progress[:observation_count],
+                       'Calibration State' => progress[:calibration_state],
+                       'Current Layer'     => progress[:current_layer]
+                     })
         end
       end
 
-      no_commands do
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
@@ -105,7 +110,50 @@ module Legion
           )
         end
 
+        def run_local_ingest(out, path, dry_run:)
+          runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
+
+          if File.file?(path)
+            result = dry_run ? runner.preview_ingest(file_path: File.expand_path(path)) : runner.ingest_file(file_path: File.expand_path(path))
+            render_file_result(out, result)
+          elsif File.directory?(path)
+            result = runner.ingest_directory(
+              dir_path:     File.expand_path(path),
+              pattern:      options[:pattern] || '**/{CLAUDE,MEMORY}.md',
+              store_traces: !dry_run
+            )
+            render_directory_result(out, result)
+          end
+        end
+
+        def try_api_ingest(path)
+          require 'net/http'
+          require 'json'
+          api_port = api_port_from_settings
+          uri = URI("http://localhost:#{api_port}/api/coldstart/ingest")
+          body = ::JSON.generate({ path: File.expand_path(path) })
+          response = Net::HTTP.post(uri, body, 'Content-Type' => 'application/json')
+          return nil unless response.is_a?(Net::HTTPSuccess)
+
+          parsed = ::JSON.parse(response.body, symbolize_names: true)
+          parsed[:data]
+        rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL, SocketError, Net::OpenTimeout
+          nil
+        end
+
+        def api_port_from_settings
+          require 'legion/settings'
+          Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
+          api_settings = Legion::Settings[:api]
+          (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
+        rescue StandardError
+          4567
+        end
+
         def require_coldstart!
+          require 'legion/logging'
+          Legion::Logging.setup(level: options[:verbose] ? 'debug' : 'warn') unless Legion::Logging.instance_variable_get(:@log)
+          require 'legion/extensions/memory'
           require 'legion/extensions/coldstart'
         rescue LoadError => e
           formatter.error("lex-coldstart not available: #{e.message}")
@@ -125,12 +173,12 @@ module Legion
 
           out.header("Ingested: #{File.basename(result[:file] || result[:file_path] || 'unknown')}")
           out.spacer
-          out.detail(
-            'File'          => result[:file],
-            'Type'          => result[:file_type],
-            'Traces Parsed' => result[:traces_parsed] || result[:traces]&.size || 0,
-            'Traces Stored' => result[:traces_stored] || 0
-          )
+          out.detail({
+                       'File'          => result[:file],
+                       'Type'          => result[:file_type],
+                       'Traces Parsed' => result[:traces_parsed] || result[:traces]&.size || 0,
+                       'Traces Stored' => result[:traces_stored] || 0
+                     })
 
           traces = result[:traces] || []
           return if traces.empty?
@@ -156,12 +204,12 @@ module Legion
 
           out.header("Directory Ingest: #{result[:directory]}")
           out.spacer
-          out.detail(
-            'Directory'     => result[:directory],
-            'Files Found'   => result[:files_found],
-            'Total Parsed'  => result[:total_parsed],
-            'Total Stored'  => result[:total_stored]
-          )
+          out.detail({
+                       'Directory'    => result[:directory],
+                       'Files Found'  => result[:files_found],
+                       'Total Parsed' => result[:total_parsed],
+                       'Total Stored' => result[:total_stored]
+                     })
 
           files = result[:files] || []
           return if files.empty?

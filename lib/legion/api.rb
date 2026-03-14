@@ -17,6 +17,7 @@ require_relative 'api/events'
 require_relative 'api/transport'
 require_relative 'api/hooks'
 require_relative 'api/workers'
+require_relative 'api/coldstart'
 
 module Legion
   class API < Sinatra::Base
@@ -72,6 +73,7 @@ module Legion
     register Routes::Transport
     register Routes::Hooks
     register Routes::Workers
+    register Routes::Coldstart
 
     # Hook registry (preserved from original implementation)
     class << self

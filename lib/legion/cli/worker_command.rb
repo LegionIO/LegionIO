@@ -57,22 +57,22 @@ module Legion
           else
             out.header("Worker: #{worker.name}")
             out.spacer
-            out.detail(
-              'Worker ID'       => worker.worker_id,
-              'Name'            => worker.name,
-              'Extension'       => worker.extension_name,
-              'Entra App ID'    => worker.entra_app_id,
-              'Owner MSID'      => worker.owner_msid,
-              'Owner Name'      => worker.owner_name || '-',
-              'Lifecycle State' => worker.lifecycle_state,
-              'Consent Tier'    => worker.consent_tier,
-              'Trust Score'     => worker.trust_score.to_s,
-              'Risk Tier'       => worker.risk_tier || '-',
-              'Team'            => worker.team || '-',
-              'Manager'         => worker.manager_msid || '-',
-              'Created'         => worker.created_at.to_s,
-              'Updated'         => worker.updated_at&.to_s || '-'
-            )
+            out.detail({
+                         'Worker ID'       => worker.worker_id,
+                         'Name'            => worker.name,
+                         'Extension'       => worker.extension_name,
+                         'Entra App ID'    => worker.entra_app_id,
+                         'Owner MSID'      => worker.owner_msid,
+                         'Owner Name'      => worker.owner_name || '-',
+                         'Lifecycle State' => worker.lifecycle_state,
+                         'Consent Tier'    => worker.consent_tier,
+                         'Trust Score'     => worker.trust_score.to_s,
+                         'Risk Tier'       => worker.risk_tier || '-',
+                         'Team'            => worker.team || '-',
+                         'Manager'         => worker.manager_msid || '-',
+                         'Created'         => worker.created_at.to_s,
+                         'Updated'         => worker.updated_at&.to_s || '-'
+                       })
           end
         end
       end

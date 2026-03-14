@@ -48,6 +48,7 @@ module Legion
       daemonize if daemonize?
       write_pid
       trap_signals
+      retrap_after_puma
 
       until quit
         sleep(1)
@@ -112,14 +113,23 @@ module Legion
 
     def trap_signals
       trap('SIGTERM') do
-        info 'sigterm'
+        @quit = true
       end
 
       trap('SIGHUP') do
-        info 'sithup'
+        info 'sighup'
       end
+
       trap('SIGINT') do
         @quit = true
+      end
+    end
+
+    def retrap_after_puma
+      Thread.new do
+        sleep 2
+        trap('SIGINT') { @quit = true }
+        trap('SIGTERM') { @quit = true }
       end
     end
   end
