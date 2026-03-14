@@ -85,6 +85,20 @@ module Legion
           raise CLI::Error, 'legion-cache gem is not installed (gem install legion-cache)'
         end
 
+        def ensure_llm
+          return if @llm_ready
+
+          ensure_settings
+          require 'legion/llm'
+          Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)
+          Legion::LLM.start
+          @llm_ready = true
+        rescue LoadError
+          raise CLI::Error, 'legion-llm gem is not installed (gem install legion-llm)'
+        rescue StandardError => e
+          raise CLI::Error, "LLM initialization failed: #{e.message}"
+        end
+
         def settings?
           @settings_ready == true
         end
@@ -97,7 +111,12 @@ module Legion
           @transport_ready == true
         end
 
+        def llm?
+          @llm_ready == true
+        end
+
         def shutdown
+          Legion::LLM.shutdown if @llm_ready
           Legion::Transport::Connection.shutdown if @transport_ready
           Legion::Data.shutdown if @data_ready
           Legion::Cache.shutdown if @cache_ready
