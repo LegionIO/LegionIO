@@ -145,15 +145,15 @@ RSpec.describe Legion::CLI::Chat::Session do
     it 'emits :llm_first_token on first streaming chunk' do
       token_events = []
       session.on(:llm_first_token) { |p| token_events << p[:turn] }
-      session.send_message('hello') { |_chunk| }
+      session.send_message('hello') { |_chunk| nil }
       expect(token_events).to eq([1])
     end
 
     it 'emits :llm_first_token only once per turn' do
       token_events = []
       session.on(:llm_first_token) { |p| token_events << p[:turn] }
-      session.send_message('hello') { |_chunk| }
-      session.send_message('world') { |_chunk| }
+      session.send_message('hello') { |_chunk| nil }
+      session.send_message('world') { |_chunk| nil }
       expect(token_events).to eq([1, 2])
     end
 
@@ -169,7 +169,7 @@ RSpec.describe Legion::CLI::Chat::Session do
       tool_events = []
       session.on(:tool_start) { |p| tool_events << p[:name] }
 
-      session.send_message('hello', on_tool_call: ->(_tc) {}) { |_c| }
+      session.send_message('hello', on_tool_call: ->(tc) { tc }) { |c| c }
 
       session.emit(:tool_start, { name: 'read_file', args: { path: '/tmp' }, index: 1, total: 1 })
       expect(tool_events).to eq(['read_file'])
