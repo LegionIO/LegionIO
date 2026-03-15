@@ -121,6 +121,9 @@ module Legion
           warnings << 'No extensions configured in settings' if extensions.empty?
         end
 
+        # Check LLM config
+        validate_llm(warnings) if Connection.settings?
+
         if options[:json]
           out.json(valid: issues.empty?, issues: issues, warnings: warnings)
           return
@@ -205,9 +208,25 @@ module Legion
           end
         end
 
+        def validate_llm(warnings)
+          llm = Legion::Settings[:llm] || {}
+          return unless llm[:enabled]
+
+          warnings << 'LLM enabled but no default provider configured' if llm[:default_provider].nil? || llm[:default_provider].to_s.empty?
+
+          keyless_providers = %i[bedrock ollama]
+          (llm[:providers] || {}).each do |name, config|
+            next unless config.is_a?(Hash) && config[:enabled]
+            next if keyless_providers.include?(name.to_sym)
+            next if config[:api_key] && !config[:api_key].to_s.empty?
+
+            warnings << "LLM provider '#{name}' enabled but no api_key configured"
+          end
+        end
+
         def sensitive_key?(key)
           name = key.to_s.downcase
-          name.match?(/password|secret|token|key|credential|auth/)
+          name.match?(/(?:\A|_)(?:password|secret|token|key|credential|auth)\z/)
         end
 
         def print_nested(out, hash, indent: 0)
