@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## v1.4.2
+
+### Added
+- Multiline input support in chat REPL via backslash continuation (end a line with `\` to continue)
+- Continuation prompt (`...`) for multiline input lines
+- Specs for `read_user_input` method (12 examples)
+
 ## v1.4.1
 
 ### Added

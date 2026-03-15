@@ -57,7 +57,7 @@ module Legion
         out.banner(version: Legion::VERSION)
         puts
         puts out.dim("  Model: #{@session.model_id}")
-        puts out.dim('  Type /help for commands, /quit to exit')
+        puts out.dim('  Type /help for commands, /quit to exit. End a line with \\ for multiline.')
         puts
 
         repl_loop(out)
@@ -210,10 +210,10 @@ module Legion
           require 'reline'
 
           loop do
-            line = Reline.readline(prompt_string, true)
-            break if line.nil? # Ctrl+D
+            input = read_user_input
+            break if input.nil? # Ctrl+D
 
-            stripped = line.strip
+            stripped = input.strip
 
             if ['/edit', '/e'].include?(stripped)
               stripped = open_editor_prompt(out)
@@ -291,9 +291,41 @@ module Legion
           show_session_stats(out)
         end
 
+        def read_user_input
+          lines = []
+          first_line = true
+
+          loop do
+            prompt = first_line ? prompt_string : continuation_prompt_string
+            line = Reline.readline(prompt, first_line)
+            return nil if line.nil? # Ctrl+D
+
+            if line.rstrip.end_with?('\\')
+              lines << line.rstrip.chomp('\\').rstrip
+              first_line = false
+              next
+            end
+
+            lines << line
+            break
+          end
+
+          result = lines.join("\n")
+          result.strip.empty? ? nil : result
+        rescue Interrupt
+          raise if first_line
+
+          puts
+          nil
+        end
+
         def prompt_string
           label = @plan_mode ? 'plan' : 'you'
           "\001\e[38;2;127;119;221m\002#{label}\001\e[0m\002 > "
+        end
+
+        def continuation_prompt_string
+          "\001\e[2m\002 ... \001\e[0m\002 "
         end
 
         def open_editor_prompt(out)
@@ -458,7 +490,8 @@ module Legion
                        '/edit'                => 'Open $EDITOR for long prompts'
                      })
           puts
-          puts out.dim('  !command runs a shell command inline. Sessions auto-saved on exit.')
+          puts out.dim('  End a line with \\ for multiline input. !command runs a shell command inline.')
+          puts out.dim('  Sessions auto-saved on exit.')
         end
 
         def handle_compact(out)
