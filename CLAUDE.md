@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.3.0
+**Version**: 1.4.0
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -162,14 +162,24 @@ Legion (lib/legion.rb)
     ├── Chat               # `legion chat` - interactive AI REPL + headless prompt mode
     │   ├── Session        # Multi-turn chat session with streaming
     │   ├── SessionStore   # Persistent session save/load/list/resume/fork
-    │   ├── Permissions    # Three-tier tool permission model (safe/ask/deny)
-    │   ├── ToolRegistry   # Chat tool discovery and registration
-    │   ├── Context        # Project awareness (git, language, instructions)
+    │   ├── Permissions    # Tool permission model (interactive/auto_approve/read_only)
+    │   ├── ToolRegistry   # Chat tool discovery and registration (10 built-in tools)
+    │   ├── Context        # Project awareness (git, language, instructions, extra dirs)
     │   ├── MarkdownRenderer # Terminal markdown rendering with syntax highlighting
     │   ├── WebFetch       # /fetch slash command for web page context injection
+    │   ├── WebSearch      # DuckDuckGo HTML scraping search engine
+    │   ├── Checkpoint     # File edit checkpointing with /rewind undo
+    │   ├── MemoryStore    # Persistent memory (project + global scopes, markdown files)
+    │   ├── Subagent       # Background subagent spawning via headless subprocess
+    │   ├── AgentRegistry  # Custom agent definitions from .legion/agents/ (JSON/YAML)
+    │   ├── AgentDelegator # @name at-mention parsing and agent dispatch
     │   ├── ChatLogger     # Chat-specific logging
     │   └── Tools/         # Built-in tools: read_file, write_file, edit_file,
-    │                      #   search_files, search_content, run_command
+    │                      #   search_files, search_content, run_command,
+    │                      #   save_memory, search_memory, web_search, spawn_agent
+    ├── Memory             # `legion memory` - persistent memory CLI (list/add/forget/search)
+    ├── Plan               # `legion plan` - read-only exploration mode
+    ├── Swarm              # `legion swarm` - multi-agent workflow orchestration
     ├── Commit             # `legion commit` - AI-generated commit messages via LLM
     ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
     └── Review             # `legion review` - AI code review with severity levels
@@ -253,8 +263,35 @@ legion
     [--model MODEL] [--provider PROVIDER]
     [--no_markdown] [--incognito]
     [--max_budget_usd N] [--auto_approve / -y]
-    # Slash commands: /save, /load, /sessions, /clear, /model, /cost,
-    #   /compact, /fetch <url>, /help, /quit
+    [--add_dir DIR ...] [--personality STYLE]
+    [--continue / -c] [--resume NAME] [--fork NAME]
+    # Slash commands:
+    #   /help, /quit, /cost, /status, /clear, /new
+    #   /save NAME, /load NAME, /sessions, /compact
+    #   /fetch URL, /search QUERY, /diff, /copy
+    #   /rewind [N|FILE], /memory [add TEXT]
+    #   /agent TASK, /agents, /plan, /swarm NAME
+    #   /review [SCOPE], /permissions [MODE], /personality STYLE
+    #   /model X, /edit (open $EDITOR)
+    # Bang commands: !<shell command> (quick shell exec with context injection)
+    # At-mentions: @agent_name <task> (delegate to custom agent)
+
+  memory                             # persistent memory management
+    list [--global]
+    add TEXT [--global]
+    forget INDEX [--global]
+    search QUERY
+    clear [--global] [-y]
+
+  plan                               # read-only exploration mode (no writes/edits/shell)
+    [--model MODEL] [--provider PROVIDER]
+    # Slash commands: /save (writes plan to docs/plans/), /help, /quit
+
+  swarm                              # multi-agent workflow orchestration
+    start NAME                       # run a workflow from .legion/swarms/NAME.json
+    list                             # list available workflows
+    show NAME                        # show workflow details
+    [--model MODEL]
 
   commit                             # AI-generated commit message via LLM
     [--model MODEL] [--provider PROVIDER]
@@ -312,6 +349,7 @@ legion
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `mcp` (~> 0.8) | MCP server SDK |
+| `reline` (>= 0.5) | Interactive line editing for chat REPL |
 | `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
 | `sinatra` (>= 4.0) | HTTP API framework |
 | `thor` (>= 1.3) | CLI framework |
@@ -399,13 +437,22 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/chat_command.rb` | `legion chat` — interactive AI REPL + headless prompt mode |
 | `lib/legion/cli/chat/session.rb` | Chat session: multi-turn conversation, streaming, tool use |
 | `lib/legion/cli/chat/session_store.rb` | Session persistence: save, load, list, resume, fork |
-| `lib/legion/cli/chat/permissions.rb` | Three-tier tool permission model (safe/ask/deny) |
-| `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration |
-| `lib/legion/cli/chat/context.rb` | Project awareness: git info, language detection, instructions |
+| `lib/legion/cli/chat/permissions.rb` | Tool permission model (interactive/auto_approve/read_only) |
+| `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration (10 tools) |
+| `lib/legion/cli/chat/context.rb` | Project awareness: git info, language detection, instructions, extra dirs |
 | `lib/legion/cli/chat/markdown_renderer.rb` | Terminal markdown rendering with Rouge syntax highlighting |
 | `lib/legion/cli/chat/web_fetch.rb` | `/fetch` slash command: fetches web page, extracts text for context |
+| `lib/legion/cli/chat/web_search.rb` | DuckDuckGo HTML scraping search (parse results, extract URLs, auto-fetch) |
+| `lib/legion/cli/chat/checkpoint.rb` | File edit checkpointing: save prior state, rewind (N steps, per-file) |
+| `lib/legion/cli/chat/memory_store.rb` | Persistent memory: project (`.legion/memory.md`) + global (`~/.legion/memory/`) |
+| `lib/legion/cli/chat/subagent.rb` | Background subagent spawning via `Open3.capture3` to `legion chat prompt` |
+| `lib/legion/cli/chat/agent_registry.rb` | Custom agent definitions from `.legion/agents/*.json` and `.yaml` |
+| `lib/legion/cli/chat/agent_delegator.rb` | `@name` at-mention parsing and dispatch via Subagent |
 | `lib/legion/cli/chat/chat_logger.rb` | Chat-specific logging |
-| `lib/legion/cli/chat/tools/` | Built-in tools: read_file, write_file, edit_file, search_files, search_content, run_command |
+| `lib/legion/cli/chat/tools/` | Built-in tools: read_file, write_file, edit_file (string + line-number mode), search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent |
+| `lib/legion/cli/memory_command.rb` | `legion memory` subcommands (list, add, forget, search, clear) |
+| `lib/legion/cli/plan_command.rb` | `legion plan` — read-only exploration mode with /save to docs/plans/ |
+| `lib/legion/cli/swarm_command.rb` | `legion swarm` — multi-agent workflow orchestration from `.legion/swarms/` |
 | `lib/legion/cli/commit_command.rb` | `legion commit` — AI-generated commit messages via LLM |
 | `lib/legion/cli/pr_command.rb` | `legion pr` — AI-generated PR title + description via LLM |
 | `lib/legion/cli/review_command.rb` | `legion review` — AI code review with severity levels (CRITICAL/WARNING/SUGGESTION/NOTE) |
@@ -436,8 +483,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ## Rubocop Notes
 
-- `.rubocop.yml` excludes `spec/**/*`, `legionio.gemspec`, and `chat_command.rb` from `Metrics/BlockLength`
-- `chat_command.rb` also excluded from `Metrics/AbcSize` (large REPL loop)
+- `.rubocop.yml` excludes `spec/**/*`, `legionio.gemspec`, `chat_command.rb`, `plan_command.rb`, and `swarm_command.rb` from `Metrics/BlockLength`
+- `chat_command.rb` also excluded from `Metrics/AbcSize`, `Metrics/MethodLength`, and `Metrics/CyclomaticComplexity` (large REPL loop + slash command dispatch)
 - Hash alignment: `table` style enforced for both rocket and colon
 - `Naming/PredicateMethod` disabled
 
