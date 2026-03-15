@@ -50,7 +50,9 @@ module Legion
         load_custom_agents
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
-        out.header("Legion AI Chat (#{@session.model_id})")
+        out.banner(version: Legion::VERSION)
+        puts
+        puts out.dim("  Model: #{@session.model_id}")
         puts out.dim('  Type /help for commands, /quit to exit')
         puts
 
