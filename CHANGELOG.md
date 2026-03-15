@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## v1.4.1
+
+### Added
+- CLI status indicators using TTY::Spinner for chat REPL
+- Session lifecycle events (:llm_start, :llm_first_token, :llm_complete, :tool_start, :tool_complete)
+- StatusIndicator class subscribes to session events and manages spinner display
+- Purple-themed braille dot spinner with phase labels (thinking..., running tool_name...)
+- Tool counter prefix ([1/3]) for multi-tool loops
+- Graceful degradation for non-TTY output (piped, redirected)
+
 ## v1.4.0
 
 ### Added
