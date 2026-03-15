@@ -1,0 +1,75 @@
+# frozen_string_literal: true
+
+require 'legion/cli/chat_command'
+
+module Legion
+  module CLI
+    class Chat
+      module Permissions
+        TIERS = {
+          Tools::ReadFile      => :read,
+          Tools::SearchFiles   => :read,
+          Tools::SearchContent => :read,
+          Tools::WriteFile     => :write,
+          Tools::EditFile      => :write,
+          Tools::RunCommand    => :shell
+        }.freeze
+
+        @mode = :interactive
+
+        class << self
+          attr_accessor :mode
+
+          def auto_allow?
+            %i[headless auto_approve].include?(mode)
+          end
+
+          def confirm?(description)
+            return true if auto_allow?
+
+            $stderr.print "\e[33m#{description}\e[0m\n  Allow? [y/n] "
+            response = $stdin.gets&.strip&.downcase
+            %w[y yes].include?(response)
+          end
+
+          def tier_for(tool_class)
+            TIERS[tool_class] || :read
+          end
+
+          def apply!(tool_classes)
+            tool_classes.each do |klass|
+              tier = tier_for(klass)
+              klass.prepend(Gate) unless tier == :read
+            end
+          end
+        end
+
+        module Gate
+          def call(args)
+            normalized = normalize_args(args)
+            desc = permission_description(normalized)
+            return 'Tool execution denied by user.' unless Permissions.confirm?(desc)
+
+            super
+          end
+
+          private
+
+          def permission_description(args)
+            tier = Permissions.tier_for(self.class)
+            case tier
+            when :write
+              path = args[:path] || '(unknown)'
+              action = self.class.name.split('::').last.gsub(/([a-z])([A-Z])/, '\1 \2')
+              "#{action}: #{path}"
+            when :shell
+              "Run command: #{args[:command]}"
+            else
+              name
+            end
+          end
+        end
+      end
+    end
+  end
+end

@@ -16,7 +16,9 @@ module Legion
       class_option :config_dir, type: :string,  desc: 'Config directory path'
       class_option :model,      type: :string,  aliases: ['-m'], desc: 'Model ID (e.g., claude-sonnet-4-6)'
       class_option :provider,   type: :string,  desc: 'LLM provider (bedrock, anthropic, openai, gemini, ollama)'
-      class_option :system,     type: :string,  desc: 'System prompt override'
+      class_option :system,       type: :string,  desc: 'System prompt override'
+      class_option :auto_approve, type: :boolean, default: false, aliases: ['-y'],
+                                  desc: 'Auto-approve all tool executions (skip confirmation prompts)'
 
       autoload :Session, 'legion/cli/chat/session'
 
@@ -24,6 +26,7 @@ module Legion
       def interactive
         out = formatter
         setup_connection
+        configure_permissions(:interactive)
 
         chat_obj = create_chat
         system_prompt = build_system_prompt
@@ -48,6 +51,7 @@ module Legion
       def prompt(text)
         out = formatter
         setup_connection
+        configure_permissions(:headless)
 
         chat_obj = create_chat
         system_prompt = build_system_prompt
@@ -87,6 +91,15 @@ module Legion
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_llm
+        end
+
+        def configure_permissions(default)
+          require 'legion/cli/chat/permissions'
+          Chat::Permissions.mode = if options[:auto_approve]
+                                     :auto_approve
+                                   else
+                                     default
+                                   end
         end
 
         def create_chat

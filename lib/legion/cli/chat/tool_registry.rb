@@ -8,6 +8,7 @@ require 'legion/cli/chat/tools/search_content'
 require 'legion/cli/chat/tools/run_command'
 
 require 'legion/cli/chat_command'
+require 'legion/cli/chat/permissions'
 
 module Legion
   module CLI
@@ -21,6 +22,8 @@ module Legion
           Tools::SearchContent,
           Tools::RunCommand
         ].freeze
+
+        Permissions.apply!(BUILTIN_TOOLS)
 
         def self.builtin_tools
           BUILTIN_TOOLS.dup
