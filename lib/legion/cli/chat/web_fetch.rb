@@ -2,6 +2,7 @@
 
 require 'net/http'
 require 'uri'
+require 'legion/cli/chat_command'
 
 module Legion
   module CLI

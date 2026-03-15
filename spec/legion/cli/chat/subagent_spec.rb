@@ -38,7 +38,7 @@ RSpec.describe Legion::CLI::Chat::Subagent do
       completed = false
 
       described_class.spawn(
-        task: 'test',
+        task:        'test',
         on_complete: ->(_id, _result) { completed = true }
       )
 

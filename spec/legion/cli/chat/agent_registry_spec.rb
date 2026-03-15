@@ -19,15 +19,15 @@ RSpec.describe Legion::CLI::Chat::AgentRegistry do
   end
 
   def write_agent(name, data)
-    File.write(File.join(agents_dir, "#{name}.json"), ::JSON.generate(data))
+    File.write(File.join(agents_dir, "#{name}.json"), JSON.generate(data))
   end
 
   describe '.load_agents' do
     it 'loads JSON agent definitions' do
       write_agent('reviewer', {
-                    'name' => 'reviewer',
-                    'description' => 'Code review specialist',
-                    'model' => 'claude-sonnet-4-5-20250514',
+                    'name'          => 'reviewer',
+                    'description'   => 'Code review specialist',
+                    'model'         => 'claude-sonnet-4-5-20250514',
                     'system_prompt' => 'You are a code reviewer.'
                   })
 

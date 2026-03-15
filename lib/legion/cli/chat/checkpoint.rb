@@ -2,6 +2,7 @@
 
 require 'fileutils'
 require 'tmpdir'
+require 'legion/cli/chat_command'
 
 module Legion
   module CLI

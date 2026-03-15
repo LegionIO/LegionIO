@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'fileutils'
+require 'legion/cli/chat_command'
 
 module Legion
   module CLI
