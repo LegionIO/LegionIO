@@ -43,7 +43,7 @@ module Legion
           raise FetchError, 'Too many redirects' if limit.zero?
 
           http = Net::HTTP.new(uri.host, uri.port)
-          http.use_ssl     = (uri.scheme == 'https')
+          http.use_ssl = (uri.scheme == 'https')
           http.open_timeout = TIMEOUT
           http.read_timeout = TIMEOUT
 
@@ -124,10 +124,10 @@ module Legion
         def convert_blocks!(text)
           text.gsub!(%r{<pre[^>]*>(.*?)</pre>}mi, "\n```\n\\1\n```\n")
           text.gsub!(%r{<blockquote[^>]*>(.*?)</blockquote>}mi, "\n> \\1\n")
-          text.gsub!(%r{<p[^>]*>}mi, "\n\n")
+          text.gsub!(/<p[^>]*>/mi, "\n\n")
           text.gsub!(%r{</p>}mi, "\n")
-          text.gsub!(/<br\s*\/?>/, "\n")
-          text.gsub!(/<hr\s*\/?>/, "\n---\n")
+          text.gsub!(%r{<br\s*/?>}, "\n")
+          text.gsub!(%r{<hr\s*/?>}, "\n---\n")
         end
 
         def strip_remaining_tags!(text)
@@ -135,12 +135,12 @@ module Legion
         end
 
         def clean_whitespace(text)
-          text = text.gsub(/&nbsp;/, ' ')
-                     .gsub(/&amp;/, '&')
-                     .gsub(/&lt;/, '<')
-                     .gsub(/&gt;/, '>')
-                     .gsub(/&quot;/, '"')
-                     .gsub(/&#39;/, "'")
+          text = text.gsub('&nbsp;', ' ')
+                     .gsub('&amp;', '&')
+                     .gsub('&lt;', '<')
+                     .gsub('&gt;', '>')
+                     .gsub('&quot;', '"')
+                     .gsub('&#39;', "'")
           text.gsub(/\n{3,}/, "\n\n").gsub(/ +/, ' ').strip
         end
 
