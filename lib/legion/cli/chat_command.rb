@@ -196,6 +196,12 @@ module Legion
           when '/clear'
             @session.chat.reset_messages!
             out.success('Conversation cleared')
+          when '/save'
+            handle_save(args.first, out)
+          when '/load'
+            handle_load(args.first, out)
+          when '/sessions'
+            handle_sessions(out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -209,14 +215,54 @@ module Legion
           true
         end
 
+        def handle_save(name, out)
+          require 'legion/cli/chat/session_store'
+          name ||= Time.now.strftime('%Y%m%d-%H%M%S')
+          path = Chat::SessionStore.save(@session, name)
+          out.success("Session saved: #{name} (#{path})")
+        rescue StandardError => e
+          out.error("Save failed: #{e.message}")
+        end
+
+        def handle_load(name, out)
+          require 'legion/cli/chat/session_store'
+          unless name
+            out.error('Usage: /load <name>. Use /sessions to list saved sessions.')
+            return
+          end
+          data = Chat::SessionStore.load(name)
+          Chat::SessionStore.restore(@session, data)
+          msg_count = data[:messages]&.length || 0
+          out.success("Loaded session: #{name} (#{msg_count} messages)")
+        rescue CLI::Error => e
+          out.error(e.message)
+        end
+
+        def handle_sessions(_out)
+          require 'legion/cli/chat/session_store'
+          sessions = Chat::SessionStore.list
+          if sessions.empty?
+            puts '  No saved sessions.'
+            return
+          end
+          sessions.each do |s|
+            age = Time.now - s[:modified]
+            ago = age < 3600 ? "#{(age / 60).round}m ago" : "#{(age / 3600).round}h ago"
+            puts "  #{s[:name]}  (#{ago})"
+          end
+        end
+
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-                       '/help'    => 'Show this help',
-                       '/quit'    => 'Exit chat',
-                       '/cost'    => 'Show session stats',
-                       '/clear'   => 'Clear conversation history',
-                       '/model X' => 'Switch model'
+                       '/help'      => 'Show this help',
+                       '/quit'      => 'Exit chat',
+                       '/cost'      => 'Show session stats',
+                       '/clear'     => 'Clear conversation history',
+                       '/save NAME' => 'Save session to disk',
+                       '/load NAME' => 'Load a saved session',
+                       '/sessions'  => 'List saved sessions',
+                       '/model X'   => 'Switch model'
                      })
           puts
         end
