@@ -24,6 +24,10 @@ module Legion
       class_option :max_budget_usd, type: :numeric, desc: 'Maximum estimated cost in USD (stops when exceeded)'
       class_option :incognito, type: :boolean, default: false,
                                desc: 'Disable automatic session history saving'
+      class_option :continue, type: :boolean, default: false, aliases: ['-c'],
+                              desc: 'Resume the most recent session'
+      class_option :resume,   type: :string, desc: 'Resume a saved session by name'
+      class_option :fork,     type: :string, desc: 'Fork a saved session (load but save as new)'
 
       autoload :Session, 'legion/cli/chat/session'
 
@@ -40,6 +44,8 @@ module Legion
           chat: chat_obj, system_prompt: system_prompt,
           budget_usd: options[:max_budget_usd]
         )
+
+        restore_session(out) if options[:continue] || options[:resume] || options[:fork]
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
         out.header("Legion AI Chat (#{@session.model_id})")
@@ -285,6 +291,7 @@ module Legion
         def handle_save(name, out)
           require 'legion/cli/chat/session_store'
           name ||= Time.now.strftime('%Y%m%d-%H%M%S')
+          @session_name = name
           path = Chat::SessionStore.save(@session, name)
           out.success("Session saved: #{name} (#{path})")
         rescue StandardError => e
@@ -392,6 +399,27 @@ module Legion
           out.detail(details)
         end
 
+        def restore_session(out)
+          require 'legion/cli/chat/session_store'
+          if options[:continue]
+            name = Chat::SessionStore.latest
+            @session_name = name
+          elsif options[:resume]
+            name = options[:resume]
+            @session_name = name
+          elsif options[:fork]
+            name = options[:fork]
+            @session_name = nil # fork: save as new on exit
+          end
+
+          data = Chat::SessionStore.load(name)
+          Chat::SessionStore.restore(@session, data)
+          msg_count = data[:messages]&.length || 0
+          label = options[:fork] ? 'Forked from' : 'Resumed'
+          out.success("#{label} session: #{name} (#{msg_count} messages)")
+          chat_log.info "session_restore name=#{name} messages=#{msg_count} mode=#{options[:fork] ? 'fork' : 'resume'}"
+        end
+
         def auto_save_session(out)
           return if @auto_saved
           return if options[:incognito]
@@ -400,7 +428,7 @@ module Legion
 
           @auto_saved = true
           require 'legion/cli/chat/session_store'
-          name = "auto-#{Time.now.strftime('%Y%m%d-%H%M%S')}"
+          name = @session_name || "auto-#{Time.now.strftime('%Y%m%d-%H%M%S')}"
           path = Chat::SessionStore.save(@session, name)
           chat_log.info "auto_save name=#{name} path=#{path}"
           out&.dim("  Session saved: #{name}")&.then { |msg| puts msg }

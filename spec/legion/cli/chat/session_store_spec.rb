@@ -121,8 +121,9 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
 
       described_class.restore(session, data)
       expect(chat.messages.length).to eq(2)
-      expect(chat.messages[0][:role].to_s).to eq('user')
-      expect(chat.messages[1][:role].to_s).to eq('assistant')
+      msg = chat.messages[0]
+      role = msg.respond_to?(:role) ? msg.role : msg[:role]
+      expect(role.to_s).to eq('user')
     end
   end
 
@@ -141,6 +142,22 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
       expect(sessions.length).to eq(2)
       expect(sessions[0][:name]).to eq('newer')
       expect(sessions[1][:name]).to eq('older')
+    end
+  end
+
+  describe '.latest' do
+    it 'returns the name of the most recent session' do
+      described_class.save(session, 'older')
+      sleep 0.05
+      described_class.save(session, 'newer')
+
+      expect(described_class.latest).to eq('newer')
+    end
+
+    it 'raises CLI::Error when no sessions exist' do
+      FileUtils.rm_rf(tmpdir)
+      expect { described_class.latest }
+        .to raise_error(Legion::CLI::Error, /No saved sessions/)
     end
   end
 

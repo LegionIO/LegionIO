@@ -52,6 +52,13 @@ module Legion
             sessions.sort_by { |s| s[:modified] }.reverse
           end
 
+          def latest
+            sessions = list
+            raise CLI::Error, 'No saved sessions found.' if sessions.empty?
+
+            sessions.first[:name]
+          end
+
           def delete(name)
             path = session_path(name)
             raise CLI::Error, "Session not found: #{name}" unless File.exist?(path)
