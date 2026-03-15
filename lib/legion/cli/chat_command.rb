@@ -19,6 +19,8 @@ module Legion
       class_option :system,       type: :string,  desc: 'System prompt override'
       class_option :auto_approve, type: :boolean, default: false, aliases: ['-y'],
                                   desc: 'Auto-approve all tool executions (skip confirmation prompts)'
+      class_option :no_markdown,  type: :boolean, default: false,
+                                  desc: 'Disable markdown rendering (raw output)'
 
       autoload :Session, 'legion/cli/chat/session'
 
@@ -103,6 +105,15 @@ module Legion
           Connection.ensure_llm
         end
 
+        def render_response(text, out)
+          return text if options[:no_markdown] || options[:no_color]
+
+          require 'legion/cli/chat/markdown_renderer'
+          Chat::MarkdownRenderer.render(text, color: out.color_enabled)
+        rescue LoadError
+          text
+        end
+
         def combine_with_stdin(text)
           return text if $stdin.tty?
 
@@ -143,43 +154,43 @@ module Legion
           require 'reline'
 
           loop do
-            begin
-              line = Reline.readline(prompt_string, true)
-              break if line.nil? # Ctrl+D
+            line = Reline.readline(prompt_string, true)
+            break if line.nil? # Ctrl+D
 
-              stripped = line.strip
-              next if stripped.empty?
+            stripped = line.strip
+            next if stripped.empty?
 
-              if stripped.start_with?('/')
-                handled = handle_slash_command(stripped, out)
-                next if handled
-              end
-
-              print out.colorize('legion', :green)
-              print out.dim(' > ')
-
-              @session.send_message(
-                stripped,
-                on_tool_call:   lambda { |tc|
-                  puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
-                },
-                on_tool_result: lambda { |tr|
-                  result_preview = tr.to_s.lines.first(3).join.rstrip
-                  puts out.dim("  [result] #{result_preview}")
-                }
-              ) do |chunk|
-                print chunk.content if chunk.content
-              end
-              puts
-              puts
-            rescue Interrupt
-              puts
-              next
-            rescue StandardError => e
-              puts
-              out.error("LLM error: #{e.message}")
-              puts
+            if stripped.start_with?('/')
+              handled = handle_slash_command(stripped, out)
+              next if handled
             end
+
+            print out.colorize('legion', :green)
+            print out.dim(' > ')
+
+            buffer = String.new
+            @session.send_message(
+              stripped,
+              on_tool_call:   lambda { |tc|
+                puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
+              },
+              on_tool_result: lambda { |tr|
+                result_preview = tr.to_s.lines.first(3).join.rstrip
+                puts out.dim("  [result] #{result_preview}")
+              }
+            ) do |chunk|
+              buffer << chunk.content if chunk.content
+            end
+            print render_response(buffer, out)
+            puts
+            puts
+          rescue Interrupt
+            puts
+            next
+          rescue StandardError => e
+            puts
+            out.error("LLM error: #{e.message}")
+            puts
           end
 
           puts
