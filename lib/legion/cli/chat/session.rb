@@ -25,24 +25,50 @@ module Legion
             messages_received: 0,
             started_at:        Time.now
           }
+          @callbacks = Hash.new { |h, k| h[k] = [] }
+          @turn = 0
         end
 
-        def send_message(message, on_tool_call: nil, on_tool_result: nil, &)
+        def on(event, &block)
+          @callbacks[event] << block
+        end
+
+        def emit(event, payload = {})
+          @callbacks[event].each { |cb| cb.call(payload) }
+        end
+
+        def send_message(message, on_tool_call: nil, on_tool_result: nil, &block)
           check_budget!
 
           @stats[:messages_sent] += 1
+          @turn += 1
+          current_turn = @turn
 
           @chat.on_tool_call { |tc| on_tool_call&.call(tc) }
           @chat.on_tool_result { |tr| on_tool_result&.call(tr) }
 
-          response = @chat.ask(message, &)
+          emit(:llm_start, { turn: current_turn })
+
+          first_token_emitted = false
+          wrapped_block = if block
+                            proc do |chunk|
+                              unless first_token_emitted
+                                first_token_emitted = true
+                                emit(:llm_first_token, { turn: current_turn })
+                              end
+                              block.call(chunk)
+                            end
+                          end
+
+          response = @chat.ask(message, &wrapped_block)
           @stats[:messages_received] += 1
 
-          # Track token usage if available
           if response.respond_to?(:input_tokens)
             @stats[:input_tokens]  = (@stats[:input_tokens] || 0) + (response.input_tokens || 0)
             @stats[:output_tokens] = (@stats[:output_tokens] || 0) + (response.output_tokens || 0)
           end
+
+          emit(:llm_complete, { turn: current_turn })
 
           response
         end

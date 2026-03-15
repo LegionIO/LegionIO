@@ -113,4 +113,56 @@ RSpec.describe Legion::CLI::Chat::Session do
       )
     end
   end
+
+  describe 'event emitter' do
+    it 'allows subscribing to events and emits them' do
+      received = []
+      session.on(:test_event) { |payload| received << payload }
+      session.emit(:test_event, { key: 'value' })
+      expect(received).to eq([{ key: 'value' }])
+    end
+
+    it 'supports multiple subscribers on the same event' do
+      results = []
+      session.on(:multi) { |p| results << "a:#{p[:v]}" }
+      session.on(:multi) { |p| results << "b:#{p[:v]}" }
+      session.emit(:multi, { v: 1 })
+      expect(results).to eq(['a:1', 'b:1'])
+    end
+
+    it 'does not raise when emitting with no subscribers' do
+      expect { session.emit(:nobody_listening, {}) }.not_to raise_error
+    end
+
+    it 'emits :llm_start and :llm_complete around send_message' do
+      events = []
+      session.on(:llm_start) { |p| events << [:llm_start, p[:turn]] }
+      session.on(:llm_complete) { |p| events << [:llm_complete, p[:turn]] }
+      session.send_message('hello')
+      expect(events).to eq([[:llm_start, 1], [:llm_complete, 1]])
+    end
+
+    it 'emits :llm_first_token on first streaming chunk' do
+      token_events = []
+      session.on(:llm_first_token) { |p| token_events << p[:turn] }
+      session.send_message('hello') { |_chunk| }
+      expect(token_events).to eq([1])
+    end
+
+    it 'emits :llm_first_token only once per turn' do
+      token_events = []
+      session.on(:llm_first_token) { |p| token_events << p[:turn] }
+      session.send_message('hello') { |_chunk| }
+      session.send_message('world') { |_chunk| }
+      expect(token_events).to eq([1, 2])
+    end
+
+    it 'increments turn counter across messages' do
+      turns = []
+      session.on(:llm_start) { |p| turns << p[:turn] }
+      session.send_message('first')
+      session.send_message('second')
+      expect(turns).to eq([1, 2])
+    end
+  end
 end
