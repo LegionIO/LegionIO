@@ -1,8 +1,19 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
   ci:
     uses: LegionIO/.github/.github/workflows/ci.yml@main
     with:
       needs-rabbitmq: true
       needs-redis: true
+
+  release:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: LegionIO/.github/.github/workflows/release.yml@main
+    secrets:
+      rubygems-api-key: ${{ secrets.RUBYGEMS_API_KEY }}
