@@ -19,3 +19,7 @@ legionio.db
 logs/
 # local settings (may contain secrets)
 settings/
+# design reference files
+legion_colors*.html
+legionio_animated*.html
+legionio_wallpaper*.svg
