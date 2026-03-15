@@ -32,6 +32,7 @@ module Legion
       class_option :personality, type: :string, desc: 'Communication style (concise, verbose, educational)'
 
       autoload :Session, 'legion/cli/chat/session'
+      autoload :StatusIndicator, 'legion/cli/chat/status_indicator'
 
       desc 'interactive', 'Start interactive AI conversation'
       def interactive
@@ -46,6 +47,7 @@ module Legion
           chat: chat_obj, system_prompt: system_prompt,
           budget_usd: options[:max_budget_usd]
         )
+        @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
 
         restore_session(out) if options[:continue] || options[:resume] || options[:fork]
         load_memory_context
@@ -240,15 +242,26 @@ module Legion
             print out.dim(' > ')
 
             buffer = String.new
+            tool_index = 0
+            tool_total = 0
             @session.send_message(
               stripped,
               on_tool_call:   lambda { |tc|
+                tool_index += 1
                 chat_log.debug "tool_call name=#{tc.name} args=#{tc.arguments.keys.join(',')}"
+                @session.emit(:tool_start, {
+                                name: tc.name, args: tc.arguments,
+                  index: tool_index, total: tool_total
+                              })
                 puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
               },
               on_tool_result: lambda { |tr|
                 result_preview = tr.to_s.lines.first(3).join.rstrip
                 chat_log.debug "tool_result preview=#{result_preview[0..200]}"
+                @session.emit(:tool_complete, {
+                                name: 'tool', result_preview: result_preview,
+                  index: tool_index, total: tool_total
+                              })
                 puts out.dim("  [result] #{result_preview}")
               }
             ) do |chunk|
