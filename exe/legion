@@ -7,6 +7,13 @@ require 'legion/cli'
 
 # Bare `legion` (no args) drops into interactive chat
 # `legion --help` and `legion help` still show full command list
-ARGV.replace(['chat']) if ARGV.empty?
+# Piped input with no args goes to headless prompt mode
+if ARGV.empty?
+  if $stdin.tty?
+    ARGV.replace(['chat'])
+  else
+    ARGV.replace(['chat', 'prompt', ''])
+  end
+end
 
 Legion::CLI::Main.start(ARGV)

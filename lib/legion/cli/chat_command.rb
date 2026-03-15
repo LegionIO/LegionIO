@@ -52,6 +52,9 @@ module Legion
         out = formatter
         setup_connection
 
+        text = combine_with_stdin(text)
+        raise CLI::Error, 'No prompt text provided. Pass text as argument or pipe via stdin.' if text.empty?
+
         chat_obj = create_chat
         configure_permissions(:headless)
         system_prompt = build_system_prompt
@@ -75,6 +78,9 @@ module Legion
       rescue CLI::Error => e
         out.error(e.message)
         raise SystemExit, 1
+      rescue StandardError => e
+        warn "Error: #{e.message}"
+        raise SystemExit, 1
       ensure
         Connection.shutdown
       end
@@ -91,6 +97,15 @@ module Legion
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_llm
+        end
+
+        def combine_with_stdin(text)
+          return text if $stdin.tty?
+
+          piped = $stdin.read
+          return piped.strip if text.strip.empty?
+
+          "#{text}\n\n#{piped}"
         end
 
         def configure_permissions(default)
