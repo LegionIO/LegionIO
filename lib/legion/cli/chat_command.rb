@@ -143,26 +143,21 @@ module Legion
           require 'reline'
 
           loop do
-            line = begin
-              Reline.readline(prompt_string, true)
-            rescue Interrupt
-              puts
-              next
-            end
-            break if line.nil? # Ctrl+D
-
-            stripped = line.strip
-            next if stripped.empty?
-
-            if stripped.start_with?('/')
-              handled = handle_slash_command(stripped, out)
-              next if handled
-            end
-
-            print out.colorize('legion', :green)
-            print out.dim(' > ')
-
             begin
+              line = Reline.readline(prompt_string, true)
+              break if line.nil? # Ctrl+D
+
+              stripped = line.strip
+              next if stripped.empty?
+
+              if stripped.start_with?('/')
+                handled = handle_slash_command(stripped, out)
+                next if handled
+              end
+
+              print out.colorize('legion', :green)
+              print out.dim(' > ')
+
               @session.send_message(
                 stripped,
                 on_tool_call:   lambda { |tc|
@@ -179,8 +174,7 @@ module Legion
               puts
             rescue Interrupt
               puts
-              puts out.dim('  (interrupted)')
-              puts
+              next
             rescue StandardError => e
               puts
               out.error("LLM error: #{e.message}")
