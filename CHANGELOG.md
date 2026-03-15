@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## v1.4.4
+
+### Added
+- `legion completion bash` subcommand outputs bash tab completion script
+- `legion completion zsh` subcommand outputs zsh tab completion script
+- `legion completion install` subcommand prints shell-specific installation instructions
+- `completions/legion.bash` bash completion script with full command tree coverage
+- `completions/_legion` zsh completion script with descriptions for all commands and flags
+
 ## v1.4.3
 
 ### Added

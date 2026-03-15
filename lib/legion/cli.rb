@@ -26,8 +26,9 @@ module Legion
     autoload :Memory,    'legion/cli/memory_command'
     autoload :Plan,      'legion/cli/plan_command'
     autoload :Swarm,     'legion/cli/swarm_command'
-    autoload :Gaia,      'legion/cli/gaia_command'
-    autoload :Schedule,  'legion/cli/schedule_command'
+    autoload :Gaia,       'legion/cli/gaia_command'
+    autoload :Schedule,   'legion/cli/schedule_command'
+    autoload :Completion, 'legion/cli/completion_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -173,6 +174,9 @@ module Legion
 
       desc 'schedule SUBCOMMAND', 'Manage schedules'
       subcommand 'schedule', Legion::CLI::Schedule
+
+      desc 'completion SUBCOMMAND', 'Shell tab completion scripts'
+      subcommand 'completion', Legion::CLI::Completion
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
