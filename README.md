@@ -1,8 +1,8 @@
 # LegionIO
 
-An extensible async job engine for Ruby. Schedule tasks, create relationships between services, and run them concurrently via RabbitMQ.
+An extensible async job engine and AI coding assistant for Ruby. Schedule tasks, create relationships between services, and run them concurrently via RabbitMQ. Includes an interactive AI chat CLI with built-in tools, code review, and multi-agent workflows.
 
-**Ruby >= 3.4** | **License**: Apache-2.0 | **Author**: [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **Version**: 1.4.0 | **License**: Apache-2.0 | **Author**: [@Esity](https://github.com/Esity)
 
 ## What does it do?
 
@@ -101,6 +101,67 @@ legion generate message <name>
 ```
 
 `legion g` is an alias for `legion generate`.
+
+### AI Chat
+
+Interactive AI conversation with built-in tools for file operations and shell commands. Requires `legion-llm`.
+
+```bash
+legion chat                         # interactive REPL (default command)
+legion chat prompt "explain main.rb" # headless single-prompt mode
+echo "fix the bug" | legion chat prompt - # stdin pipe
+```
+
+**Flags**: `--model`, `--provider`, `--auto_approve` (`-y`), `--max_budget_usd N`, `--no_markdown`, `--incognito`, `--add_dir DIR`, `--personality STYLE`, `--continue` (`-c`), `--resume NAME`, `--fork NAME`
+
+**Slash commands**: `/help`, `/quit`, `/cost`, `/status`, `/clear`, `/new`, `/save`, `/load`, `/sessions`, `/compact`, `/fetch URL`, `/search QUERY`, `/diff`, `/copy`, `/rewind`, `/memory`, `/agent`, `/agents`, `/plan`, `/swarm`, `/review`, `/permissions`, `/personality`, `/model`, `/edit`
+
+**Bang commands**: `!ls -la` — run shell commands with output injected into context
+
+**At-mentions**: `@reviewer check main.rb` — delegate to custom agents defined in `.legion/agents/`
+
+**10 built-in tools**: read_file, write_file, edit_file (string + line-number mode), search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent
+
+### AI Workflow Commands
+
+```bash
+legion commit                       # AI-generated commit message from staged changes
+legion pr                           # AI-generated PR title + description
+legion pr --base develop --draft    # target branch and draft mode
+legion review                       # AI code review of staged changes
+legion review src/main.rb           # review specific files
+legion review --diff                # review uncommitted diff
+```
+
+### Memory, Plan, and Swarm
+
+```bash
+legion memory list                  # list project memories
+legion memory add "always use rspec" # add a memory
+legion memory search "testing"      # search memories
+legion memory forget 3              # remove memory by index
+
+legion plan                         # read-only exploration mode (no writes)
+
+legion swarm start deploy-pipeline  # run multi-agent workflow
+legion swarm list                   # list available workflows
+legion swarm show deploy-pipeline   # workflow details
+```
+
+### Digital Workers and Coldstart
+
+```bash
+legion worker list                  # list digital workers
+legion worker show <id>             # worker details
+legion worker pause <id>            # pause a worker
+legion worker activate <id>         # reactivate a paused worker
+legion worker retire <id>           # retire a worker
+legion worker costs --days 30       # cost report
+
+legion coldstart ingest .           # ingest CLAUDE.md/MEMORY.md into lex-memory
+legion coldstart preview .          # dry-run (show what would be ingested)
+legion coldstart status             # ingestion status
+```
 
 ## Configuration
 
@@ -238,16 +299,19 @@ CMD ruby --yjit $(which legion) start
 Browse available extensions: [LegionIO GitHub org](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
 
 **Core extensions (operational):**
-`lex-node`, `lex-tasker`, `lex-conditioner`, `lex-transformer`, `lex-scheduler`, `lex-health`, `lex-log`, `lex-ping`
+`lex-node`, `lex-tasker`, `lex-conditioner`, `lex-transformer`, `lex-scheduler`, `lex-health`, `lex-log`, `lex-ping`, `lex-exec`, `lex-lex`, `lex-codegen`, `lex-metering`
+
+**Agentic extensions (242):**
+Brain-modeled cognitive architecture. 20 core orchestration extensions (`lex-tick`, `lex-cortex`, `lex-dream`, `lex-memory`, `lex-emotion`, `lex-prediction`, `lex-identity`, `lex-trust`, `lex-consent`, `lex-governance`, etc.) plus 222 expanded cognitive modules across 18 domains: attention, reasoning, executive function, metacognition, emotion, curiosity, social cognition, language, learning, and more.
 
 **AI/LLM extensions:**
 `lex-claude`, `lex-openai`, `lex-gemini`
 
 **Common service integrations:**
-`lex-http`, `lex-redis`, `lex-s3`, `lex-github`
+`lex-http`, `lex-redis`, `lex-s3`, `lex-github`, `lex-consul`, `lex-nomad`, `lex-vault`, `lex-microsoft_teams`
 
 **Other integrations:**
-`lex-ssh`, `lex-slack`, `lex-smtp`, `lex-influxdb`, `lex-pagerduty`, `lex-elasticsearch`, and more
+`lex-ssh`, `lex-slack`, `lex-smtp`, `lex-influxdb`, `lex-pagerduty`, `lex-elasticsearch`, `lex-chef`, `lex-pushover`, `lex-twilio`, and more
 
 ## Similar Projects
 

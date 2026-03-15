@@ -492,7 +492,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 560 examples, 0 failures
+bundle exec rspec       # 636 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
