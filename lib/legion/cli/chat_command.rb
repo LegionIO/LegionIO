@@ -26,9 +26,9 @@ module Legion
       def interactive
         out = formatter
         setup_connection
-        configure_permissions(:interactive)
 
         chat_obj = create_chat
+        configure_permissions(:interactive)
         system_prompt = build_system_prompt
         @session = Chat::Session.new(chat: chat_obj, system_prompt: system_prompt)
 
@@ -51,9 +51,9 @@ module Legion
       def prompt(text)
         out = formatter
         setup_connection
-        configure_permissions(:headless)
 
         chat_obj = create_chat
+        configure_permissions(:headless)
         system_prompt = build_system_prompt
         session = Chat::Session.new(chat: chat_obj, system_prompt: system_prompt)
 
