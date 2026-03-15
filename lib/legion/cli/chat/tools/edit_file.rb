@@ -23,6 +23,8 @@ module Legion
             return "Error: old_text not found in #{path}" if occurrences.zero?
             return "Error: old_text matches #{occurrences} locations — must be unique (provide more context)" if occurrences > 1
 
+            require 'legion/cli/chat/checkpoint'
+            Checkpoint.save(expanded)
             updated = content.sub(old_text, new_text)
             File.write(expanded, updated, encoding: 'utf-8')
             "Replaced 1 occurrence in #{expanded}"

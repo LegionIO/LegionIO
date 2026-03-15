@@ -15,6 +15,8 @@ Layout/HashAlignment:
 
 Metrics/MethodLength:
   Max: 50
+  Exclude:
+    - 'lib/legion/cli/chat_command.rb'
 
 Metrics/ClassLength:
   Max: 1500
@@ -28,6 +30,8 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - 'legionio.gemspec'
     - 'lib/legion/cli/chat_command.rb'
+    - 'lib/legion/cli/plan_command.rb'
+    - 'lib/legion/cli/swarm_command.rb'
 
 Metrics/AbcSize:
   Max: 60
@@ -36,6 +40,8 @@ Metrics/AbcSize:
 
 Metrics/CyclomaticComplexity:
   Max: 15
+  Exclude:
+    - 'lib/legion/cli/chat_command.rb'
 
 Metrics/PerceivedComplexity:
   Max: 17

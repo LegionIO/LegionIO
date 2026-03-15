@@ -15,6 +15,8 @@ module Legion
 
           def execute(path:, content:)
             expanded = File.expand_path(path)
+            require 'legion/cli/chat/checkpoint'
+            Checkpoint.save(expanded)
             FileUtils.mkdir_p(File.dirname(expanded))
             File.write(expanded, content, encoding: 'utf-8')
             "Wrote #{content.lines.count} lines to #{expanded}"

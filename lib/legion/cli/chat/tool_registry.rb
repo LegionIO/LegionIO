@@ -6,6 +6,10 @@ require 'legion/cli/chat/tools/edit_file'
 require 'legion/cli/chat/tools/search_files'
 require 'legion/cli/chat/tools/search_content'
 require 'legion/cli/chat/tools/run_command'
+require 'legion/cli/chat/tools/save_memory'
+require 'legion/cli/chat/tools/search_memory'
+require 'legion/cli/chat/tools/web_search'
+require 'legion/cli/chat/tools/spawn_agent'
 
 require 'legion/cli/chat_command'
 require 'legion/cli/chat/permissions'
@@ -20,7 +24,11 @@ module Legion
           Tools::EditFile,
           Tools::SearchFiles,
           Tools::SearchContent,
-          Tools::RunCommand
+          Tools::RunCommand,
+          Tools::SaveMemory,
+          Tools::SearchMemory,
+          Tools::WebSearch,
+          Tools::SpawnAgent
         ].freeze
 
         Permissions.apply!(BUILTIN_TOOLS)

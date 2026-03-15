@@ -46,6 +46,8 @@ module Legion
         )
 
         restore_session(out) if options[:continue] || options[:resume] || options[:fork]
+        load_memory_context
+        load_custom_agents
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
         out.header("Legion AI Chat (#{@session.model_id})")
@@ -201,6 +203,11 @@ module Legion
               next if handled
             end
 
+            if stripped.start_with?('@')
+              handled = handle_at_mention(stripped, out)
+              next if handled
+            end
+
             chat_log.debug "user_message length=#{stripped.length}"
             print out.colorize('legion', :title)
             print out.dim(' > ')
@@ -274,6 +281,20 @@ module Legion
             handle_compact(out)
           when '/fetch'
             handle_fetch(args.first, out)
+          when '/rewind'
+            handle_rewind(args.first, out)
+          when '/memory'
+            handle_memory(args.first, out)
+          when '/search'
+            handle_search(args.first, out)
+          when '/agent'
+            handle_agent(args.first, out)
+          when '/agents'
+            handle_agents_status(out)
+          when '/plan'
+            handle_plan_toggle(out)
+          when '/swarm'
+            handle_swarm(args.first, out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -329,16 +350,23 @@ module Legion
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-                       '/help'      => 'Show this help',
-                       '/quit'      => 'Exit chat',
-                       '/cost'      => 'Show session stats',
-                       '/compact'   => 'Compress conversation history',
-                       '/clear'     => 'Clear conversation history',
-                       '/save NAME' => 'Save session to disk',
-                       '/load NAME' => 'Load a saved session',
-                       '/fetch URL' => 'Fetch a web page into context',
-                       '/sessions'  => 'List saved sessions',
-                       '/model X'   => 'Switch model'
+                       '/help'              => 'Show this help',
+                       '/quit'              => 'Exit chat',
+                       '/cost'              => 'Show session stats',
+                       '/compact'           => 'Compress conversation history',
+                       '/clear'             => 'Clear conversation history',
+                       '/save NAME'         => 'Save session to disk',
+                       '/load NAME'         => 'Load a saved session',
+                       '/fetch URL'         => 'Fetch a web page into context',
+                       '/search QUERY'      => 'Web search and inject results into context',
+                       '/rewind [N|FILE]'   => 'Undo file edits (last, N steps, or specific file)',
+                       '/memory [add TEXT]' => 'View or add persistent memory',
+                       '/agent TASK'        => 'Spawn a background subagent',
+                       '/agents'            => 'Show running subagents',
+                       '/plan'              => 'Toggle plan mode (read-only)',
+                       '/swarm NAME|PROMPT' => 'Run a swarm workflow or auto-generate one',
+                       '/sessions'          => 'List saved sessions',
+                       '/model X'           => 'Switch model'
                      })
           puts
           puts out.dim('  Sessions auto-saved on exit. Use --incognito to disable.')
@@ -382,6 +410,211 @@ module Legion
         rescue Chat::WebFetch::FetchError => e
           chat_log.warn "web_fetch_error url=#{url} error=#{e.message}"
           out.error("Fetch failed: #{e.message}")
+        end
+
+        def handle_memory(arg, out)
+          require 'legion/cli/chat/memory_store'
+          if arg&.start_with?('add ')
+            text = arg.sub('add ', '').strip
+            if text.empty?
+              out.error('Usage: /memory add <text>')
+              return
+            end
+            path = Chat::MemoryStore.add(text)
+            chat_log.info "memory_add length=#{text.length}"
+            out.success("Saved to project memory (#{path})")
+          else
+            entries = Chat::MemoryStore.list
+            global_entries = Chat::MemoryStore.list(scope: :global)
+            if entries.empty? && global_entries.empty?
+              out.warn('No memory entries. Use /memory add <text> to save something.')
+              return
+            end
+            unless global_entries.empty?
+              puts out.dim('  Global:')
+              global_entries.each { |e| puts "    - #{e}" }
+            end
+            unless entries.empty?
+              puts out.dim('  Project:')
+              entries.each { |e| puts "    - #{e}" }
+            end
+          end
+        end
+
+        def handle_search(query, out)
+          unless query && !query.strip.empty?
+            out.error('Usage: /search <query>')
+            return
+          end
+
+          require 'legion/cli/chat/web_search'
+          out.header("Searching: #{query}...")
+          results = Chat::WebSearch.search(query.strip)
+          chat_log.info "web_search query=#{query} results=#{results[:results].length}"
+
+          summary = results[:results].map { |r| "- [#{r[:title]}](#{r[:url]})\n  #{r[:snippet]}" }.join("\n\n")
+          context = "Web search results for '#{query}':\n\n#{summary}"
+
+          context += "\n\n---\n\nTop result content:\n\n#{results[:fetched_content]}" if results[:fetched_content]
+
+          @session.chat.add_message(role: :user, content: context)
+          out.success("#{results[:results].length} results injected into context.")
+        rescue Chat::WebSearch::SearchError => e
+          chat_log.warn "web_search_error query=#{query} error=#{e.message}"
+          out.error("Search failed: #{e.message}")
+        end
+
+        def handle_swarm(arg, out)
+          unless arg && !arg.strip.empty?
+            out.error('Usage: /swarm <workflow-name> or /swarm <task description>')
+            return
+          end
+
+          workflow_path = File.join(Dir.pwd, '.legion/swarms', "#{arg.strip}.json")
+          if File.exist?(workflow_path)
+            chat_log.info "swarm_start workflow=#{arg.strip}"
+            out.header("Starting swarm: #{arg.strip}")
+            Thread.new do
+              Legion::CLI::Swarm.new.invoke(:start, [arg.strip])
+            rescue StandardError => e
+              puts out.dim("\n  [swarm] Error: #{e.message}")
+            end
+            out.success('Swarm running in background. Results will appear when done.')
+          else
+            chat_log.info "swarm_generate prompt_length=#{arg.length}"
+            out.warn("No workflow file found for '#{arg.strip}'. Auto-generation from prompt is planned but not yet implemented.")
+            out.dim("  Create a workflow file at: #{workflow_path}")
+          end
+        end
+
+        def handle_plan_toggle(out)
+          @plan_mode = !@plan_mode
+          if @plan_mode
+            # Remove write/edit/shell tools, keep read/search only
+            read_only_tools = @session.chat.instance_variable_get(:@tools)&.select do |t|
+              t.is_a?(Class) && [Chat::Tools::ReadFile, Chat::Tools::SearchFiles,
+                                 Chat::Tools::SearchContent, Chat::Tools::SearchMemory].include?(t)
+            end
+            @saved_tools = @session.chat.instance_variable_get(:@tools)
+            @session.chat.instance_variable_set(:@tools, read_only_tools || [])
+            chat_log.info 'plan_mode enabled'
+            out.success('Plan mode ON — read-only (no writes, edits, or commands)')
+          else
+            @session.chat.instance_variable_set(:@tools, @saved_tools) if @saved_tools
+            @saved_tools = nil
+            chat_log.info 'plan_mode disabled'
+            out.success('Plan mode OFF — all tools available')
+          end
+        end
+
+        def handle_agent(task, out)
+          unless task && !task.strip.empty?
+            out.error('Usage: /agent <task description>')
+            return
+          end
+
+          require 'legion/cli/chat/subagent'
+          result = Chat::Subagent.spawn(
+            task:        task.strip,
+            model:       @session.model_id,
+            on_complete: lambda { |id, res|
+              output = res[:output] || res[:error] || 'No output'
+              @session.chat.add_message(
+                role:    :user,
+                content: "Subagent #{id} result:\n\n#{output}"
+              )
+              puts out.dim("\n  [subagent #{id}] Complete. Results added to context.")
+              print prompt_string
+            }
+          )
+
+          if result[:error]
+            out.error(result[:error])
+          else
+            chat_log.info "subagent_spawn id=#{result[:id]} task_length=#{task.length}"
+            out.success("Subagent #{result[:id]} started. Results will appear when done.")
+          end
+        end
+
+        def handle_agents_status(out)
+          require 'legion/cli/chat/subagent'
+          agents = Chat::Subagent.running
+          if agents.empty?
+            out.warn('No subagents running.')
+            return
+          end
+
+          out.header("Running Subagents (#{agents.length})")
+          agents.each do |a|
+            elapsed = a[:elapsed].round(1)
+            puts "  #{a[:id]}  #{elapsed}s  #{a[:task][0..60]}"
+          end
+        end
+
+        def handle_at_mention(input, out)
+          require 'legion/cli/chat/agent_delegator'
+          parsed = Chat::AgentDelegator.parse(input)
+          return false unless parsed
+
+          Chat::AgentDelegator.dispatch(
+            agent_name: parsed[:agent_name],
+            task:       parsed[:task],
+            session:    @session,
+            out:        out,
+            chat_log:   chat_log
+          )
+          true
+        end
+
+        def load_custom_agents
+          require 'legion/cli/chat/agent_registry'
+          agents = Chat::AgentRegistry.load_agents
+          return if agents.empty?
+
+          names = agents.keys.join(', ')
+          @session.chat.add_message(
+            role:    :user,
+            content: "Available custom agents: #{names}. Use @name to delegate tasks to them."
+          )
+        end
+
+        def load_memory_context
+          require 'legion/cli/chat/memory_store'
+          context = Chat::MemoryStore.load_context
+          return unless context
+
+          @session.chat.add_message(
+            role:    :user,
+            content: "The following is persistent memory from previous sessions:\n\n#{context}\n\nUse this context as needed."
+          )
+        end
+
+        def handle_rewind(arg, out)
+          require 'legion/cli/chat/checkpoint'
+          if Chat::Checkpoint.entries.none?
+            out.warn('No checkpoints available to rewind.')
+            return
+          end
+
+          if arg.nil? || arg.strip.empty?
+            restored = Chat::Checkpoint.rewind(1)
+          elsif arg.strip.match?(/\A\d+\z/)
+            restored = Chat::Checkpoint.rewind(arg.strip.to_i)
+          else
+            entry = Chat::Checkpoint.rewind_file(arg.strip)
+            restored = entry ? [entry] : []
+          end
+
+          if restored.empty?
+            out.warn('Nothing to rewind.')
+          else
+            restored.each do |e|
+              label = e.existed ? 'restored' : 'deleted (was new)'
+              puts out.dim("  #{File.basename(e.path)}: #{label}")
+            end
+            chat_log.info "rewind count=#{restored.length}"
+            out.success("Rewound #{restored.length} edit(s)")
+          end
         end
 
         def show_session_stats(out)

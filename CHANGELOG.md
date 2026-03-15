@@ -1,5 +1,25 @@
 # Legion Changelog
 
+## v1.4.0
+
+### Added
+- File edit checkpointing system with `/rewind` to undo edits (per-edit, N steps, or per-file)
+- Persistent memory system (`/memory`, `.legion/memory.md`, `~/.legion/memory/global.md`)
+- `legion memory` CLI subcommand for managing persistent memory entries
+- Web search via DuckDuckGo HTML scraping (`/search` slash command)
+- Background subagent spawning via headless subprocess (`/agent`, `SpawnAgent` tool)
+- Custom agent definitions (`.legion/agents/*.json` or `.yaml`) with `@name` delegation
+- Plan mode toggle (`/plan`) — restricts tools to read-only for exploration
+- `legion plan` CLI subcommand for standalone read-only exploration sessions
+- Multi-agent swarm orchestration (`/swarm`, `legion swarm` CLI subcommand)
+- `SaveMemory` and `SearchMemory` LLM tools for auto-remembering
+- `WebSearch` LLM tool for web search during conversations
+- Checkpoint integration in `WriteFile` and `EditFile` tools (auto-save before writes)
+
+### Changed
+- Rubocop exclusions added for plan_command.rb and swarm_command.rb (BlockLength)
+- Rubocop exclusions added for chat_command.rb (MethodLength, CyclomaticComplexity)
+
 ## v1.3.0
 
 ### Added

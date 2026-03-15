@@ -23,6 +23,9 @@ module Legion
     autoload :Commit,    'legion/cli/commit_command'
     autoload :Pr,        'legion/cli/pr_command'
     autoload :Review,    'legion/cli/review_command'
+    autoload :Memory,    'legion/cli/memory_command'
+    autoload :Plan,      'legion/cli/plan_command'
+    autoload :Swarm,     'legion/cli/swarm_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -153,6 +156,15 @@ module Legion
 
       desc 'review', 'AI code review of changes'
       subcommand 'review', Legion::CLI::Review
+
+      desc 'memory SUBCOMMAND', 'Persistent project memory across sessions'
+      subcommand 'memory', Legion::CLI::Memory
+
+      desc 'plan', 'Start plan mode (read-only exploration, no writes)'
+      subcommand 'plan', Legion::CLI::Plan
+
+      desc 'swarm SUBCOMMAND', 'Multi-agent swarm orchestration'
+      subcommand 'swarm', Legion::CLI::Swarm
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
