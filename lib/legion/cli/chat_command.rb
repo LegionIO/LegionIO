@@ -37,6 +37,10 @@ module Legion
         puts
 
         repl_loop(out)
+      rescue Interrupt
+        puts
+        puts out.dim('Interrupted.')
+        show_session_stats(out) if @session
       rescue CLI::Error => e
         out.error(e.message)
         raise SystemExit, 1
@@ -139,7 +143,12 @@ module Legion
           require 'reline'
 
           loop do
-            line = Reline.readline(prompt_string, true)
+            line = begin
+              Reline.readline(prompt_string, true)
+            rescue Interrupt
+              puts
+              next
+            end
             break if line.nil? # Ctrl+D
 
             stripped = line.strip
@@ -168,6 +177,10 @@ module Legion
               end
               puts
               puts
+            rescue Interrupt
+              puts
+              puts out.dim('  (interrupted)')
+              puts
             rescue StandardError => e
               puts
               out.error("LLM error: #{e.message}")
@@ -176,6 +189,7 @@ module Legion
           end
 
           puts
+          puts out.dim('Goodbye.')
           show_session_stats(out)
         end
 
