@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## v1.4.3
+
+### Added
+- `legion gaia status` CLI subcommand (probes GET /api/gaia/status, shows cognitive layer health)
+- `GET /api/gaia/status` API route returns GAIA boot state, active channels, heartbeat health
+
 ## v1.4.2
 
 ### Added
