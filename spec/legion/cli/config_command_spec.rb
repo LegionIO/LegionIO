@@ -192,4 +192,136 @@ RSpec.describe Legion::CLI::Config do
       end
     end
   end
+
+  describe 'Connection.shutdown ensure blocks' do
+    before do
+      allow(Legion::CLI::Connection).to receive(:shutdown)
+      allow(Legion::CLI::Connection).to receive(:ensure_settings)
+      allow(Legion::CLI::Connection).to receive(:settings?).and_return(false)
+    end
+
+    describe '#show' do
+      before do
+        allow(Legion::Settings).to receive(:respond_to?).with(:to_hash).and_return(true)
+        allow(Legion::Settings).to receive(:to_hash).and_return({})
+      end
+
+      it 'calls Connection.shutdown on success' do
+        expect(Legion::CLI::Connection).to receive(:shutdown)
+        output = StringIO.new
+        $stdout = output
+        config.show
+      ensure
+        $stdout = STDOUT
+      end
+
+      context 'when CLI::Error is raised' do
+        before do
+          allow(Legion::CLI::Connection).to receive(:ensure_settings)
+            .and_raise(Legion::CLI::Error, 'settings failed')
+        end
+
+        it 'rescues CLI::Error and raises SystemExit' do
+          expect { config.show }.to raise_error(SystemExit)
+        end
+
+        it 'calls Connection.shutdown even on error' do
+          expect(Legion::CLI::Connection).to receive(:shutdown)
+          config.show
+        rescue SystemExit
+          # expected
+        end
+      end
+    end
+
+    describe '#validate' do
+      it 'calls Connection.shutdown on success' do
+        expect(Legion::CLI::Connection).to receive(:shutdown)
+        output = StringIO.new
+        $stdout = output
+        config.validate
+      ensure
+        $stdout = STDOUT
+      end
+
+      context 'when CLI::Error is raised by ensure_settings' do
+        before do
+          allow(Legion::CLI::Connection).to receive(:ensure_settings)
+            .and_raise(Legion::CLI::Error, 'transport connection failed')
+        end
+
+        it 'rescues CLI::Error and raises SystemExit' do
+          expect { config.validate }.to raise_error(SystemExit)
+        end
+
+        it 'calls Connection.shutdown even on error' do
+          expect(Legion::CLI::Connection).to receive(:shutdown)
+          config.validate
+        rescue SystemExit
+          # expected
+        end
+      end
+    end
+
+    describe '#path' do
+      it 'calls Connection.shutdown on success' do
+        expect(Legion::CLI::Connection).to receive(:shutdown)
+        output = StringIO.new
+        $stdout = output
+        config.path
+      ensure
+        $stdout = STDOUT
+      end
+
+      context 'when CLI::Error is raised' do
+        before do
+          allow(Legion::CLI::Connection).to receive(:config_dir=)
+            .and_raise(Legion::CLI::Error, 'something went wrong')
+        end
+
+        it 'rescues CLI::Error and raises SystemExit' do
+          allow(config).to receive(:options).and_return({ json: false, no_color: true, config_dir: '/bad' })
+          expect { config.path }.to raise_error(SystemExit)
+        end
+
+        it 'calls Connection.shutdown even on error' do
+          allow(config).to receive(:options).and_return({ json: false, no_color: true, config_dir: '/bad' })
+          expect(Legion::CLI::Connection).to receive(:shutdown)
+          config.path
+        rescue SystemExit
+          # expected
+        end
+      end
+    end
+  end
+
+  describe '--config-dir option' do
+    before do
+      allow(Legion::CLI::Connection).to receive(:shutdown)
+      allow(Legion::CLI::Connection).to receive(:ensure_settings)
+      allow(Legion::CLI::Connection).to receive(:settings?).and_return(false)
+    end
+
+    describe '#path sets Connection.config_dir' do
+      it 'sets config_dir when --config-dir is provided' do
+        allow(config).to receive(:options).and_return({ json: true, no_color: true, config_dir: '/custom/path' })
+        expect(Legion::CLI::Connection).to receive(:config_dir=).with('/custom/path')
+        output = StringIO.new
+        $stdout = output
+        config.path
+      ensure
+        $stdout = STDOUT
+      end
+
+      it 'does not call config_dir= when --config-dir is absent' do
+        allow(config).to receive(:options).and_return({ json: true, no_color: true, config_dir: nil })
+        expect(Legion::CLI::Connection).not_to receive(:config_dir=)
+        output = StringIO.new
+        $stdout = output
+        config.path
+      ensure
+        $stdout = STDOUT
+      end
+    end
+  end
 end

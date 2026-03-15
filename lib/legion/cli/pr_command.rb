@@ -50,7 +50,7 @@ module Legion
         out.error(e.message)
         raise SystemExit, 1
       ensure
-        Connection.shutdown if Connection.respond_to?(:shutdown)
+        Connection.shutdown
       end
       default_task :create
 

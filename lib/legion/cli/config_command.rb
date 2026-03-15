@@ -53,12 +53,15 @@ module Legion
       rescue CLI::Error => e
         formatter.error(e.message)
         raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
       default_task :show
 
       desc 'path', 'Show configuration file search paths'
       def path
         out = formatter
+        Connection.config_dir = options[:config_dir] if options[:config_dir]
         paths = config_search_paths
 
         if options[:json]
@@ -89,10 +92,15 @@ module Legion
             puts "  #{out.colorize(var, :gray)} (not set)"
           end
         end
+      rescue CLI::Error => e
+        formatter.error(e.message)
+        raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
 
       desc 'validate', 'Validate current configuration'
-      def validate # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def validate # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         out = formatter
         Connection.config_dir = options[:config_dir] if options[:config_dir]
 
@@ -149,6 +157,11 @@ module Legion
           out.error("Configuration has #{issues.size} issue(s)")
           raise SystemExit, 1
         end
+      rescue CLI::Error => e
+        formatter.error(e.message)
+        raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
 
       desc 'scaffold', 'Generate starter config files for each subsystem'

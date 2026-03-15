@@ -17,9 +17,6 @@ module Legion
         true
       end
 
-      class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
-      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
-
       desc 'runner NAME', 'Add a runner to the current LEX'
       option :functions, type: :string, desc: 'Comma-separated function names to scaffold'
       def runner(name)
@@ -130,10 +127,7 @@ module Legion
 
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
-          @formatter ||= Output::Formatter.new(
-            json:  options[:json],
-            color: !options[:no_color]
-          )
+          @formatter ||= Output::Formatter.new
         end
 
         def detect_lex(out)

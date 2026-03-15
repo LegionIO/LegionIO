@@ -83,6 +83,32 @@ RSpec.describe Legion::CLI::Check do
       end
     end
 
+    context 'when a check raises LoadError' do
+      before do
+        allow(described_class).to receive(:check_settings)
+        allow(described_class).to receive(:check_crypt)
+        allow(described_class).to receive(:check_transport)
+        allow(described_class).to receive(:check_cache).and_raise(LoadError, 'cannot load such file -- legion/cache')
+        allow(described_class).to receive(:check_data)
+        allow(described_class).to receive(:shutdown_settings)
+        allow(described_class).to receive(:shutdown_crypt)
+        allow(described_class).to receive(:shutdown_transport)
+        allow(described_class).to receive(:shutdown_data)
+      end
+
+      it 'returns 1' do
+        exit_code, = run_check
+        expect(exit_code).to eq(1)
+      end
+
+      it 'records the check as fail instead of crashing' do
+        _, output = run_check
+        parsed = JSON.parse(output)
+        expect(parsed['results']['cache']['status']).to eq('fail')
+        expect(parsed['results']['cache']['error']).to include('legion/cache')
+      end
+    end
+
     context 'dependency skipping' do
       before do
         allow(described_class).to receive(:check_settings).and_raise(StandardError, 'bad config')

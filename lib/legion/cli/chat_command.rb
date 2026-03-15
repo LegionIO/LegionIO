@@ -22,12 +22,15 @@ module Legion
       class_option :no_markdown,  type: :boolean, default: false,
                                   desc: 'Disable markdown rendering (raw output)'
       class_option :max_budget_usd, type: :numeric, desc: 'Maximum estimated cost in USD (stops when exceeded)'
+      class_option :incognito, type: :boolean, default: false,
+                               desc: 'Disable automatic session history saving'
 
       autoload :Session, 'legion/cli/chat/session'
 
       desc 'interactive', 'Start interactive AI conversation'
       def interactive
         out = formatter
+        setup_chat_logger
         setup_connection
 
         chat_obj = create_chat
@@ -38,6 +41,7 @@ module Legion
           budget_usd: options[:max_budget_usd]
         )
 
+        chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
         out.header("Legion AI Chat (#{@session.model_id})")
         puts out.dim('  Type /help for commands, /quit to exit')
         puts
@@ -48,9 +52,12 @@ module Legion
         puts out.dim('Interrupted.')
         show_session_stats(out) if @session
       rescue CLI::Error => e
+        chat_log.error "cli_error: #{e.message}"
         out.error(e.message)
         raise SystemExit, 1
       ensure
+        auto_save_session(out) if @session
+        chat_log&.info('session ended')
         Connection.shutdown
       end
       default_task :interactive
@@ -60,6 +67,7 @@ module Legion
       option :max_turns, type: :numeric, default: 10, desc: 'Maximum tool-use turns'
       def prompt(text)
         out = formatter
+        setup_chat_logger
         setup_connection
 
         text = combine_with_stdin(text)
@@ -73,11 +81,15 @@ module Legion
           budget_usd: options[:max_budget_usd]
         )
 
+        chat_log.info "headless prompt model=#{session.model_id} length=#{text.length}"
+
         response = if options[:output_format] == 'json'
                      session.send_message(text)
                    else
                      session.send_message(text) { |chunk| print chunk.content if chunk.content }
                    end
+
+        chat_log.info "headless complete tokens_in=#{session.stats[:input_tokens]} tokens_out=#{session.stats[:output_tokens]}"
 
         if options[:output_format] == 'json'
           out.json({
@@ -89,9 +101,11 @@ module Legion
           puts unless response.content&.end_with?("\n")
         end
       rescue CLI::Error => e
+        chat_log&.error("cli_error: #{e.message}")
         out.error(e.message)
         raise SystemExit, 1
       rescue StandardError => e
+        chat_log&.error("prompt_error: #{e.message}")
         warn "Error: #{e.message}"
         raise SystemExit, 1
       ensure
@@ -104,6 +118,15 @@ module Legion
             json:  options[:json],
             color: !options[:no_color]
           )
+        end
+
+        def setup_chat_logger
+          require 'legion/cli/chat/chat_logger'
+          ChatLogger.setup(level: options[:verbose] ? 'debug' : 'info')
+        end
+
+        def chat_log
+          ChatLogger.logger
         end
 
         def setup_connection
@@ -172,6 +195,7 @@ module Legion
               next if handled
             end
 
+            chat_log.debug "user_message length=#{stripped.length}"
             print out.colorize('legion', :title)
             print out.dim(' > ')
 
@@ -179,19 +203,23 @@ module Legion
             @session.send_message(
               stripped,
               on_tool_call:   lambda { |tc|
+                chat_log.debug "tool_call name=#{tc.name} args=#{tc.arguments.keys.join(',')}"
                 puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
               },
               on_tool_result: lambda { |tr|
                 result_preview = tr.to_s.lines.first(3).join.rstrip
+                chat_log.debug "tool_result preview=#{result_preview[0..200]}"
                 puts out.dim("  [result] #{result_preview}")
               }
             ) do |chunk|
               buffer << chunk.content if chunk.content
             end
+            chat_log.debug "response length=#{buffer.length} tokens_in=#{@session.stats[:input_tokens]} tokens_out=#{@session.stats[:output_tokens]}"
             print render_response(buffer, out)
             puts
             puts
           rescue Chat::Session::BudgetExceeded => e
+            chat_log.warn "budget_exceeded: #{e.message}"
             puts
             out.error(e.message)
             break
@@ -199,6 +227,7 @@ module Legion
             puts
             next
           rescue StandardError => e
+            chat_log.error "llm_error: #{e.class}: #{e.message}"
             puts
             out.error("LLM error: #{e.message}")
             puts
@@ -215,9 +244,11 @@ module Legion
 
         def handle_slash_command(input, out)
           cmd, *args = input.split(' ', 2)
+          chat_log.debug "slash_command: #{cmd}"
           case cmd.downcase
           when '/quit', '/exit', '/q'
             show_session_stats(out)
+            auto_save_session(out)
             raise SystemExit, 0
           when '/help', '/h'
             show_help(out)
@@ -225,6 +256,7 @@ module Legion
             show_session_stats(out)
           when '/clear'
             @session.chat.reset_messages!
+            chat_log.info 'conversation cleared'
             out.success('Conversation cleared')
           when '/save'
             handle_save(args.first, out)
@@ -234,9 +266,12 @@ module Legion
             handle_sessions(out)
           when '/compact'
             handle_compact(out)
+          when '/fetch'
+            handle_fetch(args.first, out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
+              chat_log.info "model_switch to=#{args.first}"
               out.success("Switched to model: #{args.first}")
             else
               puts "  Current model: #{@session.model_id}"
@@ -294,10 +329,12 @@ module Legion
                        '/clear'     => 'Clear conversation history',
                        '/save NAME' => 'Save session to disk',
                        '/load NAME' => 'Load a saved session',
+                       '/fetch URL' => 'Fetch a web page into context',
                        '/sessions'  => 'List saved sessions',
                        '/model X'   => 'Switch model'
                      })
           puts
+          puts out.dim('  Sessions auto-saved on exit. Use --incognito to disable.')
         end
 
         def handle_compact(out)
@@ -322,6 +359,24 @@ module Legion
           out.error("Compact failed: #{e.message}")
         end
 
+        def handle_fetch(url, out)
+          unless url && !url.strip.empty?
+            out.error('Usage: /fetch <url>')
+            return
+          end
+
+          require 'legion/cli/chat/web_fetch'
+          out.header("Fetching #{url}...")
+          content = Chat::WebFetch.fetch(url.strip)
+          chat_log.info "web_fetch url=#{url} length=#{content.length}"
+
+          @session.chat.add_message(role: :user, content: "Content from #{url}:\n\n#{content}")
+          out.success("Fetched #{content.length} chars into context. Ask questions about it.")
+        rescue Chat::WebFetch::FetchError => e
+          chat_log.warn "web_fetch_error url=#{url} error=#{e.message}"
+          out.error("Fetch failed: #{e.message}")
+        end
+
         def show_session_stats(out)
           s = @session.stats
           elapsed = @session.elapsed.round(1)
@@ -335,6 +390,22 @@ module Legion
           cost = @session.estimated_cost
           details['Est. cost'] = format('$%.4f', cost) if cost.positive?
           out.detail(details)
+        end
+
+        def auto_save_session(out)
+          return if @auto_saved
+          return if options[:incognito]
+          return unless @session
+          return if @session.stats[:messages_sent].zero?
+
+          @auto_saved = true
+          require 'legion/cli/chat/session_store'
+          name = "auto-#{Time.now.strftime('%Y%m%d-%H%M%S')}"
+          path = Chat::SessionStore.save(@session, name)
+          chat_log.info "auto_save name=#{name} path=#{path}"
+          out&.dim("  Session saved: #{name}")&.then { |msg| puts msg }
+        rescue StandardError => e
+          chat_log&.error("auto_save_failed: #{e.message}")
         end
       end
     end

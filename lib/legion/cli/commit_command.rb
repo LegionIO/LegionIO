@@ -71,11 +71,11 @@ module Legion
         out.error(e.message)
         raise SystemExit, 1
       ensure
-        Connection.shutdown if Connection.respond_to?(:shutdown)
+        Connection.shutdown
       end
       default_task :generate
 
-      no_commands do
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
