@@ -26,7 +26,7 @@ RSpec.describe 'Chat File Tools' do
 
     it 'returns error for missing file' do
       result = tool.execute(path: '/nonexistent/file.txt')
-      expect(result).to include('error' .downcase).or include('Error')
+      expect(result).to include('error'.downcase).or include('Error')
     end
 
     it 'supports offset and limit' do
