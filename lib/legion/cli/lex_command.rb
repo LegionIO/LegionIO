@@ -295,6 +295,7 @@ module Legion
         write_template("#{@target}/README.md", readme_content)
         write_template("#{@target}/lib/legion/extensions/#{@name}.rb", extension_entry_content)
         write_template("#{@target}/lib/legion/extensions/#{@name}/version.rb", version_content)
+        write_template("#{@target}/lib/legion/extensions/#{@name}/client.rb", client_content)
 
         if @options[:rspec]
           write_template("#{@target}/spec/spec_helper.rb", spec_helper_content)
@@ -462,6 +463,7 @@ module Legion
           # frozen_string_literal: true
 
           require_relative '#{@name}/version'
+          require_relative '#{@name}/client'
 
           module Legion
             module Extensions
@@ -480,6 +482,30 @@ module Legion
             module Extensions
               module #{@vars[:class_name]}
                 VERSION = '0.1.0'
+              end
+            end
+          end
+        RUBY
+      end
+
+      def client_content
+        <<~RUBY
+          # frozen_string_literal: true
+
+          module Legion
+            module Extensions
+              module #{@vars[:class_name]}
+                class Client
+                  attr_reader :opts
+
+                  def initialize(**kwargs)
+                    @opts = kwargs
+                  end
+
+                  def connection(**override)
+                    Helpers::Client.connection(**@opts, **override)
+                  end
+                end
               end
             end
           end
