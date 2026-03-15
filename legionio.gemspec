@@ -46,6 +46,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rouge', '>= 4.0'
   spec.add_dependency 'sinatra', '>= 4.0'
   spec.add_dependency 'thor', '>= 1.3'
+  spec.add_dependency 'tty-spinner', '~> 0.9'
 
   spec.add_dependency 'legion-cache', '>= 0.3'
   spec.add_dependency 'legion-crypt', '>= 0.3'
