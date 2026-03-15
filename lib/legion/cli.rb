@@ -20,6 +20,8 @@ module Legion
     autoload :Worker,    'legion/cli/worker_command'
     autoload :Coldstart, 'legion/cli/coldstart_command'
     autoload :Chat,      'legion/cli/chat_command'
+    autoload :Commit,    'legion/cli/commit_command'
+    autoload :Pr,        'legion/cli/pr_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -38,19 +40,20 @@ module Legion
         if options[:json]
           out.json(version: Legion::VERSION, ruby: RUBY_VERSION, platform: RUBY_PLATFORM)
         else
-          out.header("Legion v#{Legion::VERSION}")
-          out.detail(ruby: RUBY_VERSION, platform: RUBY_PLATFORM)
+          out.banner(version: Legion::VERSION)
+          out.spacer
+          out.detail({ ruby: RUBY_VERSION, platform: RUBY_PLATFORM })
           out.spacer
 
           installed = installed_components
           out.header('Components')
           installed.each do |name, ver|
-            puts "  #{out.colorize(name.to_s.ljust(20), :cyan)} #{ver}"
+            puts "  #{out.colorize(name.to_s.ljust(20), :label)} #{ver}"
           end
 
           out.spacer
           lex_count = discovered_lexs.size
-          puts "  #{out.colorize("#{lex_count} extension(s)", :green)} installed"
+          puts "  #{out.colorize("#{lex_count} extension(s)", :accent)} installed"
         end
       end
 
@@ -140,6 +143,12 @@ module Legion
 
       desc 'chat SUBCOMMAND', 'Interactive AI conversation'
       subcommand 'chat', Legion::CLI::Chat
+
+      desc 'commit', 'Generate AI commit message from staged changes'
+      subcommand 'commit', Legion::CLI::Commit
+
+      desc 'pr', 'Create pull request with AI-generated title and description'
+      subcommand 'pr', Legion::CLI::Pr
 
       desc 'ask TEXT', 'Quick AI prompt (shortcut for chat prompt)'
       map %w[-p --prompt] => :ask
