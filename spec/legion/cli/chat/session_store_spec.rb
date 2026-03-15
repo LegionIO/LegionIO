@@ -121,8 +121,8 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
 
       described_class.restore(session, data)
       expect(chat.messages.length).to eq(2)
-      expect(chat.messages[0].role).to eq(:user)
-      expect(chat.messages[1].role).to eq(:assistant)
+      expect(chat.messages[0][:role].to_s).to eq('user')
+      expect(chat.messages[1][:role].to_s).to eq('assistant')
     end
   end
 

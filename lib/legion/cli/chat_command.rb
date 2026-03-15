@@ -21,6 +21,7 @@ module Legion
                                   desc: 'Auto-approve all tool executions (skip confirmation prompts)'
       class_option :no_markdown,  type: :boolean, default: false,
                                   desc: 'Disable markdown rendering (raw output)'
+      class_option :max_budget_usd, type: :numeric, desc: 'Maximum estimated cost in USD (stops when exceeded)'
 
       autoload :Session, 'legion/cli/chat/session'
 
@@ -32,7 +33,10 @@ module Legion
         chat_obj = create_chat
         configure_permissions(:interactive)
         system_prompt = build_system_prompt
-        @session = Chat::Session.new(chat: chat_obj, system_prompt: system_prompt)
+        @session = Chat::Session.new(
+          chat: chat_obj, system_prompt: system_prompt,
+          budget_usd: options[:max_budget_usd]
+        )
 
         out.header("Legion AI Chat (#{@session.model_id})")
         puts out.dim('  Type /help for commands, /quit to exit')
@@ -64,7 +68,10 @@ module Legion
         chat_obj = create_chat
         configure_permissions(:headless)
         system_prompt = build_system_prompt
-        session = Chat::Session.new(chat: chat_obj, system_prompt: system_prompt)
+        session = Chat::Session.new(
+          chat: chat_obj, system_prompt: system_prompt,
+          budget_usd: options[:max_budget_usd]
+        )
 
         response = if options[:output_format] == 'json'
                      session.send_message(text)
@@ -184,6 +191,10 @@ module Legion
             print render_response(buffer, out)
             puts
             puts
+          rescue Chat::Session::BudgetExceeded => e
+            puts
+            out.error(e.message)
+            break
           rescue Interrupt
             puts
             next
@@ -221,6 +232,8 @@ module Legion
             handle_load(args.first, out)
           when '/sessions'
             handle_sessions(out)
+          when '/compact'
+            handle_compact(out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -277,6 +290,7 @@ module Legion
                        '/help'      => 'Show this help',
                        '/quit'      => 'Exit chat',
                        '/cost'      => 'Show session stats',
+                       '/compact'   => 'Compress conversation history',
                        '/clear'     => 'Clear conversation history',
                        '/save NAME' => 'Save session to disk',
                        '/load NAME' => 'Load a saved session',
@@ -284,6 +298,28 @@ module Legion
                        '/model X'   => 'Switch model'
                      })
           puts
+        end
+
+        def handle_compact(out)
+          messages = @session.chat.messages
+          if messages.length < 4
+            out.warn('Not enough conversation history to compact.')
+            return
+          end
+
+          before_count = messages.length
+          summary = @session.send_message(
+            'Summarize our entire conversation so far in a concise paragraph. ' \
+            'Include key decisions, code changes, and any important context. ' \
+            'This summary will replace the full history to save tokens.'
+          )
+
+          @session.chat.reset_messages!
+          @session.chat.add_message(role: :assistant, content: summary.content)
+
+          out.success("Compacted #{before_count} messages into 1 summary message")
+        rescue StandardError => e
+          out.error("Compact failed: #{e.message}")
         end
 
         def show_session_stats(out)
@@ -296,6 +332,8 @@ module Legion
           }
           details['Input tokens']  = s[:input_tokens].to_s  if s[:input_tokens]
           details['Output tokens'] = s[:output_tokens].to_s if s[:output_tokens]
+          cost = @session.estimated_cost
+          details['Est. cost'] = format('$%.4f', cost) if cost.positive?
           out.detail(details)
         end
       end
