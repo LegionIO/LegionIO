@@ -2,7 +2,7 @@
 
 An extensible async job engine and AI coding assistant for Ruby. Schedule tasks, create relationships between services, and run them concurrently via RabbitMQ. Includes an interactive AI chat CLI with built-in tools, code review, and multi-agent workflows.
 
-**Ruby >= 3.4** | **Version**: 1.4.0 | **License**: Apache-2.0 | **Author**: [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **Version**: 1.4.3 | **License**: Apache-2.0 | **Author**: [@Esity](https://github.com/Esity)
 
 ## What does it do?
 
@@ -114,7 +114,7 @@ echo "fix the bug" | legion chat prompt - # stdin pipe
 
 **Flags**: `--model`, `--provider`, `--auto_approve` (`-y`), `--max_budget_usd N`, `--no_markdown`, `--incognito`, `--add_dir DIR`, `--personality STYLE`, `--continue` (`-c`), `--resume NAME`, `--fork NAME`
 
-**Slash commands**: `/help`, `/quit`, `/cost`, `/status`, `/clear`, `/new`, `/save`, `/load`, `/sessions`, `/compact`, `/fetch URL`, `/search QUERY`, `/diff`, `/copy`, `/rewind`, `/memory`, `/agent`, `/agents`, `/plan`, `/swarm`, `/review`, `/permissions`, `/personality`, `/model`, `/edit`
+**Slash commands**: `/help`, `/quit`, `/cost`, `/status`, `/clear`, `/new`, `/save`, `/load`, `/sessions`, `/compact`, `/fetch URL`, `/search QUERY`, `/diff`, `/copy`, `/rewind`, `/memory`, `/agent`, `/agents`, `/plan`, `/swarm`, `/review`, `/permissions`, `/personality`, `/model`, `/edit`, `/commit`, `/workers`, `/dream`
 
 **Bang commands**: `!ls -la` — run shell commands with output injected into context
 
@@ -161,6 +161,14 @@ legion worker costs --days 30       # cost report
 legion coldstart ingest .           # ingest CLAUDE.md/MEMORY.md into lex-memory
 legion coldstart preview .          # dry-run (show what would be ingested)
 legion coldstart status             # ingestion status
+
+legion gaia status                  # probe GAIA cognitive layer health
+
+legion schedule list                # list schedules
+legion schedule show <id>           # schedule detail
+legion schedule add <name> <cron> <runner>  # create a schedule
+legion schedule remove <id>         # delete a schedule
+legion schedule logs <id>           # execution logs (wraps /api/schedules)
 ```
 
 ## Configuration
