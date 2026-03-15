@@ -416,6 +416,12 @@ module Legion
             else
               puts "  Current model: #{@session.model_id}"
             end
+          when '/commit'
+            handle_commit_in_chat(out)
+          when '/workers'
+            handle_workers_in_chat(out)
+          when '/dream'
+            handle_dream_in_chat(out)
           else
             out.warn("Unknown command: #{cmd}. Type /help for available commands.")
           end
@@ -487,7 +493,10 @@ module Legion
                        '/swarm NAME|PROMPT'   => 'Run a swarm workflow or auto-generate one',
                        '/sessions'            => 'List saved sessions',
                        '/model X'             => 'Switch model',
-                       '/edit'                => 'Open $EDITOR for long prompts'
+                       '/edit'                => 'Open $EDITOR for long prompts',
+                       '/commit'              => 'Generate AI commit message and commit staged changes',
+                       '/workers'             => 'List digital workers from running daemon',
+                       '/dream'               => 'Trigger dream cycle on running daemon'
                      })
           puts
           puts out.dim('  End a line with \\ for multiline input. !command runs a shell command inline.')
@@ -988,6 +997,92 @@ module Legion
           out&.dim("  Session saved: #{name}")&.then { |msg| puts msg }
         rescue StandardError => e
           chat_log&.error("auto_save_failed: #{e.message}")
+        end
+
+        def handle_commit_in_chat(out)
+          require 'open3'
+          stdout, _stderr, _status = Open3.capture3('git', 'diff', '--cached', '--stat')
+          if stdout.strip.empty?
+            out.warn('No staged changes. Stage files with `git add` first.')
+            return
+          end
+          out.header('Staged Changes')
+          puts stdout
+          out.info('Generating commit message...')
+          diff_output, = Open3.capture3('git', 'diff', '--cached')
+          prompt = 'Generate a concise git commit message (lowercase, imperative mood, 1-2 sentences) ' \
+                   "for these staged changes:\n\n```diff\n#{diff_output[0..4000]}\n```\n\n" \
+                   'Respond with ONLY the commit message, nothing else.'
+          response = @session.send_message(prompt)
+          msg = response.content.strip.gsub(/\A["'`]+|["'`]+\z/, '')
+          out.spacer
+          puts "  #{msg}"
+          out.spacer
+          print '  Commit with this message? [y/N] '
+          if $stdin.gets&.strip&.downcase == 'y'
+            system('git', 'commit', '-m', msg)
+            out.success('Committed!')
+          else
+            out.info('Cancelled.')
+          end
+        rescue StandardError => e
+          out.error("Commit failed: #{e.message}")
+        end
+
+        def handle_workers_in_chat(out)
+          require 'net/http'
+          require 'json'
+          port = api_port_for_chat
+          uri = URI("http://localhost:#{port}/api/workers")
+          response = Net::HTTP.get_response(uri)
+          parsed = ::JSON.parse(response.body, symbolize_names: true)
+          workers = parsed[:data] || []
+          if workers.empty?
+            out.info('No digital workers registered.')
+            return
+          end
+          out.header("Digital Workers (#{workers.size})")
+          rows = workers.map do |w|
+            [w[:worker_id].to_s[0..7], w[:name], w[:lifecycle_state], w[:consent_tier], w[:team] || '-']
+          end
+          out.table(%w[ID Name State Consent Team], rows)
+        rescue Errno::ECONNREFUSED
+          out.warn('Daemon not running. Use `legion worker list` from another terminal.')
+        rescue StandardError => e
+          out.error("Failed to fetch workers: #{e.message}")
+        end
+
+        def handle_dream_in_chat(out)
+          require 'net/http'
+          require 'json'
+          port = api_port_for_chat
+          uri = URI("http://localhost:#{port}/api/tasks")
+          body = ::JSON.generate({
+                                   runner_class:  'Legion::Extensions::Dream::Runners::DreamCycle',
+                                   function:      'execute_dream_cycle',
+                                   async:         true,
+                                   check_subtask: false,
+                                   generate_task: false
+                                 })
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.open_timeout = 5
+          http.read_timeout = 5
+          request = Net::HTTP::Post.new(uri.path, 'Content-Type' => 'application/json')
+          request.body = body
+          response = http.request(request)
+          if response.is_a?(Net::HTTPSuccess)
+            out.success('Dream cycle triggered on daemon')
+          else
+            out.error("Dream cycle failed: #{response.code}")
+          end
+        rescue Errno::ECONNREFUSED
+          out.warn('Daemon not running. Use `legion dream` from another terminal.')
+        rescue StandardError => e
+          out.error("Dream failed: #{e.message}")
+        end
+
+        def api_port_for_chat
+          4567
         end
       end
     end
