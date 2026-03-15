@@ -5,6 +5,10 @@
 ### Added
 - `legion gaia status` CLI subcommand (probes GET /api/gaia/status, shows cognitive layer health)
 - `GET /api/gaia/status` API route returns GAIA boot state, active channels, heartbeat health
+- `legion schedule` CLI subcommand (list, show, add, remove, logs) wrapping /api/schedules
+- `/commit` chat slash command (AI-generated commit message from staged changes)
+- `/workers` chat slash command (list digital workers from running daemon)
+- `/dream` chat slash command (trigger dream cycle on running daemon)
 
 ## v1.4.2
 
