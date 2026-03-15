@@ -32,6 +32,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/cli/plan_command.rb'
     - 'lib/legion/cli/swarm_command.rb'
+    - 'lib/legion/cli/gaia_command.rb'
 
 Metrics/AbcSize:
   Max: 60

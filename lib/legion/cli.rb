@@ -26,6 +26,7 @@ module Legion
     autoload :Memory,    'legion/cli/memory_command'
     autoload :Plan,      'legion/cli/plan_command'
     autoload :Swarm,     'legion/cli/swarm_command'
+    autoload :Gaia,      'legion/cli/gaia_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -165,6 +166,9 @@ module Legion
 
       desc 'swarm SUBCOMMAND', 'Multi-agent swarm orchestration'
       subcommand 'swarm', Legion::CLI::Swarm
+
+      desc 'gaia SUBCOMMAND', 'GAIA cognitive coordination'
+      subcommand 'gaia', Legion::CLI::Gaia
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
