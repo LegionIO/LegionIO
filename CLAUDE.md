@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.2.1
+**Version**: 1.3.0
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -144,6 +144,7 @@ Legion (lib/legion.rb)
 │
 └── CLI (Thor)         # Unified CLI: exe/legion -> Legion::CLI::Main
     ├── Output::Formatter  # color tables, JSON mode, status indicators, ANSI stripping
+    ├── Theme              # Purple palette, orbital ASCII banner, branded CLI output
     ├── Connection         # Lazy connection manager (ensure_settings, ensure_transport, etc.)
     ├── Error              # CLI-specific error class
     ├── Start              # `legion start` - daemon boot via Legion::Process
@@ -157,7 +158,21 @@ Legion (lib/legion.rb)
     ├── Generate           # `legion generate` - runner, actor, exchange, queue, message
     ├── Mcp                # `legion mcp` - stdio (default) or HTTP transport
     ├── Worker             # `legion worker` - digital worker lifecycle management
-    └── Coldstart          # `legion coldstart` - ingest CLAUDE.md/MEMORY.md into lex-memory
+    ├── Coldstart          # `legion coldstart` - ingest CLAUDE.md/MEMORY.md into lex-memory
+    ├── Chat               # `legion chat` - interactive AI REPL + headless prompt mode
+    │   ├── Session        # Multi-turn chat session with streaming
+    │   ├── SessionStore   # Persistent session save/load/list/resume/fork
+    │   ├── Permissions    # Three-tier tool permission model (safe/ask/deny)
+    │   ├── ToolRegistry   # Chat tool discovery and registration
+    │   ├── Context        # Project awareness (git, language, instructions)
+    │   ├── MarkdownRenderer # Terminal markdown rendering with syntax highlighting
+    │   ├── WebFetch       # /fetch slash command for web page context injection
+    │   ├── ChatLogger     # Chat-specific logging
+    │   └── Tools/         # Built-in tools: read_file, write_file, edit_file,
+    │                      #   search_files, search_content, run_command
+    ├── Commit             # `legion commit` - AI-generated commit messages via LLM
+    ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
+    └── Review             # `legion review` - AI code review with severity levels
 ```
 
 ### Extension Discovery
@@ -232,6 +247,25 @@ legion
     ingest <path>                    # file or directory, parses CLAUDE.md / MEMORY.md
     preview <path>                   # dry-run, shows traces without storing
     status
+
+  chat                               # interactive AI REPL (requires legion-llm)
+    prompt <text>                    # headless single-prompt mode (also accepts stdin pipe)
+    [--model MODEL] [--provider PROVIDER]
+    [--no_markdown] [--incognito]
+    [--max_budget_usd N] [--auto_approve / -y]
+    # Slash commands: /save, /load, /sessions, /clear, /model, /cost,
+    #   /compact, /fetch <url>, /help, /quit
+
+  commit                             # AI-generated commit message via LLM
+    [--model MODEL] [--provider PROVIDER]
+
+  pr                                 # AI-generated PR title + description via LLM
+    [--model MODEL] [--provider PROVIDER]
+    [--base BRANCH] [--draft]
+
+  review [FILES...]                  # AI code review with severity levels
+    [--model MODEL] [--provider PROVIDER]
+    [--diff]                         # review staged/unstaged diff instead of files
 ```
 
 **CLI design rules:**
@@ -278,6 +312,7 @@ legion
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `mcp` (~> 0.8) | MCP server SDK |
+| `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
 | `sinatra` (>= 4.0) | HTTP API framework |
 | `thor` (>= 1.3) | CLI framework |
 
@@ -361,6 +396,20 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
 | `lib/legion/cli/worker_command.rb` | `legion worker` subcommands (list, show, pause, retire, terminate, activate, costs) |
 | `lib/legion/cli/coldstart_command.rb` | `legion coldstart` subcommands (ingest, preview, status) |
+| `lib/legion/cli/chat_command.rb` | `legion chat` — interactive AI REPL + headless prompt mode |
+| `lib/legion/cli/chat/session.rb` | Chat session: multi-turn conversation, streaming, tool use |
+| `lib/legion/cli/chat/session_store.rb` | Session persistence: save, load, list, resume, fork |
+| `lib/legion/cli/chat/permissions.rb` | Three-tier tool permission model (safe/ask/deny) |
+| `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration |
+| `lib/legion/cli/chat/context.rb` | Project awareness: git info, language detection, instructions |
+| `lib/legion/cli/chat/markdown_renderer.rb` | Terminal markdown rendering with Rouge syntax highlighting |
+| `lib/legion/cli/chat/web_fetch.rb` | `/fetch` slash command: fetches web page, extracts text for context |
+| `lib/legion/cli/chat/chat_logger.rb` | Chat-specific logging |
+| `lib/legion/cli/chat/tools/` | Built-in tools: read_file, write_file, edit_file, search_files, search_content, run_command |
+| `lib/legion/cli/commit_command.rb` | `legion commit` — AI-generated commit messages via LLM |
+| `lib/legion/cli/pr_command.rb` | `legion pr` — AI-generated PR title + description via LLM |
+| `lib/legion/cli/review_command.rb` | `legion review` — AI code review with severity levels (CRITICAL/WARNING/SUGGESTION/NOTE) |
+| `lib/legion/cli/theme.rb` | Purple palette, orbital ASCII banner, branded CLI output |
 | **Legacy CLI (preserved, not loaded by new CLI)** | |
 | `lib/legion/cli/task.rb` | Old task commands |
 | `lib/legion/cli/trigger.rb` | Old trigger command |
@@ -387,7 +436,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ## Rubocop Notes
 
-- `.rubocop.yml` excludes `spec/**/*` from `Metrics/BlockLength`
+- `.rubocop.yml` excludes `spec/**/*`, `legionio.gemspec`, and `chat_command.rb` from `Metrics/BlockLength`
+- `chat_command.rb` also excluded from `Metrics/AbcSize` (large REPL loop)
 - Hash alignment: `table` style enforced for both rocket and colon
 - `Naming/PredicateMethod` disabled
 
@@ -395,8 +445,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec
-bundle exec rubocop
+bundle exec rspec       # 560 examples, 0 failures
+bundle exec rubocop     # 0 offenses
 ```
 
 Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.
