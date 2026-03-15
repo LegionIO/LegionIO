@@ -24,7 +24,12 @@ module Legion
             %i[headless auto_approve].include?(mode)
           end
 
+          def read_only?
+            mode == :read_only
+          end
+
           def confirm?(description)
+            return false if read_only?
             return true if auto_allow?
 
             $stderr.print "\e[33m#{description}\e[0m\n  Allow? [y/n] "

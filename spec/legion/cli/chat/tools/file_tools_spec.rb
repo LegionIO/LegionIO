@@ -26,7 +26,7 @@ RSpec.describe 'Chat File Tools' do
 
     it 'returns error for missing file' do
       result = tool.execute(path: '/nonexistent/file.txt')
-      expect(result).to include('error' .downcase).or include('Error')
+      expect(result).to include('error'.downcase).or include('Error')
     end
 
     it 'supports offset and limit' do
@@ -79,6 +79,81 @@ RSpec.describe 'Chat File Tools' do
       File.write(path, 'aaa bbb aaa')
       result = tool.execute(path: path, old_text: 'aaa', new_text: 'x')
       expect(result.downcase).to include('error')
+    end
+
+    it 'errors when no old_text and no start_line provided' do
+      path = File.join(tmpdir, 'edit.txt')
+      File.write(path, "line1\nline2\n")
+      result = tool.execute(path: path, new_text: 'x')
+      expect(result.downcase).to include('error')
+    end
+
+    context 'line-number mode' do
+      it 'replaces a single line when only start_line is given' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        result = tool.execute(path: path, new_text: 'replaced', start_line: 2)
+        expect(File.read(path)).to eq("line1\nreplaced\nline3\n")
+        expect(result.downcase).to include('replaced')
+      end
+
+      it 'replaces a range of lines when start_line and end_line are given' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\nline4\n")
+        result = tool.execute(path: path, new_text: 'new', start_line: 2, end_line: 3)
+        expect(File.read(path)).to eq("line1\nnew\nline4\n")
+        expect(result.downcase).to include('replaced')
+      end
+
+      it 'replaces the first line' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        tool.execute(path: path, new_text: 'first', start_line: 1)
+        expect(File.read(path)).to eq("first\nline2\nline3\n")
+      end
+
+      it 'replaces the last line' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        tool.execute(path: path, new_text: 'last', start_line: 3)
+        expect(File.read(path)).to eq("line1\nline2\nlast\n")
+      end
+
+      it 'preserves trailing newline when replacement text already has one' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        tool.execute(path: path, new_text: "newline\n", start_line: 2)
+        expect(File.read(path)).to eq("line1\nnewline\nline3\n")
+      end
+
+      it 'ignores old_text when start_line is provided' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        result = tool.execute(path: path, new_text: 'x', old_text: 'nomatch', start_line: 1)
+        expect(result.downcase).not_to include('error')
+        expect(File.read(path)).to include('x')
+      end
+
+      it 'errors when start_line is out of bounds' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\n")
+        result = tool.execute(path: path, new_text: 'x', start_line: 10)
+        expect(result.downcase).to include('error')
+      end
+
+      it 'errors when end_line is out of bounds' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\n")
+        result = tool.execute(path: path, new_text: 'x', start_line: 1, end_line: 99)
+        expect(result.downcase).to include('error')
+      end
+
+      it 'errors when end_line is before start_line' do
+        path = File.join(tmpdir, 'lines.txt')
+        File.write(path, "line1\nline2\nline3\n")
+        result = tool.execute(path: path, new_text: 'x', start_line: 3, end_line: 1)
+        expect(result.downcase).to include('error')
+      end
     end
   end
 

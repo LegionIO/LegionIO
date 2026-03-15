@@ -28,6 +28,8 @@ module Legion
                               desc: 'Resume the most recent session'
       class_option :resume,   type: :string, desc: 'Resume a saved session by name'
       class_option :fork,     type: :string, desc: 'Fork a saved session (load but save as new)'
+      class_option :add_dir,  type: :array, default: [], desc: 'Additional directories to include in context'
+      class_option :personality, type: :string, desc: 'Communication style (concise, verbose, educational)'
 
       autoload :Session, 'legion/cli/chat/session'
 
@@ -187,7 +189,19 @@ module Legion
           return options[:system] if options[:system]
 
           require 'legion/cli/chat/context'
-          Chat::Context.to_system_prompt(Dir.pwd)
+          @extra_dirs = options[:add_dir] || []
+          prompt = Chat::Context.to_system_prompt(Dir.pwd, extra_dirs: @extra_dirs)
+
+          if options[:personality]
+            @personality = options[:personality]
+            case @personality
+            when 'concise'     then prompt += "\n\nBe extremely concise. Short answers, minimal explanation. Code over prose."
+            when 'verbose'     then prompt += "\n\nBe thorough and detailed. Explain your reasoning step by step."
+            when 'educational' then prompt += "\n\nBe educational. Explain concepts, provide context, teach as you help."
+            end
+          end
+
+          prompt
         end
 
         def repl_loop(out)
@@ -198,7 +212,18 @@ module Legion
             break if line.nil? # Ctrl+D
 
             stripped = line.strip
+
+            if ['/edit', '/e'].include?(stripped)
+              stripped = open_editor_prompt(out)
+              next unless stripped
+            end
+
             next if stripped.empty?
+
+            if stripped.start_with?('!')
+              handle_bang_command(stripped[1..], out)
+              next
+            end
 
             if stripped.start_with?('/')
               handled = handle_slash_command(stripped, out)
@@ -254,7 +279,34 @@ module Legion
         end
 
         def prompt_string
-          "\001\e[38;2;127;119;221m\002you\001\e[0m\002 > "
+          label = @plan_mode ? 'plan' : 'you'
+          "\001\e[38;2;127;119;221m\002#{label}\001\e[0m\002 > "
+        end
+
+        def open_editor_prompt(out)
+          require 'tempfile'
+          editor = ENV['VISUAL'] || ENV['EDITOR'] || 'vi'
+          tmpfile = Tempfile.new(['legion-prompt', '.md'])
+          tmpfile.write("# Write your prompt below, then save and close the editor\n\n")
+          tmpfile.flush
+
+          system("#{editor} #{tmpfile.path}")
+          content = File.read(tmpfile.path, encoding: 'utf-8')
+          lines = content.lines.reject { |l| l.start_with?('#') }.join.strip
+
+          if lines.empty?
+            out.warn('Empty prompt — editor cancelled.')
+            return nil
+          end
+
+          chat_log.debug "editor_prompt length=#{lines.length}"
+          lines
+        rescue StandardError => e
+          out.error("Editor failed: #{e.message}")
+          nil
+        ensure
+          tmpfile&.close
+          tmpfile&.unlink
         end
 
         def handle_slash_command(input, out)
@@ -297,6 +349,20 @@ module Legion
             handle_plan_toggle(out)
           when '/swarm'
             handle_swarm(args.first, out)
+          when '/copy'
+            handle_copy(out)
+          when '/diff'
+            handle_diff(out)
+          when '/permissions'
+            handle_permissions(args.first, out)
+          when '/review'
+            handle_review_in_session(args.first, out)
+          when '/status'
+            handle_status(out)
+          when '/new'
+            handle_new_conversation(out)
+          when '/personality'
+            handle_personality(args.first, out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -352,26 +418,34 @@ module Legion
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-                       '/help'              => 'Show this help',
-                       '/quit'              => 'Exit chat',
-                       '/cost'              => 'Show session stats',
-                       '/compact'           => 'Compress conversation history',
-                       '/clear'             => 'Clear conversation history',
-                       '/save NAME'         => 'Save session to disk',
-                       '/load NAME'         => 'Load a saved session',
-                       '/fetch URL'         => 'Fetch a web page into context',
-                       '/search QUERY'      => 'Web search and inject results into context',
-                       '/rewind [N|FILE]'   => 'Undo file edits (last, N steps, or specific file)',
-                       '/memory [add TEXT]' => 'View or add persistent memory',
-                       '/agent TASK'        => 'Spawn a background subagent',
-                       '/agents'            => 'Show running subagents',
-                       '/plan'              => 'Toggle plan mode (read-only)',
-                       '/swarm NAME|PROMPT' => 'Run a swarm workflow or auto-generate one',
-                       '/sessions'          => 'List saved sessions',
-                       '/model X'           => 'Switch model'
+                       '/help'                => 'Show this help',
+                       '/quit'                => 'Exit chat',
+                       '/cost'                => 'Show session stats',
+                       '/status'              => 'Detailed session status (model, tokens, context, permissions)',
+                       '/compact'             => 'Compress conversation history',
+                       '/clear'               => 'Clear conversation history',
+                       '/new'                 => 'Start new conversation (same session)',
+                       '/copy'                => 'Copy last response to clipboard',
+                       '/diff'                => 'Show git diff of working directory',
+                       '/save NAME'           => 'Save session to disk',
+                       '/load NAME'           => 'Load a saved session',
+                       '/fetch URL'           => 'Fetch a web page into context',
+                       '/search QUERY'        => 'Web search and inject results into context',
+                       '/rewind [N|FILE]'     => 'Undo file edits (last, N steps, or specific file)',
+                       '/memory [add TEXT]'   => 'View or add persistent memory',
+                       '/agent TASK'          => 'Spawn a background subagent',
+                       '/agents'              => 'Show running subagents',
+                       '/plan'                => 'Toggle plan mode (read-only)',
+                       '/review [SCOPE]'      => 'Code review (staged, uncommitted, or branch)',
+                       '/permissions [MODE]'  => 'View or switch permission mode (interactive, auto_approve, read_only)',
+                       '/personality [STYLE]' => 'Set communication style (concise, verbose, educational)',
+                       '/swarm NAME|PROMPT'   => 'Run a swarm workflow or auto-generate one',
+                       '/sessions'            => 'List saved sessions',
+                       '/model X'             => 'Switch model',
+                       '/edit'                => 'Open $EDITOR for long prompts'
                      })
           puts
-          puts out.dim('  Sessions auto-saved on exit. Use --incognito to disable.')
+          puts out.dim('  !command runs a shell command inline. Sessions auto-saved on exit.')
         end
 
         def handle_compact(out)
@@ -617,6 +691,205 @@ module Legion
             chat_log.info "rewind count=#{restored.length}"
             out.success("Rewound #{restored.length} edit(s)")
           end
+        end
+
+        def handle_bang_command(command, out)
+          command = command.strip
+          if command.empty?
+            out.error('Usage: !<command> (e.g., !ls, !git status)')
+            return
+          end
+
+          chat_log.debug "bang_command: #{command}"
+          puts out.dim("  $ #{command}")
+          output = `#{command} 2>&1`
+          status = $CHILD_STATUS&.exitstatus || 0
+          puts output unless output.empty?
+          puts out.dim("  [exit #{status}]")
+
+          @session.chat.add_message(
+            role:    :user,
+            content: "Shell command: #{command}\nExit code: #{status}\n\n#{output}"
+          )
+        rescue StandardError => e
+          out.error("Command failed: #{e.message}")
+        end
+
+        def handle_copy(out)
+          messages = @session.chat.messages
+          last_assistant = messages.reverse.find do |m|
+            m[:role] == :assistant || m.role == :assistant
+          rescue StandardError
+            false
+          end
+          unless last_assistant
+            out.warn('No assistant response to copy.')
+            return
+          end
+
+          content = last_assistant.respond_to?(:content) ? last_assistant.content : last_assistant[:content]
+          IO.popen('pbcopy', 'w') { |io| io.write(content) }
+          chat_log.info "copy length=#{content.length}"
+          out.success("Copied #{content.length} chars to clipboard")
+        rescue Errno::ENOENT
+          out.error('pbcopy not available (macOS only). Use terminal selection instead.')
+        rescue StandardError => e
+          out.error("Copy failed: #{e.message}")
+        end
+
+        def handle_diff(out)
+          diff = `git diff 2>/dev/null`
+          untracked = `git ls-files --others --exclude-standard 2>/dev/null`.strip
+
+          if diff.empty? && untracked.empty?
+            out.warn('No changes detected.')
+            return
+          end
+
+          puts render_response("```diff\n#{diff}```", out) unless diff.empty?
+
+          return if untracked.empty?
+
+          puts out.dim("\n  Untracked files:")
+          untracked.each_line { |f| puts out.dim("    #{f.strip}") }
+        end
+
+        def handle_permissions(mode, out)
+          require 'legion/cli/chat/permissions'
+          unless mode
+            current = Chat::Permissions.mode
+            puts "  Current mode: #{current}"
+            puts out.dim('  Available: interactive, auto_approve, read_only')
+            return
+          end
+
+          sym = mode.strip.to_sym
+          valid = %i[interactive auto_approve read_only]
+          unless valid.include?(sym)
+            out.error("Invalid mode: #{mode}. Choose: #{valid.join(', ')}")
+            return
+          end
+
+          Chat::Permissions.mode = sym
+          chat_log.info "permissions_switch to=#{sym}"
+          out.success("Permission mode: #{sym}")
+        end
+
+        def handle_review_in_session(scope, out)
+          scope = (scope || '').strip
+          diff = case scope
+                 when 'staged'  then `git diff --staged 2>/dev/null`
+                 when 'branch'  then `git diff main...HEAD 2>/dev/null`
+                 when '', 'uncommitted' then `git diff 2>/dev/null`
+                 else
+                   out.error('Usage: /review [staged|uncommitted|branch]')
+                   return
+                 end
+
+          if diff.empty?
+            out.warn("No #{scope.empty? ? 'uncommitted' : scope} changes to review.")
+            return
+          end
+
+          diff = diff[0..12_000] if diff.length > 12_000
+
+          chat_log.info "review_in_session scope=#{scope.empty? ? 'uncommitted' : scope} diff_length=#{diff.length}"
+          out.header('Reviewing changes...')
+
+          prompt = <<~PROMPT
+            Review the following code diff. For each finding, prefix with severity:
+            CRITICAL: bugs, security vulnerabilities, data loss risks
+            WARNING: logic errors, performance issues, bad practices
+            SUGGESTION: style improvements, refactoring opportunities
+            NOTE: observations, questions
+
+            End with a one-line SUMMARY.
+
+            ```diff
+            #{diff}
+            ```
+          PROMPT
+
+          print out.colorize('legion', :title)
+          print out.dim(' > ')
+          buffer = String.new
+          @session.send_message(prompt) { |chunk| buffer << chunk.content if chunk.content }
+          print render_response(buffer, out)
+          puts
+          puts
+        rescue StandardError => e
+          out.error("Review failed: #{e.message}")
+        end
+
+        def handle_status(out)
+          require 'legion/cli/chat/permissions'
+          s = @session.stats
+          elapsed = @session.elapsed.round(1)
+          msgs = @session.chat.messages
+
+          details = {
+            'Model'       => @session.model_id,
+            'Duration'    => "#{elapsed}s",
+            'Messages'    => "#{s[:messages_sent]} sent, #{s[:messages_received]} received (#{msgs.length} in context)",
+            'Permissions' => Chat::Permissions.mode.to_s,
+            'Plan mode'   => @plan_mode ? 'ON' : 'OFF'
+          }
+          details['Input tokens']  = s[:input_tokens].to_s if s[:input_tokens]
+          details['Output tokens'] = s[:output_tokens].to_s if s[:output_tokens]
+          cost = @session.estimated_cost
+          details['Est. cost'] = format('$%.4f', cost) if cost.positive?
+          details['Personality'] = @personality || 'default'
+          details['Directories'] = ([@work_dir || Dir.pwd] + (@extra_dirs || [])).join(', ')
+
+          out.header('Session Status')
+          out.detail(details)
+        end
+
+        def handle_new_conversation(out)
+          auto_save_session(out)
+          @session.chat.reset_messages!
+          @auto_saved = false
+          @session_name = nil
+          @session.stats[:messages_sent] = 0
+          @session.stats[:messages_received] = 0
+          @session.stats[:started_at] = Time.now
+          @session.stats[:input_tokens] = 0
+          @session.stats[:output_tokens] = 0
+
+          system_prompt = build_system_prompt
+          @session.chat.with_instructions(system_prompt)
+          load_memory_context
+
+          chat_log.info 'new_conversation'
+          out.success('New conversation started (previous session saved)')
+        end
+
+        def handle_personality(style, out)
+          unless style
+            puts "  Current: #{@personality || 'default'}"
+            puts out.dim('  Available: concise, verbose, educational, default')
+            return
+          end
+
+          valid = %w[concise verbose educational default]
+          style = style.strip.downcase
+          unless valid.include?(style)
+            out.error("Invalid style: #{style}. Choose: #{valid.join(', ')}")
+            return
+          end
+
+          @personality = style == 'default' ? nil : style
+          instructions = {
+            'concise'     => 'Be extremely concise. Short answers, minimal explanation. Code over prose.',
+            'verbose'     => 'Be thorough and detailed. Explain your reasoning step by step.',
+            'educational' => 'Be educational. Explain concepts, provide context, teach as you help.'
+          }
+          instruction = instructions[@personality]
+
+          @session.chat.add_message(role: :user, content: "Style instruction: #{instruction}") if instruction
+
+          chat_log.info "personality_switch to=#{style}"
+          out.success("Personality: #{style}")
         end
 
         def show_session_stats(out)

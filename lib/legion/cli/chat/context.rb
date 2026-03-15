@@ -31,7 +31,7 @@ module Legion
           }
         end
 
-        def self.to_system_prompt(directory)
+        def self.to_system_prompt(directory, extra_dirs: [])
           ctx = detect(directory)
           parts = []
           parts << 'You are Legion, an AI assistant powered by the LegionIO framework.'
@@ -42,6 +42,13 @@ module Legion
           parts << "Project type: #{ctx[:project_type]}" if ctx[:project_type]
           parts << "Git branch: #{ctx[:git_branch]}" if ctx[:git_branch]
           parts << 'Uncommitted changes present' if ctx[:git_dirty]
+
+          extra_dirs.each do |dir|
+            expanded = File.expand_path(dir)
+            next unless Dir.exist?(expanded)
+
+            parts << "Additional directory: #{expanded}"
+          end
 
           %w[LEGION.md CLAUDE.md].each do |name|
             path = File.join(ctx[:directory], name)
