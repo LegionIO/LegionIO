@@ -2,7 +2,8 @@
 
 require 'spec_helper'
 require 'open3'
-require 'ostruct'
+
+CommitResponse = Struct.new(:content)
 
 # Stub LLM for commit message generation
 module Legion
@@ -13,7 +14,7 @@ module Legion
 
     class FakeChat
       def ask(_prompt)
-        ::OpenStruct.new(content: "add new feature\n\n- update config\n- fix tests")
+        CommitResponse.new(content: "add new feature\n\n- update config\n- fix tests")
       end
     end
   end

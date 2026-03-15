@@ -2,15 +2,16 @@
 
 require 'spec_helper'
 require 'open3'
-require 'ostruct'
 
 require 'legion/cli/pr_command'
+
+PrResponse = Struct.new(:content)
 
 RSpec.describe Legion::CLI::Pr do
   let(:fake_chat) do
     chat = double('chat')
     allow(chat).to receive(:ask).and_return(
-      ::OpenStruct.new(content: "Add user authentication\n\n## Summary\n- Add JWT auth\n- Add login endpoint")
+      PrResponse.new(content: "Add user authentication\n\n## Summary\n- Add JWT auth\n- Add login endpoint")
     )
     chat
   end

@@ -2,9 +2,10 @@
 
 require 'spec_helper'
 require 'open3'
-require 'ostruct'
 
 require 'legion/cli/review_command'
+
+ReviewResponse = Struct.new(:content)
 
 RSpec.describe Legion::CLI::Review do
   let(:review_response) do
@@ -19,7 +20,7 @@ RSpec.describe Legion::CLI::Review do
 
   let(:fake_chat) do
     chat = double('chat')
-    allow(chat).to receive(:ask).and_return(::OpenStruct.new(content: review_response))
+    allow(chat).to receive(:ask).and_return(ReviewResponse.new(content: review_response))
     chat
   end
 

@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ostruct'
+
+ChatResponse = Struct.new(:content, :role, :tool_call?, :input_tokens, :output_tokens)
+ChatChunk = Struct.new(:content)
+ChatModel = Struct.new(:id)
 
 # Stub RubyLLM::Chat for unit testing
 module RubyLLM
@@ -9,22 +12,24 @@ module RubyLLM
     attr_reader :messages
 
     def initialize(**) = (@messages = [])
-    def with_instructions(text) = (self)
-    def with_tools(*tools) = (self)
-    def on_tool_call(&block) = (self)
-    def on_tool_result(&block) = (self)
+    def with_instructions(_text) = self
+    def with_tools(*_tools) = self
+    def on_tool_call = self
+    def on_tool_result = self
+
     def ask(msg, &block)
       @messages << { role: :user, content: msg }
-      response = OpenStruct.new(content: "Echo: #{msg}", role: :assistant, tool_call?: false,
-                                input_tokens: 10, output_tokens: 5)
-      block&.call(OpenStruct.new(content: "Echo: #{msg}"))
+      response = ChatResponse.new(content: "Echo: #{msg}", role: :assistant, tool_call?: false,
+                                  input_tokens: 10, output_tokens: 5)
+      block&.call(ChatChunk.new(content: "Echo: #{msg}"))
       @messages << { role: :assistant, content: response.content }
       response
     end
-    def model = OpenStruct.new(id: 'test-model')
+
+    def model = ChatModel.new(id: 'test-model')
     def reset_messages! = @messages.clear
     def add_message(msg) = @messages << msg
-    def with_model(id) = (self)
+    def with_model(_id) = self
   end
 end
 

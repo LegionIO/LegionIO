@@ -2,8 +2,9 @@
 
 require 'spec_helper'
 require 'tmpdir'
-require 'ostruct'
 require 'legion/cli/error'
+
+StoreModel = Struct.new(:id)
 
 # Stub RubyLLM::Chat if not already defined
 unless defined?(RubyLLM::Chat)
@@ -42,7 +43,7 @@ unless defined?(RubyLLM::Chat)
       end
 
       def model
-        OpenStruct.new(id: 'test-model')
+        StoreModel.new(id: 'test-model')
       end
 
       def with_instructions(_text) = self
