@@ -22,6 +22,7 @@ module Legion
     autoload :Chat,      'legion/cli/chat_command'
     autoload :Commit,    'legion/cli/commit_command'
     autoload :Pr,        'legion/cli/pr_command'
+    autoload :Review,    'legion/cli/review_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -150,6 +151,14 @@ module Legion
       desc 'pr', 'Create pull request with AI-generated title and description'
       subcommand 'pr', Legion::CLI::Pr
 
+      desc 'review', 'AI code review of changes'
+      subcommand 'review', Legion::CLI::Review
+
+      desc 'tree', 'Print a tree of all available commands'
+      def tree
+        legion_print_command_tree(self.class, 'legion', '')
+      end
+
       desc 'ask TEXT', 'Quick AI prompt (shortcut for chat prompt)'
       map %w[-p --prompt] => :ask
       def ask(*text)
@@ -196,7 +205,7 @@ module Legion
         raise SystemExit, 1
       end
 
-      no_commands do
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
@@ -238,6 +247,26 @@ module Legion
           (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
         rescue StandardError
           4567
+        end
+
+        def legion_print_command_tree(klass, label, indent)
+          say "#{indent}#{label}", :blue
+
+          child_indent = "#{indent}  "
+          visible_commands = klass.commands.reject { |_, cmd| cmd.hidden? || cmd.name == 'help' || cmd.name == 'tree' }
+          last_command_idx = visible_commands.count - 1
+          has_subcommands = klass.subcommand_classes.any?
+          visible_commands.sort.each_with_index do |(command_name, command), i|
+            description = command.description.split("\n").first || ''
+            icon = i == last_command_idx && !has_subcommands ? "\u2514\u2500" : "\u251c\u2500"
+            say "#{child_indent}#{icon} ", nil, false
+            say command_name, :green, false
+            say " (#{description})" unless description.empty?
+          end
+
+          klass.subcommand_classes.each do |subcommand_name, subclass|
+            legion_print_command_tree(subclass, "#{label} #{subcommand_name}", child_indent)
+          end
         end
       end
     end
