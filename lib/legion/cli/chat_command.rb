@@ -172,7 +172,7 @@ module Legion
               next if handled
             end
 
-            print out.colorize('legion', :green)
+            print out.colorize('legion', :title)
             print out.dim(' > ')
 
             buffer = String.new
@@ -210,7 +210,7 @@ module Legion
         end
 
         def prompt_string
-          "\001\e[36m\002you\001\e[0m\002 > "
+          "\001\e[38;2;127;119;221m\002you\001\e[0m\002 > "
         end
 
         def handle_slash_command(input, out)
