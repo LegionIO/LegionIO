@@ -26,9 +26,13 @@ Metrics/BlockLength:
   Max: 40
   Exclude:
     - 'spec/**/*'
+    - 'legionio.gemspec'
+    - 'lib/legion/cli/chat_command.rb'
 
 Metrics/AbcSize:
   Max: 60
+  Exclude:
+    - 'lib/legion/cli/chat_command.rb'
 
 Metrics/CyclomaticComplexity:
   Max: 15

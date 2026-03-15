@@ -62,15 +62,28 @@ module Legion
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
             halt 404, json_error('not_found', "Worker #{params[:id]} not found", status_code: 404) if worker.nil?
 
-            body     = parse_request_body
-            to_state = body[:state]
-            by       = body[:by] || current_owner_msid || 'api'
-            reason   = body[:reason]
+            body                = parse_request_body
+            to_state            = body[:state]
+            by                  = body[:by] || current_owner_msid || 'api'
+            reason              = body[:reason]
+            governance_override = body[:governance_override] == true
+            authority_verified  = body[:authority_verified] == true
 
             halt 422, json_error('missing_field', 'state is required', status_code: 422) unless to_state
 
-            updated = Legion::DigitalWorker::Lifecycle.transition!(worker, to_state: to_state, by: by, reason: reason)
+            updated = Legion::DigitalWorker::Lifecycle.transition!(
+              worker,
+              to_state:            to_state,
+              by:                  by,
+              reason:              reason,
+              governance_override: governance_override,
+              authority_verified:  authority_verified
+            )
             json_response(updated.values)
+          rescue Legion::DigitalWorker::Lifecycle::GovernanceRequired => e
+            json_error('governance_required', e.message, status_code: 403)
+          rescue Legion::DigitalWorker::Lifecycle::AuthorityRequired => e
+            json_error('authority_required', e.message, status_code: 403)
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
             json_error('invalid_transition', e.message, status_code: 422)
           rescue StandardError => e

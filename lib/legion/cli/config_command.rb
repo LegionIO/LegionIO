@@ -53,12 +53,15 @@ module Legion
       rescue CLI::Error => e
         formatter.error(e.message)
         raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
       default_task :show
 
       desc 'path', 'Show configuration file search paths'
       def path
         out = formatter
+        Connection.config_dir = options[:config_dir] if options[:config_dir]
         paths = config_search_paths
 
         if options[:json]
@@ -89,10 +92,15 @@ module Legion
             puts "  #{out.colorize(var, :gray)} (not set)"
           end
         end
+      rescue CLI::Error => e
+        formatter.error(e.message)
+        raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
 
       desc 'validate', 'Validate current configuration'
-      def validate # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def validate # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         out = formatter
         Connection.config_dir = options[:config_dir] if options[:config_dir]
 
@@ -121,6 +129,9 @@ module Legion
           warnings << 'No extensions configured in settings' if extensions.empty?
         end
 
+        # Check LLM config
+        validate_llm(warnings) if Connection.settings?
+
         if options[:json]
           out.json(valid: issues.empty?, issues: issues, warnings: warnings)
           return
@@ -146,6 +157,11 @@ module Legion
           out.error("Configuration has #{issues.size} issue(s)")
           raise SystemExit, 1
         end
+      rescue CLI::Error => e
+        formatter.error(e.message)
+        raise SystemExit, 1
+      ensure
+        Connection.shutdown
       end
 
       desc 'scaffold', 'Generate starter config files for each subsystem'
@@ -205,9 +221,25 @@ module Legion
           end
         end
 
+        def validate_llm(warnings)
+          llm = Legion::Settings[:llm] || {}
+          return unless llm[:enabled]
+
+          warnings << 'LLM enabled but no default provider configured' if llm[:default_provider].nil? || llm[:default_provider].to_s.empty?
+
+          keyless_providers = %i[bedrock ollama]
+          (llm[:providers] || {}).each do |name, config|
+            next unless config.is_a?(Hash) && config[:enabled]
+            next if keyless_providers.include?(name.to_sym)
+            next if config[:api_key] && !config[:api_key].to_s.empty?
+
+            warnings << "LLM provider '#{name}' enabled but no api_key configured"
+          end
+        end
+
         def sensitive_key?(key)
           name = key.to_s.downcase
-          name.match?(/password|secret|token|key|credential|auth/)
+          name.match?(/(?:\A|_)(?:password|secret|token|key|credential|auth)\z/)
         end
 
         def print_nested(out, hash, indent: 0)

@@ -7,9 +7,6 @@ module Legion
         true
       end
 
-      class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
-      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
-
       desc 'stdio', 'Start MCP server with stdio transport (default)'
       def stdio
         require 'legion/mcp'

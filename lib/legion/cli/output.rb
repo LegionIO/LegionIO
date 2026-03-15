@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'legion/cli/theme'
 
 module Legion
   module CLI
@@ -14,34 +15,56 @@ module Legion
         end
       end
 
+      # Purple-only palette mapped to semantic names.
+      # Legacy ANSI names (red, green, etc.) remap to purple intensity shades
+      # so all existing code works but renders on-brand.
       COLORS = {
-        reset:   "\e[0m",
-        bold:    "\e[1m",
-        dim:     "\e[2m",
-        red:     "\e[31m",
-        green:   "\e[32m",
-        yellow:  "\e[33m",
-        blue:    "\e[34m",
-        magenta: "\e[35m",
-        cyan:    "\e[36m",
-        white:   "\e[37m",
-        gray:    "\e[90m"
+        reset:    "\e[0m",
+        bold:     "\e[1m",
+        dim:      "\e[2m",
+
+        # Legacy names → purple intensity equivalents
+        red:      Theme.c(:self_point),     # errors: brightest
+        green:    Theme.c(:cardinal),       # success: calm/nominal
+        yellow:   Theme.c(:innermost),      # warnings: medium-bright
+        blue:     Theme.c(:mid_nodes),
+        magenta:  Theme.c(:inner_nodes),
+        cyan:     Theme.c(:mid_nodes),
+        white:    Theme.c(:near_white),
+        gray:     Theme.c(:mid_arcs),
+
+        # Semantic theme names
+        title:    Theme.c(:self_point),
+        heading:  Theme.c(:near_white),
+        body:     Theme.c(:inner_nodes),
+        label:    Theme.c(:cardinal),
+        accent:   Theme.c(:mid_nodes),
+        muted:    Theme.c(:diagonal_nodes),
+        disabled: Theme.c(:skip),
+        border:   Theme.c(:inner_tier),
+        node:     Theme.c(:cardinal),
+
+        # Status intensity (no traffic lights)
+        nominal:  Theme.c(:cardinal),
+        caution:  Theme.c(:innermost),
+        critical: Theme.c(:self_point)
       }.freeze
 
+      # Status → intensity mapping. Brightness communicates urgency.
       STATUS_ICONS = {
-        ok:        'green',
-        ready:     'green',
-        running:   'green',
-        enabled:   'green',
-        loaded:    'green',
-        completed: 'green',
-        warning:   'yellow',
-        pending:   'yellow',
-        disabled:  'yellow',
-        error:     'red',
-        failed:    'red',
-        dead:      'red',
-        unknown:   'gray'
+        ok:        'nominal',
+        ready:     'nominal',
+        running:   'nominal',
+        enabled:   'nominal',
+        loaded:    'nominal',
+        completed: 'nominal',
+        warning:   'caution',
+        pending:   'caution',
+        disabled:  'muted',
+        error:     'critical',
+        failed:    'critical',
+        dead:      'critical',
+        unknown:   'disabled'
       }.freeze
 
       class Formatter
@@ -59,16 +82,20 @@ module Legion
         end
 
         def bold(text)
-          colorize(text, :bold)
+          return text.to_s unless @color_enabled
+
+          "#{COLORS[:bold]}#{COLORS[:heading]}#{text}#{COLORS[:reset]}"
         end
 
         def dim(text)
-          colorize(text, :dim)
+          return text.to_s unless @color_enabled
+
+          "#{COLORS[:gray]}#{text}#{COLORS[:reset]}"
         end
 
         def status_color(status)
           key = status.to_s.downcase.tr('.', '_').to_sym
-          color_name = STATUS_ICONS[key] || 'gray'
+          color_name = STATUS_ICONS[key] || 'disabled'
           color_name.to_sym
         end
 
@@ -76,16 +103,20 @@ module Legion
           colorize(text, status_color(text))
         end
 
-        # Print a section header
+        def banner(version: nil)
+          puts Theme.render_banner(version: version, color: @color_enabled)
+        end
+
         def header(text)
-          if @json_mode
-            # no-op in json mode, data speaks for itself
+          return if @json_mode
+
+          if @color_enabled
+            puts "#{COLORS[:bold]}#{COLORS[:heading]}#{text}#{COLORS[:reset]}"
           else
-            puts colorize(text, :bold)
+            puts text
           end
         end
 
-        # Print a key-value detail block
         def detail(hash, indent: 0)
           if @json_mode
             puts Output.encode_json(hash)
@@ -96,18 +127,17 @@ module Legion
           max_key = hash.keys.map { |k| k.to_s.length }.max || 0
 
           hash.each do |key, value|
-            label = colorize("#{key.to_s.ljust(max_key)}:", :cyan)
+            label = colorize("#{key.to_s.ljust(max_key)}:", :label)
             val = case value
-                  when true  then colorize('yes', :green)
-                  when false then colorize('no', :red)
-                  when nil   then colorize('(none)', :gray)
+                  when true  then colorize('yes', :accent)
+                  when false then colorize('no', :muted)
+                  when nil   then colorize('(none)', :disabled)
                   else value.to_s
                   end
             puts "#{pad}  #{label} #{val}"
           end
         end
 
-        # Print a formatted table
         def table(headers, rows, title: nil)
           if @json_mode
             json_rows = rows.map { |row| headers.zip(row).to_h }
@@ -122,52 +152,45 @@ module Legion
             all_rows.map { |r| strip_ansi(r[i].to_s).length }.max
           end
 
-          # Header
           puts if title
-          header_line = headers.each_with_index.map { |h, i| colorize(h.to_s.upcase.ljust(widths[i]), :bold) }.join('  ')
+          header_line = headers.each_with_index.map { |h, i| colorize(h.to_s.upcase.ljust(widths[i]), :heading) }.join('  ')
           puts "  #{header_line}"
-          puts "  #{widths.map { |w| colorize('-' * w, :gray) }.join('  ')}"
+          puts "  #{widths.map { |w| colorize('─' * w, :border) }.join('  ')}"
 
-          # Rows
           rows.each do |row|
             line = row.each_with_index.map { |cell, i| cell.to_s.ljust(widths[i]) }.join('  ')
             puts "  #{line}"
           end
         end
 
-        # Print a success message
         def success(message)
           if @json_mode
             puts Output.encode_json(success: true, message: message)
           else
-            puts "  #{colorize('>>', :green)} #{message}"
+            puts "  #{colorize('»', :accent)} #{message}"
           end
         end
 
-        # Print a warning
         def warn(message)
           if @json_mode
             puts Output.encode_json(warning: true, message: message)
           else
-            puts "  #{colorize('!!', :yellow)} #{message}"
+            puts "  #{colorize('»', :caution)} #{message}"
           end
         end
 
-        # Print an error
         def error(message)
           if @json_mode
             puts Output.encode_json(error: true, message: message)
           else
-            warn "  #{colorize('!!', :red)} #{message}"
+            warn "  #{colorize('»', :critical)} #{colorize(message, :critical)}"
           end
         end
 
-        # Print raw JSON (for structured output)
         def json(data)
           puts Output.encode_json(data)
         end
 
-        # Print a blank line (no-op in json mode)
         def spacer
           puts unless @json_mode
         end

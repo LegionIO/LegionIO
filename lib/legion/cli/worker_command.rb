@@ -80,13 +80,13 @@ module Legion
       desc 'pause WORKER_ID', 'Pause a digital worker'
       option :reason, type: :string, desc: 'Reason for pausing'
       def pause(worker_id)
-        with_data { transition_worker(worker_id, 'paused', options[:reason]) }
+        with_data { transition_worker(worker_id, 'paused', options[:reason], authority_verified: true) }
       end
 
       desc 'retire WORKER_ID', 'Retire a digital worker'
       option :reason, type: :string, desc: 'Reason for retiring'
       def retire(worker_id)
-        with_data { transition_worker(worker_id, 'retired', options[:reason]) }
+        with_data { transition_worker(worker_id, 'retired', options[:reason], authority_verified: true) }
       end
 
       desc 'terminate WORKER_ID', 'Terminate a digital worker (irreversible)'
@@ -99,12 +99,12 @@ module Legion
           print "Type 'yes' to confirm termination: "
           return unless $stdin.gets&.strip == 'yes'
         end
-        with_data { transition_worker(worker_id, 'terminated', options[:reason]) }
+        with_data { transition_worker(worker_id, 'terminated', options[:reason], governance_override: true) }
       end
 
       desc 'activate WORKER_ID', 'Activate a worker (from bootstrap or paused)'
       def activate(worker_id)
-        with_data { transition_worker(worker_id, 'active', nil) }
+        with_data { transition_worker(worker_id, 'active', nil, authority_verified: true) }
       end
 
       desc 'costs WORKER_ID', 'Show cost summary for a worker'
@@ -115,7 +115,7 @@ module Legion
         out.warn("Worker: #{worker_id}, Period: #{options[:period]}")
       end
 
-      no_commands do
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
@@ -140,7 +140,7 @@ module Legion
             Legion::Data::Model::DigitalWorker.where(Sequel.like(:worker_id, "#{worker_id}%")).first
         end
 
-        def transition_worker(worker_id, to_state, reason)
+        def transition_worker(worker_id, to_state, reason, **)
           out = formatter
           require 'legion/digital_worker/lifecycle'
 
@@ -152,12 +152,16 @@ module Legion
           end
 
           begin
-            Legion::DigitalWorker::Lifecycle.transition!(worker, to_state: to_state, by: 'cli', reason: reason)
+            Legion::DigitalWorker::Lifecycle.transition!(worker, to_state: to_state, by: 'cli', reason: reason, **)
             if options[:json]
               out.json({ worker_id: worker.worker_id, lifecycle_state: to_state, transitioned: true })
             else
               out.success("Worker #{worker.name} transitioned to #{to_state}")
             end
+          rescue Legion::DigitalWorker::Lifecycle::GovernanceRequired => e
+            out.error("Governance approval required: #{e.message}")
+          rescue Legion::DigitalWorker::Lifecycle::AuthorityRequired => e
+            out.error("Insufficient authority/permission: #{e.message}")
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
             out.error(e.message)
           end

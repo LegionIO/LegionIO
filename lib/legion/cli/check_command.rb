@@ -68,7 +68,7 @@ module Legion
           send(:"check_#{name}", options)
           elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start).round(2)
           { status: 'pass', time: elapsed }
-        rescue StandardError => e
+        rescue StandardError, LoadError => e
           elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start).round(2)
           { status: 'fail', error: e.message, time: elapsed }
         end
