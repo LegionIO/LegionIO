@@ -164,5 +164,23 @@ RSpec.describe Legion::CLI::Chat::Session do
       session.send_message('second')
       expect(turns).to eq([1, 2])
     end
+
+    it 'emits :tool_start when on_tool_call fires' do
+      tool_events = []
+      session.on(:tool_start) { |p| tool_events << p[:name] }
+
+      session.send_message('hello', on_tool_call: ->(_tc) {}) { |_c| }
+
+      session.emit(:tool_start, { name: 'read_file', args: { path: '/tmp' }, index: 1, total: 1 })
+      expect(tool_events).to eq(['read_file'])
+    end
+
+    it 'emits :tool_complete when on_tool_result fires' do
+      result_events = []
+      session.on(:tool_complete) { |p| result_events << p[:name] }
+
+      session.emit(:tool_complete, { name: 'read_file', result_preview: 'contents...', index: 1, total: 1 })
+      expect(result_events).to eq(['read_file'])
+    end
   end
 end
