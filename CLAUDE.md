@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.0
+**Version**: 1.4.3
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -182,7 +182,9 @@ Legion (lib/legion.rb)
     ├── Swarm              # `legion swarm` - multi-agent workflow orchestration
     ├── Commit             # `legion commit` - AI-generated commit messages via LLM
     ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
-    └── Review             # `legion review` - AI code review with severity levels
+    ├── Review             # `legion review` - AI code review with severity levels
+    ├── Gaia               # `legion gaia` - Gaia status
+    └── Schedule           # `legion schedule` - schedule list/show/add/remove/logs
 ```
 
 ### Extension Discovery
@@ -273,6 +275,7 @@ legion
     #   /agent TASK, /agents, /plan, /swarm NAME
     #   /review [SCOPE], /permissions [MODE], /personality STYLE
     #   /model X, /edit (open $EDITOR)
+    #   /commit, /workers, /dream
     # Bang commands: !<shell command> (quick shell exec with context injection)
     # At-mentions: @agent_name <task> (delegate to custom agent)
 
@@ -303,6 +306,16 @@ legion
   review [FILES...]                  # AI code review with severity levels
     [--model MODEL] [--provider PROVIDER]
     [--diff]                         # review staged/unstaged diff instead of files
+
+  gaia
+    status                           # show Gaia system status
+
+  schedule
+    list
+    show <id>
+    add <name> <cron> <runner>
+    remove <id>
+    logs <id>
 ```
 
 **CLI design rules:**
@@ -404,6 +417,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
 | `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
 | `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
+| `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | **MCP** | |
@@ -456,6 +470,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/commit_command.rb` | `legion commit` — AI-generated commit messages via LLM |
 | `lib/legion/cli/pr_command.rb` | `legion pr` — AI-generated PR title + description via LLM |
 | `lib/legion/cli/review_command.rb` | `legion review` — AI code review with severity levels (CRITICAL/WARNING/SUGGESTION/NOTE) |
+| `lib/legion/cli/gaia_command.rb` | `legion gaia` subcommands (status) |
+| `lib/legion/cli/schedule_command.rb` | `legion schedule` subcommands (list, show, add, remove, logs) |
 | `lib/legion/cli/theme.rb` | Purple palette, orbital ASCII banner, branded CLI output |
 | **Legacy CLI (preserved, not loaded by new CLI)** | |
 | `lib/legion/cli/task.rb` | Old task commands |
@@ -483,7 +499,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ## Rubocop Notes
 
-- `.rubocop.yml` excludes `spec/**/*`, `legionio.gemspec`, `chat_command.rb`, `plan_command.rb`, and `swarm_command.rb` from `Metrics/BlockLength`
+- `.rubocop.yml` excludes `spec/**/*`, `legionio.gemspec`, `chat_command.rb`, `plan_command.rb`, `swarm_command.rb`, and `schedule_command.rb` from `Metrics/BlockLength`
 - `chat_command.rb` also excluded from `Metrics/AbcSize`, `Metrics/MethodLength`, and `Metrics/CyclomaticComplexity` (large REPL loop + slash command dispatch)
 - Hash alignment: `table` style enforced for both rocket and colon
 - `Naming/PredicateMethod` disabled
@@ -492,7 +508,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 636 examples, 0 failures
+bundle exec rspec       # 682 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
