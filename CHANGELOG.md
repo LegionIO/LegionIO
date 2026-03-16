@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.19] - 2026-03-16
+
+### Added
+- Local development mode: `LEGION_LOCAL=true` env var or `local_mode: true` in settings
+- Auto-configures in-memory transport, mock Vault, and dev settings
+
 ## [1.4.18] - 2026-03-16
 
 ### Added

@@ -16,6 +16,7 @@ module Legion
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
       apply_cli_overrides(http_port: http_port)
+      setup_local_mode
       reconfigure_logging(log_level)
       Legion::Logging.info("node name: #{Legion::Settings[:client][:name]}")
 
@@ -66,6 +67,21 @@ module Legion
       setup_api if @api_enabled
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
+    end
+
+    def setup_local_mode
+      return unless local_mode?
+
+      Legion::Logging.info 'Starting in local development mode'
+      Legion::Settings[:dev] = true
+
+      require 'legion/transport/local'
+      require 'legion/crypt/mock_vault'
+    end
+
+    def local_mode?
+      ENV['LEGION_LOCAL'] == 'true' ||
+        Legion::Settings[:local_mode] == true
     end
 
     def setup_data
