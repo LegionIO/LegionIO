@@ -208,10 +208,18 @@ module Legion
         false
       end
 
+      def gem_names_for_discovery
+        if defined?(Bundler)
+          Bundler.load.specs.map { |s| "#{s.name}-#{s.version}" }
+        else
+          Gem::Specification.all_names
+        end
+      end
+
       def find_extensions
         @extensions ||= {}
-        Gem::Specification.all_names.each do |gem|
-          next unless gem[0..3] == 'lex-'
+        gem_names_for_discovery.each do |gem|
+          next unless gem.start_with?('lex-')
 
           lex = gem.split('-')
           @extensions[lex[1]] = { full_gem_name:   gem,
