@@ -279,6 +279,7 @@ module Legion
           "#{@target}/lib/legion/extensions/#{@name}",
           "#{@target}/lib/legion/extensions/#{@name}/runners",
           "#{@target}/lib/legion/extensions/#{@name}/actors",
+          "#{@target}/lib/legion/extensions/#{@name}/tools",
           "#{@target}/spec",
           "#{@target}/spec/legion"
         ]
@@ -286,6 +287,7 @@ module Legion
         dirs << "#{@target}/.github/workflows" if @options[:github_ci]
 
         dirs.each { |d| FileUtils.mkdir_p(d) }
+        FileUtils.touch("#{@target}/lib/legion/extensions/#{@name}/tools/.gitkeep")
 
         write_template("#{@target}/#{@target}.gemspec", gemspec_content)
         write_template("#{@target}/Gemfile", gemfile_content)
