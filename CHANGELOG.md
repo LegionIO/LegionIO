@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.14] - 2026-03-16
+
+### Added
+- Optional RBAC integration via legion-rbac gem (`if defined?(Legion::Rbac)` guards)
+- `setup_rbac` lifecycle hook in Service (after setup_data)
+- `authorize_execution!` guard in Ingress for task execution
+- Rack middleware registration in API when legion-rbac loaded
+- REST API routes for RBAC management (roles, assignments, grants, cross-team grants, check)
+- `legion rbac` CLI subcommand (roles, show, assignments, assign, revoke, grants, grant, check)
+- MCP tools: legion.rbac_check, legion.rbac_assignments, legion.rbac_grants
+
 ## [1.4.13] - 2026-03-16
 
 ### Changed
