@@ -31,7 +31,9 @@ module Legion
     set :raise_errors, false
 
     configure do
-      enable :logging
+      set :logging, nil
+      set :quiet, true
+      set :logger, Legion::Logging.log if Legion.const_defined?(:Logging)
       set :host_authorization, permitted: :any
     end
 

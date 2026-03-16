@@ -131,6 +131,8 @@ module Legion
           Legion::API.set :bind, bind
           Legion::API.set :server, :puma
           Legion::API.set :environment, :production
+          require 'puma'
+          Legion::API.set :server_settings, { log_writer: ::Puma::LogWriter.new(StringIO.new, StringIO.new) }
           Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
           Legion::API.run!(traps: false)
         rescue Errno::EADDRINUSE

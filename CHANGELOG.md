@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.11] - 2026-03-16
+
+### Fixed
+- Sinatra and Puma no longer write startup banners directly to stdout
+- API logging routed through `Legion::Logging` for consistent log format
+- Puma log writer silenced via `StringIO` redirect in `setup_api`
+
 ## [1.4.10] - 2026-03-16
 
 ### Fixed
