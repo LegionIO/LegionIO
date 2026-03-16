@@ -346,6 +346,22 @@ legion
     bash                             # output bash completion script
     zsh                              # output zsh completion script
     install                          # print installation instructions
+
+  openapi
+    generate [-o FILE]               # output OpenAPI 3.1.0 spec JSON
+    routes                           # list all API routes with HTTP method + summary
+
+  doctor [--fix] [--json]            # diagnose environment, suggest/apply fixes
+                                     # checks: Ruby, bundle, config, RabbitMQ, DB, cache, Vault,
+                                     #   extensions, PID files, permissions
+                                     # exit 0=all pass, 1=any fail
+
+  telemetry
+    stats [SESSION_ID]               # aggregate or per-session telemetry stats
+    ingest PATH                      # manually ingest a session log file
+
+  auth
+    teams [--tenant-id ID] [--client-id ID]  # browser OAuth flow for Microsoft Teams
 ```
 
 **CLI design rules:**
@@ -450,6 +466,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
 | `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
+| `lib/legion/api/openapi.rb` | OpenAPI: `Legion::API::OpenAPI.spec` / `.to_json`; also served at `GET /api/openapi.json` |
+| `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | **MCP** | |
 | `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
@@ -506,6 +524,10 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/gaia_command.rb` | `legion gaia` subcommands (status) |
 | `lib/legion/cli/schedule_command.rb` | `legion schedule` subcommands (list, show, add, remove, logs) |
 | `lib/legion/cli/completion_command.rb` | `legion completion` subcommands (bash, zsh, install) |
+| `lib/legion/cli/openapi_command.rb` | `legion openapi` subcommands (generate, routes); also `GET /api/openapi.json` endpoint |
+| `lib/legion/cli/doctor_command.rb` | `legion doctor` — 10-check environment diagnosis; `Doctor::Result` value object with status/message/prescription/auto_fixable |
+| `lib/legion/cli/telemetry_command.rb` | `legion telemetry` subcommands (stats, ingest) — session log analytics |
+| `lib/legion/cli/auth_command.rb` | `legion auth` subcommands (teams) — delegated OAuth browser flow for external services |
 | `completions/legion.bash` | Bash tab completion script |
 | `completions/_legion` | Zsh tab completion script |
 | `lib/legion/cli/theme.rb` | Purple palette, orbital ASCII banner, branded CLI output |

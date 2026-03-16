@@ -14,7 +14,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.6** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.13** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -210,6 +210,16 @@ legion config scaffold          # generate starter config files
 
 Settings load from the first directory found: `/etc/legionio/` → `~/legionio/` → `./settings/`
 
+### Diagnostics
+
+```bash
+legion doctor                   # diagnose environment, suggest fixes
+legion doctor --fix             # auto-remediate fixable issues (stale PIDs, missing gems)
+legion doctor --json            # machine-readable output
+```
+
+Checks Ruby version, bundle status, config files, RabbitMQ, database, cache, Vault, extensions, PID files, and permissions. Exits 1 if any check fails.
+
 All commands support `--json` for structured output and `--no-color` to strip ANSI codes.
 
 ## REST API
@@ -332,6 +342,25 @@ legion generate actor myactor
 bundle exec rspec
 ```
 
+## Role Profiles
+
+Control which extensions load at startup via `settings/legion.json`:
+
+```json
+{"role": {"profile": "dev"}}
+```
+
+| Profile | What loads |
+|---------|-----------|
+| *(default)* | Everything — no filtering |
+| `core` | 14 core operational extensions only |
+| `cognitive` | core + all agentic extensions |
+| `service` | core + service + other integrations |
+| `dev` | core + AI + essential agentic (~20 extensions) |
+| `custom` | only what's listed in `role.extensions` |
+
+Faster boot and lower memory footprint for dedicated worker roles.
+
 ## Scaling
 
 Task distribution uses RabbitMQ FIFO queues. Add workers by running more Legion processes — each subscribes to the same queues and picks up work automatically. Tested to 100+ workers.
@@ -363,6 +392,12 @@ CMD ruby --yjit $(which legion) start
 
 ## Architecture
 
+Before any Legion code loads, the executable applies three performance optimizations:
+
+- **YJIT** — `RubyVM::YJIT.enable` for 15-30% runtime throughput (Ruby 3.1+ builds)
+- **GC tuning** — pre-allocates 600k heap slots and raises malloc limits (ENV overrides respected)
+- **bootsnap** — caches YARV bytecodes and `$LOAD_PATH` resolution at `~/.legionio/cache/bootsnap/`
+
 ```
 legion start
   └── Legion::Service
@@ -374,12 +409,14 @@ legion start
       ├── 6. Data             (legion-data — database + migrations)
       ├── 7. LLM              (legion-llm — AI provider setup + routing)
       ├── 8. Supervision      (process supervision)
-      ├── 9. Extensions       (discover + load 280+ LEX gems)
+      ├── 9. Extensions       (discover + load 280+ LEX gems, filtered by role profile)
       ├── 10. Cluster Secret  (distribute via Vault or memory)
       └── 11. API             (Sinatra/Puma on port 4567)
 ```
 
 Each phase registers with `Legion::Readiness`. All phases are individually toggleable.
+
+`SIGHUP` triggers a live reload (`Legion.reload`) — subsystems shut down in reverse order and restart fresh without killing the process. Useful for rolling restarts and config changes.
 
 ## Similar Projects
 
@@ -397,7 +434,7 @@ Each phase registers with `Legion::Readiness`. All phases are individually toggl
 git clone https://github.com/LegionIO/LegionIO.git
 cd LegionIO
 bundle install
-bundle exec rspec       # 694 examples, 0 failures
+bundle exec rspec       # 880 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
