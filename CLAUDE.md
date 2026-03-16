@@ -9,12 +9,20 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.8
+**Version**: 1.4.9
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
 
 ## Architecture
+
+### Boot Sequence (exe/legion)
+
+Before any Legion code loads, `exe/legion` applies three performance optimizations:
+
+1. **YJIT** — `RubyVM::YJIT.enable` for 15-30% runtime throughput (guarded with `if defined?`)
+2. **GC tuning** — pre-allocates 600k heap slots, raises malloc limits (all `||=` so ENV overrides are respected)
+3. **bootsnap** — caches YARV bytecodes and `$LOAD_PATH` resolution at `~/.legionio/cache/bootsnap/`
 
 ### Startup Sequence
 
@@ -29,7 +37,7 @@ Legion.start
       ├── 6. setup_data         (legion-data, MySQL/SQLite + migrations, optional)
       ├── 7. setup_llm          (legion-llm, optional)
       ├── 8. setup_supervision  (process supervision)
-      ├── 9. load_extensions    (discover + load LEX gems)
+      ├── 9. load_extensions    (discover + load LEX gems, filtered by role profile)
       ├── 10. Legion::Crypt.cs  (distribute cluster secret)
       └── 11. setup_api         (start Sinatra/Puma on port 4567)
 ```
@@ -192,7 +200,20 @@ Legion (lib/legion.rb)
 
 ### Extension Discovery
 
-`Legion::Extensions.find_extensions` scans `Gem::Specification.all_names` for gems starting with `lex-`. It also processes `Legion::Settings[:extensions]` for explicitly configured extensions, attempting `Gem.install` for missing ones if `auto_install` is enabled.
+`Legion::Extensions.find_extensions` discovers lex-* gems via `Bundler.load.specs` (when running under Bundler) or falls back to `Gem::Specification.all_names`. It also processes `Legion::Settings[:extensions]` for explicitly configured extensions, attempting `Gem.install` for missing ones if `auto_install` is enabled.
+
+**Role-based filtering**: After discovery, `apply_role_filter` prunes extensions based on `Legion::Settings[:role][:profile]`:
+
+| Profile | What loads |
+|---------|-----------|
+| `nil` (default) | Everything — no filtering |
+| `:core` | 14 core operational extensions only |
+| `:cognitive` | core + all agentic extensions |
+| `:service` | core + service + other integrations |
+| `:dev` | core + AI + essential agentic (~20 extensions) |
+| `:custom` | only what's listed in `role[:extensions]` |
+
+Configure via settings JSON: `{"role": {"profile": "dev"}}`
 
 Loader checks per extension:
 - `data_required?` — skipped if legion-data not connected
@@ -368,6 +389,7 @@ legion
 | `lex-node` | Node identity extension |
 | `concurrent-ruby` + `ext` (>= 1.2) | Thread pool, concurrency primitives |
 | `daemons` (>= 1.4) | Process daemonization |
+| `bootsnap` (>= 1.18) | YARV bytecode + load-path caching |
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `mcp` (~> 0.8) | MCP server SDK |
@@ -496,7 +518,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/relationship.rb` | Old relationship commands |
 | `lib/legion/cli/lex/` | Old LEX sub-generators + ERB templates (still used by LexGenerator) |
 | **Executables** | |
-| `exe/legion` | Only executable: `Legion::CLI::Main.start(ARGV)` |
+| `exe/legion` | Executable: YJIT, GC tuning, bootsnap, then `Legion::CLI::Main.start(ARGV)` |
 | `Dockerfile` | Docker build |
 | `docker_deploy.rb` | Build + push Docker image |
 | **Specs** | |
@@ -522,7 +544,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 872 examples, 0 failures
+bundle exec rspec       # 880 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
