@@ -7,9 +7,6 @@ on:
 jobs:
   ci:
     uses: LegionIO/.github/.github/workflows/ci.yml@main
-    with:
-      needs-rabbitmq: true
-      needs-redis: true
 
   release:
     needs: ci

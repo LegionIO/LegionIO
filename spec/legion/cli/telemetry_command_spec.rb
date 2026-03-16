@@ -28,7 +28,7 @@ RSpec.describe Legion::CLI::Telemetry do
 
   before do
     stub_const('Legion::Extensions::Telemetry::Runners::Telemetry', runner_stub)
-    allow_any_instance_of(described_class).to receive(:telemetry_runner).and_return(runner_stub) # rubocop:disable RSpec/AnyInstance
+    allow_any_instance_of(described_class).to receive(:telemetry_runner).and_return(runner_stub)
   end
 
   describe '#stats' do
