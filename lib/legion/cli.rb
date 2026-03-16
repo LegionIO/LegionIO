@@ -31,6 +31,7 @@ module Legion
     autoload :Completion, 'legion/cli/completion_command'
     autoload :Openapi,    'legion/cli/openapi_command'
     autoload :Doctor,     'legion/cli/doctor_command'
+    autoload :Telemetry,  'legion/cli/telemetry_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -185,6 +186,9 @@ module Legion
 
       desc 'doctor', 'Diagnose environment and suggest fixes'
       subcommand 'doctor', Legion::CLI::Doctor
+
+      desc 'telemetry SUBCOMMAND', 'Session log analytics and telemetry'
+      subcommand 'telemetry', Legion::CLI::Telemetry
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
