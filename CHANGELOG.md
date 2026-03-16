@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.21] - 2026-03-16
+
+### Added
+- `Middleware::ApiVersion`: rewrites `/api/v1/` paths to `/api/` for future versioned API support
+- Deprecation headers (`Deprecation`, `Sunset`, `Link`) on unversioned `/api/` paths
+- `X-API-Version` request header set for versioned paths
+- Skip paths: `/api/health`, `/api/ready`, `/api/openapi.json`, `/metrics`
+
 ## [1.4.20] - 2026-03-16
 
 ### Added

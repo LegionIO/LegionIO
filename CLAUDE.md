@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.19
+**Version**: 1.4.21
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -470,6 +470,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/openapi.rb` | OpenAPI: `Legion::API::OpenAPI.spec` / `.to_json`; also served at `GET /api/openapi.json` |
 | `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
+| `lib/legion/api/middleware/api_version.rb` | ApiVersion: rewrites `/api/v1/` to `/api/`, adds Deprecation/Sunset headers on unversioned paths |
+| `lib/legion/api/middleware/rate_limit.rb` | RateLimit: sliding-window rate limiting with per-IP/agent/tenant tiers |
 | **MCP** | |
 | `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
 | `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, instructions |
@@ -567,7 +569,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 880 examples, 0 failures
+bundle exec rspec       # 919 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
