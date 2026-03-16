@@ -9,7 +9,20 @@ require 'legion/cli/connection'
 # Connection's ensure_* methods call `require 'legion/X'` (no-op once loaded)
 # followed by methods on the module. If we mock before the methods are defined,
 # RSpec cannot intercept them.
-require 'legion/data'
+begin
+  require 'legion/data'
+rescue LoadError
+  module Legion
+    module Data
+      module Settings
+        def self.default = {}
+      end
+
+      def self.setup(**) = nil
+      def self.shutdown(**) = nil
+    end
+  end
+end
 require 'legion/crypt'
 require 'legion/cache'
 

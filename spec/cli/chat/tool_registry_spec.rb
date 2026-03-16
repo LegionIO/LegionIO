@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
+
+begin
+  require 'ruby_llm'
+rescue LoadError
+  # ruby_llm not available
+end
+
 require 'legion/cli/chat/tool_registry'
 require 'legion/cli/chat/extension_tool_loader'
 
-RSpec.describe Legion::CLI::Chat::ToolRegistry do
+RSpec.describe Legion::CLI::Chat::ToolRegistry, skip: !defined?(RubyLLM) && 'requires ruby_llm' do
   describe '.builtin_tools' do
     it 'returns 10 built-in tools' do
       expect(described_class.builtin_tools.length).to eq(10)

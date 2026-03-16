@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
+
+begin
+  require 'ruby_llm'
+rescue LoadError
+  # ruby_llm not available
+end
+
 require 'legion/cli/chat/extension_tool'
 
-RSpec.describe Legion::CLI::Chat::ExtensionTool do
+RSpec.describe Legion::CLI::Chat::ExtensionTool, skip: !defined?(RubyLLM) && 'requires ruby_llm' do
   let(:read_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool

@@ -2,9 +2,16 @@
 
 require 'spec_helper'
 require 'tmpdir'
+
+begin
+  require 'ruby_llm'
+rescue LoadError
+  # ruby_llm not available — skip these specs
+end
+
 require 'legion/cli/chat/tool_registry'
 
-RSpec.describe Legion::CLI::Chat::Permissions do
+RSpec.describe Legion::CLI::Chat::Permissions, skip: !defined?(RubyLLM) && 'requires ruby_llm' do
   let(:tmpdir) { Dir.mktmpdir }
 
   after do

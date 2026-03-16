@@ -6,14 +6,18 @@ module Legion
   module CLI
     class Chat
       module Permissions
-        TIERS = {
-          Tools::ReadFile      => :read,
-          Tools::SearchFiles   => :read,
-          Tools::SearchContent => :read,
-          Tools::WriteFile     => :write,
-          Tools::EditFile      => :write,
-          Tools::RunCommand    => :shell
-        }.freeze
+        TIERS = if defined?(Tools::ReadFile)
+                  {
+                    Tools::ReadFile      => :read,
+                    Tools::SearchFiles   => :read,
+                    Tools::SearchContent => :read,
+                    Tools::WriteFile     => :write,
+                    Tools::EditFile      => :write,
+                    Tools::RunCommand    => :shell
+                  }.freeze
+                else
+                  {}.freeze
+                end
 
         @mode = :interactive
         @extension_tiers = {}
