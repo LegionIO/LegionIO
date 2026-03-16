@@ -183,7 +183,7 @@ module Legion
 
           require 'legion/cli/chat/tool_registry'
           chat = Legion::LLM.chat(**opts)
-          chat.with_tools(*Chat::ToolRegistry.builtin_tools)
+          chat.with_tools(*Chat::ToolRegistry.all_tools)
           chat
         end
 
@@ -621,10 +621,9 @@ module Legion
         def handle_plan_toggle(out)
           @plan_mode = !@plan_mode
           if @plan_mode
-            # Remove write/edit/shell tools, keep read/search only
+            # Keep only read-tier tools (both builtin and extension)
             read_only_tools = @session.chat.instance_variable_get(:@tools)&.select do |t|
-              t.is_a?(Class) && [Chat::Tools::ReadFile, Chat::Tools::SearchFiles,
-                                 Chat::Tools::SearchContent, Chat::Tools::SearchMemory].include?(t)
+              t.is_a?(Class) && Chat::Permissions.tier_for(t) == :read
             end
             @saved_tools = @session.chat.instance_variable_get(:@tools)
             @session.chat.instance_variable_set(:@tools, read_only_tools || [])

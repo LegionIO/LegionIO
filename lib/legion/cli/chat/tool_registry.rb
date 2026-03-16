@@ -36,6 +36,13 @@ module Legion
         def self.builtin_tools
           BUILTIN_TOOLS.dup
         end
+
+        def self.all_tools
+          require 'legion/cli/chat/extension_tool_loader'
+          builtin_tools + ExtensionToolLoader.discover
+        rescue LoadError
+          builtin_tools
+        end
       end
     end
   end

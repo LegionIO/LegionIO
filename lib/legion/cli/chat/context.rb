@@ -43,6 +43,17 @@ module Legion
           parts << "Git branch: #{ctx[:git_branch]}" if ctx[:git_branch]
           parts << 'Uncommitted changes present' if ctx[:git_dirty]
 
+          begin
+            require 'legion/cli/chat/extension_tool_loader'
+            ext_tools = Chat::ExtensionToolLoader.discover
+            if ext_tools.any?
+              ext_names = ext_tools.map { |t| t.name&.split('::')&.last&.gsub(/([a-z])([A-Z])/, '\1_\2')&.downcase }
+              parts << "Extension tools available: #{ext_names.compact.join(', ')}"
+            end
+          rescue LoadError
+            # ExtensionToolLoader not available, skip
+          end
+
           extra_dirs.each do |dir|
             expanded = File.expand_path(dir)
             next unless Dir.exist?(expanded)
