@@ -8,6 +8,7 @@
 - `legion completion install` subcommand prints shell-specific installation instructions
 - `completions/legion.bash` bash completion script with full command tree coverage
 - `completions/_legion` zsh completion script with descriptions for all commands and flags
+- `legion lex create` now scaffolds a standalone `Client` class in new extensions
 
 ## v1.4.3
 
