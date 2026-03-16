@@ -25,6 +25,8 @@ module Legion
         Legion::Readiness.mark_ready(:crypt)
       end
 
+      Legion::Settings.resolve_secrets!
+
       if transport
         setup_transport
         Legion::Readiness.mark_ready(:transport)
