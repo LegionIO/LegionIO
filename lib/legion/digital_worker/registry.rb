@@ -9,6 +9,17 @@ module Legion
 
       CONSENT_HIERARCHY = %w[supervised consult notify autonomous].freeze
 
+      @local_workers = Set.new
+      @local_workers_mutex = Mutex.new
+
+      def self.local_worker_ids
+        @local_workers_mutex.synchronize { @local_workers.to_a }
+      end
+
+      def self.clear_local_workers!
+        @local_workers_mutex.synchronize { @local_workers.clear }
+      end
+
       def self.validate_execution!(worker_id:, required_consent: nil)
         worker = Legion::Data::Model::DigitalWorker.first(worker_id: worker_id)
 
@@ -28,6 +39,7 @@ module Legion
                 "worker #{worker_id} consent tier #{worker.consent_tier} insufficient (needs #{required_consent})"
         end
 
+        @local_workers_mutex.synchronize { @local_workers.add(worker_id) }
         worker
       end
 

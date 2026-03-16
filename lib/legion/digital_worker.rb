@@ -42,6 +42,12 @@ module Legion
       def by_team(team:)
         Legion::Data::Model::DigitalWorker.where(team: team)
       end
+
+      def active_local_ids
+        return [] unless defined?(Registry)
+
+        Registry.local_worker_ids
+      end
     end
   end
 end
