@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.3
+**Version**: 1.4.4
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -184,7 +184,8 @@ Legion (lib/legion.rb)
     ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
     ├── Review             # `legion review` - AI code review with severity levels
     ├── Gaia               # `legion gaia` - Gaia status
-    └── Schedule           # `legion schedule` - schedule list/show/add/remove/logs
+    ├── Schedule           # `legion schedule` - schedule list/show/add/remove/logs
+    └── Completion         # `legion completion` - bash/zsh tab completion scripts
 ```
 
 ### Extension Discovery
@@ -316,6 +317,11 @@ legion
     add <name> <cron> <runner>
     remove <id>
     logs <id>
+
+  completion
+    bash                             # output bash completion script
+    zsh                              # output zsh completion script
+    install                          # print installation instructions
 ```
 
 **CLI design rules:**
@@ -472,6 +478,9 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/review_command.rb` | `legion review` — AI code review with severity levels (CRITICAL/WARNING/SUGGESTION/NOTE) |
 | `lib/legion/cli/gaia_command.rb` | `legion gaia` subcommands (status) |
 | `lib/legion/cli/schedule_command.rb` | `legion schedule` subcommands (list, show, add, remove, logs) |
+| `lib/legion/cli/completion_command.rb` | `legion completion` subcommands (bash, zsh, install) |
+| `completions/legion.bash` | Bash tab completion script |
+| `completions/_legion` | Zsh tab completion script |
 | `lib/legion/cli/theme.rb` | Purple palette, orbital ASCII banner, branded CLI output |
 | **Legacy CLI (preserved, not loaded by new CLI)** | |
 | `lib/legion/cli/task.rb` | Old task commands |
@@ -508,7 +517,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 682 examples, 0 failures
+bundle exec rspec       # 694 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
