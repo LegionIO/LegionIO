@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.10] - 2026-03-16
+
+### Fixed
+- API startup no longer crashes when port is already in use (rolling restart support)
+- `setup_api` retries binding up to 10 times with 3s wait (configurable via `api.bind_retries` and `api.bind_retry_wait`)
+- Port bind failure after retries marks API as not-ready instead of killing the thread
+
 ## [1.4.9] - 2026-03-16
 
 ### Added

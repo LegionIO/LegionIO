@@ -122,12 +122,28 @@ module Legion
       bind = api_settings[:bind] || '0.0.0.0'
 
       @api_thread = Thread.new do
-        Legion::API.set :port, port
-        Legion::API.set :bind, bind
-        Legion::API.set :server, :puma
-        Legion::API.set :environment, :production
-        Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
-        Legion::API.run!(traps: false)
+        retries = 0
+        max_retries = api_settings.fetch(:bind_retries, 10)
+        retry_wait = api_settings.fetch(:bind_retry_wait, 3)
+
+        begin
+          Legion::API.set :port, port
+          Legion::API.set :bind, bind
+          Legion::API.set :server, :puma
+          Legion::API.set :environment, :production
+          Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
+          Legion::API.run!(traps: false)
+        rescue Errno::EADDRINUSE
+          retries += 1
+          if retries <= max_retries
+            Legion::Logging.warn "Port #{port} in use, retrying in #{retry_wait}s (attempt #{retries}/#{max_retries})"
+            sleep retry_wait
+            retry
+          else
+            Legion::Logging.error "Port #{port} still in use after #{max_retries} attempts, API disabled"
+            Legion::Readiness.mark_not_ready(:api)
+          end
+        end
       end
       Legion::Readiness.mark_ready(:api)
     rescue LoadError => e
