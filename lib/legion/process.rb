@@ -117,7 +117,8 @@ module Legion
       end
 
       trap('SIGHUP') do
-        info 'sighup'
+        info 'sighup: triggering reload'
+        Thread.new { Legion.reload }
       end
 
       trap('SIGINT') do
