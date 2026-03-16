@@ -4,6 +4,10 @@
 
 ### Added
 - Optional RBAC integration via legion-rbac gem (`if defined?(Legion::Rbac)` guards)
+- `GET /api/workers/:id/health` endpoint returns worker health status with node metrics
+- `health_status` query filter on `GET /api/workers`
+- Thread-safe local worker tracking in `DigitalWorker::Registry` for heartbeat reporting
+- `Legion::DigitalWorker.active_local_ids` delegate method
 - `setup_rbac` lifecycle hook in Service (after setup_data)
 - `authorize_execution!` guard in Ingress for task execution
 - Rack middleware registration in API when legion-rbac loaded
