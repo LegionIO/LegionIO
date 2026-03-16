@@ -125,6 +125,27 @@ module Legion
         out.success("Created #{message_path}")
       end
 
+      desc 'tool NAME', 'Add a chat tool to the current LEX'
+      def tool(name)
+        out = formatter
+        lex = detect_lex(out)
+
+        tool_path = "lib/legion/extensions/#{lex}/tools/#{name}.rb"
+        spec_path = "spec/tools/#{name}_spec.rb"
+
+        ensure_dir(File.dirname(tool_path))
+        ensure_dir(File.dirname(spec_path))
+
+        class_name = name.split('_').map(&:capitalize).join
+        lex_class = lex.split('_').map(&:capitalize).join
+
+        File.write(tool_path, tool_template(lex, lex_class, name, class_name))
+        File.write(spec_path, tool_spec_template(lex, lex_class, name, class_name))
+
+        out.success("Created #{tool_path}")
+        out.success("Created #{spec_path}")
+      end
+
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new
@@ -281,6 +302,60 @@ module Legion
                     end
                   end
                 end
+              end
+            end
+          RUBY
+        end
+
+        def tool_template(lex, lex_class, _name, class_name)
+          <<~RUBY
+            # frozen_string_literal: true
+
+            require 'ruby_llm'
+            require 'legion/cli/chat/extension_tool'
+
+            module Legion
+              module Extensions
+                module #{lex_class}
+                  module Tools
+                    class #{class_name} < RubyLLM::Tool
+                      include Legion::CLI::Chat::ExtensionTool
+
+                      description 'TODO: Describe what this tool does'
+                      param :example, type: 'string', desc: 'TODO: Describe this parameter'
+
+                      permission_tier :write
+
+                      def execute(example:)
+                        settings = Legion::Settings[:extensions][:#{lex}] || {}
+                        client = Legion::Extensions::#{lex_class}::Client.new(**settings)
+                        # TODO: implement
+                        'Not yet implemented'
+                      rescue StandardError => e
+                        "Error: \#{e.message}"
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          RUBY
+        end
+
+        def tool_spec_template(_lex, lex_class, _name, class_name)
+          <<~RUBY
+            # frozen_string_literal: true
+
+            RSpec.describe Legion::Extensions::#{lex_class}::Tools::#{class_name} do
+              subject(:tool) { described_class.new }
+
+              it 'has a description' do
+                expect(described_class.description).not_to include('TODO')
+              end
+
+              it 'executes successfully' do
+                result = tool.execute(example: 'test')
+                expect(result).to be_a(String)
               end
             end
           RUBY
