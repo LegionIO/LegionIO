@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.6
+**Version**: 1.4.7
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -163,7 +163,9 @@ Legion (lib/legion.rb)
     │   ├── Session        # Multi-turn chat session with streaming
     │   ├── SessionStore   # Persistent session save/load/list/resume/fork
     │   ├── Permissions    # Tool permission model (interactive/auto_approve/read_only)
-    │   ├── ToolRegistry   # Chat tool discovery and registration (10 built-in tools)
+    │   ├── ToolRegistry   # Chat tool discovery and registration (10 built-in + extension tools)
+    │   ├── ExtensionTool    # permission_tier DSL module for LEX chat tools (:read/:write/:shell)
+    │   ├── ExtensionToolLoader # Lazy discovery of tools/ directories from loaded extensions
     │   ├── Context        # Project awareness (git, language, instructions, extra dirs)
     │   ├── MarkdownRenderer # Terminal markdown rendering with syntax highlighting
     │   ├── WebFetch       # /fetch slash command for web page context injection
@@ -242,6 +244,7 @@ legion
     exchange <name>
     queue <name>
     message <name>
+    tool <name>
 
   mcp
     stdio                            # default
@@ -459,6 +462,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/chat/session_store.rb` | Session persistence: save, load, list, resume, fork |
 | `lib/legion/cli/chat/permissions.rb` | Tool permission model (interactive/auto_approve/read_only) |
 | `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration (10 tools) |
+| `lib/legion/cli/chat/extension_tool.rb` | permission_tier DSL module for extension chat tools |
+| `lib/legion/cli/chat/extension_tool_loader.rb` | Lazy discovery engine: scans loaded extensions for tools/ directories |
 | `lib/legion/cli/chat/context.rb` | Project awareness: git info, language detection, instructions, extra dirs |
 | `lib/legion/cli/chat/markdown_renderer.rb` | Terminal markdown rendering with Rouge syntax highlighting |
 | `lib/legion/cli/chat/web_fetch.rb` | `/fetch` slash command: fetches web page, extracts text for context |
@@ -517,7 +522,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 839 examples, 0 failures
+bundle exec rspec       # 872 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
