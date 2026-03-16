@@ -20,6 +20,7 @@ require_relative 'api/hooks'
 require_relative 'api/workers'
 require_relative 'api/coldstart'
 require_relative 'api/gaia'
+require_relative 'api/oauth'
 require_relative 'api/openapi'
 
 module Legion
@@ -84,6 +85,7 @@ module Legion
     register Routes::Workers
     register Routes::Coldstart
     register Routes::Gaia
+    register Routes::OAuth
 
     # Hook registry (preserved from original implementation)
     class << self
