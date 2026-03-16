@@ -33,6 +33,7 @@ module Legion
     autoload :Doctor,     'legion/cli/doctor_command'
     autoload :Telemetry,  'legion/cli/telemetry_command'
     autoload :Auth,       'legion/cli/auth_command'
+    autoload :Rbac,       'legion/cli/rbac_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -194,6 +195,9 @@ module Legion
 
       desc 'auth SUBCOMMAND', 'Authenticate with external services'
       subcommand 'auth', Legion::CLI::Auth
+
+      desc 'rbac SUBCOMMAND', 'Role-based access control management'
+      subcommand 'rbac', Legion::CLI::Rbac
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
