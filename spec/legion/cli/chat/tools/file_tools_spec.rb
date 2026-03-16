@@ -2,19 +2,13 @@
 
 require 'spec_helper'
 require 'tmpdir'
+require 'legion/cli/chat/tools/read_file'
+require 'legion/cli/chat/tools/write_file'
+require 'legion/cli/chat/tools/edit_file'
+require 'legion/cli/chat/tools/search_files'
+require 'legion/cli/chat/tools/search_content'
 
-begin
-  require 'ruby_llm'
-  require 'legion/cli/chat/tools/read_file'
-  require 'legion/cli/chat/tools/write_file'
-  require 'legion/cli/chat/tools/edit_file'
-  require 'legion/cli/chat/tools/search_files'
-  require 'legion/cli/chat/tools/search_content'
-rescue LoadError
-  # ruby_llm not available
-end
-
-RSpec.describe 'Chat File Tools', skip: !defined?(RubyLLM) && 'requires ruby_llm' do
+RSpec.describe 'Chat File Tools' do
   let(:tmpdir) { Dir.mktmpdir }
 
   after { FileUtils.rm_rf(tmpdir) }

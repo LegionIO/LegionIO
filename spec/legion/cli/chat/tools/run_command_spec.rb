@@ -1,16 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'legion/cli/chat/tools/run_command'
 
-begin
-  require 'ruby_llm'
-  require 'legion/cli/chat/tools/run_command'
-rescue LoadError
-  # ruby_llm not available
-end
-
-RSpec.describe(defined?(RubyLLM) ? Legion::CLI::Chat::Tools::RunCommand : 'RunCommand (skipped)',
-               skip: !defined?(RubyLLM) && 'requires ruby_llm') do
+RSpec.describe Legion::CLI::Chat::Tools::RunCommand do
   let(:tool) { described_class.new }
 
   it 'executes a shell command and returns output' do

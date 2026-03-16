@@ -1,16 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-
-begin
-  require 'ruby_llm'
-rescue LoadError
-  # ruby_llm not available — skip these specs
-end
-
 require 'legion/cli/chat/tool_registry'
 
-RSpec.describe Legion::CLI::Chat::ToolRegistry, skip: !defined?(RubyLLM) && 'requires ruby_llm' do
+RSpec.describe Legion::CLI::Chat::ToolRegistry do
   describe '.builtin_tools' do
     it 'returns an array of RubyLLM::Tool subclasses' do
       tools = described_class.builtin_tools

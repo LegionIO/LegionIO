@@ -296,5 +296,6 @@ group :test do
   gem 'rspec'
   gem 'rubocop'
   gem 'rubocop-rspec'
+  gem 'ruby_llm'
   gem 'simplecov'
 end

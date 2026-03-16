@@ -2,16 +2,10 @@
 
 require 'spec_helper'
 
-begin
-  require 'ruby_llm'
-rescue LoadError
-  # ruby_llm not available
-end
-
 require 'legion/cli/chat/extension_tool'
 require 'legion/cli/chat/extension_tool_loader'
 
-RSpec.describe Legion::CLI::Chat::ExtensionToolLoader, skip: !defined?(RubyLLM) && 'requires ruby_llm' do
+RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
   before do
     described_class.reset!
   end
