@@ -25,17 +25,23 @@ module Legion
 
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
-      def run(payload:, runner_class: nil, function: nil, source: 'unknown', **opts)
+      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists
         check_subtask = opts.fetch(:check_subtask, true)
         generate_task = opts.fetch(:generate_task, true)
         message = normalize(payload: payload, runner_class: runner_class,
-                            function: function, source: source, **opts.except(:check_subtask, :generate_task))
+                            function: function, source: source,
+                            **opts.except(:check_subtask, :generate_task, :principal))
 
         rc = message.delete(:runner_class)
         fn = message.delete(:function)
 
         raise 'runner_class is required' if rc.nil?
         raise 'function is required' if fn.nil?
+
+        if defined?(Legion::Rbac)
+          principal ||= Legion::Rbac::Principal.local_admin
+          Legion::Rbac.authorize_execution!(principal: principal, runner_class: rc.to_s, function: fn.to_s)
+        end
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 

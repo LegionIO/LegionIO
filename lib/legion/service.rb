@@ -43,6 +43,8 @@ module Legion
         Legion::Readiness.mark_ready(:data)
       end
 
+      setup_rbac if data
+
       if llm
         setup_llm
         Legion::Readiness.mark_ready(:llm)
@@ -74,6 +76,17 @@ module Legion
       Legion::Logging.info 'Legion::Data gem is not installed, please install it manually with gem install legion-data'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Data failed to load, starting without it. e: #{e.message}"
+    end
+
+    def setup_rbac
+      require 'legion/rbac'
+      Legion::Rbac.setup
+      Legion::Readiness.mark_ready(:rbac)
+      Legion::Logging.info 'Legion::Rbac loaded'
+    rescue LoadError
+      Legion::Logging.debug 'Legion::Rbac gem is not installed, starting without RBAC'
+    rescue StandardError => e
+      Legion::Logging.warn "Legion::Rbac failed to load: #{e.message}"
     end
 
     # noinspection RubyArgCount
@@ -213,6 +226,11 @@ module Legion
       if Legion::Settings[:llm]&.dig(:connected)
         Legion::LLM.shutdown
         Legion::Readiness.mark_not_ready(:llm)
+      end
+
+      if defined?(Legion::Rbac) && Legion::Settings[:rbac]&.dig(:connected)
+        Legion::Rbac.shutdown
+        Legion::Readiness.mark_not_ready(:rbac)
       end
 
       Legion::Data.shutdown if Legion::Settings[:data][:connected]

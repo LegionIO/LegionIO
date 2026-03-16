@@ -22,6 +22,7 @@ require_relative 'api/coldstart'
 require_relative 'api/gaia'
 require_relative 'api/oauth'
 require_relative 'api/openapi'
+require_relative 'api/rbac'
 
 module Legion
   class API < Sinatra::Base
@@ -88,6 +89,9 @@ module Legion
     register Routes::Coldstart
     register Routes::Gaia
     register Routes::OAuth
+    register Routes::Rbac
+
+    use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 
     # Hook registry (preserved from original implementation)
     class << self

@@ -14,6 +14,7 @@ unless ENV['CI']
   gem 'legion-json',      path: '../legion-json'
   gem 'legion-llm',       path: '../legion-llm'
   gem 'legion-logging',   path: '../legion-logging'
+  gem 'legion-rbac',      path: '../legion-rbac'
   gem 'legion-settings',  path: '../legion-settings'
   gem 'legion-transport', path: '../legion-transport'
 
