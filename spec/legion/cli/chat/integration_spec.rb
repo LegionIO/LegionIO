@@ -33,7 +33,8 @@ RSpec.describe 'Legion Chat Integration' do
 
   it 'context detects current project as ruby' do
     require 'legion/cli/chat/context'
-    ctx = Legion::CLI::Chat::Context.detect(Dir.pwd)
+    project_root = File.expand_path('../../../..', __dir__)
+    ctx = Legion::CLI::Chat::Context.detect(project_root)
     expect(ctx[:project_type]).to eq(:ruby)
   end
 

@@ -6,7 +6,7 @@ module Legion
       module Gaia
         def self.registered(app)
           app.get '/api/gaia/status' do
-            if defined?(Legion::Gaia) && Legion::Gaia.started?
+            if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
               json_response(Legion::Gaia.status)
             else
               json_response({ started: false }, status_code: 503)
