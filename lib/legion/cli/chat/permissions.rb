@@ -16,6 +16,7 @@ module Legion
         }.freeze
 
         @mode = :interactive
+        @extension_tiers = {}
 
         class << self
           attr_accessor :mode
@@ -37,8 +38,17 @@ module Legion
             %w[y yes].include?(response)
           end
 
+          def register_extension_tier(tool_class, tier)
+            @extension_tiers ||= {}
+            @extension_tiers[tool_class] = tier
+          end
+
+          def clear_extension_tiers!
+            @extension_tiers = {}
+          end
+
           def tier_for(tool_class)
-            TIERS[tool_class] || :read
+            TIERS[tool_class] || @extension_tiers&.[](tool_class) || :read
           end
 
           def apply!(tool_classes)
