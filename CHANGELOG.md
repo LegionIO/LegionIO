@@ -5,6 +5,7 @@
 ### Fixed
 - Relationships API routes now fully functional (removed 501 stub guards, backed by legion-data migration)
 - Relationships MCP tool no longer checks for missing model
+- Gaia API route returns 503 instead of 500 when `Legion::Gaia` is defined but lacks `started?` method
 
 ## v1.4.7
 
