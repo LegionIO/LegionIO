@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.15] - 2026-03-16
+
+### Added
+- RAI invariant #2: Ingress.run calls Registry.validate_execution! when worker_id is present
+- Unregistered or inactive workers are blocked with structured error (no exception propagation)
+- Registration check fires before RBAC authorization (registration precedes permission)
+
 ## [1.4.14] - 2026-03-16
 
 ### Added

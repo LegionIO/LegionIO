@@ -38,6 +38,14 @@ module Legion
         raise 'runner_class is required' if rc.nil?
         raise 'function is required' if fn.nil?
 
+        # RAI invariant #2: registration precedes permission
+        if defined?(Legion::DigitalWorker::Registry) && message[:worker_id]
+          Legion::DigitalWorker::Registry.validate_execution!(
+            worker_id:        message[:worker_id],
+            required_consent: message[:required_consent]
+          )
+        end
+
         if defined?(Legion::Rbac)
           principal ||= Legion::Rbac::Principal.local_admin
           Legion::Rbac.authorize_execution!(principal: principal, runner_class: rc.to_s, function: fn.to_s)
@@ -52,6 +60,12 @@ module Legion
           generate_task: generate_task,
           **message
         )
+      rescue Legion::DigitalWorker::Registry::WorkerNotFound => e
+        { success: false, status: 'task.blocked', error: { code: 'worker_not_found', message: e.message } }
+      rescue Legion::DigitalWorker::Registry::WorkerNotActive => e
+        { success: false, status: 'task.blocked', error: { code: 'worker_not_active', message: e.message } }
+      rescue Legion::DigitalWorker::Registry::InsufficientConsent => e
+        { success: false, status: 'task.blocked', error: { code: 'insufficient_consent', message: e.message } }
       end
 
       private
