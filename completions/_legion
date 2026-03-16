@@ -312,6 +312,7 @@ _legion_generate() {
     'exchange:Add a transport exchange to the current LEX'
     'queue:Add a transport queue to the current LEX'
     'message:Add a transport message to the current LEX'
+    'tool:Add a chat tool to the current LEX'
   )
 
   _arguments -C \
@@ -335,7 +336,7 @@ _legion_generate() {
             '--runner[Associated runner name]:runner:' \
             '--interval[Interval in seconds]:seconds:'
           ;;
-        exchange|queue|message)
+        exchange|queue|message|tool)
           _arguments ':name:'
           ;;
       esac

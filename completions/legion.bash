@@ -91,7 +91,7 @@ _legion_complete() {
 
     generate|g)
       if [[ $cword -eq 2 ]]; then
-        COMPREPLY=($(compgen -W "runner actor exchange queue message" -- "${cur}"))
+        COMPREPLY=($(compgen -W "runner actor exchange queue message tool" -- "${cur}"))
       else
         case "${words[2]}" in
           runner)   COMPREPLY=($(compgen -W "--functions --help" -- "${cur}")) ;;
@@ -99,6 +99,7 @@ _legion_complete() {
           exchange) COMPREPLY=($(compgen -W "--help" -- "${cur}")) ;;
           queue)    COMPREPLY=($(compgen -W "--exchange --help" -- "${cur}")) ;;
           message)  COMPREPLY=($(compgen -W "--help" -- "${cur}")) ;;
+          tool)     COMPREPLY=($(compgen -W "--help" -- "${cur}")) ;;
         esac
       fi
       ;;
