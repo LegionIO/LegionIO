@@ -17,6 +17,7 @@ Metrics/MethodLength:
   Max: 50
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
+    - 'lib/legion/api/openapi.rb'
 
 Metrics/ClassLength:
   Max: 1500

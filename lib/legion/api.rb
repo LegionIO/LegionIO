@@ -20,6 +20,7 @@ require_relative 'api/hooks'
 require_relative 'api/workers'
 require_relative 'api/coldstart'
 require_relative 'api/gaia'
+require_relative 'api/openapi'
 
 module Legion
   class API < Sinatra::Base
@@ -31,6 +32,12 @@ module Legion
     configure do
       enable :logging
       set :host_authorization, permitted: :any
+    end
+
+    # OpenAPI spec (no auth required)
+    get '/api/openapi.json' do
+      content_type :json
+      Legion::API::OpenAPI.to_json
     end
 
     # Health and readiness

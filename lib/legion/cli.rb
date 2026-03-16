@@ -29,6 +29,7 @@ module Legion
     autoload :Gaia,       'legion/cli/gaia_command'
     autoload :Schedule,   'legion/cli/schedule_command'
     autoload :Completion, 'legion/cli/completion_command'
+    autoload :Openapi,    'legion/cli/openapi_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -177,6 +178,9 @@ module Legion
 
       desc 'completion SUBCOMMAND', 'Shell tab completion scripts'
       subcommand 'completion', Legion::CLI::Completion
+
+      desc 'openapi SUBCOMMAND', 'OpenAPI spec generation'
+      subcommand 'openapi', Legion::CLI::Openapi
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

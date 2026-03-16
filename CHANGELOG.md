@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## v1.4.5
+
+### Added
+- `legion openapi generate` CLI command outputs OpenAPI 3.1.0 spec JSON to stdout or file (-o)
+- `legion openapi routes` CLI command lists all API routes with HTTP method and summary
+- `GET /api/openapi.json` endpoint serves the full OpenAPI 3.1.0 spec at runtime (auth skipped)
+- `Legion::API::OpenAPI` module with `.spec` (returns Hash) and `.to_json` class methods
+- OpenAPI spec covers all 44 routes across 16 resource groups with request/response schemas
+- Auth middleware SKIP_PATHS updated to include `/api/openapi.json`
+
 ## v1.4.4
 
 ### Added
