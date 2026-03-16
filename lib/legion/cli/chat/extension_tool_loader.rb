@@ -10,11 +10,11 @@ module Legion
 
         class << self
           def discover
-            @discovered ||= load_all_extension_tools
+            @discover ||= load_all_extension_tools
           end
 
           def reset!
-            @discovered = nil
+            @discover = nil
           end
 
           def tools_dir_for(extension_path)
@@ -88,7 +88,7 @@ module Legion
           end
 
           def require_tool_files(tools_dir)
-            Dir["#{tools_dir}/*.rb"].sort.each { |f| require f }
+            Dir["#{tools_dir}/*.rb"].each { |f| require f }
           end
 
           def resolve_tools_module(ext_name)

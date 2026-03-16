@@ -1,5 +1,19 @@
 # Legion Changelog
 
+## v1.4.7
+
+### Added
+- Extension-powered chat tools: LEX extensions can ship optional `tools/` directories with `RubyLLM::Tool` subclasses
+- `ExtensionToolLoader` lazily discovers extension tools at chat startup
+- `permission_tier` DSL for extension tools (`:read`, `:write`, `:shell`) with settings override
+- Session mode ceiling: read_only blocks write/shell extension tools regardless of tool declaration
+- Plan mode uses tier-based filtering (no longer hardcoded tool list)
+- `legion generate tool <name>` scaffolds tool + spec in current LEX
+- `legion lex create` now includes empty `tools/` directory
+- Tab completion updated for `legion generate tool`
+- `Permissions.register_extension_tier` and `Permissions.clear_extension_tiers!` for extension tool tier management
+- System prompt includes extension tool names when available
+
 ## v1.4.6
 
 ### Added

@@ -33,9 +33,10 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
       mod = Module.new
       tool_class = Class.new(RubyLLM::Tool) do
         include Legion::CLI::Chat::ExtensionTool
+
         description 'Test tool'
         permission_tier :read
-        def execute; 'ok'; end
+        def execute = 'ok'
       end
       allow(mod).to receive(:constants).and_return([:TestTool])
       allow(mod).to receive(:const_get).with(:TestTool).and_return(tool_class)
@@ -69,6 +70,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
     let(:tool_class) do
       Class.new(RubyLLM::Tool) do
         include Legion::CLI::Chat::ExtensionTool
+
         description 'Test'
         permission_tier :read
       end

@@ -9,6 +9,7 @@ RSpec.describe Legion::CLI::Chat::Permissions do
   let(:read_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'Read tool'
       permission_tier :read
     end
@@ -17,6 +18,7 @@ RSpec.describe Legion::CLI::Chat::Permissions do
   let(:write_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'Write tool'
       permission_tier :write
     end

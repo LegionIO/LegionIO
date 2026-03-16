@@ -22,7 +22,7 @@ RSpec.describe Legion::CLI::Chat::ToolRegistry do
     it 'includes extension tools when available' do
       fake_tool = Class.new(RubyLLM::Tool) do
         description 'Fake extension tool'
-        def execute; 'ok'; end
+        def execute = 'ok'
       end
       allow(Legion::CLI::Chat::ExtensionToolLoader).to receive(:discover).and_return([fake_tool])
 

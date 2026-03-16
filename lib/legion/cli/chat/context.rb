@@ -47,8 +47,12 @@ module Legion
             require 'legion/cli/chat/extension_tool_loader'
             ext_tools = Chat::ExtensionToolLoader.discover
             if ext_tools.any?
-              ext_names = ext_tools.map { |t| t.name&.split('::')&.last&.gsub(/([a-z])([A-Z])/, '\1_\2')&.downcase }
-              parts << "Extension tools available: #{ext_names.compact.join(', ')}"
+              ext_names = ext_tools.filter_map do |t|
+                next unless t.name
+
+                t.name.split('::').last.gsub(/([a-z])([A-Z])/, '\1_\2').downcase
+              end
+              parts << "Extension tools available: #{ext_names.join(', ')}"
             end
           rescue LoadError
             # ExtensionToolLoader not available, skip

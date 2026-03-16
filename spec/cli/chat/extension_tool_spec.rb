@@ -8,6 +8,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
   let(:read_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'A read tool'
       permission_tier :read
     end
@@ -16,6 +17,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
   let(:default_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'A default tool'
     end
   end
@@ -23,6 +25,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
   let(:shell_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'A shell tool'
       permission_tier :shell
     end
@@ -44,6 +47,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
     expect do
       Class.new(RubyLLM::Tool) do
         include Legion::CLI::Chat::ExtensionTool
+
         permission_tier :admin
       end
     end.to raise_error(ArgumentError, /invalid permission tier/i)

@@ -9,6 +9,7 @@ RSpec.describe 'Plan mode with extension tools' do
   let(:read_ext_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'Read ext tool'
       permission_tier :read
     end
@@ -17,6 +18,7 @@ RSpec.describe 'Plan mode with extension tools' do
   let(:write_ext_tool) do
     Class.new(RubyLLM::Tool) do
       include Legion::CLI::Chat::ExtensionTool
+
       description 'Write ext tool'
       permission_tier :write
     end
