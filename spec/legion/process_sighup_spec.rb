@@ -15,7 +15,7 @@ RSpec.describe 'Legion::Process SIGHUP trap' do
       Thread.new { Legion.reload }
     end
 
-    ::Process.kill('HUP', ::Process.pid)
+    Process.kill('HUP', Process.pid)
     sleep 0.2 # give the thread time to execute
 
     expect(Legion).to have_received(:reload)
