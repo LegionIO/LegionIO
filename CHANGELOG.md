@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## v1.4.8
+
+### Fixed
+- Relationships API routes now fully functional (removed 501 stub guards, backed by legion-data migration)
+- Relationships MCP tool no longer checks for missing model
+
 ## v1.4.7
 
 ### Added

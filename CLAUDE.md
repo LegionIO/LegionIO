@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.7
+**Version**: 1.4.8
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -506,7 +506,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 | Area | Status |
 |------|--------|
-| `API::Routes::Relationships` | 501 stub - no data model |
+| `API::Routes::Relationships` | Fully implemented (backed by legion-data migration 013) |
 | `API::Routes::Chains` | 501 stub - no data model |
 | `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation and API key (`X-API-Key` header) auth both implemented |
 | `legion-data` chains/relationships models | Not yet implemented |

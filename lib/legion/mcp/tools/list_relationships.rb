@@ -16,7 +16,6 @@ module Legion
         class << self
           def call(limit: 25)
             return error_response('legion-data is not connected') unless data_connected?
-            return error_response('relationship data model is not available') unless relationship_model?
 
             limit = limit.to_i.clamp(1, 100)
             text_response(Legion::Data::Model::Relationship.order(:id).limit(limit).all.map(&:values))
@@ -31,8 +30,6 @@ module Legion
           rescue StandardError
             false
           end
-
-          def relationship_model? = Legion::Data::Model.const_defined?(:Relationship)
 
           def text_response(data)
             ::MCP::Tool::Response.new([{ type: 'text', text: Legion::JSON.dump(data) }])
