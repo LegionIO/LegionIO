@@ -2,6 +2,19 @@
 
 require_relative '../api_spec_helper'
 
+unless defined?(Legion::Crypt::JWT)
+  module Legion
+    module Crypt
+      module JWT
+        class InvalidTokenError < StandardError; end
+        class ExpiredTokenError < StandardError; end
+
+        def self.verify(...) = nil
+      end
+    end
+  end
+end
+
 RSpec.describe Legion::API::Middleware::Auth do
   let(:ok_app) { ->(_env) { [200, { 'content-type' => 'text/plain' }, ['ok']] } }
   let(:signing_key) { 'test-secret-key' }

@@ -22,6 +22,7 @@ rescue LoadError
       def self.shutdown(**) = nil
     end
   end
+  $LOADED_FEATURES << 'legion/data'
 end
 require 'legion/crypt'
 require 'legion/cache'
