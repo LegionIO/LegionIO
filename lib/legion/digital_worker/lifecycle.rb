@@ -78,6 +78,23 @@ module Legion
                               })
         end
 
+        if defined?(Legion::Audit)
+          begin
+            Legion::Audit.record(
+              event_type:     'lifecycle_transition',
+              principal_id:   by,
+              principal_type: 'human',
+              action:         'transition',
+              resource:       worker.worker_id,
+              source:         'system',
+              status:         'success',
+              detail:         { from_state: from_state, to_state: to_state, reason: reason }
+            )
+          rescue StandardError => e
+            Legion::Logging.debug("Audit in lifecycle.transition! failed: #{e.message}") if defined?(Legion::Logging)
+          end
+        end
+
         worker
       end
 

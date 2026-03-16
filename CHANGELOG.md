@@ -1,5 +1,21 @@
 # Legion Changelog
 
+## [1.4.17] - 2026-03-16
+
+### Added
+- `Legion::Audit` publisher module for immutable audit logging via AMQP
+- Audit hook in `Runner.run` records every runner execution (event_type, duration, status)
+- Audit hook in `DigitalWorker::Lifecycle.transition!` records state transitions
+- `GET /api/audit` endpoint with filters (event_type, principal_id, source, status, since, until)
+- `GET /api/audit/verify` endpoint for hash chain integrity verification
+- `legion audit list` and `legion audit verify` CLI commands
+- Silent degradation: audit never interferes with normal operation (triple guard + rescue)
+
+## [1.4.16] - 2026-03-16
+
+### Added
+- `legion worker create NAME` CLI command: provisions digital worker in bootstrap state with DB record + optional Vault secret storage
+
 ## [1.4.15] - 2026-03-16
 
 ### Added

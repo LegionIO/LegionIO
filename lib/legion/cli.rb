@@ -34,6 +34,7 @@ module Legion
     autoload :Telemetry,  'legion/cli/telemetry_command'
     autoload :Auth,       'legion/cli/auth_command'
     autoload :Rbac,       'legion/cli/rbac_command'
+    autoload :Audit,      'legion/cli/audit_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -198,6 +199,9 @@ module Legion
 
       desc 'rbac SUBCOMMAND', 'Role-based access control management'
       subcommand 'rbac', Legion::CLI::Rbac
+
+      desc 'audit SUBCOMMAND', 'Audit log inspection and verification'
+      subcommand 'audit', Legion::CLI::Audit
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

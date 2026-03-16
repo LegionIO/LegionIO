@@ -7,7 +7,8 @@ require 'legion/transport/messages/check_subtask'
 
 module Legion
   module Runner
-    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/CyclomaticComplexity, Metrics/ParameterLists
+    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
+      started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       runner_class = Kernel.const_get(runner_class) if runner_class.is_a? String
 
       if task_id.nil? && generate_task
@@ -54,6 +55,25 @@ module Legion
                                                       result:        result,
                                                       original_args: args,
                                                       **opts).publish
+      end
+      if defined?(Legion::Audit)
+        begin
+          duration_ms = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+          error_message = status == 'task.exception' ? result&.dig(:error, :message) : nil
+          Legion::Audit.record(
+            event_type:     'runner_execution',
+            principal_id:   opts[:principal_id] || opts[:worker_id] || 'system',
+            principal_type: opts[:principal_type] || 'system',
+            action:         'execute',
+            resource:       "#{runner_class}/#{function}",
+            source:         opts[:source] || 'unknown',
+            status:         status == 'task.completed' ? 'success' : 'failure',
+            duration_ms:    duration_ms,
+            detail:         { task_id: task_id, error: error_message }
+          )
+        rescue StandardError => e
+          Legion::Logging.debug("Audit in runner.run failed: #{e.message}") if defined?(Legion::Logging)
+        end
       end
       return { success: true, status: status, result: result, task_id: task_id } # rubocop:disable Lint/EnsureReturn
     end
