@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.4
+**Version**: 1.4.6
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -517,7 +517,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 694 examples, 0 failures
+bundle exec rspec       # 839 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
