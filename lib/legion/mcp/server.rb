@@ -30,6 +30,9 @@ require_relative 'tools/worker_lifecycle'
 require_relative 'tools/worker_costs'
 require_relative 'tools/team_summary'
 require_relative 'tools/routing_stats'
+require_relative 'tools/rbac_check'
+require_relative 'tools/rbac_assignments'
+require_relative 'tools/rbac_grants'
 require_relative 'resources/runner_catalog'
 require_relative 'resources/extension_info'
 
@@ -66,7 +69,10 @@ module Legion
         Tools::WorkerLifecycle,
         Tools::WorkerCosts,
         Tools::TeamSummary,
-        Tools::RoutingStats
+        Tools::RoutingStats,
+        Tools::RbacCheck,
+        Tools::RbacAssignments,
+        Tools::RbacGrants
       ].freeze
 
       class << self
