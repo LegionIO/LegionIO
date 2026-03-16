@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## v1.4.6
+
+### Added
+- `legion doctor` CLI command diagnoses the LegionIO environment and prescribes fixes
+- 10 environment checks: Ruby version, bundle status, config files, RabbitMQ, database, cache, Vault, extensions, PID files, permissions
+- `--fix` flag for auto-remediation of fixable issues (stale PIDs, missing gems, missing config)
+- `--json` flag for machine-readable diagnosis output with pass/fail/warn/skip per check
+- `Doctor::Result` value object with status, message, prescription, and auto_fixable fields
+- Exit code 1 when any check fails, 0 when all checks pass or warn
+
 ## v1.4.5
 
 ### Added

@@ -30,6 +30,7 @@ module Legion
     autoload :Schedule,   'legion/cli/schedule_command'
     autoload :Completion, 'legion/cli/completion_command'
     autoload :Openapi,    'legion/cli/openapi_command'
+    autoload :Doctor,     'legion/cli/doctor_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -181,6 +182,9 @@ module Legion
 
       desc 'openapi SUBCOMMAND', 'OpenAPI spec generation'
       subcommand 'openapi', Legion::CLI::Openapi
+
+      desc 'doctor', 'Diagnose environment and suggest fixes'
+      subcommand 'doctor', Legion::CLI::Doctor
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
