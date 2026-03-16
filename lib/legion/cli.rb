@@ -79,6 +79,7 @@ module Legion
       option :time_limit, type: :numeric, aliases: ['-t'], desc: 'Run for N seconds then exit'
       option :log_level, type: :string, default: 'info', desc: 'Log level (debug, info, warn, error)'
       option :api, type: :boolean, default: true, desc: 'Start the HTTP API server'
+      option :http_port, type: :numeric, desc: 'HTTP API port (overrides settings)'
       def start
         Legion::CLI::Start.run(options)
       end

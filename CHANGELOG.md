@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.12] - 2026-03-16
+
+### Added
+- `--http-port` CLI flag for `legion start` to override API port without editing settings
+- `apply_cli_overrides` method in `Service` applies CLI-provided overrides after settings load
+
 ## [1.4.11] - 2026-03-16
 
 ### Fixed

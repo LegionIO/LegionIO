@@ -92,6 +92,7 @@ Everything runs through `legion`:
 ```bash
 legion start                    # foreground
 legion start -d                 # daemonize
+legion start --http-port 8080   # custom API port
 legion status                   # service status
 legion stop                     # graceful shutdown
 legion check                    # smoke-test all connections

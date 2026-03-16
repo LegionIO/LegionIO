@@ -10,10 +10,12 @@ module Legion
       base.freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, crypt: true, api: true, llm: true, log_level: 'info') # rubocop:disable Metrics/ParameterLists
+    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/ParameterLists
+                   crypt: true, api: true, llm: true, log_level: 'info', http_port: nil)
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
+      apply_cli_overrides(http_port: http_port)
       reconfigure_logging(log_level)
       Legion::Logging.info("node name: #{Legion::Settings[:client][:name]}")
 
@@ -97,6 +99,14 @@ module Legion
       Legion::Settings.load(config_dir: config_directory)
       Legion::Readiness.mark_ready(:settings)
       Legion::Logging.info('Legion::Settings Loaded')
+    end
+
+    def apply_cli_overrides(http_port: nil)
+      return unless http_port
+
+      Legion::Settings[:api] ||= {}
+      Legion::Settings[:api][:port] = http_port
+      Legion::Logging.info "CLI override: API port set to #{http_port}"
     end
 
     def setup_logging(log_level: 'info', **_opts)

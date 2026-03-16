@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.9
+**Version**: 1.4.12
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -229,7 +229,7 @@ After loading, each extension calls `autobuild` then publishes a `LexRegister` m
 ```
 legion
   version                           # Component versions + installed extension count
-  start [-d] [-p PID] [-l LOG] [-t SECS] [--log-level info]
+  start [-d] [-p PID] [-l LOG] [-t SECS] [--log-level info] [--http-port PORT]
   stop [-p PID] [--signal INT]
   status
   check [--extensions] [--full]     # exit code 0/1

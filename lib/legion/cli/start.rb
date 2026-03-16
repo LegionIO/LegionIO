@@ -14,7 +14,9 @@ module Legion
           clear_log_file unless options[:daemonize]
 
           api = options.fetch(:api, true)
-          Legion.instance_variable_set(:@service, Legion::Service.new(log_level: log_level, api: api))
+          service_opts = { log_level: log_level, api: api }
+          service_opts[:http_port] = options[:http_port] if options[:http_port]
+          Legion.instance_variable_set(:@service, Legion::Service.new(**service_opts))
           Legion::Logging.info("Started Legion v#{Legion::VERSION}")
 
           process_opts = {
