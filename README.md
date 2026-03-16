@@ -206,8 +206,10 @@ legion schedule list
 ```bash
 legion config show              # resolved config (redacted)
 legion config validate          # verify settings + subsystem health
-legion config scaffold          # generate starter config files
+legion config scaffold          # generate starter config files (auto-detects env vars)
 ```
+
+`config scaffold` auto-detects environment variables (`ANTHROPIC_API_KEY`, `AWS_BEARER_TOKEN_BEDROCK`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `VAULT_TOKEN`, `RABBITMQ_USER`/`PASSWORD`) and a running Ollama instance, enabling providers and setting `env://` references automatically.
 
 Settings load from the first directory found: `/etc/legionio/` → `~/legionio/` → `./settings/`
 
