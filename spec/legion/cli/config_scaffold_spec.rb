@@ -13,6 +13,17 @@ RSpec.describe Legion::CLI::ConfigScaffold do
 
   after { FileUtils.rm_rf(tmpdir) }
 
+  # Clean all detectable env vars so tests get predictable output
+  around do |example|
+    saved = ENV.to_h.slice(*described_class::ENV_DETECTIONS.keys)
+    described_class::ENV_DETECTIONS.each_key { |k| ENV.delete(k) }
+    example.run
+  ensure
+    saved.each { |k, v| v ? ENV[k] = v : ENV.delete(k) }
+  end
+
+  before { allow(described_class).to receive(:ollama_running?).and_return(false) }
+
   def run_scaffold(overrides = {})
     opts = { dir: tmpdir, json: false, full: false, force: false, only: nil }.merge(overrides)
     output = StringIO.new
@@ -176,6 +187,118 @@ RSpec.describe Legion::CLI::ConfigScaffold do
       %w[transport data cache crypt logging llm].each do |name|
         path = File.join(tmpdir, "#{name}.json")
         expect { JSON.parse(File.read(path)) }.not_to raise_error
+      end
+    end
+  end
+
+  describe 'environment auto-detection' do
+    context 'with ANTHROPIC_API_KEY set' do
+      before { ENV['ANTHROPIC_API_KEY'] = 'sk-test-key' }
+
+      it 'enables anthropic provider and sets env:// reference' do
+        run_scaffold
+        config = read_generated('llm')
+        expect(config['llm']['enabled']).to be(true)
+        expect(config['llm']['default_provider']).to eq('anthropic')
+        expect(config['llm']['providers']['anthropic']['enabled']).to be(true)
+        expect(config['llm']['providers']['anthropic']['api_key']).to eq('env://ANTHROPIC_API_KEY')
+      end
+    end
+
+    context 'with AWS_BEARER_TOKEN_BEDROCK set' do
+      before { ENV['AWS_BEARER_TOKEN_BEDROCK'] = 'test-token' }
+
+      it 'enables bedrock provider with bearer_token env reference' do
+        run_scaffold
+        config = read_generated('llm')
+        expect(config['llm']['enabled']).to be(true)
+        expect(config['llm']['default_provider']).to eq('bedrock')
+        expect(config['llm']['providers']['bedrock']['enabled']).to be(true)
+        expect(config['llm']['providers']['bedrock']['bearer_token']).to eq('env://AWS_BEARER_TOKEN_BEDROCK')
+      end
+    end
+
+    context 'with multiple LLM providers' do
+      before do
+        ENV['AWS_BEARER_TOKEN_BEDROCK'] = 'test-token'
+        ENV['ANTHROPIC_API_KEY'] = 'sk-test'
+        ENV['OPENAI_API_KEY'] = 'sk-openai'
+      end
+
+      it 'enables all detected providers and picks the first as default' do
+        run_scaffold
+        config = read_generated('llm')
+        expect(config['llm']['providers']['bedrock']['enabled']).to be(true)
+        expect(config['llm']['providers']['anthropic']['enabled']).to be(true)
+        expect(config['llm']['providers']['openai']['enabled']).to be(true)
+        expect(config['llm']['providers']['gemini']['enabled']).to be(false)
+        expect(config['llm']['default_provider']).to eq('bedrock')
+      end
+    end
+
+    context 'with VAULT_TOKEN set' do
+      before { ENV['VAULT_TOKEN'] = 's.test-vault-token' }
+
+      it 'enables vault in crypt config' do
+        run_scaffold
+        config = read_generated('crypt')
+        expect(config['crypt']['vault']['enabled']).to be(true)
+        expect(config['crypt']['vault']['token']).to eq('env://VAULT_TOKEN')
+      end
+    end
+
+    context 'with RABBITMQ_USER and RABBITMQ_PASSWORD set' do
+      before do
+        ENV['RABBITMQ_USER'] = 'legion'
+        ENV['RABBITMQ_PASSWORD'] = 'secret'
+      end
+
+      it 'sets env:// references in transport config' do
+        run_scaffold
+        config = read_generated('transport')
+        expect(config['transport']['connection']['user']).to eq('env://RABBITMQ_USER')
+        expect(config['transport']['connection']['password']).to eq('env://RABBITMQ_PASSWORD')
+      end
+    end
+
+    context 'with no env vars set' do
+      it 'generates default disabled configs' do
+        run_scaffold
+        config = read_generated('llm')
+        expect(config['llm']['enabled']).to be(false)
+        expect(config['llm']['default_provider']).to be_nil
+      end
+    end
+
+    context 'with --json output' do
+      before { ENV['ANTHROPIC_API_KEY'] = 'sk-test' }
+
+      it 'includes detected list in JSON output' do
+        output = StringIO.new
+        $stdout = output
+        described_class.run(json_formatter, { dir: tmpdir, json: true, full: false, force: false, only: nil })
+        $stdout = STDOUT
+        parsed = JSON.parse(output.string)
+        expect(parsed['detected']).to include(a_string_matching(/anthropic/))
+      end
+    end
+
+    describe '.ollama_running?' do
+      it 'returns false when ollama is not reachable' do
+        allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
+        expect(described_class.ollama_running?).to be(false)
+      end
+    end
+
+    context 'when ollama is running' do
+      before do
+        allow(described_class).to receive(:ollama_running?).and_return(true)
+      end
+
+      it 'enables ollama in llm config' do
+        run_scaffold
+        config = read_generated('llm')
+        expect(config['llm']['providers']['ollama']['enabled']).to be(true)
       end
     end
   end

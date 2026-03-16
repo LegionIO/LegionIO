@@ -2,15 +2,26 @@
 
 require 'json'
 require 'fileutils'
+require 'net/http'
 
 module Legion
   module CLI
     module ConfigScaffold
       SUBSYSTEMS = %w[transport data cache crypt logging llm].freeze
 
+      ENV_DETECTIONS = {
+        'AWS_BEARER_TOKEN_BEDROCK' => { subsystem: 'llm', provider: :bedrock, field: :bearer_token },
+        'ANTHROPIC_API_KEY'        => { subsystem: 'llm', provider: :anthropic, field: :api_key },
+        'OPENAI_API_KEY'           => { subsystem: 'llm', provider: :openai, field: :api_key },
+        'GEMINI_API_KEY'           => { subsystem: 'llm', provider: :gemini, field: :api_key },
+        'VAULT_TOKEN'              => { subsystem: 'crypt', field: :token },
+        'RABBITMQ_USER'            => { subsystem: 'transport', field: :user },
+        'RABBITMQ_PASSWORD'        => { subsystem: 'transport', field: :password }
+      }.freeze
+
       module_function
 
-      def run(formatter, options)
+      def run(formatter, options) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         dir       = options[:dir] || "#{Dir.home}/.legionio/settings"
         only      = options[:only] ? options[:only].split(',').map(&:strip) : SUBSYSTEMS
         full_mode = options[:full]
@@ -24,6 +35,7 @@ module Legion
 
         FileUtils.mkdir_p(dir)
 
+        detected = detect_environment
         created = []
         skipped = []
 
@@ -36,12 +48,13 @@ module Legion
           end
 
           content = full_mode ? full_template(name) : minimal_template(name)
+          apply_detections!(content, name, detected)
           File.write(path, "#{::JSON.pretty_generate(content)}\n")
           created << path
         end
 
         if options[:json]
-          formatter.json(created: created, skipped: skipped)
+          formatter.json(created: created, skipped: skipped, detected: detected.map { |d| d[:label] })
         else
           if created.any?
             formatter.success("Created #{created.size} config file(s) in #{dir}/")
@@ -51,11 +64,86 @@ module Legion
             formatter.warn("Skipped #{skipped.size} existing file(s) (use --force to overwrite)")
             skipped.each { |f| puts "    #{f}" }
           end
+          if detected.any? && created.any?
+            formatter.spacer
+            puts '  Auto-detected:'
+            detected.each { |d| puts "    #{d[:label]}" }
+          end
           formatter.spacer
           formatter.success('Edit these files then run: legion config validate') if created.any?
         end
 
         0
+      end
+
+      def detect_environment
+        detected = []
+
+        ENV_DETECTIONS.each do |env_var, meta|
+          next unless ENV[env_var] && !ENV[env_var].empty?
+
+          label = meta[:provider] ? "#{meta[:provider]} enabled (#{env_var} found)" : "#{meta[:field]} set (#{env_var} found)"
+          detected << { env_var: env_var, label: label, **meta }
+        end
+
+        if ollama_running?
+          detected << { subsystem: 'llm', provider: :ollama, field: :enabled, env_var: nil,
+                        label: 'ollama enabled (responding on localhost:11434)' }
+        end
+
+        detected
+      end
+
+      def ollama_running?
+        uri = URI('http://localhost:11434/')
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 1
+        http.read_timeout = 1
+        response = http.get(uri.path)
+        response.is_a?(Net::HTTPSuccess)
+      rescue StandardError
+        false
+      end
+
+      def apply_detections!(content, subsystem, detected)
+        relevant = detected.select { |d| d[:subsystem] == subsystem }
+        return if relevant.empty?
+
+        case subsystem
+        when 'llm'   then apply_llm_detections!(content[:llm], relevant)
+        when 'crypt' then apply_crypt_detections!(content[:crypt], relevant)
+        when 'transport' then apply_transport_detections!(content[:transport][:connection], relevant)
+        end
+      end
+
+      def apply_llm_detections!(llm, detections)
+        first_provider = nil
+        detections.each do |det|
+          provider = det[:provider]
+          next unless provider && llm[:providers][provider]
+
+          llm[:providers][provider][:enabled] = true
+          llm[:providers][provider][det[:field]] = "env://#{det[:env_var]}" if det[:env_var]
+          first_provider ||= provider
+        end
+        return unless first_provider
+
+        llm[:enabled] = true
+        llm[:default_provider] = first_provider.to_s
+      end
+
+      def apply_crypt_detections!(crypt, detections)
+        vault_det = detections.find { |d| d[:field] == :token }
+        return unless vault_det
+
+        crypt[:vault][:enabled] = true
+        crypt[:vault][:token] = "env://#{vault_det[:env_var]}"
+      end
+
+      def apply_transport_detections!(connection, detections)
+        detections.each do |det|
+          connection[det[:field]] = "env://#{det[:env_var]}"
+        end
       end
 
       def minimal_template(name) # rubocop:disable Metrics/MethodLength

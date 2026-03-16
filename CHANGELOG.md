@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.18] - 2026-03-16
+
+### Added
+- `legion config scaffold` auto-detects environment variables and enables providers
+- Detects: AWS_BEARER_TOKEN_BEDROCK, ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, VAULT_TOKEN, RABBITMQ_USER/PASSWORD
+- Detects running Ollama on localhost:11434
+- First detected LLM provider becomes the default; credentials use `env://` references
+- JSON output includes `detected` array for automation
+
 ## [1.4.17] - 2026-03-16
 
 ### Added
