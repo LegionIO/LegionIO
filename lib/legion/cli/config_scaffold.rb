@@ -11,7 +11,7 @@ module Legion
       module_function
 
       def run(formatter, options)
-        dir       = options[:dir] || './settings'
+        dir       = options[:dir] || "#{Dir.home}/.legionio/settings"
         only      = options[:only] ? options[:only].split(',').map(&:strip) : SUBSYSTEMS
         full_mode = options[:full]
         force     = options[:force]

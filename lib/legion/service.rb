@@ -78,6 +78,7 @@ module Legion
     def default_paths
       [
         '/etc/legionio',
+        "#{Dir.home}/.legionio/settings",
         "#{ENV.fetch('home', nil)}/legionio",
         '~/legionio',
         './settings'

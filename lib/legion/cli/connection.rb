@@ -132,6 +132,7 @@ module Legion
 
           [
             '/etc/legionio',
+            "#{Dir.home}/.legionio/settings",
             "#{Dir.home}/legionio",
             '~/legionio',
             './settings'
