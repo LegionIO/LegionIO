@@ -11,7 +11,7 @@ module Legion
           register_teams(app)
         end
 
-        def self.register_collection(app)
+        def self.register_collection(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/workers' do
             require_data!
             dataset = Legion::Data::Model::DigitalWorker.order(:id)
@@ -19,6 +19,7 @@ module Legion
             dataset = dataset.where(owner_msid: params[:owner_msid])   if params[:owner_msid]
             dataset = dataset.where(lifecycle_state: params[:lifecycle_state]) if params[:lifecycle_state]
             dataset = dataset.where(risk_tier: params[:risk_tier]) if params[:risk_tier]
+            dataset = dataset.where(health_status: params[:health_status]) if params[:health_status]
             json_collection(dataset)
           end
 
@@ -110,6 +111,26 @@ module Legion
         end
 
         def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+          app.get '/api/workers/:id/health' do
+            require_data!
+            worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
+            halt 404, json_error('not_found', "Worker #{params[:id]} not found", status_code: 404) if worker.nil?
+
+            node_metrics = nil
+            if worker.health_node
+              node = Legion::Data::Model::Node[name: worker.health_node]
+              node_metrics = node&.parsed_metrics
+            end
+
+            json_response({
+                            worker_id:         worker.worker_id,
+                            health_status:     worker.health_status,
+                            last_heartbeat_at: worker.last_heartbeat_at,
+                            health_node:       worker.health_node,
+                            node_metrics:      node_metrics
+                          })
+          end
+
           app.get '/api/workers/:id/tasks' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
