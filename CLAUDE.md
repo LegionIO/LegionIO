@@ -274,6 +274,7 @@ legion
   worker
     list [-s status] [-t risk_tier]
     show <id>
+    create <name> --entra_app_id ID --owner_msid EMAIL --extension NAME [--team T] [--client_secret S]
     pause <id>
     activate <id>
     retire <id>
@@ -495,7 +496,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/config_scaffold.rb` | `legion config scaffold` — generates starter JSON config files per subsystem |
 | `lib/legion/cli/generate_command.rb` | `legion generate` subcommands (runner, actor, exchange, queue, message) |
 | `lib/legion/cli/mcp_command.rb` | `legion mcp` subcommand (stdio + HTTP transports) |
-| `lib/legion/cli/worker_command.rb` | `legion worker` subcommands (list, show, pause, retire, terminate, activate, costs) |
+| `lib/legion/cli/worker_command.rb` | `legion worker` subcommands (list, show, create, pause, retire, terminate, activate, costs) |
 | `lib/legion/cli/coldstart_command.rb` | `legion coldstart` subcommands (ingest, preview, status) |
 | `lib/legion/cli/chat_command.rb` | `legion chat` — interactive AI REPL + headless prompt mode |
 | `lib/legion/cli/chat/session.rb` | Chat session: multi-turn conversation, streaming, tool use |

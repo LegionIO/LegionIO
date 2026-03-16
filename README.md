@@ -176,6 +176,7 @@ AI-as-labor with governance, risk tiers, and cost tracking:
 ```bash
 legion worker list                  # list workers
 legion worker show <id>             # worker detail
+legion worker create <name>         # register new worker (bootstrap state)
 legion worker pause <id>            # pause / activate / retire
 legion worker costs --days 30       # cost report
 ```

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'securerandom'
+
 module Legion
   module CLI
     class Worker < Thor
@@ -107,6 +109,20 @@ module Legion
         with_data { transition_worker(worker_id, 'active', nil, authority_verified: true) }
       end
 
+      desc 'create NAME', 'Register a new digital worker'
+      method_option :entra_app_id, type: :string, required: true, desc: 'Entra Application (client) ID'
+      method_option :owner_msid, type: :string, required: true, desc: 'Owner Microsoft ID (email)'
+      method_option :extension, type: :string, required: true, desc: 'Extension name (e.g., lex-github)'
+      method_option :team, type: :string, desc: 'Team assignment'
+      method_option :manager_msid, type: :string, desc: 'Manager Microsoft ID'
+      method_option :business_role, type: :string, desc: 'Business role description'
+      method_option :risk_tier, type: :string, default: 'low', desc: 'Risk tier (low/medium/high/critical)'
+      method_option :consent_tier, type: :string, default: 'supervised', desc: 'Consent tier'
+      method_option :client_secret, type: :string, desc: 'Entra app client secret (stored in Vault)'
+      def create(name)
+        with_data { create_worker(name) }
+      end
+
       desc 'costs WORKER_ID', 'Show cost summary for a worker'
       option :period, type: :string, default: 'weekly', desc: 'Period: daily, weekly, monthly'
       def costs(worker_id)
@@ -138,6 +154,67 @@ module Legion
         def find_worker(worker_id)
           Legion::Data::Model::DigitalWorker.first(worker_id: worker_id) ||
             Legion::Data::Model::DigitalWorker.where(Sequel.like(:worker_id, "#{worker_id}%")).first
+        end
+
+        def create_worker(name) # rubocop:disable Metrics/AbcSize
+          out = formatter
+          worker_id = SecureRandom.uuid
+
+          attrs = {
+            worker_id:       worker_id,
+            name:            name,
+            entra_app_id:    options[:entra_app_id],
+            owner_msid:      options[:owner_msid],
+            extension_name:  options[:extension],
+            lifecycle_state: 'bootstrap',
+            consent_tier:    options[:consent_tier],
+            trust_score:     0.0,
+            created_at:      Time.now.utc
+          }
+          attrs[:team] = options[:team] if options[:team]
+          attrs[:manager_msid] = options[:manager_msid] if options[:manager_msid]
+          attrs[:business_role] = options[:business_role] if options[:business_role]
+          attrs[:risk_tier] = options[:risk_tier] if options[:risk_tier]
+
+          worker = Legion::Data::Model::DigitalWorker.create(attrs)
+          store_client_secret(out, worker_id) if options[:client_secret]
+
+          if options[:json]
+            out.json(worker.to_hash)
+          else
+            out.success('Worker created successfully:')
+            out.spacer
+            out.detail({
+                         'Worker ID'    => worker_id,
+                         'Name'         => name,
+                         'Entra App ID' => options[:entra_app_id],
+                         'Owner'        => options[:owner_msid],
+                         'Extension'    => options[:extension],
+                         'State'        => 'bootstrap',
+                         'Consent Tier' => options[:consent_tier],
+                         'Risk Tier'    => options[:risk_tier],
+                         'Team'         => options[:team] || '(none)'
+                       })
+            out.spacer
+            out.success("Next: legion worker activate #{worker_id}")
+          end
+        rescue Sequel::UniqueConstraintViolation
+          out.error("A worker with entra_app_id '#{options[:entra_app_id]}' already exists.")
+        rescue Sequel::ValidationFailed => e
+          out.error(e.message)
+        end
+
+        def store_client_secret(out, worker_id)
+          if defined?(Legion::Extensions::Identity::Helpers::VaultSecrets) &&
+             Legion::Extensions::Identity::Helpers::VaultSecrets.send(:vault_available?)
+            Legion::Extensions::Identity::Helpers::VaultSecrets.store_client_secret(
+              worker_id: worker_id, client_secret: options[:client_secret],
+              entra_app_id: options[:entra_app_id]
+            )
+            out.success('Client secret stored in Vault.')
+          else
+            out.warn('Vault not connected. Client secret was NOT stored.')
+          end
         end
 
         def transition_worker(worker_id, to_state, reason, **)

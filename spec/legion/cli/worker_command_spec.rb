@@ -19,6 +19,8 @@ RSpec.describe Legion::CLI::Worker do
     allow(out).to receive(:error)
     allow(out).to receive(:warn)
     allow(out).to receive(:json)
+    allow(out).to receive(:spacer)
+    allow(out).to receive(:detail)
 
     allow(Legion::CLI::Connection).to receive(:ensure_data)
     allow(Legion::CLI::Connection).to receive(:shutdown)
@@ -154,6 +156,76 @@ RSpec.describe Legion::CLI::Worker do
 
       expect(out).to receive(:error).with(/governance|approval/i)
       build_command(yes: false).terminate(worker_id)
+    end
+  end
+
+  describe '#create' do
+    let(:mock_worker) { double('worker', to_hash: { worker_id: 'uuid-1', name: 'test-worker' }) }
+
+    before do
+      allow(worker_model).to receive(:create).and_return(mock_worker)
+    end
+
+    it 'creates a worker in bootstrap state with required options' do
+      expect(worker_model).to receive(:create).with(hash_including(
+                                                      lifecycle_state: 'bootstrap',
+                                                      trust_score:     0.0,
+                                                      entra_app_id:    'app-123'
+                                                    ))
+      build_command(entra_app_id: 'app-123', owner_msid: 'user@uhg.com',
+                    extension: 'lex-github', risk_tier: 'low', consent_tier: 'supervised').create('test-worker')
+    end
+
+    it 'generates a UUID worker_id' do
+      expect(worker_model).to receive(:create).with(hash_including(
+                                                      worker_id: match(/\A[0-9a-f-]{36}\z/)
+                                                    ))
+      build_command(entra_app_id: 'app-123', owner_msid: 'user@uhg.com',
+                    extension: 'lex-github', risk_tier: 'low', consent_tier: 'supervised').create('test-worker')
+    end
+
+    it 'includes optional team and manager when provided' do
+      expect(worker_model).to receive(:create).with(hash_including(
+                                                      team: 'grid-team', manager_msid: 'mgr@uhg.com', risk_tier: 'high'
+                                                    ))
+      build_command(entra_app_id: 'app-123', owner_msid: 'user@uhg.com', extension: 'lex-github',
+                    team: 'grid-team', manager_msid: 'mgr@uhg.com',
+                    risk_tier: 'high', consent_tier: 'supervised').create('test-worker')
+    end
+
+    it 'outputs JSON when --json is set' do
+      expect(out).to receive(:json).with(hash_including(worker_id: 'uuid-1'))
+      described_class.new([], json: true, no_color: true, verbose: false,
+                              entra_app_id: 'app-123', owner_msid: 'user@uhg.com',
+                              extension: 'lex-github', risk_tier: 'low', consent_tier: 'supervised').create('test-worker')
+    end
+
+    it 'outputs duplicate error on UniqueConstraintViolation' do
+      stub_const('Sequel::UniqueConstraintViolation', Class.new(StandardError))
+      allow(worker_model).to receive(:create)
+        .and_raise(Sequel::UniqueConstraintViolation.new('duplicate'))
+      expect(out).to receive(:error).with(/already exists/)
+      build_command(entra_app_id: 'dup-app', owner_msid: 'user@uhg.com',
+                    extension: 'lex-github', risk_tier: 'low', consent_tier: 'supervised').create('test-worker')
+    end
+
+    context 'with client_secret and Vault available' do
+      let(:vault_mod) do
+        Module.new do
+          def self.store_client_secret(**) = true
+          def self.vault_available? = true
+        end
+      end
+
+      before { stub_const('Legion::Extensions::Identity::Helpers::VaultSecrets', vault_mod) }
+
+      it 'stores the client secret in Vault' do
+        expect(vault_mod).to receive(:store_client_secret)
+          .with(hash_including(worker_id: match(/\A[0-9a-f-]{36}\z/), client_secret: 'secret-value'))
+        build_command(entra_app_id: 'app-123', owner_msid: 'user@uhg.com',
+                      extension: 'lex-github', client_secret: 'secret-value',
+                      risk_tier: 'low', consent_tier: 'supervised').create('test-worker')
+      end
     end
   end
 
