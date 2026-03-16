@@ -6,8 +6,9 @@ unless defined?(Legion::Crypt::JWT)
   module Legion
     module Crypt
       module JWT
-        class InvalidTokenError < StandardError; end
-        class ExpiredTokenError < StandardError; end
+        class Error < StandardError; end
+        class InvalidTokenError < Error; end
+        class ExpiredTokenError < Error; end
 
         def self.verify(...) = nil
       end
