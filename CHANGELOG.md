@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.13] - 2026-03-16
+
+### Changed
+- SIGHUP signal now triggers `Legion.reload` instead of logging only
+
 ## [1.4.12] - 2026-03-16
 
 ### Added
