@@ -1,5 +1,18 @@
 # Legion Changelog
 
+## [1.4.9] - 2026-03-16
+
+### Added
+- YJIT enabled at process start for 15-30% runtime throughput improvement (Ruby 3.1+ builds)
+- GC tuning ENV defaults for large gem count workloads (overridable via environment)
+- bootsnap bytecode and load-path caching at `~/.legionio/cache/bootsnap/`
+- Role-based extension profiles: nil (all), core, cognitive, service, dev, custom
+- Extension discovery uses Bundler specs when available for faster boot
+
+### Changed
+- `find_extensions` uses `Bundler.load.specs` instead of `Gem::Specification.all_names` under Bundler
+- `lex-` prefix check uses `start_with?` instead of string slicing
+
 ## v1.4.8
 
 ### Fixed
