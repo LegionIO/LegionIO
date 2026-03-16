@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.20] - 2026-03-16
+
+### Added
+- `Middleware::RateLimit`: sliding-window rate limiting with per-IP, per-agent, per-tenant tiers
+- In-memory store (default) with lazy reap; distributed store via `Legion::Cache` when available
+- Standard headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After` (429 only)
+- Skip paths: `/api/health`, `/api/ready`, `/api/metrics`, `/api/openapi.json`
+
 ## [1.4.19] - 2026-03-16
 
 ### Added
