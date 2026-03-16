@@ -216,6 +216,53 @@ module Legion
         end
       end
 
+      def apply_role_filter
+        role = Legion::Settings[:role]
+        return if role.nil? || role[:profile].nil?
+
+        profile = role[:profile].to_sym
+        allowed = case profile
+                  when :core      then core_extension_names
+                  when :cognitive then core_extension_names + agentic_extension_names
+                  when :service   then core_extension_names + service_extension_names + other_extension_names
+                  when :dev       then core_extension_names + ai_extension_names + dev_agentic_names
+                  when :custom    then Array(role[:extensions]).map(&:to_s)
+                  else return
+                  end
+
+        before = @extensions.count
+        @extensions.select! { |name, _| allowed.include?(name) }
+        Legion::Logging.info "Role profile :#{profile} filtered #{before} -> #{@extensions.count} extensions"
+      end
+
+      def core_extension_names
+        %w[codegen conditioner exec health lex log metering node ping scheduler tasker task_pruner telemetry
+           transformer].freeze
+      end
+
+      def ai_extension_names
+        %w[claude gemini openai].freeze
+      end
+
+      def service_extension_names
+        %w[consul github http microsoft_teams nomad redis s3 tfe vault].freeze
+      end
+
+      def other_extension_names
+        %w[chef elastic_app_search elasticsearch influxdb memcached pagerduty pushbullet pushover slack sleepiq smtp
+           sonos ssh todoist twilio].freeze
+      end
+
+      def dev_agentic_names
+        %w[attention coldstart curiosity dream empathy flow habit memory metacognition mood narrator personality
+           reflection salience temporal tick volition].freeze
+      end
+
+      def agentic_extension_names
+        known = core_extension_names + service_extension_names + other_extension_names + ai_extension_names
+        @extensions.keys.reject { |name| known.include?(name) }
+      end
+
       def find_extensions
         @extensions ||= {}
         gem_names_for_discovery.each do |gem|
@@ -228,6 +275,8 @@ module Legion
                                   version:         lex[2],
                                   extension_class: "Legion::Extensions::#{lex[1].split('_').collect(&:capitalize).join}" }
         end
+
+        apply_role_filter
 
         enabled = 0
         requested = 0
