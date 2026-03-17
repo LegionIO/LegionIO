@@ -32,7 +32,7 @@ RSpec.describe Legion::MCP do
     it 'returns an MCP::Server for valid token' do
       allow(Legion::Settings).to receive(:dig).with(:mcp, :auth, :allowed_api_keys).and_return(['good-key'])
       result = described_class.server_for(token: 'good-key')
-      expect(result).to be_a(::MCP::Server)
+      expect(result).to be_a(MCP::Server)
     end
   end
 

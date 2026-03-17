@@ -9,7 +9,7 @@ RSpec.describe Legion::CLI::Notebook do
   let(:cli) { described_class.new }
   let(:notebook) do
     {
-      'cells' => [
+      'cells'    => [
         { 'cell_type' => 'markdown', 'source' => ['# Test Notebook'] },
         { 'cell_type' => 'code', 'source' => ['print("hello")'] }
       ],
@@ -19,7 +19,7 @@ RSpec.describe Legion::CLI::Notebook do
 
   let(:tmpfile) do
     f = Tempfile.new(['test', '.ipynb'])
-    f.write(::JSON.generate(notebook))
+    f.write(JSON.generate(notebook))
     f.close
     f
   end

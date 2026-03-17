@@ -26,6 +26,7 @@ require_relative 'api/gaia'
 require_relative 'api/oauth'
 require_relative 'api/openapi'
 require_relative 'api/rbac'
+require_relative 'api/auth'
 require_relative 'api/audit'
 require_relative 'api/metrics'
 
@@ -96,6 +97,7 @@ module Legion
     register Routes::Gaia
     register Routes::OAuth
     register Routes::Rbac
+    register Routes::Auth
     register Routes::Audit
     register Routes::Metrics
 

@@ -36,6 +36,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/gaia_command.rb'
     - 'lib/legion/cli/schedule_command.rb'
     - 'lib/legion/cli/update_command.rb'
+    - 'lib/legion/api/auth.rb'
 
 Metrics/AbcSize:
   Max: 60
