@@ -76,12 +76,18 @@ module Legion
       ].freeze
 
       class << self
-        def build
+        def build(identity: nil)
+          tools = if ToolGovernance.governance_enabled?
+                    ToolGovernance.filter_tools(TOOL_CLASSES, identity)
+                  else
+                    TOOL_CLASSES
+                  end
+
           server = ::MCP::Server.new(
             name:               'legion',
             version:            Legion::VERSION,
             instructions:       instructions,
-            tools:              TOOL_CLASSES,
+            tools:              tools,
             resources:          Resources::ExtensionInfo.static_resources,
             resource_templates: Resources::ExtensionInfo.resource_templates
           )

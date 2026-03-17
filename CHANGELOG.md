@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.30] - 2026-03-16
+
+### Added
+- `MCP::Auth`: token-based MCP authentication (JWT + API key)
+- `MCP::ToolGovernance`: risk-tier-aware tool filtering and invocation audit
+- `MCP.server_for(token:)` builds identity-scoped MCP server instances
+- HTTP transport auth: Bearer token validation with 401 response on failure
+- MCP settings: `mcp.auth.enabled`, `mcp.auth.allowed_api_keys`, `mcp.governance.enabled`, `mcp.governance.tool_risk_tiers`
+
 ## [1.4.29] - 2026-03-16
 
 ### Added

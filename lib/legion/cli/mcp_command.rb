@@ -40,7 +40,18 @@ module Legion
 
         def build_rack_app(transport)
           Rack::Builder.new do
-            run ->(env) { transport.handle_request(Rack::Request.new(env)) }
+            run lambda { |env|
+              req = Rack::Request.new(env)
+              if Legion::MCP::Auth.auth_enabled?
+                token = req.get_header('HTTP_AUTHORIZATION')&.sub(/\ABearer /i, '')
+                auth = Legion::MCP::Auth.authenticate(token)
+                unless auth[:authenticated]
+                  next [401, { 'content-type' => 'application/json' },
+                        [Legion::JSON.dump({ error: auth[:error] })]]
+                end
+              end
+              transport.handle_request(req)
+            }
           end
         end
       end

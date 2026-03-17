@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.29
+**Version**: 1.4.30
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -481,8 +481,10 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/middleware/body_limit.rb` | BodyLimit: request body size limit (1MB max, returns 413) |
 | `lib/legion/api/middleware/rate_limit.rb` | RateLimit: sliding-window rate limiting with per-IP/agent/tenant tiers |
 | **MCP** | |
-| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
-| `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, instructions |
+| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory, `server_for(token:)` |
+| `lib/legion/mcp/auth.rb` | MCP authentication: JWT + API key verification |
+| `lib/legion/mcp/tool_governance.rb` | Risk-tier tool filtering and invocation audit |
+| `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, governance-aware build |
 | `lib/legion/digital_worker.rb` | DigitalWorker module entry point |
 | `lib/legion/digital_worker/lifecycle.rb` | Worker state machine |
 | `lib/legion/digital_worker/registry.rb` | In-process worker registry |
@@ -564,6 +566,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `API::Routes::Relationships` | Fully implemented (backed by legion-data migration 013) |
 | `API::Routes::Chains` | 501 stub - no data model |
 | `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation and API key (`X-API-Key` header) auth both implemented |
+| `MCP::Auth` | JWT + API key authentication for MCP server (HTTP transport) |
+| `MCP::ToolGovernance` | Risk-tier tool filtering + audit — disabled by default, opt-in via settings |
 | `legion-data` chains/relationships models | Not yet implemented |
 
 ## Rubocop Notes
@@ -577,7 +581,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 997 examples, 0 failures
+bundle exec rspec       # 1050 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

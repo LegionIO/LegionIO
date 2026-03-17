@@ -4,6 +4,8 @@ require 'spec_helper'
 require 'legion/mcp'
 
 RSpec.describe Legion::MCP::Server do
+  before { allow(Legion::Settings).to receive(:dig).and_return(nil) }
+
   describe '.build' do
     subject(:server) { described_class.build }
 
@@ -38,6 +40,25 @@ RSpec.describe Legion::MCP::Server do
 
     it 'includes instructions' do
       expect(server.instructions).to include('async job engine')
+    end
+
+    context 'with governance enabled' do
+      before do
+        allow(Legion::Settings).to receive(:dig).and_return(nil)
+        allow(Legion::Settings).to receive(:dig).with(:mcp, :governance, :enabled).and_return(true)
+        allow(Legion::Settings).to receive(:dig).with(:mcp, :governance, :tool_risk_tiers).and_return({})
+      end
+
+      it 'excludes high and medium tier tools for low-tier identity' do
+        server = described_class.build(identity: { risk_tier: :low })
+        high_tools = Legion::MCP::ToolGovernance::DEFAULT_TOOL_TIERS.select { |_, v| %i[high medium].include?(v) }.keys
+        expect(server.tools.keys & high_tools).to be_empty
+      end
+
+      it 'includes high-tier tools for high-tier identity' do
+        server = described_class.build(identity: { risk_tier: :high })
+        expect(server.tools.keys).to include('legion.worker_lifecycle')
+      end
     end
   end
 end
