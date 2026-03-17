@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.32] - 2026-03-17
+
+### Fixed
+- `NotificationBridge` missing `require_relative 'notification_queue'` causing `NameError` on `legion chat`
+
 ## [1.4.31] - 2026-03-16
 
 ### Added

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'notification_queue'
+
 module Legion
   module Chat
     class NotificationBridge
