@@ -35,6 +35,7 @@ module Legion
     autoload :Auth,       'legion/cli/auth_command'
     autoload :Rbac,       'legion/cli/rbac_command'
     autoload :Audit,      'legion/cli/audit_command'
+    autoload :Update,     'legion/cli/update_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -202,6 +203,9 @@ module Legion
 
       desc 'audit SUBCOMMAND', 'Audit log inspection and verification'
       subcommand 'audit', Legion::CLI::Audit
+
+      desc 'update', 'Update Legion gems to latest versions'
+      subcommand 'update', Legion::CLI::Update
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

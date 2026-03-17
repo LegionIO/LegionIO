@@ -223,6 +223,15 @@ legion doctor --json            # machine-readable output
 
 Checks Ruby version, bundle status, config files, RabbitMQ, database, cache, Vault, extensions, PID files, and permissions. Exits 1 if any check fails.
 
+### Updating
+
+```bash
+legion update                   # update all legion gems in-place
+legion update --dry-run         # check what's available without installing
+```
+
+Uses the same Ruby that `legion` is running from — safe for Homebrew installs (updates go into the bundled gem directory, not your system Ruby).
+
 All commands support `--json` for structured output and `--no-color` to strip ANSI codes.
 
 ## REST API

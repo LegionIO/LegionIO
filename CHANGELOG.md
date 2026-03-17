@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.27] - 2026-03-16
+
+### Added
+- `legion update` CLI command: updates all Legion gems (`legionio`, `legion-*`, `lex-*`) using the current Ruby's gem binary
+- `--dry-run` flag to check available updates without installing
+- `--json` flag for machine-readable output
+- Updates install into the running Ruby's GEM_HOME (safe for Homebrew bundled installs)
+
 ## [1.4.26] - 2026-03-16
 
 ### Added
