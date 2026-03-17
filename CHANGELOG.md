@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.59] - 2026-03-17
+
+### Added
+- `remote_invocable?` flag for LEX extensions: when `false`, the auto-generated Subscription actor is skipped (no RabbitMQ queue, no thread pool, no AMQP binding)
+- 5-level resolution order: per-runner settings, extension settings, runner class method, extension module method, default `true`
+- `@local_tasks` list tracks subscription actors skipped due to `remote_invocable? false` for introspection
+- `remote_invocable?` default method added to `Legion::Extensions::Core` and `Legion::Extensions::Actors::Base`
+- Fully backward compatible — all existing extensions unaffected
+
 ## [1.4.58] - 2026-03-17
 
 ### Added
@@ -35,6 +44,7 @@
 ### Changed
 - `build_default_exchange` now sets `exchange_name` on dynamically created exchange classes to return `amqp_prefix` (dot-joined segments with `legion.` prefix) instead of defaulting to the parent class behavior
 - `auto_create_exchange` now derives `exchange_name` from `amqp_prefix` + the exchange's own downcased class name, replacing the index-based `split('::')[5].downcase` extraction that broke for nested extension namespaces
+
 ### Fixed
 - `legion config scaffold` now writes to `~/.legionio/settings/` by default instead of `./settings/`
 - Removed Thor `default: './settings'` that shadowed the Ruby fallback in `ConfigScaffold.run`
