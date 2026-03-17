@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.39] - 2026-03-17
+
+### Added
+- `Legion::Webhooks`: outbound webhook dispatcher with HMAC-SHA256 signing
+- Webhook registration, delivery tracking, and dead letter queue
+- API routes: `GET/POST/DELETE /api/webhooks`
+
 ## [1.4.38] - 2026-03-17
 
 ### Added
