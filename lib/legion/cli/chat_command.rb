@@ -447,7 +447,13 @@ module Legion
           when '/dream'
             handle_dream_in_chat(out)
           else
-            out.warn("Unknown command: #{cmd}. Type /help for available commands.")
+            require 'legion/chat/skills'
+            skill = Legion::Chat::Skills.find(cmd.delete_prefix('/'))
+            if skill
+              handle_skill(skill, args.first, out)
+            else
+              out.warn("Unknown command: #{cmd}. Type /help for available commands.")
+            end
           end
           true
         end
@@ -1102,6 +1108,18 @@ module Legion
           out.warn('Daemon not running. Use `legion dream` from another terminal.')
         rescue StandardError => e
           out.error("Dream failed: #{e.message}")
+        end
+
+        def handle_skill(skill, args_text, out)
+          out.info("Running skill: #{skill[:name]}")
+          user_input = args_text || ''
+          system_prompt = skill[:prompt]
+
+          @session.chat.ask(user_input) do |msg|
+            msg.system_prompt = system_prompt if system_prompt && msg.respond_to?(:system_prompt=)
+          end
+        rescue StandardError => e
+          out.error("Skill error: #{e.message}")
         end
 
         def api_port_for_chat

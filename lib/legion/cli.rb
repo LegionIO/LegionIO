@@ -37,6 +37,7 @@ module Legion
     autoload :Audit,      'legion/cli/audit_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
+    autoload :Skill,      'legion/cli/skill_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -210,6 +211,9 @@ module Legion
 
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
+
+      desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
+      subcommand 'skill', Legion::CLI::Skill
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

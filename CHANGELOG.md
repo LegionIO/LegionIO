@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.31] - 2026-03-16
+
+### Added
+- Skills system: `.legion/skills/` and `~/.legionio/skills/` YAML frontmatter markdown files
+- `Legion::Chat::Skills`: discovery, parsing, and find for skill files
+- `/skill-name` invocation in chat resolves user-defined skills
+- `legion skill list`, `legion skill show`, `legion skill create`, `legion skill run` CLI subcommands
+
 ## [1.4.30] - 2026-03-16
 
 ### Added
