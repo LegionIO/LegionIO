@@ -4,13 +4,41 @@ module Legion
   module Extensions
     module Helpers
       module Base
+        # Words that mark the boundary between extension namespace segments and
+        # internal module structure. Segment extraction stops at these words.
+        NAMESPACE_BOUNDARIES = %w[Actor Actors Runners Helpers Transport Data].freeze
+
+        def segments
+          @segments ||= derive_segments_from_namespace
+        end
+
+        def lex_slug
+          segments.join('.')
+        end
+
+        def log_tag
+          Helpers::Segments.segments_to_log_tag(segments)
+        end
+
+        def amqp_prefix
+          Helpers::Segments.segments_to_amqp_prefix(segments)
+        end
+
+        def settings_path
+          Helpers::Segments.segments_to_settings_path(segments)
+        end
+
+        def table_prefix
+          Helpers::Segments.segments_to_table_prefix(segments)
+        end
+
         def lex_class
           @lex_class ||= Kernel.const_get(calling_class_array[0..2].join('::'))
         end
         alias extension_class lex_class
 
         def lex_name
-          @lex_name ||= calling_class_array[2].gsub(/(?<!^)[A-Z]/) { "_#{Regexp.last_match(0)}" }.downcase
+          segments.join('_')
         end
         alias extension_name lex_name
         alias lex_filename lex_name
@@ -77,6 +105,28 @@ module Legion
               ret[key.to_sym] = v
             end
           end
+        end
+
+        private
+
+        def derive_segments_from_namespace
+          parts = calling_class_array
+          ext_idx = parts.index('Extensions')
+          return [camelize_to_snake(parts[0])] unless ext_idx
+
+          ext_parts = []
+          ((ext_idx + 1)...parts.length).each do |i|
+            break if NAMESPACE_BOUNDARIES.include?(parts[i])
+
+            ext_parts << camelize_to_snake(parts[i])
+          end
+          ext_parts.empty? ? [parts[ext_idx + 1].downcase] : ext_parts
+        end
+
+        def camelize_to_snake(str)
+          str.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+             .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+             .downcase
         end
       end
     end
