@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.24
+**Version**: 1.4.25
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -471,6 +471,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
 | `lib/legion/audit.rb` | Audit logging: AMQP publish + query layer (recent_for, count_for, resources_for, recent) backed by AuditLog model |
 | `lib/legion/alerts.rb` | Configurable alerting rules engine: pattern matching, count conditions, cooldown dedup |
+| `lib/legion/chat/notification_queue.rb` | Thread-safe priority queue for background notifications (critical/info/debug) |
+| `lib/legion/chat/notification_bridge.rb` | Event-driven bridge: matches Legion events to chat notifications via fnmatch patterns |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | `lib/legion/api/middleware/api_version.rb` | ApiVersion: rewrites `/api/v1/` to `/api/`, adds Deprecation/Sunset headers on unversioned paths |
 | `lib/legion/api/middleware/body_limit.rb` | BodyLimit: request body size limit (1MB max, returns 413) |
@@ -572,7 +574,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 949 examples, 0 failures
+bundle exec rspec       # 966 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

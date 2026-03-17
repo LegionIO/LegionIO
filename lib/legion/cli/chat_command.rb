@@ -53,6 +53,8 @@ module Legion
         load_memory_context
         load_custom_agents
 
+        setup_notification_bridge
+
         chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
         out.banner(version: Legion::VERSION)
         puts
@@ -149,6 +151,27 @@ module Legion
           Connection.ensure_llm
         end
 
+        def setup_notification_bridge
+          require 'legion/chat/notification_bridge'
+          @notification_bridge = Legion::Chat::NotificationBridge.new
+          @notification_bridge.start
+        rescue LoadError
+          @notification_bridge = nil
+        end
+
+        def display_pending_notifications
+          return unless @notification_bridge&.has_urgent? || @notification_bridge
+
+          notes = @notification_bridge.pending_notifications
+          return if notes.empty?
+
+          notes.each do |n|
+            prefix = n[:priority] == :critical ? "\e[31m!\e[0m" : "\e[33m*\e[0m"
+            puts "  #{prefix} #{n[:message]}"
+          end
+          puts
+        end
+
         def render_response(text, out)
           return text if options[:no_markdown] || options[:no_color]
 
@@ -210,6 +233,7 @@ module Legion
           require 'reline'
 
           loop do
+            display_pending_notifications
             input = read_user_input
             break if input.nil? # Ctrl+D
 

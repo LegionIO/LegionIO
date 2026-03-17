@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.25] - 2026-03-16
+
+### Added
+- `Legion::Chat::NotificationQueue`: thread-safe priority queue for background notifications
+- `Legion::Chat::NotificationBridge`: event-driven bridge matching Legion events to chat notifications
+- Chat REPL displays pending notifications before each prompt (critical in red, info in yellow)
+- Configurable notification patterns via `chat.notifications.patterns` setting
+
 ## [1.4.24] - 2026-03-16
 
 ### Added
