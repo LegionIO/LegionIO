@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.50] - 2026-03-17
+
+### Added
+- `Legion::Graph::Builder`: builds task relationship graph from relationships table with chain/worker filtering
+- `Legion::Graph::Exporter`: renders graphs to Mermaid and DOT (Graphviz) formats
+- `legion graph show`: CLI command with `--format mermaid|dot`, `--chain`, `--worker`, `--output`, `--limit` options
+
 ## [1.4.49] - 2026-03-17
 
 ### Added
