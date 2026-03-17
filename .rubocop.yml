@@ -38,6 +38,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/update_command.rb'
     - 'lib/legion/api/auth.rb'
     - 'lib/legion/api/auth_worker.rb'
+    - 'lib/legion/api/auth_human.rb'
 
 Metrics/AbcSize:
   Max: 60
@@ -48,9 +49,12 @@ Metrics/CyclomaticComplexity:
   Max: 15
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
+    - 'lib/legion/api/auth_human.rb'
 
 Metrics/PerceivedComplexity:
   Max: 17
+  Exclude:
+    - 'lib/legion/api/auth_human.rb'
 
 Style/Documentation:
   Enabled: false

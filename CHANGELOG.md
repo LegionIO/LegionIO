@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.45] - 2026-03-17
+
+### Added
+- `GET /api/auth/authorize`: redirects to Entra authorization endpoint for browser-based OAuth2 login
+- `GET /api/auth/callback`: exchanges authorization code for tokens, validates id_token via JWKS, maps claims, issues Legion human JWT
+- Auth middleware SKIP_PATHS now includes `/api/auth/authorize` and `/api/auth/callback`
+
 ## [1.4.44] - 2026-03-17
 
 ### Added

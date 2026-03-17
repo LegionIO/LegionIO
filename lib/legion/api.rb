@@ -28,6 +28,7 @@ require_relative 'api/openapi'
 require_relative 'api/rbac'
 require_relative 'api/auth'
 require_relative 'api/auth_worker'
+require_relative 'api/auth_human'
 require_relative 'api/audit'
 require_relative 'api/metrics'
 
@@ -100,6 +101,7 @@ module Legion
     register Routes::Rbac
     register Routes::Auth
     register Routes::AuthWorker
+    register Routes::AuthHuman
     register Routes::Audit
     register Routes::Metrics
 
