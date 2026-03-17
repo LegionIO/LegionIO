@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.37] - 2026-03-17
+
+### Added
+- `POST /api/channels/teams/webhook`: Bot Framework activity delivery to GAIA sensory buffer
+
 ## [1.4.36] - 2026-03-17
 
 ### Added
