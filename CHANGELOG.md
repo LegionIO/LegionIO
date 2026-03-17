@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.41] - 2026-03-17
+
+### Added
+- `Legion::CLI::LexTemplates`: extension template registry (basic, llm-agent, service-integration, scheduled-task, webhook-handler)
+- `Legion::Docs::SiteGenerator`: documentation site generation from existing markdown files
+
 ## [1.4.40] - 2026-03-17
 
 ### Added
