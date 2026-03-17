@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.33] - 2026-03-17
+
+### Added
+- `legion cost summary`: overall cost summary (today/week/month)
+- `legion cost worker <id>`: per-worker cost breakdown
+- `legion cost top`: top cost consumers ranked by spend
+- `legion cost export`: export cost data as JSON or CSV
+- `Legion::CLI::CostData::Client`: API client for cost data retrieval
+
+### Fixed
+- `Connection.resolve_config_dir` spec now correctly stubs `~/.legionio/settings` path
+
 ## [1.4.32] - 2026-03-17
 
 ### Fixed

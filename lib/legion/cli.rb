@@ -38,6 +38,7 @@ module Legion
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
+    autoload :Cost,       'legion/cli/cost_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -214,6 +215,9 @@ module Legion
 
       desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
       subcommand 'skill', Legion::CLI::Skill
+
+      desc 'cost', 'Cost visibility and reporting'
+      subcommand 'cost', Legion::CLI::Cost
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

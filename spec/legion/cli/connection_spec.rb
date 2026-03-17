@@ -456,10 +456,12 @@ RSpec.describe Legion::CLI::Connection do
 
     context 'when ~/legionio exists but /etc/legionio does not' do
       let(:home_dir) { File.join(Dir.home, 'legionio') }
+      let(:settings_dir) { File.join(Dir.home, '.legionio', 'settings') }
 
       before do
         allow(Dir).to receive(:exist?).and_call_original
         allow(Dir).to receive(:exist?).with('/etc/legionio').and_return(false)
+        allow(Dir).to receive(:exist?).with(settings_dir).and_return(false)
         allow(Dir).to receive(:exist?).with(home_dir).and_return(true)
       end
 
