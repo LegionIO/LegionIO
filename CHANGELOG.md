@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.57] - 2026-03-17
+
+### Added
+- `--category` option to `legion lex create`: generates categorized extension gems with nested module
+  declarations, nested directory structure, and correct `VERSION` constant paths.
+  Example: `legion lex create cognitive-anchor --category agentic` produces gem `lex-agentic-cognitive-anchor`
+  with module `Legion::Extensions::Agentic::Cognitive::Anchor`.
+- `LexGenerator` now accepts `gem_name:` keyword argument and uses `Legion::Extensions::Helpers::Segments`
+  to derive all namespace, const, and require-path values for both flat and nested extensions.
+- `legion lex create` emits a warning via `Legion::Extensions.check_reserved_words` when reserved
+  category prefixes or framework words are used in the gem name.
+
 ## [1.4.56] - 2026-03-17
 
 ### Fixed

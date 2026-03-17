@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'legion/extensions/helpers/segments'
 
 module Legion
   module CLI
@@ -92,13 +93,22 @@ module Legion
       end
 
       desc 'create NAME', 'Scaffold a new Legion extension'
-      option :rspec, type: :boolean, default: true, desc: 'Include RSpec setup'
-      option :github_ci, type: :boolean, default: true, desc: 'Include GitHub Actions CI'
-      option :git_init, type: :boolean, default: true, desc: 'Initialize git repository'
-      option :bundle_install, type: :boolean, default: true, desc: 'Run bundle install'
+      method_option :rspec, type: :boolean, default: true, desc: 'Include RSpec setup'
+      method_option :github_ci, type: :boolean, default: true, desc: 'Include GitHub Actions CI'
+      method_option :git_init, type: :boolean, default: true, desc: 'Initialize git repository'
+      method_option :bundle_install, type: :boolean, default: true, desc: 'Run bundle install'
+      method_option :category, type: :string, default: nil,
+                               desc: 'Extension category (agentic, ai, gaia). Determines namespace nesting and gem prefix.'
       def create(name)
         out = formatter
-        target_dir = "lex-#{name}"
+
+        if options[:category] && options[:category] !~ /\A[a-z][a-z0-9_-]*\z/
+          out.error('--category must be lowercase letters, numbers, underscores, or hyphens')
+          return
+        end
+
+        gem_name = options[:category] ? "lex-#{options[:category]}-#{name}" : "lex-#{name}"
+        target_dir = gem_name
 
         if Dir.exist?(target_dir)
           out.error("Directory #{target_dir} already exists")
@@ -110,15 +120,17 @@ module Legion
           raise SystemExit, 1
         end
 
-        out.success("Creating lex-#{name}...")
+        Legion::Extensions.check_reserved_words(gem_name, known_org: false)
+
+        out.success("Creating #{gem_name}...")
 
         vars = { filename: target_dir, class_name: name.split('_').map(&:capitalize).join, lex: name }
 
-        generator = LexGenerator.new(name, vars, options)
+        generator = LexGenerator.new(name, vars, options, gem_name: gem_name)
         generator.generate(out)
 
         out.spacer
-        out.success("Extension lex-#{name} created in ./#{target_dir}")
+        out.success("Extension #{gem_name} created in ./#{target_dir}")
         out.spacer
         puts '  Next steps:'
         puts "    cd #{target_dir}"
@@ -179,8 +191,7 @@ module Legion
 
           result = installed.map do |spec|
             short_name = spec.name.sub('lex-', '')
-            class_name = short_name.split('_').map(&:capitalize).join
-            extension_class = "Legion::Extensions::#{class_name}"
+            extension_class = Legion::Extensions::Helpers::Segments.derive_const_path(spec.name)
 
             setting = ext_settings[short_name.to_sym] || {}
             status = if setting[:enabled] == false
@@ -212,7 +223,8 @@ module Legion
         end
 
         def extract_runners(spec)
-          runner_dir = File.join(spec.gem_dir, 'lib', 'legion', 'extensions', spec.name.sub('lex-', ''), 'runners')
+          runner_dir = File.join(spec.gem_dir, 'lib', 'legion', 'extensions',
+                                 Legion::Extensions::Helpers::Segments.derive_segments(spec.name).join('/'), 'runners')
           return [] unless Dir.exist?(runner_dir)
 
           Dir.glob("#{runner_dir}/*.rb").map { |f| File.basename(f, '.rb') }
@@ -221,7 +233,8 @@ module Legion
         end
 
         def extract_actors(spec)
-          actor_dir = File.join(spec.gem_dir, 'lib', 'legion', 'extensions', spec.name.sub('lex-', ''), 'actors')
+          actor_dir = File.join(spec.gem_dir, 'lib', 'legion', 'extensions',
+                                Legion::Extensions::Helpers::Segments.derive_segments(spec.name).join('/'), 'actors')
           return [] unless Dir.exist?(actor_dir)
 
           Dir.glob("#{actor_dir}/*.rb").map do |f|
@@ -255,11 +268,12 @@ module Legion
 
     # Thin generator class that wraps the template logic
     class LexGenerator
-      def initialize(name, vars, options)
-        @name = name
-        @vars = vars
+      def initialize(name, vars, options, gem_name: nil)
+        @name    = name
+        @vars    = vars
         @options = options
-        @target = "lex-#{name}"
+        @gem_name = gem_name || "lex-#{name}"
+        @target = @gem_name
       end
 
       def generate(out)
@@ -270,24 +284,76 @@ module Legion
 
       private
 
-      def create_structure(out)
+      attr_reader :gem_name
+
+      def target_dir
+        @target
+      end
+
+      def namespace_segments
+        @namespace_segments ||= Legion::Extensions::Helpers::Segments.derive_namespace(@gem_name)
+      end
+
+      def const_path
+        @const_path ||= Legion::Extensions::Helpers::Segments.derive_const_path(@gem_name)
+      end
+
+      def require_path
+        @require_path ||= Legion::Extensions::Helpers::Segments.derive_require_path(@gem_name)
+      end
+
+      def extension_dirs
+        base = "#{@target}/lib/legion/extensions"
+        segs = Legion::Extensions::Helpers::Segments.derive_segments(@gem_name)
         dirs = [
           @target,
           "#{@target}/lib",
           "#{@target}/lib/legion",
-          "#{@target}/lib/legion/extensions",
-          "#{@target}/lib/legion/extensions/#{@name}",
-          "#{@target}/lib/legion/extensions/#{@name}/runners",
-          "#{@target}/lib/legion/extensions/#{@name}/actors",
-          "#{@target}/lib/legion/extensions/#{@name}/tools",
+          base
+        ]
+        segs.each_with_index do |_, i|
+          dirs << "#{base}/#{segs[0..i].join('/')}"
+        end
+        dirs += [
+          "#{base}/#{segs.join('/')}/runners",
+          "#{base}/#{segs.join('/')}/actors",
+          "#{base}/#{segs.join('/')}/tools",
           "#{@target}/spec",
           "#{@target}/spec/legion"
         ]
+        dirs
+      end
 
+      def module_open_lines
+        indent = '  '
+        lines = ["module Legion\n", "#{indent}module Extensions\n"]
+        namespace_segments.each_with_index do |seg, i|
+          lines << "#{indent * (i + 2)}module #{seg}\n"
+        end
+        lines
+      end
+
+      def module_close_lines
+        depth = namespace_segments.length + 2
+        (1..depth).map { |i| "#{'  ' * (depth - i)}end\n" }
+      end
+
+      def nested_module_wrap(inner_lines)
+        opens  = module_open_lines
+        closes = module_close_lines
+        (opens + inner_lines + closes).join
+      end
+
+      def create_structure(out)
+        dirs = extension_dirs
         dirs << "#{@target}/.github/workflows" if @options[:github_ci]
 
         dirs.each { |d| FileUtils.mkdir_p(d) }
-        FileUtils.touch("#{@target}/lib/legion/extensions/#{@name}/tools/.gitkeep")
+
+        ext_base = "lib/legion/extensions/#{Legion::Extensions::Helpers::Segments.derive_segments(@gem_name).join('/')}"
+        FileUtils.touch("#{@target}/#{ext_base}/tools/.gitkeep")
+
+        entry_file = "lib/legion/extensions/#{require_path.split('legion/extensions/').last}"
 
         write_template("#{@target}/#{@target}.gemspec", gemspec_content)
         write_template("#{@target}/Gemfile", gemfile_content)
@@ -295,13 +361,15 @@ module Legion
         write_template("#{@target}/.rubocop.yml", rubocop_content)
         write_template("#{@target}/LICENSE", license_content)
         write_template("#{@target}/README.md", readme_content)
-        write_template("#{@target}/lib/legion/extensions/#{@name}.rb", extension_entry_content)
-        write_template("#{@target}/lib/legion/extensions/#{@name}/version.rb", version_content)
-        write_template("#{@target}/lib/legion/extensions/#{@name}/client.rb", client_content)
+        write_template("#{@target}/lib/#{entry_file}.rb", extension_entry_content)
+        write_template("#{@target}/#{ext_base}/version.rb", version_content)
+        write_template("#{@target}/#{ext_base}/client.rb", client_content)
 
         if @options[:rspec]
+          spec_relative = Legion::Extensions::Helpers::Segments.derive_segments(@gem_name).join('/')
+          FileUtils.mkdir_p("#{@target}/spec/legion/extensions/#{File.dirname(spec_relative)}")
           write_template("#{@target}/spec/spec_helper.rb", spec_helper_content)
-          write_template("#{@target}/spec/legion/#{@name}_spec.rb", spec_content)
+          write_template("#{@target}/spec/legion/extensions/#{spec_relative}_spec.rb", spec_content)
         end
 
         if @options[:github_ci]
@@ -336,16 +404,16 @@ module Legion
         <<~RUBY
           # frozen_string_literal: true
 
-          require_relative 'lib/legion/extensions/#{@name}/version'
+          require_relative 'lib/#{require_path}/version'
 
           Gem::Specification.new do |spec|
-            spec.name          = '#{@target}'
-            spec.version       = Legion::Extensions::#{@vars[:class_name]}::VERSION
+            spec.name          = '#{@gem_name}'
+            spec.version       = #{const_path}::VERSION
             spec.authors       = ['Esity']
             spec.email         = ['matthewdiverson@gmail.com']
-            spec.summary       = 'A LegionIO Extension for #{@vars[:class_name]}'
-            spec.description   = 'A LegionIO Extension (LEX) for #{@vars[:class_name]}'
-            spec.homepage      = 'https://github.com/LegionIO/#{@target}'
+            spec.summary       = 'A LegionIO Extension for #{namespace_segments.last}'
+            spec.description   = 'A LegionIO Extension (LEX) for #{namespace_segments.last}'
+            spec.homepage      = 'https://github.com/LegionIO/#{@gem_name}'
             spec.license       = 'MIT'
             spec.required_ruby_version = '>= 3.4'
 
@@ -432,14 +500,14 @@ module Legion
 
       def readme_content
         <<~MD
-          # lex-#{@name}
+          # #{@gem_name}
 
-          A [LegionIO](https://github.com/LegionIO) extension for #{@vars[:class_name]}.
+          A [LegionIO](https://github.com/LegionIO) extension for #{namespace_segments.last}.
 
           ## Installation
 
           ```ruby
-          gem 'lex-#{@name}'
+          gem '#{@gem_name}'
           ```
 
           ## Usage
@@ -461,64 +529,44 @@ module Legion
       end
 
       def extension_entry_content
-        <<~RUBY
-          # frozen_string_literal: true
-
-          require_relative '#{@name}/version'
-          require_relative '#{@name}/client'
-
-          module Legion
-            module Extensions
-              module #{@vars[:class_name]}
-              end
-            end
-          end
-        RUBY
+        segs     = Legion::Extensions::Helpers::Segments.derive_segments(@gem_name)
+        last_seg = segs.last
+        inner    = ["  require_relative '#{last_seg}/version'\n",
+                    "  require_relative '#{last_seg}/client'\n",
+                    "\n"]
+        "# frozen_string_literal: true\n\n#{nested_module_wrap(inner)}"
       end
 
       def version_content
-        <<~RUBY
-          # frozen_string_literal: true
-
-          module Legion
-            module Extensions
-              module #{@vars[:class_name]}
-                VERSION = '0.1.0'
-              end
-            end
-          end
-        RUBY
+        depth  = namespace_segments.length + 2
+        inner  = ["#{'  ' * depth}VERSION = '0.1.0'\n"]
+        "# frozen_string_literal: true\n\n#{nested_module_wrap(inner)}"
       end
 
       def client_content
-        <<~RUBY
-          # frozen_string_literal: true
-
-          module Legion
-            module Extensions
-              module #{@vars[:class_name]}
-                class Client
-                  attr_reader :opts
-
-                  def initialize(**kwargs)
-                    @opts = kwargs
-                  end
-
-                  def connection(**override)
-                    Helpers::Client.connection(**@opts, **override)
-                  end
-                end
-              end
-            end
-          end
-        RUBY
+        depth = namespace_segments.length + 2
+        pad   = '  ' * depth
+        inner = [
+          "#{pad}class Client\n",
+          "#{pad}  attr_reader :opts\n",
+          "\n",
+          "#{pad}  def initialize(**kwargs)\n",
+          "#{pad}    @opts = kwargs\n",
+          "#{pad}  end\n",
+          "\n",
+          "#{pad}  def connection(**override)\n",
+          "#{pad}    Helpers::Client.connection(**@opts, **override)\n",
+          "#{pad}  end\n",
+          "#{pad}end\n"
+        ]
+        "# frozen_string_literal: true\n\n#{nested_module_wrap(inner)}"
       end
 
       def spec_helper_content
         <<~RUBY
           # frozen_string_literal: true
 
-          require 'legion/extensions/#{@name}'
+          require '#{require_path}'
 
           RSpec.configure do |config|
             config.expect_with :rspec do |expectations|
@@ -532,9 +580,9 @@ module Legion
         <<~RUBY
           # frozen_string_literal: true
 
-          RSpec.describe Legion::Extensions::#{@vars[:class_name]} do
+          RSpec.describe #{const_path} do
             it 'has a version number' do
-              expect(Legion::Extensions::#{@vars[:class_name]}::VERSION).not_to be_nil
+              expect(#{const_path}::VERSION).not_to be_nil
             end
           end
         RUBY
