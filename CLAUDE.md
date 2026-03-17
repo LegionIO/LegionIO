@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.36
+**Version**: 1.4.52
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -107,23 +107,33 @@ Legion (lib/legion.rb)
 │   │   ├── Extensions # Nested: extensions/runners/functions + invoke
 │   │   ├── Nodes      # List/show nodes (filterable by active/status)
 │   │   ├── Schedules  # CRUD for lex-scheduler schedules + logs
-│   │   ├── Relationships # Stub (501) - no data model yet
+│   │   ├── Relationships # CRUD (backed by legion-data migration 013)
 │   │   ├── Chains     # Stub (501) - no data model yet
 │   │   ├── Settings   # Read/write settings with redaction + readonly guards
 │   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   ├── Hooks      # List + trigger registered extension hooks
 │   │   ├── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
-│   │   └── Coldstart  # `POST /api/coldstart/ingest` — trigger lex-coldstart ingest from API
+│   │   ├── Coldstart  # `POST /api/coldstart/ingest` — trigger lex-coldstart ingest from API
+│   │   ├── Capacity   # Aggregate, forecast, per-worker capacity endpoints
+│   │   ├── Tenants    # Tenant listing, provisioning, suspension, quota
+│   │   ├── Audit      # Audit log query: list, show, count, export
+│   │   ├── Rbac       # RBAC: role listing, permission grants, access checks
+│   │   ├── Webhooks   # Webhook subscription CRUD + delivery status
+│   │   └── Validators # Request body schema validation helpers
 │   ├── Middleware/
-│   │   └── Auth       # JWT Bearer auth middleware (real validation, skip paths for health/ready)
+│   │   ├── Auth       # JWT Bearer auth middleware (real validation, skip paths for health/ready)
+│   │   ├── Tenant     # Tenant extraction from JWT/header, sets TenantContext
+│   │   ├── ApiVersion # `/api/v1/` rewrite, Deprecation/Sunset headers
+│   │   ├── BodyLimit  # Request body size limit (1MB max, returns 413)
+│   │   └── RateLimit  # Sliding-window rate limiting with per-IP/agent/tenant tiers
 │   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
 │                      # Populated by extensions via Legion::API.register_hook(...)
 │
 ├── MCP (mcp gem)      # MCP server for AI agent integration
 │   ├── MCP.server     # Singleton factory: Legion::MCP.server returns MCP::Server instance
 │   ├── Server         # MCP::Server builder, tool/resource registration
-│   ├── Tools/         # 30 MCP::Tool subclasses (legion.* namespace)
+│   ├── Tools/         # 35 MCP::Tool subclasses (legion.* namespace)
 │   │   ├── RunTask         # Agentic: dot notation task execution
 │   │   ├── DescribeRunner  # Agentic: runner/function discovery
 │   │   ├── List/Get/Delete Task + GetTaskLogs
@@ -132,7 +142,8 @@ Legion (lib/legion.rb)
 │   │   ├── List/Get/Enable/Disable Extension
 │   │   ├── List/Create/Update/Delete Schedule
 │   │   ├── GetStatus, GetConfig
-│   │   └── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary, RoutingStats
+│   │   ├── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary, RoutingStats
+│   │   └── RbacAssignments, RbacCheck, RbacGrants
 │   └── Resources/
 │       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
 │       └── ExtensionInfo   # legion://extensions/{name} - extension detail template
@@ -142,6 +153,14 @@ Legion (lib/legion.rb)
 │   ├── Registry       # In-process worker registry
 │   ├── RiskTier       # AIRB risk tier classification + governance constraints
 │   └── ValueMetrics   # Token/cost/latency value tracking
+│
+├── Graph              # Task relationship visualization
+│   ├── Builder        # Builds adjacency graph from relationships table (chain/worker filtering)
+│   └── Exporter       # Renders to Mermaid and DOT (Graphviz) formats
+│
+├── TraceSearch        # Natural language trace search via LLM structured output
+│                      # Translates NL queries to safe JSON filter DSL (column allowlist)
+│                      # Uses Legion::LLM.structured for JSON extraction
 │
 ├── Runner             # Task execution engine
 │   ├── Log            # Task logging
@@ -194,6 +213,22 @@ Legion (lib/legion.rb)
     ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
     ├── Review             # `legion review` - AI code review with severity levels
     ├── Gaia               # `legion gaia` - Gaia status
+    ├── Graph              # `legion graph show` - task relationship graph (mermaid/dot)
+    ├── Trace              # `legion trace search` - NL trace search via LLM
+    ├── Dashboard          # `legion dashboard` - TUI operational dashboard with auto-refresh
+    │   ├── DataFetcher    # Polls REST API for workers, health, events
+    │   └── Renderer       # Terminal-based dashboard rendering
+    ├── Cost               # `legion cost` - cost summary, worker, team, top, budget, export
+    │   └── DataClient     # API client for cost data aggregation
+    ├── Skill              # `legion skill` - list, show, create, run skill files
+    ├── Audit              # `legion audit` - query audit log (list, show, count, export)
+    ├── Rbac               # `legion rbac` - role management, permission grants, access check
+    ├── Init               # `legion init` - interactive project setup wizard
+    │   ├── ConfigGenerator    # Generates starter config files from templates
+    │   └── EnvironmentDetector # Detects runtime environment (Docker, CI, services)
+    ├── Marketplace        # `legion marketplace` - extension marketplace (search, install, publish)
+    ├── Notebook           # `legion notebook` - interactive task notebook REPL
+    ├── Update             # `legion update` - self-update via Homebrew or gem
     ├── Schedule           # `legion schedule` - schedule list/show/add/remove/logs
     └── Completion         # `legion completion` - bash/zsh tab completion scripts
 ```
@@ -361,6 +396,53 @@ legion
     stats [SESSION_ID]               # aggregate or per-session telemetry stats
     ingest PATH                      # manually ingest a session log file
 
+  graph
+    show [--chain ID] [--worker ID]  # display task relationship graph
+    [--format mermaid|dot] [--output FILE] [--limit N]
+
+  trace
+    search QUERY [--limit N]         # natural language trace search via LLM
+
+  dashboard
+    start [--url URL] [--refresh N]  # TUI operational dashboard with auto-refresh
+
+  cost
+    summary                          # overall cost summary (today/week/month)
+    worker <id>                      # per-worker cost breakdown
+    team <name>                      # per-team cost attribution
+    top [--limit 10]                 # top cost consumers
+    budget                           # budget status
+    export [--format csv|json]       # export cost data
+
+  skill
+    list                             # list discovered skills
+    show <name>                      # display skill definition
+    create <name>                    # scaffold new skill file
+    run <name> [args]                # run skill outside of chat
+
+  audit
+    list [--entity TYPE] [--action ACT] [--limit N]
+    show <id>
+    count [--entity TYPE] [--since TIME]
+    export [--format json|csv]
+
+  rbac
+    roles                            # list roles
+    grants <identity>                # list grants for identity
+    check <identity> <resource> <action>  # check access
+
+  init                               # interactive project setup wizard
+    [--dir PATH] [--template NAME]
+
+  marketplace
+    search QUERY                     # search extension marketplace
+    install NAME                     # install extension
+    publish                          # publish current extension
+
+  notebook                           # interactive task notebook REPL
+
+  update                             # self-update via Homebrew or gem
+
   auth
     teams [--tenant-id ID] [--client-id ID]  # browser OAuth flow for Microsoft Teams
 ```
@@ -445,6 +527,17 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/extensions/data/` | Extension-level migrator and model |
 | `lib/legion/extensions/hooks/base.rb` | Webhook hook base class |
 | `lib/legion/extensions/transport.rb` | Extension transport setup |
+| `lib/legion/graph/builder.rb` | Graph builder: adjacency list from relationships table with chain/worker filtering |
+| `lib/legion/graph/exporter.rb` | Graph exporter: renders to Mermaid (`graph TD`) and DOT (Graphviz `digraph`) formats |
+| `lib/legion/trace_search.rb` | NL trace search: LLM structured output to JSON filter DSL with column allowlist |
+| `lib/legion/guardrails.rb` | Input validation guardrails for runner payloads |
+| `lib/legion/isolation.rb` | Process isolation for untrusted extension execution |
+| `lib/legion/sandbox.rb` | Sandboxed execution environment for extensions |
+| `lib/legion/context.rb` | Thread-local execution context (request tracing, tenant) |
+| `lib/legion/catalog.rb` | Extension catalog: registry of available extensions with metadata |
+| `lib/legion/registry.rb` | Extension registry with security scanning |
+| `lib/legion/registry/security_scanner.rb` | Gem security scanner (CVE checks, signature verification) |
+| `lib/legion/webhooks.rb` | Webhook delivery system: HTTP POST with retry, HMAC signing |
 | `lib/legion/runner.rb` | Task execution engine |
 | `lib/legion/runner/log.rb` | Task logging |
 | `lib/legion/runner/status.rb` | Task status tracking |
@@ -457,7 +550,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/extensions.rb` | Extensions: nested REST (extensions/runners/functions + invoke) |
 | `lib/legion/api/nodes.rb` | Nodes: list (filterable), show |
 | `lib/legion/api/schedules.rb` | Schedules: CRUD + logs (requires lex-scheduler) |
-| `lib/legion/api/relationships.rb` | Relationships: stub (501, no data model yet) |
+| `lib/legion/api/relationships.rb` | Relationships: CRUD (backed by legion-data migration 013) |
 | `lib/legion/api/chains.rb` | Chains: stub (501, no data model yet) |
 | `lib/legion/api/settings.rb` | Settings: read/write with redaction + readonly guards |
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
@@ -469,7 +562,17 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
 | `lib/legion/api/openapi.rb` | OpenAPI: `Legion::API::OpenAPI.spec` / `.to_json`; also served at `GET /api/openapi.json` |
 | `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
+| `lib/legion/api/capacity.rb` | Capacity: aggregate, forecast, and per-worker capacity endpoints |
+| `lib/legion/api/tenants.rb` | Tenants: listing, provisioning, suspension, quota check |
+| `lib/legion/api/audit.rb` | Audit: list, show, count, export audit log entries |
+| `lib/legion/api/auth_human.rb` | Auth: human user authentication endpoints |
+| `lib/legion/api/auth_worker.rb` | Auth: digital worker authentication endpoints |
+| `lib/legion/api/rbac.rb` | RBAC: role listing, permission grants, access checks |
+| `lib/legion/api/validators.rb` | Request validators: schema validation helpers for API inputs |
+| `lib/legion/api/webhooks.rb` | Webhooks: CRUD for webhook subscriptions + delivery status |
 | `lib/legion/audit.rb` | Audit logging: AMQP publish + query layer (recent_for, count_for, resources_for, recent) backed by AuditLog model |
+| `lib/legion/audit/hash_chain.rb` | Tamper-evident hash chain for audit entries |
+| `lib/legion/audit/siem_export.rb` | SIEM export: format audit entries for Splunk/ELK ingestion |
 | `lib/legion/alerts.rb` | Configurable alerting rules engine: pattern matching, count conditions, cooldown dedup |
 | `lib/legion/telemetry.rb` | Opt-in OpenTelemetry tracing: `with_span` wrapper, `sanitize_attributes`, `record_exception` |
 | `lib/legion/metrics.rb` | Opt-in Prometheus metrics: event-driven counters, pull-based gauges, `prometheus-client` guarded |
@@ -480,6 +583,10 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/middleware/api_version.rb` | ApiVersion: rewrites `/api/v1/` to `/api/`, adds Deprecation/Sunset headers on unversioned paths |
 | `lib/legion/api/middleware/body_limit.rb` | BodyLimit: request body size limit (1MB max, returns 413) |
 | `lib/legion/api/middleware/rate_limit.rb` | RateLimit: sliding-window rate limiting with per-IP/agent/tenant tiers |
+| `lib/legion/api/middleware/tenant.rb` | Tenant: extracts tenant_id from JWT/header, sets TenantContext per request |
+| `lib/legion/tenant_context.rb` | Thread-local tenant context propagation (set, clear, with block) |
+| `lib/legion/tenants.rb` | Tenant CRUD, suspension, quota enforcement |
+| `lib/legion/capacity/model.rb` | Workforce capacity calculation (throughput, utilization, forecast, per-worker) |
 | **MCP** | |
 | `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory, `server_for(token:)` |
 | `lib/legion/mcp/auth.rb` | MCP authentication: JWT + API key verification |
@@ -490,7 +597,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/digital_worker/registry.rb` | In-process worker registry |
 | `lib/legion/digital_worker/risk_tier.rb` | AIRB risk tier + governance constraints |
 | `lib/legion/digital_worker/value_metrics.rb` | Token/cost/latency tracking |
-| `lib/legion/mcp/tools/` | 30 MCP::Tool subclasses |
+| `lib/legion/mcp/tools/` | 35 MCP::Tool subclasses (incl. rbac_assignments, rbac_check, rbac_grants) |
 | `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
 | `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **CLI v2** | |
@@ -527,7 +634,30 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/chat/agent_registry.rb` | Custom agent definitions from `.legion/agents/*.json` and `.yaml` |
 | `lib/legion/cli/chat/agent_delegator.rb` | `@name` at-mention parsing and dispatch via Subagent |
 | `lib/legion/cli/chat/chat_logger.rb` | Chat-specific logging |
+| `lib/legion/cli/chat/progress_bar.rb` | Progress bar rendering for long operations |
+| `lib/legion/cli/chat/status_indicator.rb` | Status indicator (spinner, checkmark, cross) |
+| `lib/legion/cli/chat/team.rb` | Multi-user team support for chat sessions |
 | `lib/legion/cli/chat/tools/` | Built-in tools: read_file, write_file, edit_file (string + line-number mode), search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent |
+| `lib/legion/chat/skills.rb` | Skill discovery: parses `.legion/skills/` and `~/.legionio/skills/` YAML frontmatter files |
+| `lib/legion/cli/graph_command.rb` | `legion graph` subcommands (show with --format mermaid\|dot, --chain, --output) |
+| `lib/legion/cli/trace_command.rb` | `legion trace search` — NL trace search via LLM |
+| `lib/legion/cli/dashboard_command.rb` | `legion dashboard` — TUI operational dashboard |
+| `lib/legion/cli/dashboard/data_fetcher.rb` | Dashboard API poller: workers, health, events |
+| `lib/legion/cli/dashboard/renderer.rb` | Dashboard terminal renderer with sections |
+| `lib/legion/cli/cost_command.rb` | `legion cost` — cost summary, worker, team, top, budget, export |
+| `lib/legion/cli/cost/data_client.rb` | Cost data aggregation API client |
+| `lib/legion/cli/skill_command.rb` | `legion skill` — list, show, create, run skill files |
+| `lib/legion/cli/audit_command.rb` | `legion audit` — query audit log (list, show, count, export) |
+| `lib/legion/cli/rbac_command.rb` | `legion rbac` — role management, permission grants, access checks |
+| `lib/legion/cli/init_command.rb` | `legion init` — interactive project setup wizard |
+| `lib/legion/cli/init/config_generator.rb` | Config file generation from templates |
+| `lib/legion/cli/init/environment_detector.rb` | Runtime environment detection (Docker, CI, services) |
+| `lib/legion/cli/marketplace_command.rb` | `legion marketplace` — extension search, install, publish |
+| `lib/legion/cli/notebook_command.rb` | `legion notebook` — interactive task notebook REPL |
+| `lib/legion/cli/update_command.rb` | `legion update` — self-update via Homebrew or gem |
+| `lib/legion/cli/lex_templates.rb` | LEX scaffold templates for generator |
+| `lib/legion/cli/version.rb` | CLI version display helper |
+| `lib/legion/docs/site_generator.rb` | Static documentation site generator |
 | `lib/legion/cli/memory_command.rb` | `legion memory` subcommands (list, add, forget, search, clear) |
 | `lib/legion/cli/plan_command.rb` | `legion plan` — read-only exploration mode with /save to docs/plans/ |
 | `lib/legion/cli/swarm_command.rb` | `legion swarm` — multi-agent workflow orchestration from `.legion/swarms/` |
@@ -581,8 +711,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1088 examples, 0 failures
-bundle exec rubocop     # 0 offenses
+bundle exec rspec       # 1208 examples, 0 failures
+bundle exec rubocop     # 396 files, 0 offenses
 ```
 
 Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.
