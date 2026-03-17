@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.55] - 2026-03-17
+
+### Fixed
+- `legion config scaffold` now writes to `~/.legionio/settings/` by default instead of `./settings/`
+- Removed Thor `default: './settings'` that shadowed the Ruby fallback in `ConfigScaffold.run`
+- Added `~/.legionio/settings` to `legion config path` search paths to match `Service#default_paths`
+
 ## [1.4.53] - 2026-03-17
 
 ### Fixed
