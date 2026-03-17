@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.22] - 2026-03-16
+
+### Added
+- `Legion::Alerts`: configurable alerting rules engine with event pattern matching
+- `Alerts::Engine`: count-based conditions, cooldown deduplication, multi-channel dispatch
+- 4 default rules: consent_violation, extinction_trigger, error_spike, budget_exceeded
+- Channel dispatch: events (via `Legion::Events`), log (via `Legion::Logging`), webhook
+- Settings: `alerts.enabled`, `alerts.rules`
+- Wired into `Service` startup (opt-in via `alerts.enabled: true`)
+
 ## [1.4.21] - 2026-03-16
 
 ### Added

@@ -62,6 +62,8 @@ module Legion
 
       Legion::Crypt.cs if crypt
 
+      setup_alerts
+
       api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings.fetch(:enabled, true)
       setup_api if @api_enabled
@@ -210,6 +212,20 @@ module Legion
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
       Legion::Transport::Connection.setup
+    end
+
+    def setup_alerts
+      enabled = begin
+        Legion::Settings[:alerts][:enabled]
+      rescue StandardError
+        false
+      end
+      return unless enabled
+
+      require 'legion/alerts'
+      Legion::Alerts.setup
+    rescue StandardError => e
+      Legion::Logging.warn "Alerts setup failed: #{e.message}"
     end
 
     def setup_supervision
