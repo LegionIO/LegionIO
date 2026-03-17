@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.34] - 2026-03-17
+
+### Added
+- `Legion::Registry`: central extension metadata store with search, risk tier filtering, AIRB status
+- `Legion::Sandbox`: capability-based extension sandboxing with enforcement toggle
+- `Legion::Registry::SecurityScanner`: naming convention, checksum, and gemspec metadata validation
+- `legion marketplace`: CLI for search, info, list, scan operations
+
 ## [1.4.33] - 2026-03-17
 
 ### Added

@@ -38,7 +38,8 @@ module Legion
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
-    autoload :Cost,       'legion/cli/cost_command'
+    autoload :Cost,        'legion/cli/cost_command'
+    autoload :Marketplace, 'legion/cli/marketplace_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -218,6 +219,9 @@ module Legion
 
       desc 'cost', 'Cost visibility and reporting'
       subcommand 'cost', Legion::CLI::Cost
+
+      desc 'marketplace', 'Extension marketplace (search, info, scan)'
+      subcommand 'marketplace', Legion::CLI::Marketplace
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
