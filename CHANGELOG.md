@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.49] - 2026-03-17
+
+### Added
+- `Legion::TenantContext`: thread-local tenant context propagation (set, clear, with block)
+- `Legion::Tenants`: tenant CRUD, suspension, and quota enforcement
+- `Middleware::Tenant`: extracts tenant_id from JWT/header, sets TenantContext per request
+- `GET/POST /api/tenants`: tenant listing and provisioning endpoints
+- `POST /api/tenants/:id/suspend`: tenant suspension
+- `GET /api/tenants/:id/quota/:resource`: quota check endpoint
+
 ## [1.4.48] - 2026-03-17
 
 ### Added
