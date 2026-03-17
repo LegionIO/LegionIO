@@ -51,6 +51,7 @@ module Legion
         Legion::Readiness.mark_ready(:llm)
       end
 
+      setup_telemetry
       setup_supervision if supervision
 
       if extensions
@@ -235,6 +236,37 @@ module Legion
       Legion::Logging.debug 'Legion::Metrics initialized'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Metrics setup failed: #{e.message}"
+    end
+
+    def setup_telemetry
+      return unless begin
+        Legion::Settings.dig(:telemetry, :enabled)
+      rescue StandardError
+        false
+      end
+
+      require 'opentelemetry/sdk'
+      require 'opentelemetry-exporter-otlp'
+      require_relative 'telemetry'
+
+      endpoint = Legion::Settings.dig(:telemetry, :otlp_endpoint) || 'http://localhost:4318'
+      service_name = "legion-#{Legion::Settings[:client][:name]}"
+
+      OpenTelemetry::SDK.configure do |c|
+        c.service_name = service_name
+        c.service_version = Legion::VERSION
+        c.add_span_processor(
+          OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
+            OpenTelemetry::Exporter::OTLP::Exporter.new(endpoint: endpoint)
+          )
+        )
+      end
+
+      Legion::Logging.info "OpenTelemetry initialized: endpoint=#{endpoint} service=#{service_name}"
+    rescue LoadError
+      Legion::Logging.info 'OpenTelemetry gems not installed, starting without telemetry'
+    rescue StandardError => e
+      Legion::Logging.warn "OpenTelemetry setup failed: #{e.message}"
     end
 
     def setup_supervision

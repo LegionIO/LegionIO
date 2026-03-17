@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.26
+**Version**: 1.4.28
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -471,6 +471,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
 | `lib/legion/audit.rb` | Audit logging: AMQP publish + query layer (recent_for, count_for, resources_for, recent) backed by AuditLog model |
 | `lib/legion/alerts.rb` | Configurable alerting rules engine: pattern matching, count conditions, cooldown dedup |
+| `lib/legion/telemetry.rb` | Opt-in OpenTelemetry tracing: `with_span` wrapper, `sanitize_attributes`, `record_exception` |
 | `lib/legion/metrics.rb` | Opt-in Prometheus metrics: event-driven counters, pull-based gauges, `prometheus-client` guarded |
 | `lib/legion/api/metrics.rb` | `GET /metrics` Prometheus text-format endpoint with gauge refresh |
 | `lib/legion/chat/notification_queue.rb` | Thread-safe priority queue for background notifications (critical/info/debug) |
@@ -576,7 +577,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 986 examples, 0 failures
+bundle exec rspec       # 992 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

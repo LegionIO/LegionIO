@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.28] - 2026-03-16
+
+### Added
+- `Legion::Telemetry` module: opt-in OpenTelemetry tracing with `with_span` wrapper
+- `setup_telemetry` in Service: initializes OTel SDK with OTLP exporter when `telemetry.enabled: true`
+- `sanitize_attributes` helper for safe OTel attribute conversion
+- `record_exception` helper for span error recording
+
 ## [1.4.27] - 2026-03-16
 
 ### Added
