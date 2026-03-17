@@ -65,6 +65,111 @@ RSpec.describe Legion::Extensions do
     end
   end
 
+  describe '.categorize_and_order' do
+    let(:gem_names) do
+      %w[
+        lex-consul lex-node lex-agentic-cognitive-anchor lex-claude
+        lex-tick lex-tasker lex-agentic-attention-spotlight lex-slack
+        lex-openai lex-apollo
+      ]
+    end
+
+    let(:ext_settings) do
+      {
+        core:       %w[lex-node lex-tasker],
+        ai:         %w[lex-claude lex-openai],
+        gaia:       %w[lex-tick lex-apollo],
+        categories: {
+          core:    { type: :list, tier: 1 },
+          ai:      { type: :list, tier: 2 },
+          gaia:    { type: :list, tier: 3 },
+          agentic: { type: :prefix, tier: 4 }
+        },
+        blocked:    ['lex-slack'],
+        agentic:    { allowed: nil, blocked: [] }
+      }
+    end
+
+    before do
+      allow(Legion::Settings).to receive(:[]).with(:extensions).and_return(ext_settings)
+    end
+
+    it 'returns gems in tier order' do
+      result = described_class.categorize_and_order(gem_names)
+      names = result.map { |r| r[:gem_name] }
+      expect(names.index('lex-node')).to be < names.index('lex-claude')
+      expect(names.index('lex-claude')).to be < names.index('lex-tick')
+      expect(names.index('lex-tick')).to be < names.index('lex-agentic-cognitive-anchor')
+      expect(names.index('lex-agentic-cognitive-anchor')).to be < names.index('lex-consul')
+    end
+
+    it 'excludes blocked gems' do
+      result = described_class.categorize_and_order(gem_names)
+      expect(result.map { |r| r[:gem_name] }).not_to include('lex-slack')
+    end
+
+    it 'skips list gems that are not in the input' do
+      result = described_class.categorize_and_order(['lex-node'])
+      names = result.map { |r| r[:gem_name] }
+      expect(names).to eq(['lex-node'])
+    end
+
+    it 'assigns correct categories' do
+      result = described_class.categorize_and_order(gem_names)
+      by_name = result.to_h { |r| [r[:gem_name], r] }
+      expect(by_name['lex-node'][:category]).to eq(:core)
+      expect(by_name['lex-claude'][:category]).to eq(:ai)
+      expect(by_name['lex-tick'][:category]).to eq(:gaia)
+      expect(by_name['lex-agentic-cognitive-anchor'][:category]).to eq(:agentic)
+      expect(by_name['lex-consul'][:category]).to eq(:default)
+    end
+
+    it 'derives nested const_path for agentic gems' do
+      result = described_class.categorize_and_order(gem_names)
+      anchor = result.find { |r| r[:gem_name] == 'lex-agentic-cognitive-anchor' }
+      expect(anchor[:const_path]).to eq('Legion::Extensions::Agentic::Cognitive::Anchor')
+    end
+
+    it 'derives flat const_path for list-category gems' do
+      result = described_class.categorize_and_order(gem_names)
+      node = result.find { |r| r[:gem_name] == 'lex-node' }
+      expect(node[:const_path]).to eq('Legion::Extensions::Node')
+    end
+
+    it 'derives flat const_path for default-tier gems' do
+      result = described_class.categorize_and_order(gem_names)
+      consul = result.find { |r| r[:gem_name] == 'lex-consul' }
+      expect(consul[:const_path]).to eq('Legion::Extensions::Consul')
+    end
+
+    it 'each entry includes gem_name, category, tier, segments, const_path, require_path' do
+      result = described_class.categorize_and_order(['lex-node'])
+      entry = result.first
+      expect(entry).to include(:gem_name, :category, :tier, :segments, :const_path, :require_path)
+    end
+  end
+
+  describe '.check_reserved_words' do
+    it 'warns when an unknown-origin gem uses a reserved category prefix' do
+      expect(Legion::Logging).to receive(:warn).with(/reserved prefix/)
+      described_class.check_reserved_words('lex-agentic-custom-thing', known_org: false)
+    end
+
+    it 'does not warn for known org gems' do
+      expect(Legion::Logging).not_to receive(:warn)
+      described_class.check_reserved_words('lex-agentic-cognitive-anchor', known_org: true)
+    end
+
+    it 'warns when first segment is a reserved word' do
+      expect(Legion::Logging).to receive(:warn).with(/reserved word/)
+      described_class.check_reserved_words('lex-transport-adapter', known_org: false)
+    end
+
+    it 'does not raise, just warns' do
+      expect { described_class.check_reserved_words('lex-transport-adapter', known_org: false) }.not_to raise_error
+    end
+  end
+
   describe '.apply_role_filter' do
     before do
       described_class.instance_variable_set(:@extensions, {

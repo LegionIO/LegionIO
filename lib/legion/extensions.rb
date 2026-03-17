@@ -264,6 +264,66 @@ module Legion
         @extensions.keys.reject { |name| known.include?(name) }
       end
 
+      def categorize_and_order(gem_names)
+        ext_settings = ::Legion::Settings[:extensions] || {}
+        categories   = ext_settings[:categories] || default_category_registry
+        lists        = {
+          core: Array(ext_settings[:core]),
+          ai:   Array(ext_settings[:ai]),
+          gaia: Array(ext_settings[:gaia])
+        }
+        ctx = {
+          blocked:     Array(ext_settings[:blocked]),
+          agentic_cfg: ext_settings[:agentic] || {},
+          categories:  categories,
+          gem_set:     gem_names.to_set,
+          ordered:     [],
+          claimed:     Set.new
+        }
+
+        collect_list_category_gems(lists, ctx)
+        collect_prefix_category_gems(gem_names, ctx)
+
+        (gem_names.to_a - ctx[:claimed].to_a - ctx[:blocked]).sort.each do |gn|
+          ctx[:ordered] << build_extension_entry(gn, :default, categories, nesting: false)
+        end
+
+        ctx[:ordered]
+      end
+
+      def check_reserved_words(gem_name, known_org: true)
+        return if known_org
+
+        bare          = gem_name.delete_prefix('lex-')
+        first_segment = bare.split('-').first
+
+        configured_prefixes = begin
+          Array(::Legion::Settings.dig(:extensions, :reserved_prefixes))
+        rescue StandardError
+          []
+        end
+        reserved_prefixes = configured_prefixes.empty? ? %w[core ai agentic gaia] : configured_prefixes
+
+        configured_words = begin
+          Array(::Legion::Settings.dig(:extensions, :reserved_words))
+        rescue StandardError
+          []
+        end
+        reserved_words = configured_words.empty? ? %w[transport cache crypt data settings json logging llm rbac legion] : configured_words
+
+        if reserved_prefixes.include?(first_segment)
+          ::Legion::Logging.warn(
+            "#{gem_name} uses reserved prefix '#{first_segment}' — " \
+            "it will be loaded in the #{first_segment} category namespace"
+          )
+        elsif reserved_words.include?(first_segment)
+          ::Legion::Logging.warn(
+            "#{gem_name} uses reserved word '#{first_segment}' as its first segment — " \
+            'this may shadow framework modules'
+          )
+        end
+      end
+
       def find_extensions
         @extensions ||= {}
         gem_names_for_discovery.each do |spec|
@@ -315,6 +375,74 @@ module Legion
         else
           Legion::Logging.warn 'You must have auto_install_missing_lex set to true to auto install missing extensions'
         end
+      end
+
+      private
+
+      def collect_list_category_gems(lists, ctx)
+        lists.sort_by { |cat, _| ctx[:categories].dig(cat, :tier) || 99 }.each do |cat_name, gem_list|
+          gem_list.each do |gn|
+            next unless ctx[:gem_set].include?(gn)
+            next if ctx[:blocked].include?(gn)
+
+            ctx[:ordered] << build_extension_entry(gn, cat_name, ctx[:categories], nesting: false)
+            ctx[:claimed].add(gn)
+          end
+        end
+      end
+
+      def collect_prefix_category_gems(gem_names, ctx)
+        prefix_cats = ctx[:categories].select { |_, v| v[:type].to_s == 'prefix' }
+                                      .sort_by { |_, v| v[:tier] || 99 }
+                                      .to_h
+        prefix_cats.each_key do |cat_name|
+          prefix  = "lex-#{cat_name}-"
+          matched = gem_names.select { |gn| gn.start_with?(prefix) && !ctx[:claimed].include?(gn) }.sort
+          matched.each do |gn|
+            next if ctx[:blocked].include?(gn)
+            next if cat_name == :agentic && agentic_blocked?(gn, ctx[:agentic_cfg])
+            next if cat_name == :agentic && !agentic_allowed?(gn, ctx[:agentic_cfg])
+
+            ctx[:ordered] << build_extension_entry(gn, cat_name, ctx[:categories], nesting: true)
+            ctx[:claimed].add(gn)
+          end
+        end
+      end
+
+      def build_extension_entry(gem_name, category, categories, nesting:)
+        segments = Helpers::Segments.derive_segments(gem_name)
+        tier     = category == :default ? 5 : (categories.dig(category, :tier) || 5)
+
+        if nesting
+          const_path   = Helpers::Segments.derive_const_path(gem_name)
+          require_path = Helpers::Segments.derive_require_path(gem_name)
+        else
+          flat_name    = gem_name.delete_prefix('lex-').tr('-', '_')
+          const_path   = "Legion::Extensions::#{flat_name.split('_').map(&:capitalize).join}"
+          require_path = "legion/extensions/#{flat_name}"
+        end
+
+        { gem_name: gem_name, category: category, tier: tier,
+          segments: segments, const_path: const_path, require_path: require_path }
+      end
+
+      def default_category_registry
+        {
+          core:    { type: :list, tier: 1 },
+          ai:      { type: :list, tier: 2 },
+          gaia:    { type: :list, tier: 3 },
+          agentic: { type: :prefix, tier: 4 }
+        }
+      end
+
+      def agentic_blocked?(gem_name, config)
+        Array(config[:blocked]).any? { |pat| File.fnmatch(pat, gem_name) }
+      end
+
+      def agentic_allowed?(gem_name, config)
+        return true if config[:allowed].nil?
+
+        Array(config[:allowed]).any? { |pat| File.fnmatch(pat, gem_name) }
       end
     end
   end
