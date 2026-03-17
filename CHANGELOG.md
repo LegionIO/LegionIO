@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.38] - 2026-03-17
+
+### Added
+- `Legion::Isolation`: per-agent data and tool access enforcement with thread-local context
+- `Isolation::Context`: tool allowlist, data filter, and risk tier per agent
+
 ## [1.4.37] - 2026-03-17
 
 ### Added
