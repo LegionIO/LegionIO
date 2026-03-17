@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.53] - 2026-03-17
+
+### Fixed
+- Extension discovery now correctly parses multi-hyphenated gem names (e.g., `lex-cognitive-reappraisal`)
+- `gem_names_for_discovery` returns structured data instead of ambiguous `name-version` strings
+- Updated fallback path to use `Gem::Specification.latest_specs` instead of `all_names`
+
 ## [1.4.52] - 2026-03-17
 
 ### Added

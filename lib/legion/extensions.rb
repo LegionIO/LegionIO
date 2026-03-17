@@ -211,9 +211,9 @@ module Legion
 
       def gem_names_for_discovery
         if defined?(Bundler)
-          Bundler.load.specs.map { |s| "#{s.name}-#{s.version}" }
+          Bundler.load.specs.map { |s| { name: s.name, version: s.version.to_s } }
         else
-          Gem::Specification.all_names
+          Gem::Specification.latest_specs.map { |s| { name: s.name, version: s.version.to_s } }
         end
       end
 
@@ -266,15 +266,15 @@ module Legion
 
       def find_extensions
         @extensions ||= {}
-        gem_names_for_discovery.each do |gem|
-          next unless gem.start_with?('lex-')
+        gem_names_for_discovery.each do |spec|
+          next unless spec[:name].start_with?('lex-')
 
-          lex = gem.split('-')
-          @extensions[lex[1]] = { full_gem_name:   gem,
-                                  gem_name:        "lex-#{lex[1]}",
-                                  extension_name:  lex[1],
-                                  version:         lex[2],
-                                  extension_class: "Legion::Extensions::#{lex[1].split('_').collect(&:capitalize).join}" }
+          ext_name = spec[:name].delete_prefix('lex-').tr('-', '_')
+          @extensions[ext_name] = { full_gem_name:   "#{spec[:name]}-#{spec[:version]}",
+                                    gem_name:        spec[:name],
+                                    extension_name:  ext_name,
+                                    version:         spec[:version],
+                                    extension_class: "Legion::Extensions::#{ext_name.split('_').collect(&:capitalize).join}" }
         end
 
         apply_role_filter

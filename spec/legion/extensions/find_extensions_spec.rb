@@ -22,12 +22,27 @@ RSpec.describe Legion::Extensions do
         expect(extensions).to have_key('fake')
         expect(extensions['fake'][:gem_name]).to eq('lex-fake')
       end
+
+      it 'correctly parses multi-hyphenated gem names' do
+        fake_spec = double('spec', name: 'lex-cognitive-reappraisal', version: '0.1.0')
+        fake_bundler_load = double('bundler_load', specs: [fake_spec])
+        allow(Bundler).to receive(:load).and_return(fake_bundler_load)
+
+        described_class.find_extensions
+
+        extensions = described_class.instance_variable_get(:@extensions)
+        expect(extensions).to have_key('cognitive_reappraisal')
+        expect(extensions['cognitive_reappraisal'][:gem_name]).to eq('lex-cognitive-reappraisal')
+        expect(extensions['cognitive_reappraisal'][:version]).to eq('0.1.0')
+        expect(extensions['cognitive_reappraisal'][:extension_class]).to eq('Legion::Extensions::CognitiveReappraisal')
+      end
     end
 
     context 'when Bundler is not defined' do
-      it 'falls back to Gem::Specification.all_names' do
+      it 'falls back to Gem::Specification.latest_specs' do
         hide_const('Bundler')
-        allow(Gem::Specification).to receive(:all_names).and_return(['lex-fallback-0.1.0'])
+        fake_spec = double('spec', name: 'lex-fallback', version: double(to_s: '0.1.0'))
+        allow(Gem::Specification).to receive(:latest_specs).and_return([fake_spec])
 
         described_class.find_extensions
 
