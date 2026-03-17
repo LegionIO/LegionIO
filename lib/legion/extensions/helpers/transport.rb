@@ -33,12 +33,13 @@ module Legion
         end
 
         def build_default_exchange
-          exchange = "#{transport_class}::Exchanges::#{lex_const}"
-          return Object.const_get(exchange) if transport_class::Exchanges.const_defined? lex_const
+          return transport_class::Exchanges.const_get(lex_const) if transport_class::Exchanges.const_defined? lex_const
 
-          transport_class::Exchanges.const_set(lex_const, Class.new(Legion::Transport::Exchange))
-          @default_exchange = Kernel.const_get(exchange)
-          @default_exchange
+          amqp = amqp_prefix
+          transport_class::Exchanges.const_set(lex_const, Class.new(Legion::Transport::Exchange) do
+            define_method(:exchange_name) { amqp }
+          end)
+          @default_exchange = transport_class::Exchanges.const_get(lex_const)
         end
       end
     end

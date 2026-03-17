@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.55] - 2026-03-17
+
+### Changed
+- `build_default_exchange` now sets `exchange_name` on dynamically created exchange classes to return `amqp_prefix` (dot-joined segments with `legion.` prefix) instead of defaulting to the parent class behavior
+- `auto_create_exchange` now derives `exchange_name` from `amqp_prefix` + the exchange's own downcased class name, replacing the index-based `split('::')[5].downcase` extraction that broke for nested extension namespaces
+
 ## [1.4.54] - 2026-03-17
 
 ### Changed
