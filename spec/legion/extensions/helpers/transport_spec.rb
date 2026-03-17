@@ -40,7 +40,7 @@ RSpec.describe Legion::Extensions::Helpers::Transport do
 
     it 'registers the exchange constant under lex_const name' do
       mock_extension.build_default_exchange
-      expect(mock_extension.transport_class::Exchanges.const_defined?('Agentic')).to be true
+      expect(mock_extension.transport_class::Exchanges.const_defined?('Anchor')).to be true
     end
   end
 

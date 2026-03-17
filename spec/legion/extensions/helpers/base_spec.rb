@@ -69,6 +69,14 @@ RSpec.describe Legion::Extensions::Helpers::Base do
     it 'returns lex_name as underscore-joined (backward compat)' do
       expect(subject.lex_name).to eq('agentic_cognitive_anchor')
     end
+
+    it 'returns lex_class as full extension module constant' do
+      expect(subject.lex_class).to eq(Legion::Extensions::Agentic::Cognitive::Anchor)
+    end
+
+    it 'returns lex_const as last segment of the extension module' do
+      expect(subject.lex_const).to eq('Anchor')
+    end
   end
 
   describe 'flat extension (Http)' do
@@ -100,6 +108,75 @@ RSpec.describe Legion::Extensions::Helpers::Base do
 
     it 'returns table_prefix' do
       expect(subject.table_prefix).to eq('http')
+    end
+
+    it 'returns lex_class as Legion::Extensions::Http' do
+      expect(subject.lex_class).to eq(Legion::Extensions::Http)
+    end
+
+    it 'returns lex_const as Http' do
+      expect(subject.lex_const).to eq('Http')
+    end
+  end
+
+  describe 'flat extension with camelized multi-word name (MicrosoftTeams)' do
+    before(:all) do
+      Legion::Extensions.const_set('MicrosoftTeams', Module.new) unless defined?(Legion::Extensions::MicrosoftTeams)
+      unless defined?(TestMicrosoftTeamsExtension)
+        TestMicrosoftTeamsExtension = Module.new do
+          extend Legion::Extensions::Helpers::Base
+
+          def self.calling_class_array
+            %w[Legion Extensions MicrosoftTeams]
+          end
+        end
+      end
+    end
+
+    subject(:ext) { TestMicrosoftTeamsExtension }
+
+    it 'derives segments with underscore preserved (not concatenated)' do
+      expect(ext.segments).to eq(['microsoft_teams'])
+    end
+
+    it 'derives lex_name correctly' do
+      expect(ext.lex_name).to eq('microsoft_teams')
+    end
+
+    it 'derives amqp_prefix correctly' do
+      expect(ext.amqp_prefix).to eq('legion.microsoft_teams')
+    end
+  end
+
+  describe 'lex_class boundary detection for runner/actor sub-modules' do
+    before(:all) do
+      unless defined?(Legion::Extensions::Agentic::Cognitive::Anchor::Runners::TestRunner)
+        module Legion
+          module Extensions
+            module Agentic
+              module Cognitive
+                module Anchor
+                  module Runners
+                    class TestRunner
+                      include Legion::Extensions::Helpers::Base
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+
+    subject { Legion::Extensions::Agentic::Cognitive::Anchor::Runners::TestRunner.new }
+
+    it 'still returns the extension module, not the runner sub-module' do
+      expect(subject.lex_class).to eq(Legion::Extensions::Agentic::Cognitive::Anchor)
+    end
+
+    it 'returns the same segments as the actor' do
+      expect(subject.segments).to eq(%w[agentic cognitive anchor])
     end
   end
 end

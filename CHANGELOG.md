@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.56] - 2026-03-17
+
+### Fixed
+- `lex_class` now returns the full extension module constant by walking the namespace up to the first `NAMESPACE_BOUNDARIES` word, instead of always stopping at index 2. For nested extensions (`Legion::Extensions::Agentic::Cognitive::Anchor`), this returns `Legion::Extensions::Agentic::Cognitive::Anchor` rather than the incorrect `Legion::Extensions::Agentic`.
+- `lex_const` now derives from `lex_class.to_s.split('::').last` so it returns the extension's root constant name (`Anchor`) rather than always returning the third element of the namespace array.
+- `full_path` now builds the gem name from dash-joined segments (`lex-agentic-cognitive-anchor`) instead of underscore-joined `lex_name`, so `Gem::Specification.find_by_name` works for nested extensions.
+
 ## [1.4.55] - 2026-03-17
 
 ### Changed
