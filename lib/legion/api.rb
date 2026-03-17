@@ -27,6 +27,7 @@ require_relative 'api/oauth'
 require_relative 'api/openapi'
 require_relative 'api/rbac'
 require_relative 'api/audit'
+require_relative 'api/metrics'
 
 module Legion
   class API < Sinatra::Base
@@ -96,6 +97,7 @@ module Legion
     register Routes::OAuth
     register Routes::Rbac
     register Routes::Audit
+    register Routes::Metrics
 
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 

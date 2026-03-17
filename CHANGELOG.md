@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.26] - 2026-03-16
+
+### Added
+- `Legion::Metrics` module: opt-in Prometheus metrics via `prometheus-client` gem
+- `GET /metrics` endpoint returning Prometheus text-format output
+- 9 metrics: uptime, active_workers, tasks_total, tasks_per_second, error_rate, consent_violations, llm_requests, llm_tokens
+- Event-driven counters + pull-based gauge refresh on scrape
+- `/metrics` added to Auth middleware SKIP_PATHS
+- Wired into Service startup and shutdown
+
 ## [1.4.25] - 2026-03-16
 
 ### Added

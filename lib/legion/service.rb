@@ -63,6 +63,7 @@ module Legion
       Legion::Crypt.cs if crypt
 
       setup_alerts
+      setup_metrics
 
       api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings.fetch(:enabled, true)
@@ -228,6 +229,14 @@ module Legion
       Legion::Logging.warn "Alerts setup failed: #{e.message}"
     end
 
+    def setup_metrics
+      require 'legion/metrics'
+      Legion::Metrics.setup
+      Legion::Logging.debug 'Legion::Metrics initialized'
+    rescue StandardError => e
+      Legion::Logging.warn "Legion::Metrics setup failed: #{e.message}"
+    end
+
     def setup_supervision
       require 'legion/supervision'
       @supervision = Legion::Supervision.setup
@@ -251,6 +260,8 @@ module Legion
       Legion::Events.emit('service.shutting_down')
 
       shutdown_api
+
+      Legion::Metrics.reset! if defined?(Legion::Metrics)
 
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
