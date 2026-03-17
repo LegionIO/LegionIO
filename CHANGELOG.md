@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.48] - 2026-03-17
+
+### Added
+- `Legion::Capacity::Model`: workforce capacity calculation (throughput, utilization, forecast, per-worker stats)
+- `GET /api/capacity`: aggregate capacity across active workers
+- `GET /api/capacity/forecast`: projected capacity with configurable growth rate and period
+- `GET /api/capacity/workers`: per-worker capacity breakdown
+
 ## [1.4.47] - 2026-03-17
 
 ### Fixed
