@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.54] - 2026-03-17
+
+### Changed
+- `Helpers::Logger#log` now passes `lex_segments:` array to `Legion::Logging::Logger` when the object responds to `:segments`
+- Falls back to `lex:` string for legacy flat extensions that do not implement `:segments`
+
 ## [1.4.53] - 2026-03-17
 
 ### Fixed
