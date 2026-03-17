@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.42] - 2026-03-17
+
+### Added
+- `POST /api/auth/token`: Entra ID token exchange endpoint (validates external JWT via JWKS, maps claims via EntraClaimsMapper, issues Legion token)
+
 ## [1.4.41] - 2026-03-17
 
 ### Added
