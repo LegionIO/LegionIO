@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.51] - 2026-03-17
+
+### Added
+- `Legion::TraceSearch`: natural language to safe JSON filter translation via legion-llm structured output
+- `legion trace search "query"`: CLI command for NL trace search
+- Column allowlist enforcement for query safety (no eval, JSON-only filter DSL)
+- Schema-aware prompt for metering_records table
+
 ## [1.4.50] - 2026-03-17
 
 ### Added
