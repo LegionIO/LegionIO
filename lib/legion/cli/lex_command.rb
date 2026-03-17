@@ -6,6 +6,13 @@ require 'legion/extensions/helpers/segments'
 module Legion
   module CLI
     class Lex < Thor
+      DEFAULT_CATEGORIES = {
+        core:    { type: :list, tier: 1 },
+        ai:      { type: :list, tier: 2 },
+        gaia:    { type: :list, tier: 3 },
+        agentic: { type: :prefix, tier: 4 }
+      }.freeze
+
       def self.exit_on_failure?
         true
       end
@@ -13,32 +20,21 @@ module Legion
       class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
       class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
 
-      desc 'list', 'List all installed extensions'
-      option :all, type: :boolean, default: false, aliases: ['-a'], desc: 'Include disabled extensions'
-      def list
-        out = formatter
+      desc 'list [CATEGORY]', 'List all installed extensions, optionally filtered by category'
+      option :all,  type: :boolean, default: false, aliases: ['-a'], desc: 'Include disabled extensions'
+      option :flat, type: :boolean, default: false, desc: 'Show all extensions in a flat list without category grouping'
+      def list(category = nil)
+        out  = formatter
         lexs = discover_all
 
-        rows = if options[:all]
-                 lexs
-               else
-                 lexs.reject { |l| l[:status] == 'disabled' }
-               end
+        rows = options[:all] ? lexs : lexs.reject { |l| l[:status] == 'disabled' }
+        rows = rows.select { |l| l[:category] == category } if category
 
-        table_rows = rows.map do |l|
-          [
-            l[:name],
-            l[:version],
-            out.status(l[:status]),
-            l[:runners].to_s,
-            l[:actors].to_s
-          ]
+        if options[:flat] || category
+          render_flat_table(out, rows)
+        else
+          render_grouped_table(out, rows)
         end
-
-        out.table(
-          %w[name version status runners actors],
-          table_rows
-        )
       end
       default_task :list
 
@@ -178,6 +174,25 @@ module Legion
           )
         end
 
+        def render_flat_table(out, rows)
+          table_rows = rows.map do |l|
+            [l[:name], l[:version], l[:category].to_s, l[:tier].to_s, out.status(l[:status]), l[:runners].to_s, l[:actors].to_s]
+          end
+          out.table(%w[name version category tier status runners actors], table_rows)
+        end
+
+        def render_grouped_table(out, rows)
+          grouped = rows.group_by { |l| [l[:tier], l[:category]] }
+          grouped.keys.sort_by { |tier, cat| [tier, cat.to_s] }.each do |key|
+            tier, cat = key
+            out.header("=== #{cat} (tier #{tier}) ===")
+            group_rows = grouped[key].map do |l|
+              [l[:name], l[:version], l[:category].to_s, l[:tier].to_s, out.status(l[:status]), l[:runners].to_s, l[:actors].to_s]
+            end
+            out.table(%w[name version category tier status runners actors], group_rows)
+          end
+        end
+
         def discover_all
           installed = Gem::Specification.select { |s| s.name.start_with?('lex-') }
 
@@ -189,19 +204,19 @@ module Legion
             ext_settings = {}
           end
 
+          categories = resolve_categories
+          cat_lists  = resolve_cat_lists
+
           result = installed.map do |spec|
             short_name = spec.name.sub('lex-', '')
             extension_class = Legion::Extensions::Helpers::Segments.derive_const_path(spec.name)
 
             setting = ext_settings[short_name.to_sym] || {}
-            status = if setting[:enabled] == false
-                       'disabled'
-                     else
-                       'installed'
-                     end
+            status  = setting[:enabled] == false ? 'disabled' : 'installed'
 
             runner_info = extract_runners(spec)
-            actor_info = extract_actors(spec)
+            actor_info  = extract_actors(spec)
+            cat_info    = Legion::Extensions::Helpers::Segments.categorize_gem(spec.name, categories: categories, lists: cat_lists)
 
             {
               name:            short_name,
@@ -211,10 +226,25 @@ module Legion
               extension_class: extension_class,
               runners:         runner_info,
               actors:          actor_info,
-              dependencies:    spec.runtime_dependencies.map(&:to_s)
+              dependencies:    spec.runtime_dependencies.map(&:to_s),
+              category:        cat_info[:category].to_s,
+              tier:            cat_info[:tier]
             }
           end
-          result.sort_by { |l| l[:name] }
+          result.sort_by { |l| [l[:tier], l[:name]] }
+        end
+
+        def resolve_categories
+          raw = Legion::Settings.dig(:extensions, :categories)
+          raw.nil? || raw.empty? ? DEFAULT_CATEGORIES : raw
+        end
+
+        def resolve_cat_lists
+          {
+            core: Array(Legion::Settings.dig(:extensions, :core)),
+            ai:   Array(Legion::Settings.dig(:extensions, :ai)),
+            gaia: Array(Legion::Settings.dig(:extensions, :gaia))
+          }
         end
 
         def find_lex(name)

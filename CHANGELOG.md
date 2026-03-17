@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.58] - 2026-03-17
+
+### Added
+- `legion lex list` now groups output by category (tier order) by default.
+- `legion lex list CATEGORY` filters the list to a specific category (e.g., `legion lex list agentic`).
+- `--flat` option to `legion lex list` restores the original flat table without grouping.
+- `category` and `tier` columns added to the extension table in all display modes.
+- `discover_all` now includes `:category` and `:tier` keys in each extension info hash,
+  derived via `Legion::Extensions::Helpers::Segments.categorize_gem`.
+- Results sorted by tier then name for deterministic ordering.
+
 ## [1.4.57] - 2026-03-17
 
 ### Added

@@ -63,6 +63,118 @@ RSpec.describe Legion::CLI::Lex do
       end
     end
   end
+
+  describe '#discover_all' do
+    let(:fake_spec) do
+      instance_double(
+        Gem::Specification,
+        name:                 'lex-node',
+        version:              Gem::Version.new('0.2.3'),
+        gem_dir:              '/fake/gem/dir',
+        runtime_dependencies: []
+      )
+    end
+
+    before do
+      allow(Gem::Specification).to receive(:select).and_return([fake_spec])
+      allow(Legion::CLI::Connection).to receive(:ensure_settings)
+      allow(Legion::Settings).to receive(:[]).with(:extensions).and_return({})
+      allow(Legion::Settings).to receive(:dig).and_return(nil)
+      allow(Dir).to receive(:exist?).with('/fake/gem/dir/lib/legion/extensions/node/runners').and_return(false)
+      allow(Dir).to receive(:exist?).with('/fake/gem/dir/lib/legion/extensions/node/actors').and_return(false)
+    end
+
+    it 'includes :category key in each extension info hash' do
+      lex = build_lex
+      results = lex.discover_all
+      expect(results.first).to have_key(:category)
+    end
+
+    it 'includes :tier key in each extension info hash' do
+      lex = build_lex
+      results = lex.discover_all
+      expect(results.first).to have_key(:tier)
+    end
+
+    it 'categorizes lex-node as core when core list contains it' do
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :categories).and_return(nil)
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :core).and_return(['lex-node'])
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :ai).and_return([])
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :gaia).and_return([])
+
+      lex = build_lex
+      results = lex.discover_all
+      expect(results.first[:category]).to eq('core')
+      expect(results.first[:tier]).to eq(1)
+    end
+
+    it 'uses :default category when gem is not in any list and has no matching prefix' do
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :categories).and_return(nil)
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :core).and_return([])
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :ai).and_return([])
+      allow(Legion::Settings).to receive(:dig).with(:extensions, :gaia).and_return([])
+
+      lex = build_lex
+      results = lex.discover_all
+      expect(results.first[:category]).to eq('default')
+    end
+  end
+
+  describe '#list' do
+    let(:fake_extensions) do
+      [
+        { name: 'node',        version: '0.2.3', status: 'installed', category: 'core',    tier: 1, runners: [], actors: [] },
+        { name: 'agentic-foo', version: '0.1.0', status: 'installed', category: 'agentic', tier: 4, runners: [], actors: [] },
+        { name: 'openai',      version: '0.1.0', status: 'installed', category: 'ai',      tier: 2, runners: [], actors: [] },
+        { name: 'custom-ext',  version: '0.1.0', status: 'installed', category: 'default', tier: 5, runners: [], actors: [] }
+      ]
+    end
+
+    before do
+      allow(out).to receive(:status).and_return('installed')
+      allow(out).to receive(:table)
+      allow(out).to receive(:header)
+      lex = build_lex
+      allow(lex).to receive(:discover_all).and_return(fake_extensions)
+      @lex = lex
+    end
+
+    it 'groups output by category when no args and no --flat' do
+      expect(out).to receive(:header).at_least(:once)
+      @lex.list
+    end
+
+    it 'renders a header for the default (tier 5) category in grouped mode' do
+      expect(out).to receive(:header).with(/default.*tier 5/i)
+      @lex.list
+    end
+
+    it 'filters to a specific category when argument is given' do
+      expect(out).to receive(:table) do |_headers, rows|
+        names = rows.map(&:first)
+        expect(names).to all(eq('agentic-foo'))
+      end
+      @lex.list('agentic')
+    end
+
+    it 'shows all extensions in a flat table when --flat is given' do
+      lex = build_lex(flat: true)
+      allow(lex).to receive(:discover_all).and_return(fake_extensions)
+      expect(out).to receive(:table) do |_headers, rows|
+        expect(rows.length).to eq(4)
+      end
+      lex.list
+    end
+
+    it 'includes category column in flat mode table headers' do
+      lex = build_lex(flat: true)
+      allow(lex).to receive(:discover_all).and_return(fake_extensions)
+      expect(out).to receive(:table) do |headers, _rows|
+        expect(headers).to include('category')
+      end
+      lex.list
+    end
+  end
 end
 
 RSpec.describe Legion::CLI::LexGenerator do
