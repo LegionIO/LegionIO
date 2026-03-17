@@ -12,8 +12,8 @@ RSpec.describe 'Workers Health API' do
   before(:all) { ApiSpecSetup.configure_settings }
 
   let(:worker_id) { 'w-health-123' }
-  let(:worker_model) { class_double('Legion::Data::Model::DigitalWorker') }
-  let(:node_model) { class_double('Legion::Data::Model::Node') }
+  let(:worker_model) { double('Legion::Data::Model::DigitalWorker') }
+  let(:node_model) { double('Legion::Data::Model::Node') }
   let(:worker) do
     double('worker',
            worker_id:         worker_id,

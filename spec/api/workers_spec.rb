@@ -35,7 +35,7 @@ RSpec.describe 'Workers API lifecycle' do
     end
 
     context 'when data is connected' do
-      let(:worker_model) { class_double('Legion::Data::Model::DigitalWorker') }
+      let(:worker_model) { double('Legion::Data::Model::DigitalWorker') }
 
       before do
         stub_const('Legion::Data::Model::DigitalWorker', worker_model)

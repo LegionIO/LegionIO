@@ -7,7 +7,7 @@ require 'legion/digital_worker/lifecycle'
 
 RSpec.describe Legion::CLI::Worker do
   let(:worker_id)    { 'abc-1234-5678' }
-  let(:worker_model) { class_double('Legion::Data::Model::DigitalWorker') }
+  let(:worker_model) { double('Legion::Data::Model::DigitalWorker') }
   let(:worker)       { double('worker', worker_id: worker_id, name: 'TestBot', lifecycle_state: 'active') }
   let(:out)          { instance_double(Legion::CLI::Output::Formatter) }
 
