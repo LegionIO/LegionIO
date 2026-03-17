@@ -23,6 +23,54 @@ module Legion
         Legion::Logging.debug "Audit publish failed: #{e.message}" if defined?(Legion::Logging)
       end
 
+      def recent_for(principal_id:, window: 3600, event_type: nil, status: nil)
+        return [] unless defined?(Legion::Data::Model::AuditLog)
+
+        ds = Legion::Data::Model::AuditLog
+             .where(principal_id: principal_id)
+             .where { created_at >= Time.now.utc - window }
+        ds = ds.where(event_type: event_type) unless event_type.nil?
+        ds = ds.where(status: status) unless status.nil?
+        ds.all
+      end
+
+      def count_for(principal_id:, window: 3600, event_type: nil, status: nil)
+        return 0 unless defined?(Legion::Data::Model::AuditLog)
+
+        ds = Legion::Data::Model::AuditLog
+             .where(principal_id: principal_id)
+             .where { created_at >= Time.now.utc - window }
+        ds = ds.where(event_type: event_type) unless event_type.nil?
+        ds = ds.where(status: status) unless status.nil?
+        ds.count
+      end
+
+      def failure_count_for(principal_id:, window: 3600)
+        count_for(principal_id: principal_id, window: window, status: 'failure')
+      end
+
+      def success_count_for(principal_id:, window: 3600)
+        count_for(principal_id: principal_id, window: window, status: 'success')
+      end
+
+      def resources_for(principal_id:, window: 3600)
+        return [] unless defined?(Legion::Data::Model::AuditLog)
+
+        Legion::Data::Model::AuditLog
+          .where(principal_id: principal_id)
+          .where { created_at >= Time.now.utc - window }
+          .select_map(:resource)
+          .uniq
+      end
+
+      def recent(limit: 50, **filters)
+        return [] unless defined?(Legion::Data::Model::AuditLog)
+
+        ds = Legion::Data::Model::AuditLog.order(Sequel.desc(:created_at)).limit(limit)
+        filters.each { |col, val| ds = ds.where(col => val) }
+        ds.all
+      end
+
       private
 
       def transport_available?

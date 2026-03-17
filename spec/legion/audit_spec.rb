@@ -86,4 +86,99 @@ RSpec.describe Legion::Audit do
       end
     end
   end
+
+  describe '.recent_for' do
+    context 'when Legion::Data::Model::AuditLog is not defined' do
+      it 'returns an empty array' do
+        expect(described_class.recent_for(principal_id: 'w-1')).to eq([])
+      end
+    end
+
+    context 'when Legion::Data::Model::AuditLog is defined' do
+      let(:model_double) { class_double('Legion::Data::Model::AuditLog') }
+      let(:dataset) { instance_double('Sequel::Dataset') }
+
+      before do
+        stub_const('Legion::Data::Model::AuditLog', model_double)
+        allow(model_double).to receive(:where).and_return(dataset)
+        allow(dataset).to receive(:where).and_return(dataset)
+        allow(dataset).to receive(:all).and_return([double('row')])
+      end
+
+      it 'delegates to the model with principal_id filter' do
+        result = described_class.recent_for(principal_id: 'w-1', window: 60)
+        expect(result).not_to be_empty
+      end
+
+      it 'applies event_type filter when given' do
+        described_class.recent_for(principal_id: 'w-1', event_type: 'runner_execution')
+        expect(dataset).to have_received(:where).with(event_type: 'runner_execution')
+      end
+
+      it 'applies status filter when given' do
+        described_class.recent_for(principal_id: 'w-1', status: 'failure')
+        expect(dataset).to have_received(:where).with(status: 'failure')
+      end
+    end
+  end
+
+  describe '.count_for' do
+    context 'when Legion::Data::Model::AuditLog is not defined' do
+      it 'returns 0' do
+        expect(described_class.count_for(principal_id: 'w-1')).to eq(0)
+      end
+    end
+
+    context 'when Legion::Data::Model::AuditLog is defined' do
+      let(:model_double) { class_double('Legion::Data::Model::AuditLog') }
+      let(:dataset) { instance_double('Sequel::Dataset') }
+
+      before do
+        stub_const('Legion::Data::Model::AuditLog', model_double)
+        allow(model_double).to receive(:where).and_return(dataset)
+        allow(dataset).to receive(:where).and_return(dataset)
+        allow(dataset).to receive(:count).and_return(7)
+      end
+
+      it 'returns the model count' do
+        expect(described_class.count_for(principal_id: 'w-1')).to eq(7)
+      end
+    end
+  end
+
+  describe '.failure_count_for' do
+    it 'delegates to count_for with status: failure' do
+      allow(described_class).to receive(:count_for).and_return(3)
+      described_class.failure_count_for(principal_id: 'w-1')
+      expect(described_class).to have_received(:count_for).with(
+        principal_id: 'w-1', window: 3600, status: 'failure'
+      )
+    end
+  end
+
+  describe '.success_count_for' do
+    it 'delegates to count_for with status: success' do
+      allow(described_class).to receive(:count_for).and_return(5)
+      described_class.success_count_for(principal_id: 'w-1')
+      expect(described_class).to have_received(:count_for).with(
+        principal_id: 'w-1', window: 3600, status: 'success'
+      )
+    end
+  end
+
+  describe '.resources_for' do
+    context 'when Legion::Data::Model::AuditLog is not defined' do
+      it 'returns an empty array' do
+        expect(described_class.resources_for(principal_id: 'w-1')).to eq([])
+      end
+    end
+  end
+
+  describe '.recent' do
+    context 'when Legion::Data::Model::AuditLog is not defined' do
+      it 'returns an empty array' do
+        expect(described_class.recent).to eq([])
+      end
+    end
+  end
 end

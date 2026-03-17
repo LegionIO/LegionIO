@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.24] - 2026-03-16
+
+### Added
+- `Legion::Audit.recent_for` — query audit records by principal and time window
+- `Legion::Audit.count_for` — count audit records by principal and time window
+- `Legion::Audit.failure_count_for` / `success_count_for` — convenience wrappers
+- `Legion::Audit.resources_for` — distinct resources invoked by a principal
+- `Legion::Audit.recent` — most recent N records with optional filters
+- All query methods return safe defaults (`[]` or `0`) when legion-data is unavailable
+
 ## [1.4.23] - 2026-03-16
 
 ### Added
