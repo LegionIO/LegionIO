@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.35] - 2026-03-17
+
+### Added
+- `Chat::Team`: multi-user context tracking with thread-local user, env detection
+- `Chat::ProgressBar`: progress indicator for long-running operations with ETA
+- `legion notebook read/export`: Jupyter notebook reading and export (markdown/script)
+
 ## [1.4.34] - 2026-03-17
 
 ### Added

@@ -40,6 +40,7 @@ module Legion
     autoload :Skill,      'legion/cli/skill_command'
     autoload :Cost,        'legion/cli/cost_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
+    autoload :Notebook,    'legion/cli/notebook_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -222,6 +223,9 @@ module Legion
 
       desc 'marketplace', 'Extension marketplace (search, info, scan)'
       subcommand 'marketplace', Legion::CLI::Marketplace
+
+      desc 'notebook', 'Read and export Jupyter notebooks'
+      subcommand 'notebook', Legion::CLI::Notebook
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
