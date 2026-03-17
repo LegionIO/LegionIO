@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.36] - 2026-03-17
+
+### Added
+- `Audit::HashChain`: SHA-256 hash chain for tamper-evident audit records
+- `Audit::SiemExport`: SIEM-compatible JSON and NDJSON export with integrity metadata
+- `Audit::HashChain.verify_chain` validates hash chain between records
+
 ## [1.4.35] - 2026-03-17
 
 ### Added
