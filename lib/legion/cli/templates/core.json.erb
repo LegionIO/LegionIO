@@ -1,0 +1,14 @@
+{
+  "transport": {
+    "type": "<%= options[:local] ? 'local' : 'amqp' %>",
+    "host": "<%= options[:rabbitmq_host] || 'localhost' %>",
+    "port": 5672
+  },
+  "data": {
+    "adapter": "<%= options[:local] ? 'sqlite' : (options[:db_adapter] || 'sqlite') %>",
+    "database": "<%= options[:local] ? '~/.legionio/dev.sqlite3' : (options[:db_name] || '~/.legionio/legion.sqlite3') %>"
+  },
+  "cache": {
+    "type": "<%= options[:local] ? 'local' : (options[:redis] ? 'redis' : 'local') %>"
+  }
+}

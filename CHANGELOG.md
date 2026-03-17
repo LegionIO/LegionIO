@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.29] - 2026-03-16
+
+### Added
+- `legion init`: one-command workspace setup with environment detection
+- `InitHelpers::EnvironmentDetector`: checks for RabbitMQ, database, Vault, Redis, git, existing config
+- `InitHelpers::ConfigGenerator`: ERB template-based config generation, `.legion/` workspace scaffolding
+- `--local` flag for zero-dependency development mode
+- `--force` flag to overwrite existing config files
+
 ## [1.4.28] - 2026-03-16
 
 ### Added
