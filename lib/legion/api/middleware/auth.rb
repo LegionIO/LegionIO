@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Middleware
       class Auth
-        SKIP_PATHS      = %w[/api/health /api/ready /api/openapi.json /metrics].freeze
+        SKIP_PATHS      = %w[/api/health /api/ready /api/openapi.json /metrics /api/auth/token /api/auth/worker-token].freeze
         AUTH_HEADER     = 'HTTP_AUTHORIZATION'
         BEARER_PATTERN  = /\ABearer\s+(.+)\z/i
         API_KEY_HEADER  = 'HTTP_X_API_KEY'

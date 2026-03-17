@@ -37,6 +37,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/schedule_command.rb'
     - 'lib/legion/cli/update_command.rb'
     - 'lib/legion/api/auth.rb'
+    - 'lib/legion/api/auth_worker.rb'
 
 Metrics/AbcSize:
   Max: 60

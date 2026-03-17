@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.44] - 2026-03-17
+
+### Added
+- `POST /api/auth/worker-token`: Entra client credentials token exchange endpoint (validates client_credentials grant via JWKS, looks up worker by appid, issues scoped Legion worker JWT)
+- Auth middleware SKIP_PATHS now includes `/api/auth/token` and `/api/auth/worker-token`
+
 ## [1.4.43] - 2026-03-17
 
 ### Fixed
