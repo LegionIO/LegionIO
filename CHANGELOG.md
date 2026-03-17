@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.43] - 2026-03-17
+
+### Fixed
+- Auth token exchange route used `Legion::Settings.dig` which doesn't exist — replaced with bracket access
+- Auth spec required `legion/rbac` gem directly — replaced with inline stub for standalone test execution
+
 ## [1.4.42] - 2026-03-17
 
 ### Added

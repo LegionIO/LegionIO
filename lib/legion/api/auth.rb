@@ -26,7 +26,7 @@ module Legion
                                    status_code: 501)
             end
 
-            rbac_settings = Legion::Settings.dig(:rbac, :entra) || {}
+            rbac_settings = (Legion::Settings[:rbac].is_a?(Hash) && Legion::Settings[:rbac][:entra]) || {}
             tenant_id = rbac_settings[:tenant_id]
             halt 500, json_error('entra_tenant_not_configured', 'rbac.entra.tenant_id not set', status_code: 500) unless tenant_id
 

@@ -1,8 +1,34 @@
 # frozen_string_literal: true
 
 require_relative 'api_spec_helper'
-require 'legion/rbac'
 require 'legion/api/token'
+
+# Stub Legion::Rbac::EntraClaimsMapper if legion-rbac is not installed
+unless defined?(Legion::Rbac::EntraClaimsMapper)
+  module Legion
+    module Rbac
+      module EntraClaimsMapper
+        DEFAULT_ROLE_MAP = {
+          'Legion.Admin'      => 'admin',
+          'Legion.Supervisor' => 'supervisor',
+          'Legion.Worker'     => 'worker',
+          'Legion.Observer'   => 'governance-observer'
+        }.freeze
+
+        module_function
+
+        def map_claims(entra_claims, role_map: DEFAULT_ROLE_MAP, group_map: {}, default_role: 'worker') # rubocop:disable Lint/UnusedMethodArgument
+          roles = []
+          Array(entra_claims[:roles]).each do |r|
+            roles << role_map[r] if role_map[r]
+          end
+          roles << default_role if roles.empty?
+          { sub: entra_claims[:oid], name: entra_claims[:name], roles: roles, team: entra_claims[:tid], scope: 'human' }
+        end
+      end
+    end
+  end
+end
 
 RSpec.describe 'Auth API' do
   include Rack::Test::Methods
@@ -35,8 +61,9 @@ RSpec.describe 'Auth API' do
   end
 
   before do
-    allow(Legion::Settings).to receive(:dig).and_call_original
-    allow(Legion::Settings).to receive(:dig).with(:rbac, :entra).and_return(rbac_entra_settings)
+    allow(Legion::Settings).to receive(:[]).and_call_original
+    rbac_hash = { entra: rbac_entra_settings }
+    allow(Legion::Settings).to receive(:[]).with(:rbac).and_return(rbac_hash)
   end
 
   describe 'POST /api/auth/token' do
