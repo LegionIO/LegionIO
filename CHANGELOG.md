@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.23] - 2026-03-16
+
+### Added
+- `Middleware::BodyLimit`: request body size limit (1MB max, returns 413)
+- `API::Validators` helper module: `validate_required!`, `validate_string_length!`, `validate_enum!`, `validate_uuid!`, `validate_integer!`
+- Ingress payload validation: 512KB size limit, runner_class/function format checks
+
+### Security
+- Ingress validates runner_class format before `Kernel.const_get` to prevent arbitrary constant resolution
+- Ingress validates function format before `.send` to prevent method injection
+
 ## [1.4.22] - 2026-03-16
 
 ### Added

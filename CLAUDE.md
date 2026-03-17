@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.22
+**Version**: 1.4.23
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -472,6 +472,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/alerts.rb` | Configurable alerting rules engine: pattern matching, count conditions, cooldown dedup |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
 | `lib/legion/api/middleware/api_version.rb` | ApiVersion: rewrites `/api/v1/` to `/api/`, adds Deprecation/Sunset headers on unversioned paths |
+| `lib/legion/api/middleware/body_limit.rb` | BodyLimit: request body size limit (1MB max, returns 413) |
 | `lib/legion/api/middleware/rate_limit.rb` | RateLimit: sliding-window rate limiting with per-IP/agent/tenant tiers |
 | **MCP** | |
 | `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory |
@@ -570,7 +571,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 926 examples, 0 failures
+bundle exec rspec       # 939 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

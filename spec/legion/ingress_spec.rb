@@ -16,7 +16,7 @@ unless defined?(Legion::DigitalWorker::Registry)
 end
 
 RSpec.describe Legion::Ingress do
-  let(:runner_class) { double('RunnerClass') }
+  let(:runner_class) { 'Legion::Test::Runners::Example' }
   let(:function) { :do_work }
 
   before do
@@ -116,6 +116,32 @@ RSpec.describe Legion::Ingress do
           payload: { worker_id: 'dw-123', required_consent: 'autonomous' },
           runner_class: runner_class, function: function
         )
+      end
+    end
+
+    context 'input validation' do
+      it 'rejects invalid runner_class format' do
+        result = described_class.run(
+          payload: {}, runner_class: '../../../etc/passwd', function: 'read', source: 'test'
+        )
+        expect(result[:success]).to be false
+        expect(result[:error][:code]).to eq('invalid_runner_class')
+      end
+
+      it 'rejects invalid function format' do
+        result = described_class.run(
+          payload: {}, runner_class: 'Legion::Test::Runner',
+          function: 'system("rm -rf /")', source: 'test'
+        )
+        expect(result[:success]).to be false
+        expect(result[:error][:code]).to eq('invalid_function')
+      end
+
+      it 'accepts valid runner_class and function formats' do
+        result = described_class.run(
+          payload: {}, runner_class: 'Legion::Test::Runner', function: 'do_thing', source: 'test'
+        )
+        expect(result[:error]).to be_nil
       end
     end
   end

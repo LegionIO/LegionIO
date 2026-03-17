@@ -6,8 +6,10 @@ require_relative 'events'
 require_relative 'readiness'
 
 require_relative 'api/middleware/auth'
+require_relative 'api/middleware/body_limit'
 require_relative 'api/middleware/rate_limit'
 require_relative 'api/helpers'
+require_relative 'api/validators'
 require_relative 'api/tasks'
 require_relative 'api/extensions'
 require_relative 'api/nodes'
@@ -29,6 +31,7 @@ require_relative 'api/audit'
 module Legion
   class API < Sinatra::Base
     helpers Legion::API::Helpers
+    helpers Legion::API::Validators
 
     set :show_exceptions, false
     set :raise_errors, false
