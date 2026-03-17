@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.52] - 2026-03-17
+
+### Added
+- `legion dashboard`: TUI operational dashboard with auto-refresh polling
+- `Dashboard::DataFetcher`: polls REST API for workers, health, and recent events
+- `Dashboard::Renderer`: terminal-based dashboard rendering with sections for workers, events, health
+- Configurable API URL (`--url`) and refresh interval (`--refresh`)
+
 ## [1.4.51] - 2026-03-17
 
 ### Added
