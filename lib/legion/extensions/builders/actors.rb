@@ -21,6 +21,10 @@ module Legion
           actor_files.each do |file|
             actor_name = file.split('/').last.sub('.rb', '')
             actor_class = "#{lex_class}::Actor::#{actor_name.split('_').collect(&:capitalize).join}"
+            unless Kernel.const_defined?(actor_class)
+              Legion::Logging.warn "Actor constant #{actor_class} not defined, skipping"
+              next
+            end
             @actors[actor_name.to_sym] = {
               extension:      lex_class.to_s.downcase,
               extension_name: extension_name,

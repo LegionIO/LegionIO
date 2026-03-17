@@ -92,13 +92,19 @@ module Legion
           require "#{extension_path}/transport/autobuild"
           extension_class::Transport::AutoBuild.build
           log.warn 'still using transport::autobuild, please upgrade'
-        elsif File.exist? "#{extension_path}/transport.rb"
+          return
+        end
+
+        if File.exist? "#{extension_path}/transport.rb"
           require "#{extension_path}/transport"
-          extension_class::Transport.build
+          unless extension_class::Transport.respond_to?(:build)
+            log.warn "#{extension_class}::Transport does not respond to build, auto-generating"
+            auto_generate_transport
+          end
         else
           auto_generate_transport
-          extension_class::Transport.build
         end
+        extension_class::Transport.build
       end
 
       def build_settings

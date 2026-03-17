@@ -1,5 +1,21 @@
 # Legion Changelog
 
+## [1.4.47] - 2026-03-17
+
+### Fixed
+- `gem_load` rescue block referenced undefined `gem_path` variable, causing secondary NameError that masked original LoadError
+- `meta_actors` type guard checked `is_a?(Array)` but called `each_value` (Hash method), so meta actors were never hooked
+- `build_actor_list` crashed entire extension load when actor file didn't define expected constant (now skips gracefully)
+- `build_transport` raised NoMethodError on extensions with custom Transport modules missing `build` (now falls back to auto-generate)
+
+## [1.4.46] - 2026-03-17
+
+### Added
+- `Legion::Telemetry.configure_exporter`: OTLP and console span exporters
+- OTLP exporter uses BatchSpanProcessor for production performance
+- Settings: `telemetry.tracing.exporter`, `endpoint`, `headers`, `batch_size`
+- Graceful fallback when opentelemetry-exporter-otlp gem absent
+
 ## [1.4.45] - 2026-03-17
 
 ### Added

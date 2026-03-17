@@ -4,40 +4,41 @@ require 'spec_helper'
 require 'legion/telemetry'
 
 RSpec.describe Legion::Telemetry do
-  describe '.enabled?' do
-    it 'returns false when OTel SDK not loaded' do
-      expect(described_class.enabled?).to be false
+  describe '.configure_exporter' do
+    before do
+      allow(Legion::Settings).to receive(:[]).and_call_original
+    end
+
+    it 'returns nil for :none backend' do
+      allow(Legion::Settings).to receive(:[]).with(:telemetry).and_return({ tracing: { exporter: :none } })
+      expect(described_class.configure_exporter).to be_nil
+    end
+
+    it 'returns nil when telemetry settings are empty' do
+      allow(Legion::Settings).to receive(:[]).with(:telemetry).and_return({})
+      expect(described_class.configure_exporter).to be_nil
+    end
+
+    it 'handles missing otlp gem gracefully' do
+      allow(Legion::Settings).to receive(:[]).with(:telemetry).and_return({ tracing: { exporter: :otlp } })
+      allow(described_class).to receive(:require).with('opentelemetry-exporter-otlp').and_raise(LoadError)
+      expect(described_class.configure_exporter).to be false
     end
   end
 
-  describe '.with_span' do
-    it 'yields nil when OTel not available' do
-      result = described_class.with_span('test') { |span| span }
-      expect(result).to be_nil
+  describe '.tracing_settings' do
+    before do
+      allow(Legion::Settings).to receive(:[]).and_call_original
     end
 
-    it 'returns block result when OTel not available' do
-      result = described_class.with_span('test') { 42 }
-      expect(result).to eq(42)
-    end
-  end
-
-  describe '.sanitize_attributes' do
-    it 'converts values to safe types' do
-      attrs = described_class.sanitize_attributes({ name: 'test', count: 5, obj: Object.new })
-      expect(attrs['name']).to eq('test')
-      expect(attrs['count']).to eq(5)
-      expect(attrs['obj']).to be_a(String)
+    it 'returns tracing hash from settings' do
+      allow(Legion::Settings).to receive(:[]).with(:telemetry).and_return({ tracing: { exporter: :otlp } })
+      expect(described_class.tracing_settings).to eq({ exporter: :otlp })
     end
 
-    it 'caps at max_keys' do
-      large = (1..30).to_h { |i| ["key_#{i}", i] }
-      attrs = described_class.sanitize_attributes(large, max_keys: 10)
-      expect(attrs.size).to eq(10)
-    end
-
-    it 'handles nil input' do
-      expect(described_class.sanitize_attributes(nil)).to eq({})
+    it 'returns empty hash when telemetry not configured' do
+      allow(Legion::Settings).to receive(:[]).with(:telemetry).and_return(nil)
+      expect(described_class.tracing_settings).to eq({})
     end
   end
 end

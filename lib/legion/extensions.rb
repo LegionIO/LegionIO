@@ -108,7 +108,7 @@ module Legion
         require 'legion/transport/messages/lex_register'
         Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners).publish
 
-        if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Array)
+        if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Hash)
           extension.meta_actors.each_value do |actor|
             extension.log.debug("hooking meta actor: #{actor}") if has_logger
             hook_actor(**actor)
@@ -199,12 +199,13 @@ module Legion
       end
 
       def gem_load(gem_name, name)
-        require "#{Gem::Specification.find_by_name(gem_name).gem_dir}/lib/legion/extensions/#{name}"
+        gem_dir = Gem::Specification.find_by_name(gem_name).gem_dir
+        require "#{gem_dir}/lib/legion/extensions/#{name}"
         true
       rescue LoadError => e
         Legion::Logging.error e.message
         Legion::Logging.error e.backtrace
-        Legion::Logging.error "gem_path: #{gem_path}" unless gem_path.nil?
+        Legion::Logging.error "gem_path: #{gem_dir}" if defined?(gem_dir) && gem_dir
         false
       end
 

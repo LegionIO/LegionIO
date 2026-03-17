@@ -56,8 +56,65 @@ module Legion
       {}
     end
 
+    def configure_exporter
+      backend = tracing_settings[:exporter]&.to_sym || :none
+
+      case backend
+      when :otlp
+        configure_otlp
+      when :console
+        configure_console
+      end
+    end
+
+    def tracing_settings
+      telemetry = Legion::Settings[:telemetry]
+      return {} unless telemetry.is_a?(Hash)
+
+      tracing = telemetry[:tracing]
+      tracing.is_a?(Hash) ? tracing : {}
+    rescue StandardError
+      {}
+    end
+
     def otel_init_error?(error)
       error.message.include?('OpenTelemetry') || error.message.include?('tracer')
+    rescue StandardError
+      false
+    end
+
+    def configure_otlp
+      require 'opentelemetry-exporter-otlp'
+
+      endpoint = tracing_settings[:endpoint] || 'http://localhost:4318/v1/traces'
+      headers = tracing_settings[:headers] || {}
+
+      exporter = OpenTelemetry::Exporter::OTLP::Exporter.new(
+        endpoint: endpoint,
+        headers:  headers
+      )
+
+      processor = OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
+        exporter,
+        max_queue_size:        2048,
+        max_export_batch_size: tracing_settings[:batch_size] || 512
+      )
+
+      OpenTelemetry.tracer_provider.add_span_processor(processor)
+      Legion::Logging.info "OTLP exporter configured: #{endpoint}"
+      true
+    rescue LoadError
+      Legion::Logging.warn 'opentelemetry-exporter-otlp gem not available'
+      false
+    end
+
+    def configure_console
+      return false unless defined?(OpenTelemetry::SDK::Trace::Export::ConsoleSpanExporter)
+
+      exporter = OpenTelemetry::SDK::Trace::Export::ConsoleSpanExporter.new
+      processor = OpenTelemetry::SDK::Trace::Export::SimpleSpanProcessor.new(exporter)
+      OpenTelemetry.tracer_provider.add_span_processor(processor)
+      true
     rescue StandardError
       false
     end
