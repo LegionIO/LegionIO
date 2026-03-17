@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.40] - 2026-03-17
+
+### Added
+- `Legion::Guardrails`: embedding similarity and RAG relevancy safety checks
+- `Legion::Context`: session/user tracking with thread-local `SessionContext`
+- `Legion::Catalog`: AI catalog registration for MCP tools and workers
+
 ## [1.4.39] - 2026-03-17
 
 ### Added
