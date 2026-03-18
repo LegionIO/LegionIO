@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.65] - 2026-03-18
+
+### Fixed
+- Remove local path references from Gemfile (40 sibling repo paths)
+
 ## [1.4.64] - 2026-03-18
 
 ### Fixed
