@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.64] - 2026-03-18
+
+### Fixed
+- Remove legacy `exe/legion-tty` from legionio gem (conflicts with legion-tty gem executable)
+- Explicitly list executables as `legion` and `legionio` in gemspec instead of glob pattern
+
 ## [1.4.63] - 2026-03-18
 
 ### Added

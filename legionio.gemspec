@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   end
 
   spec.bindir        = 'exe'
-  spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
+  spec.executables   = %w[legion legionio]
 
   spec.add_dependency 'mcp', '~> 0.8'
 
