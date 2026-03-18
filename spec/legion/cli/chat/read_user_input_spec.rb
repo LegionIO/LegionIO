@@ -18,9 +18,9 @@ RSpec.describe 'Legion::CLI::Chat#read_user_input' do
       expect(chat.read_user_input).to be_nil
     end
 
-    it 'returns nil for blank input' do
+    it 'returns empty string for blank input' do
       allow(Reline).to receive(:readline).and_return('   ')
-      expect(chat.read_user_input).to be_nil
+      expect(chat.read_user_input).to eq('')
     end
 
     it 'joins continuation lines separated by trailing backslash' do

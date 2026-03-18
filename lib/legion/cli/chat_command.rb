@@ -335,7 +335,7 @@ module Legion
           end
 
           result = lines.join("\n")
-          result.strip.empty? ? nil : result
+          result.strip.empty? ? '' : result
         rescue Interrupt
           raise if first_line
 

@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.60] - 2026-03-18
+
+### Fixed
+- Empty Enter in chat REPL no longer exits the session; returns empty string instead of nil to disambiguate from Ctrl+D (EOF)
+
 ## [1.4.59] - 2026-03-17
 
 ### Added
