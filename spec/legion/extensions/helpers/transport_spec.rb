@@ -3,6 +3,17 @@
 require 'spec_helper'
 
 RSpec.describe Legion::Extensions::Helpers::Transport do
+  before(:all) do
+    unless Legion::Extensions.const_defined?('Agentic', false)
+      agentic = Module.new
+      cognitive = Module.new
+      anchor = Module.new
+      cognitive.const_set('Anchor', anchor)
+      agentic.const_set('Cognitive', cognitive)
+      Legion::Extensions.const_set('Agentic', agentic)
+    end
+  end
+
   let(:mock_extension) do
     Module.new do
       extend Legion::Extensions::Helpers::Transport
@@ -67,6 +78,10 @@ RSpec.describe Legion::Extensions::Helpers::Transport do
   end
 
   context 'with a flat extension (single segment)' do
+    before(:all) do
+      Legion::Extensions.const_set('Node', Module.new) unless Legion::Extensions.const_defined?('Node', false)
+    end
+
     describe '#amqp_prefix' do
       it 'returns legion.node for a flat extension' do
         expect(flat_extension.amqp_prefix).to eq('legion.node')
