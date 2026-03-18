@@ -7,8 +7,11 @@ module Legion
         def log
           return @log unless @log.nil?
 
-          logger_hash = { lex: lex_filename || nil }
-          logger_hash[:lex] = lex_filename.first if logger_hash[:lex].is_a? Array
+          logger_hash = if respond_to?(:segments)
+                          { lex_segments: Array(segments) }
+                        else
+                          { lex: lex_filename.is_a?(Array) ? lex_filename.first : lex_filename }
+                        end
           if respond_to?(:settings) && settings.key?(:logger)
             logger_hash[:level] = settings[:logger].key?(:level) ? settings[:logger][:level] : 'info'
             logger_hash[:log_file] = settings[:logger][:log_file] if settings[:logger].key? :log_file

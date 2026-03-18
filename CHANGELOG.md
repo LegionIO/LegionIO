@@ -1,5 +1,51 @@
 # Legion Changelog
 
+## [1.4.58] - 2026-03-17
+
+### Added
+- `legion lex list` now groups output by category (tier order) by default.
+- `legion lex list CATEGORY` filters the list to a specific category (e.g., `legion lex list agentic`).
+- `--flat` option to `legion lex list` restores the original flat table without grouping.
+- `category` and `tier` columns added to the extension table in all display modes.
+- `discover_all` now includes `:category` and `:tier` keys in each extension info hash,
+  derived via `Legion::Extensions::Helpers::Segments.categorize_gem`.
+- Results sorted by tier then name for deterministic ordering.
+
+## [1.4.57] - 2026-03-17
+
+### Added
+- `--category` option to `legion lex create`: generates categorized extension gems with nested module
+  declarations, nested directory structure, and correct `VERSION` constant paths.
+  Example: `legion lex create cognitive-anchor --category agentic` produces gem `lex-agentic-cognitive-anchor`
+  with module `Legion::Extensions::Agentic::Cognitive::Anchor`.
+- `LexGenerator` now accepts `gem_name:` keyword argument and uses `Legion::Extensions::Helpers::Segments`
+  to derive all namespace, const, and require-path values for both flat and nested extensions.
+- `legion lex create` emits a warning via `Legion::Extensions.check_reserved_words` when reserved
+  category prefixes or framework words are used in the gem name.
+
+## [1.4.56] - 2026-03-17
+
+### Fixed
+- `lex_class` now returns the full extension module constant by walking the namespace up to the first `NAMESPACE_BOUNDARIES` word, instead of always stopping at index 2. For nested extensions (`Legion::Extensions::Agentic::Cognitive::Anchor`), this returns `Legion::Extensions::Agentic::Cognitive::Anchor` rather than the incorrect `Legion::Extensions::Agentic`.
+- `lex_const` now derives from `lex_class.to_s.split('::').last` so it returns the extension's root constant name (`Anchor`) rather than always returning the third element of the namespace array.
+- `full_path` now builds the gem name from dash-joined segments (`lex-agentic-cognitive-anchor`) instead of underscore-joined `lex_name`, so `Gem::Specification.find_by_name` works for nested extensions.
+
+## [1.4.55] - 2026-03-17
+
+### Changed
+- `build_default_exchange` now sets `exchange_name` on dynamically created exchange classes to return `amqp_prefix` (dot-joined segments with `legion.` prefix) instead of defaulting to the parent class behavior
+- `auto_create_exchange` now derives `exchange_name` from `amqp_prefix` + the exchange's own downcased class name, replacing the index-based `split('::')[5].downcase` extraction that broke for nested extension namespaces
+### Fixed
+- `legion config scaffold` now writes to `~/.legionio/settings/` by default instead of `./settings/`
+- Removed Thor `default: './settings'` that shadowed the Ruby fallback in `ConfigScaffold.run`
+- Added `~/.legionio/settings` to `legion config path` search paths to match `Service#default_paths`
+
+## [1.4.54] - 2026-03-17
+
+### Changed
+- `Helpers::Logger#log` now passes `lex_segments:` array to `Legion::Logging::Logger` when the object responds to `:segments`
+- Falls back to `lex:` string for legacy flat extensions that do not implement `:segments`
+
 ## [1.4.53] - 2026-03-17
 
 ### Fixed

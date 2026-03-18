@@ -5,6 +5,7 @@ require_relative 'builders/helpers'
 require_relative 'builders/hooks'
 require_relative 'builders/runners'
 
+require_relative 'helpers/segments'
 require_relative 'helpers/core'
 require_relative 'helpers/task'
 require_relative 'helpers/logger'
