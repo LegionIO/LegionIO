@@ -142,12 +142,11 @@ module Legion
         def handle_negotiate_response(response)
           if response.code.to_i == 200
             body = ::JSON.parse(response.body) rescue {} # rubocop:disable Style/RescueModifier
-            token_val = body.is_a?(Hash) ? (body['token'] || body.dig('data', 'token')) : nil
+            data = body.is_a?(Hash) ? (body['data'] || body) : {}
+            token_val = data['token']
             if token_val
               save_credentials(token_val)
-              roles = body['roles'] || body.dig('data', 'roles') || []
-              say "  Roles: #{Array(roles).join(', ')}", :green
-              say '  Token saved to ~/.legionio/credentials', :green
+              display_negotiate_identity(data)
               say 'Login successful (kerberos)', :green
             else
               say 'Authentication succeeded but no token in response', :yellow
@@ -156,6 +155,14 @@ module Legion
             say "Authentication failed: HTTP #{response.code}", :red
             say response.body.to_s, :red
           end
+        end
+
+        def display_negotiate_identity(data)
+          name = data['display_name'] || [data['first_name'], data['last_name']].compact.join(' ')
+          say "  Name: #{name}", :green unless name.empty?
+          say "  Email: #{data['email']}", :green if data['email']
+          say "  Roles: #{Array(data['roles']).join(', ')}", :green
+          say '  Token saved to ~/.legionio/credentials', :green
         end
 
         def save_credentials(token_val)

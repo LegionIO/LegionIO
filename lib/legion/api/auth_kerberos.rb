@@ -47,15 +47,18 @@ module Legion
             end
 
             role_map = Routes::AuthKerberos.resolve_kerberos_role_map
+            profile = auth_result.slice(:first_name, :last_name, :email, :display_name)
             mapped = Legion::Rbac::KerberosClaimsMapper.map_with_fallback(
               principal: auth_result[:principal],
               groups:    auth_result[:groups] || [],
-              role_map:  role_map
+              role_map:  role_map,
+              **profile
             )
 
+            display = mapped[:display_name] || mapped[:first_name]
             ttl = 28_800
             legion_token = Legion::API::Token.issue_human_token(
-              msid: mapped[:sub], name: mapped[:name], roles: mapped[:roles], ttl: ttl
+              msid: mapped[:sub], name: display, roles: mapped[:roles], ttl: ttl
             )
 
             output_token = auth_result[:output_token]
@@ -65,7 +68,8 @@ module Legion
                             token:       legion_token,
                             principal:   auth_result[:principal],
                             roles:       mapped[:roles],
-                            auth_method: 'kerberos'
+                            auth_method: 'kerberos',
+                            **profile
                           })
           end
         end

@@ -101,6 +101,8 @@ module Legion
             require_path = Helpers::Segments.derive_require_path(gem_name)
             "#{gem_dir}/lib/#{require_path}"
           end
+        rescue Gem::MissingSpecError => e
+          Legion::Logging.error "#{e.class} => #{e.message}"
         end
         alias extension_path full_path
 
