@@ -177,6 +177,162 @@ RSpec.describe Legion::API::Middleware::Auth do
     end
   end
 
+  describe 'Negotiate/SPNEGO (Kerberos)' do
+    subject(:middleware) { build_middleware(enabled: true, signing_key: signing_key) }
+
+    let(:kerberos_claims) { { sub: 'kuser@REALM.EXAMPLE.COM', scope: 'kerberos' } }
+    let(:auth_result_success) do
+      { success: true, principal: 'kuser@REALM.EXAMPLE.COM', groups: ['grid-admins'], output_token: 'servertoken456' }
+    end
+    let(:auth_result_no_output_token) do
+      { success: true, principal: 'kuser@REALM.EXAMPLE.COM', groups: [], output_token: nil }
+    end
+
+    before do
+      stub_const('Legion::Extensions::Kerberos::Client', Class.new do
+        def authenticate(**_kwargs); end
+      end)
+      stub_const('Legion::Rbac::KerberosClaimsMapper', Module.new do
+        def self.map_with_fallback(**_kwargs); end
+      end)
+    end
+
+    context 'when Kerberos is available and auth succeeds' do
+      before do
+        allow(Legion::Extensions::Kerberos::Client).to receive(:new).and_return(
+          instance_double('Legion::Extensions::Kerberos::Client', authenticate: auth_result_success)
+        )
+        allow(Legion::Rbac::KerberosClaimsMapper).to receive(:map_with_fallback).and_return(kerberos_claims)
+      end
+
+      it 'passes through to the app (returns 200)' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        status, = middleware.call(env)
+        expect(status).to eq(200)
+      end
+
+      it 'sets legion.auth_method to kerberos' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        middleware.call(env)
+        expect(env['legion.auth_method']).to eq('kerberos')
+      end
+
+      it 'sets legion.auth to the mapped claims' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        middleware.call(env)
+        expect(env['legion.auth']).to eq(kerberos_claims)
+      end
+
+      it 'sets legion.owner_msid from claims[:sub]' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        middleware.call(env)
+        expect(env['legion.owner_msid']).to eq('kuser@REALM.EXAMPLE.COM')
+      end
+
+      it 'adds WWW-Authenticate response header with output token' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        _status, headers, = middleware.call(env)
+        expect(headers['WWW-Authenticate']).to eq('Negotiate servertoken456')
+      end
+
+      it 'omits WWW-Authenticate header when output_token is nil' do
+        allow(Legion::Extensions::Kerberos::Client).to receive(:new).and_return(
+          instance_double('Legion::Extensions::Kerberos::Client', authenticate: auth_result_no_output_token)
+        )
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        _status, headers, = middleware.call(env)
+        expect(headers['WWW-Authenticate']).to be_nil
+      end
+
+      it 'passes principal and groups to KerberosClaimsMapper' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate dGVzdHRva2Vu' })
+        middleware.call(env)
+        expect(Legion::Rbac::KerberosClaimsMapper).to have_received(:map_with_fallback).with(
+          hash_including(principal: 'kuser@REALM.EXAMPLE.COM', groups: ['grid-admins'])
+        )
+      end
+
+      it 'accepts Negotiate with mixed case prefix' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'NEGOTIATE dGVzdHRva2Vu' })
+        status, = middleware.call(env)
+        expect(status).to eq(200)
+      end
+    end
+
+    context 'when Kerberos is available but authenticate returns success: false' do
+      before do
+        allow(Legion::Extensions::Kerberos::Client).to receive(:new).and_return(
+          instance_double('Legion::Extensions::Kerberos::Client',
+                          authenticate: { success: false, principal: nil, groups: [], output_token: nil })
+        )
+      end
+
+      it 'returns 401 with Kerberos authentication failed' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate badtoken' })
+        status, _headers, body = middleware.call(env)
+        expect(status).to eq(401)
+        parsed = Legion::JSON.load(body.first)
+        expect(parsed[:error][:message]).to eq('Kerberos authentication failed')
+      end
+    end
+
+    context 'when Kerberos is available but verify_negotiate raises an exception' do
+      before do
+        allow(Legion::Extensions::Kerberos::Client).to receive(:new).and_return(
+          instance_double('Legion::Extensions::Kerberos::Client').tap do |d|
+            allow(d).to receive(:authenticate).and_raise(StandardError, 'GSSAPI error')
+          end
+        )
+      end
+
+      it 'returns 401 with Kerberos authentication failed' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate errortoken' })
+        status, _headers, body = middleware.call(env)
+        expect(status).to eq(401)
+        parsed = Legion::JSON.load(body.first)
+        expect(parsed[:error][:message]).to eq('Kerberos authentication failed')
+      end
+    end
+
+    context 'when lex-kerberos is not loaded (kerberos_available? is false)' do
+      before do
+        hide_const('Legion::Extensions::Kerberos::Client')
+        hide_const('Legion::Rbac::KerberosClaimsMapper')
+        allow(Legion::Crypt::JWT).to receive(:verify).and_return(valid_claims)
+      end
+
+      it 'falls through to Bearer JWT check' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate sometoken' })
+        status, = middleware.call(env)
+        # Negotiate header present but lex-kerberos not loaded -> falls through ->
+        # Bearer check finds no Bearer token -> 401 missing Authorization header
+        expect(status).to eq(401)
+      end
+
+      it 'does not call KerberosClaimsMapper' do
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Negotiate sometoken' })
+        middleware.call(env)
+        # No error = mapper was not called (it's hidden)
+      end
+
+      it 'allows a subsequent Bearer token to authenticate normally' do
+        allow(Legion::Crypt::JWT).to receive(:verify).and_return(valid_claims)
+        env = make_env(path: '/api/tasks', headers: { 'HTTP_AUTHORIZATION' => 'Bearer valid.token' })
+        status, = middleware.call(env)
+        expect(status).to eq(200)
+        expect(env['legion.auth_method']).to eq('jwt')
+      end
+    end
+
+    context 'skip paths' do
+      it 'passes through /api/auth/negotiate without a token' do
+        env = make_env(path: '/api/auth/negotiate')
+        status, = middleware.call(env)
+        expect(status).to eq(200)
+      end
+    end
+  end
+
   describe 'owner_msid fallback' do
     subject(:middleware) { build_middleware(enabled: true, signing_key: signing_key) }
 
