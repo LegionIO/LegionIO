@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'thor'
+require 'uri'
+require 'fileutils'
 
 module Legion
   module CLI
@@ -72,6 +74,38 @@ module Legion
         out.json({ authenticated: true, scopes: scopes, expires_in: body['expires_in'] })
       end
 
+      desc 'kerberos', 'Authenticate using Kerberos TGT from your workstation'
+      method_option :api_url, type: :string, desc: 'Legion API base URL'
+      method_option :realm,   type: :string, desc: 'Kerberos realm override'
+      def kerberos
+        klist_output = `klist 2>&1`
+        unless $CHILD_STATUS&.success?
+          say 'No Kerberos ticket found. Run kinit first or check your domain connection.', :red
+          return
+        end
+
+        principal_match = klist_output.match(/Principal:\s+(\S+)/)
+        unless principal_match
+          say 'Could not detect Kerberos principal from klist output.', :red
+          return
+        end
+
+        principal = principal_match[1]
+        realm     = options[:realm] || principal.split('@', 2).last
+        say 'Detected Kerberos ticket:', :green
+        say "  Principal: #{principal}"
+        say "  Realm: #{realm}"
+
+        api_url = resolve_api_url
+        say "Authenticating to #{api_url}..."
+
+        token    = build_spnego_token(api_url)
+        response = send_negotiate_request(api_url, token)
+        handle_negotiate_response(response)
+      rescue StandardError => e
+        say "Kerberos auth error: #{e.message}", :red
+      end
+
       default_task :teams
 
       no_commands do
@@ -80,6 +114,56 @@ module Legion
             json:  options[:json],
             color: !options[:no_color]
           )
+        end
+
+        def resolve_api_url
+          url = options[:api_url]
+          url ||= Legion::Settings.dig(:api, :url) if defined?(Legion::Settings)
+          url || 'http://127.0.0.1:4567'
+        end
+
+        def build_spnego_token(api_url)
+          require 'gssapi'
+          require 'base64'
+          host = ::URI.parse(api_url).host
+          spnego = GSSAPI::Simple.new(host, 'HTTP')
+          ::Base64.strict_encode64(spnego.init_context)
+        end
+
+        def send_negotiate_request(api_url, token)
+          require 'net/http'
+          uri = ::URI.parse("#{api_url}/api/auth/negotiate")
+          http = ::Net::HTTP.new(uri.host, uri.port)
+          request = ::Net::HTTP::Get.new(uri.request_uri)
+          request['Authorization'] = "Negotiate #{token}"
+          http.request(request)
+        end
+
+        def handle_negotiate_response(response)
+          if response.code.to_i == 200
+            body = ::JSON.parse(response.body) rescue {} # rubocop:disable Style/RescueModifier
+            token_val = body.is_a?(Hash) ? (body['token'] || body.dig('data', 'token')) : nil
+            if token_val
+              save_credentials(token_val)
+              roles = body['roles'] || body.dig('data', 'roles') || []
+              say "  Roles: #{Array(roles).join(', ')}", :green
+              say '  Token saved to ~/.legionio/credentials', :green
+              say 'Login successful (kerberos)', :green
+            else
+              say 'Authentication succeeded but no token in response', :yellow
+            end
+          else
+            say "Authentication failed: HTTP #{response.code}", :red
+            say response.body.to_s, :red
+          end
+        end
+
+        def save_credentials(token_val)
+          credentials_dir = ::File.join(::Dir.home, '.legionio')
+          ::FileUtils.mkdir_p(credentials_dir)
+          cred_path = ::File.join(credentials_dir, 'credentials')
+          ::File.write(cred_path, token_val)
+          ::File.chmod(0o600, cred_path)
         end
       end
     end

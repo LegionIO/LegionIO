@@ -39,6 +39,7 @@ Metrics/BlockLength:
     - 'lib/legion/api/auth.rb'
     - 'lib/legion/api/auth_worker.rb'
     - 'lib/legion/api/auth_human.rb'
+    - 'lib/legion/cli/auth_command.rb'
 
 Metrics/AbcSize:
   Max: 60
