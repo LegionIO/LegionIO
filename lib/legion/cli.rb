@@ -42,6 +42,7 @@ module Legion
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
     autoload :Tty,         'legion/cli/tty_command'
+    autoload :Interactive, 'legion/cli/interactive'
 
     class Main < Thor
       def self.exit_on_failure?
