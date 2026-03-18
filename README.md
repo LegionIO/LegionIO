@@ -41,17 +41,27 @@ But that's just the foundation. LegionIO is also:
 
 ```bash
 gem install legionio
-legion check              # verify subsystem connections
-legion start              # start the daemon
+legionio check            # verify subsystem connections
+legionio start            # start the daemon
 ```
 
 For the AI features:
 
 ```bash
+legion                    # launch the interactive TTY shell
 legion chat               # interactive AI REPL with 10 built-in tools
 legion commit             # AI-generated commit message from staged changes
 legion review             # AI code review of your code
 ```
+
+### Two Binaries
+
+| Binary | Purpose |
+|--------|---------|
+| `legion` | Interactive TTY shell + dev-workflow commands (`chat`, `commit`, `review`, `plan`, `memory`, `init`) |
+| `legionio` | Daemon lifecycle + all operational commands (`start`, `stop`, `lex`, `task`, `config`, `mcp`, and 40+ more) |
+
+`legion` with no args drops into the interactive TTY shell. `legionio` is the full operational CLI.
 
 ## Installation
 
@@ -85,19 +95,19 @@ gem 'legionio'
 
 ## The CLI
 
-Everything runs through `legion`:
+Operational commands run through `legionio`. Dev-workflow and AI commands run through `legion`.
 
 ### Daemon & Health
 
 ```bash
-legion start                    # foreground
-legion start -d                 # daemonize
-legion start --http-port 8080   # custom API port
-legion status                   # service status
-legion stop                     # graceful shutdown
-legion check                    # smoke-test all connections
-legion check --extensions       # also verify extensions
-legion check --full             # full boot including API
+legionio start                    # foreground
+legionio start -d                 # daemonize
+legionio start --http-port 8080   # custom API port
+legionio status                   # service status
+legionio stop                     # graceful shutdown
+legionio check                    # smoke-test all connections
+legionio check --extensions       # also verify extensions
+legionio check --full             # full boot including API
 ```
 
 ### Extensions (LEX)

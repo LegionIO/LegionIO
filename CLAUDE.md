@@ -14,6 +14,16 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
 
+## Binary Split
+
+| Binary | Purpose |
+|--------|---------|
+| `legion` | Interactive TTY shell + dev-workflow commands (chat, commit, review, plan, memory, init) |
+| `legionio` | Daemon lifecycle + all operational commands (start, stop, lex, task, config, mcp, etc.) |
+
+`legion` with no args launches the TTY interactive shell. With args, it routes to dev-workflow subcommands.
+`legionio` is the full operational CLI — all 40+ subcommands.
+
 ## Architecture
 
 ### Boot Sequence (exe/legion)
