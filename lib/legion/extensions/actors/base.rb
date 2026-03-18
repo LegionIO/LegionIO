@@ -43,6 +43,10 @@ module Legion
         def enabled?
           true
         end
+
+        def remote_invocable?
+          true
+        end
       end
     end
   end

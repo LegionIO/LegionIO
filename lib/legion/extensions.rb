@@ -16,11 +16,14 @@ module Legion
         @once_tasks = []
         @poll_tasks = []
         @subscription_tasks = []
+        @local_tasks = []
         @actors = []
 
         find_extensions
         load_extensions
       end
+
+      attr_reader :local_tasks
 
       def shutdown
         return nil if @loaded_extensions.nil?
@@ -192,22 +195,68 @@ module Legion
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Poll
           @poll_tasks.push(extension_hash)
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Subscription
-          extension_hash[:threadpool] = Concurrent::FixedThreadPool.new(size)
-          size.times do
-            extension_hash[:threadpool].post do
-              klass = actor_class.new
-              if klass.respond_to?(:async)
-                klass.async.subscribe
-              else
-                klass.subscribe
-              end
-            end
-          end
-          @subscription_tasks.push(extension_hash)
+          hook_subscription_actor(extension_hash, size, opts)
         else
           Legion::Logging.fatal 'did not match any actor classes'
         end
       end
+
+      private
+
+      def hook_subscription_actor(extension_hash, size, opts)
+        ext_name   = extension_hash[:extension_name]
+        extension  = extension_hash[:extension]
+        actor_class = extension_hash[:actor_class]
+
+        unless resolve_remote_invocable(ext_name, opts.merge(actor_class: actor_class, extension: extension))
+          Legion::Logging.debug { "#{ext_name}/#{extension_hash[:actor_name]} is not remote_invocable, skipping AMQP subscription" }
+          @local_tasks.push(extension_hash)
+          return
+        end
+
+        extension_hash[:threadpool] = Concurrent::FixedThreadPool.new(size)
+        size.times do
+          extension_hash[:threadpool].post do
+            klass = actor_class.new
+            if klass.respond_to?(:async)
+              klass.async.subscribe
+            else
+              klass.subscribe
+            end
+          end
+        end
+        @subscription_tasks.push(extension_hash)
+      end
+
+      def resolve_remote_invocable(extension_name, opts = {})
+        ext_key = extension_name.to_sym
+        ext_settings = Legion::Settings.dig(:extensions, ext_key)
+        runner_name = opts[:actor_name]&.to_sym
+
+        # 1. Per-runner settings override
+        runner_setting = ext_settings&.dig(:runners, runner_name, :remote_invocable)
+        return runner_setting unless runner_setting.nil?
+
+        # 2. Extension settings override
+        ext_setting = ext_settings&.dig(:remote_invocable)
+        return ext_setting unless ext_setting.nil?
+
+        # 3. Runner class method (only if defined directly on the runner, not inherited)
+        runner_class = opts[:runner_class]
+        if runner_class.respond_to?(:remote_invocable?)
+          owner = runner_class.method(:remote_invocable?).owner
+          return runner_class.remote_invocable? if owner == runner_class.singleton_class || !owner.singleton_class?
+        end
+
+        # 4. Extension module method
+        extension = opts[:extension]
+        return extension.remote_invocable? if extension.respond_to?(:remote_invocable?)
+
+        # 5. Default
+        true
+      end
+
+      public
 
       def gem_load(entry)
         gem_name     = entry[:gem_name]

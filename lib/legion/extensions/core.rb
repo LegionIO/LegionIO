@@ -83,6 +83,10 @@ module Legion
         false
       end
 
+      def remote_invocable?
+        true
+      end
+
       def build_data
         auto_generate_data
         lex_class::Data.build
