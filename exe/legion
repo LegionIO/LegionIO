@@ -20,17 +20,19 @@ Bootsnap.setup(
 
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
-require 'legion/cli'
-
-# Bare `legion` (no args) drops into interactive chat
-# `legion --help` and `legion help` still show full command list
-# Piped input with no args goes to headless prompt mode
+# Bare `legion` (no args, interactive terminal) launches the TTY shell
+# Bare `legion` (piped stdin) goes to headless chat prompt
+# `legion <subcommand>` routes to the Interactive CLI (dev-workflow commands)
 if ARGV.empty?
   if $stdin.tty?
-    ARGV.replace(['chat'])
+    require 'legion/tty'
+    Legion::TTY::App.run
   else
+    require 'legion/cli'
     ARGV.replace(['chat', 'prompt', ''])
+    Legion::CLI::Main.start(ARGV)
   end
+else
+  require 'legion/cli'
+  Legion::CLI::Interactive.start(ARGV)
 end
-
-Legion::CLI::Main.start(ARGV)
