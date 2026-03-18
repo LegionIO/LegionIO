@@ -57,4 +57,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'legion-transport', '>= 1.2'
 
   spec.add_dependency 'lex-node'
+  spec.add_dependency 'legion-tty'
 end
