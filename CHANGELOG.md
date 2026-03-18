@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.61] - 2026-03-18
+
+### Added
+- Chat persistent settings defaults via `Legion::Settings` (issue #5)
+- `chat_setting(*keys)` helper for centralized settings access with error handling
+- Settings priority chain: CLI flag > `Legion::Settings.dig(:chat, ...)` > hardcoded default
+- Configurable via settings: model, provider, personality, permissions, markdown, incognito, max_budget_usd, subagent concurrency/timeout, headless max_turns
+- `chat` subsystem added to `config scaffold` with full template
+- `Subagent.configure_from_settings` reads concurrency and timeout from settings
+- 22 new specs (19 settings integration + 3 subagent settings)
+
 ## [1.4.60] - 2026-03-18
 
 ### Fixed

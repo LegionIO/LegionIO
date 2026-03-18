@@ -13,13 +13,30 @@ module Legion
         @running = []
         @mutex = Mutex.new
         @max_concurrency = MAX_CONCURRENCY
+        @timeout = TIMEOUT
 
         class << self
-          attr_accessor :max_concurrency
+          attr_accessor :max_concurrency, :timeout
 
-          def configure(max_concurrency: MAX_CONCURRENCY)
+          def configure(max_concurrency: MAX_CONCURRENCY, timeout: TIMEOUT)
             @max_concurrency = max_concurrency
+            @timeout = timeout
             @running = []
+          end
+
+          def configure_from_settings
+            mc = begin
+              Legion::Settings.dig(:chat, :subagent, :max_concurrency)
+            rescue StandardError
+              nil
+            end
+            to = begin
+              Legion::Settings.dig(:chat, :subagent, :timeout)
+            rescue StandardError
+              nil
+            end
+            @max_concurrency = mc || MAX_CONCURRENCY
+            @timeout = to || TIMEOUT
           end
 
           def spawn(task:, model: nil, provider: nil, on_complete: nil)
@@ -54,7 +71,7 @@ module Legion
             @mutex.synchronize { @running.length >= @max_concurrency }
           end
 
-          def wait_all(timeout: TIMEOUT)
+          def wait_all(timeout: @timeout || TIMEOUT)
             deadline = Time.now + timeout
             @running.each do |agent|
               remaining = deadline - Time.now

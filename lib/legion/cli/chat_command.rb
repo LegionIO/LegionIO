@@ -45,7 +45,7 @@ module Legion
         system_prompt = build_system_prompt
         @session = Chat::Session.new(
           chat: chat_obj, system_prompt: system_prompt,
-          budget_usd: options[:max_budget_usd]
+          budget_usd: effective_budget
         )
         @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
 
@@ -55,7 +55,7 @@ module Legion
 
         setup_notification_bridge
 
-        chat_log.info "session started model=#{@session.model_id} incognito=#{options[:incognito]}"
+        chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
         out.banner(version: Legion::VERSION)
         puts
         puts out.dim("  Model: #{@session.model_id}")
@@ -80,7 +80,7 @@ module Legion
 
       desc 'prompt TEXT', 'Send a single prompt and exit (headless mode)'
       option :output_format, type: :string, default: 'text', desc: 'Output format: text, json'
-      option :max_turns, type: :numeric, default: 10, desc: 'Maximum tool-use turns'
+      option :max_turns, type: :numeric, desc: 'Maximum tool-use turns (default: 10)'
       def prompt(text)
         out = formatter
         setup_chat_logger
@@ -94,7 +94,7 @@ module Legion
         system_prompt = build_system_prompt
         session = Chat::Session.new(
           chat: chat_obj, system_prompt: system_prompt,
-          budget_usd: options[:max_budget_usd]
+          budget_usd: effective_budget
         )
 
         chat_log.info "headless prompt model=#{session.model_id} length=#{text.length}"
@@ -129,6 +129,24 @@ module Legion
       end
 
       no_commands do
+        def chat_setting(*keys)
+          Legion::Settings.dig(:chat, *keys)
+        rescue StandardError
+          nil
+        end
+
+        def incognito?
+          options[:incognito] || chat_setting(:incognito) == true
+        end
+
+        def effective_budget
+          options[:max_budget_usd] || chat_setting(:max_budget_usd)
+        end
+
+        def effective_max_turns
+          options[:max_turns] || chat_setting(:headless, :max_turns) || 10
+        end
+
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
@@ -173,7 +191,12 @@ module Legion
         end
 
         def render_response(text, out)
-          return text if options[:no_markdown] || options[:no_color]
+          markdown_enabled = if options[:no_markdown]
+                               false
+                             else
+                               chat_setting(:markdown) != false
+                             end
+          return text unless markdown_enabled && out.color_enabled
 
           require 'legion/cli/chat/markdown_renderer'
           Chat::MarkdownRenderer.render(text, color: out.color_enabled)
@@ -194,6 +217,8 @@ module Legion
           require 'legion/cli/chat/permissions'
           Chat::Permissions.mode = if options[:auto_approve]
                                      :auto_approve
+                                   elsif (setting = chat_setting(:permissions))
+                                     setting.to_sym
                                    else
                                      default
                                    end
@@ -201,8 +226,9 @@ module Legion
 
         def create_chat
           opts = {}
-          opts[:model]    = options[:model] if options[:model]
-          opts[:provider] = options[:provider]&.to_sym if options[:provider]
+          opts[:model]    = options[:model] || chat_setting(:model)
+          opts[:provider] = (options[:provider] || chat_setting(:provider))&.to_sym
+          opts.compact!
 
           require 'legion/cli/chat/tool_registry'
           chat = Legion::LLM.chat(**opts)
@@ -217,13 +243,11 @@ module Legion
           @extra_dirs = options[:add_dir] || []
           prompt = Chat::Context.to_system_prompt(Dir.pwd, extra_dirs: @extra_dirs)
 
-          if options[:personality]
-            @personality = options[:personality]
-            case @personality
-            when 'concise'     then prompt += "\n\nBe extremely concise. Short answers, minimal explanation. Code over prose."
-            when 'verbose'     then prompt += "\n\nBe thorough and detailed. Explain your reasoning step by step."
-            when 'educational' then prompt += "\n\nBe educational. Explain concepts, provide context, teach as you help."
-            end
+          @personality = options[:personality] || chat_setting(:personality)
+          case @personality
+          when 'concise'     then prompt += "\n\nBe extremely concise. Short answers, minimal explanation. Code over prose."
+          when 'verbose'     then prompt += "\n\nBe thorough and detailed. Explain your reasoning step by step."
+          when 'educational' then prompt += "\n\nBe educational. Explain concepts, provide context, teach as you help."
           end
 
           prompt
@@ -1014,7 +1038,7 @@ module Legion
 
         def auto_save_session(out)
           return if @auto_saved
-          return if options[:incognito]
+          return if incognito?
           return unless @session
           return if @session.stats[:messages_sent].zero?
 

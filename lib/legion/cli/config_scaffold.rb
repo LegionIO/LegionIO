@@ -7,7 +7,7 @@ require 'net/http'
 module Legion
   module CLI
     module ConfigScaffold
-      SUBSYSTEMS = %w[transport data cache crypt logging llm].freeze
+      SUBSYSTEMS = %w[transport data cache crypt logging llm chat].freeze
 
       ENV_DETECTIONS = {
         'AWS_BEARER_TOKEN_BEDROCK' => { subsystem: 'llm', provider: :bedrock, field: :bearer_token },
@@ -202,6 +202,19 @@ module Legion
               ollama:    { enabled: false, base_url: 'http://localhost:11434' }
             }
           } }
+        when 'chat'
+          { chat: {
+            permissions:    'interactive',
+            model:          nil,
+            provider:       nil,
+            personality:    nil,
+            markdown:       true,
+            incognito:      false,
+            max_budget_usd: nil,
+            subagent:       { max_concurrency: 3, timeout: 300 },
+            headless:       { max_turns: 10 },
+            notifications:  { patterns: [] }
+          } }
         end
       end
 
@@ -343,6 +356,19 @@ module Legion
               gemini:    { enabled: false, api_key: nil, vault_path: nil },
               ollama:    { enabled: false, base_url: 'http://localhost:11434' }
             }
+          } }
+        when 'chat'
+          { chat: {
+            permissions:    'interactive',
+            model:          nil,
+            provider:       nil,
+            personality:    nil,
+            markdown:       true,
+            incognito:      false,
+            max_budget_usd: nil,
+            subagent:       { max_concurrency: 3, timeout: 300 },
+            headless:       { max_turns: 10 },
+            notifications:  { patterns: [] }
           } }
         end
       end

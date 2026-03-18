@@ -177,7 +177,7 @@ RSpec.describe Legion::CLI::ConfigScaffold do
         described_class.run(json_formatter, { dir: tmpdir, json: true, full: false, force: false, only: nil })
         $stdout = STDOUT
         parsed = JSON.parse(output.string)
-        expect(parsed['created'].size).to eq(6)
+        expect(parsed['created'].size).to eq(Legion::CLI::ConfigScaffold::SUBSYSTEMS.size)
         expect(parsed['skipped']).to be_empty
       end
     end

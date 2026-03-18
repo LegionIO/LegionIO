@@ -69,4 +69,28 @@ RSpec.describe Legion::CLI::Chat::Subagent do
       expect(described_class.at_capacity?).to be true
     end
   end
+
+  describe '.configure_from_settings' do
+    before do
+      allow(Legion::Settings).to receive(:dig).and_return(nil)
+    end
+
+    it 'reads max_concurrency from settings' do
+      allow(Legion::Settings).to receive(:dig).with(:chat, :subagent, :max_concurrency).and_return(7)
+      described_class.configure_from_settings
+      expect(described_class.max_concurrency).to eq(7)
+    end
+
+    it 'reads timeout from settings' do
+      allow(Legion::Settings).to receive(:dig).with(:chat, :subagent, :timeout).and_return(600)
+      described_class.configure_from_settings
+      expect(described_class.timeout).to eq(600)
+    end
+
+    it 'falls back to defaults when settings unavailable' do
+      described_class.configure_from_settings
+      expect(described_class.max_concurrency).to eq(3)
+      expect(described_class.timeout).to eq(300)
+    end
+  end
 end
