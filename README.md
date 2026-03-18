@@ -8,13 +8,13 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╭──────────────────────────────────────╮
          │           L E G I O N I O            │
          │                                      │
-         │   280+ extensions  ·  30 MCP tools   │
+         │   280+ extensions  ·  35 MCP tools   │
          │   AI chat CLI  ·  REST API  ·  HA    │
          │   cognitive architecture  ·  Vault    │
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.13** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.61** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -33,7 +33,7 @@ When A completes, B runs. B triggers C, D, and E in parallel. Conditions gate ex
 But that's just the foundation. LegionIO is also:
 
 - **An AI coding assistant** — interactive chat with tools, code review, commit messages, PR generation, and multi-agent workflows
-- **An MCP server** — 30 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
+- **An MCP server** — 35 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
 - **A cognitive computing platform** — 242 brain-modeled extensions across 18 cognitive domains
 - **A digital worker platform** — AI-as-labor with governance, risk tiers, and cost tracking
 
@@ -211,7 +211,26 @@ legion config scaffold          # generate starter config files (auto-detects en
 
 `config scaffold` auto-detects environment variables (`ANTHROPIC_API_KEY`, `AWS_BEARER_TOKEN_BEDROCK`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `VAULT_TOKEN`, `RABBITMQ_USER`/`PASSWORD`) and a running Ollama instance, enabling providers and setting `env://` references automatically.
 
-Settings load from the first directory found: `/etc/legionio/` → `~/legionio/` → `./settings/`
+Settings load from the first directory found: `/etc/legionio/` → `~/.legionio/settings/` → `~/legionio/` → `./settings/`
+
+### Observability
+
+```bash
+legion dashboard               # TUI operational dashboard with auto-refresh
+legion cost summary             # cost overview (today/week/month)
+legion cost worker <id>         # per-worker cost breakdown
+legion trace search "failed tasks last hour"  # natural language trace search
+legion graph show --format mermaid            # task relationship graph
+```
+
+### Audit & RBAC
+
+```bash
+legion audit list               # query audit log
+legion audit export --format csv
+legion rbac roles               # list roles
+legion rbac check <identity> <resource> <action>
+```
 
 ### Diagnostics
 
@@ -250,6 +269,13 @@ The daemon exposes a REST API on port 4567 (configurable):
 | `GET /api/transport` | RabbitMQ connection status |
 | `GET /api/events` | SSE event stream |
 | `GET/POST/PUT/DELETE /api/workers` | Digital worker lifecycle |
+| `GET /api/capacity` | Workforce capacity and forecasting |
+| `GET /api/tenants` | Multi-tenant management |
+| `GET /api/audit` | Audit log query and export |
+| `GET /api/rbac/*` | Role-based access control |
+| `GET /api/webhooks` | Webhook subscription management |
+| `GET /api/openapi.json` | OpenAPI 3.1.0 specification |
+| `GET /metrics` | Prometheus metrics |
 | `POST /api/coldstart/ingest` | Context ingestion |
 
 ```json
@@ -269,7 +295,7 @@ legion mcp http           # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**30 tools** in the `legion.*` namespace:
+**35 tools** in the `legion.*` namespace:
 
 | Category | Tools |
 |----------|-------|
@@ -281,6 +307,7 @@ legion mcp http --port 8080 --host 0.0.0.0
 | **Schedules** | `list_schedules`, `create_schedule`, `update_schedule`, `delete_schedule` |
 | **System** | `get_status`, `get_config` |
 | **Workers** | `list_workers`, `show_worker`, `worker_lifecycle`, `worker_costs`, `team_summary` |
+| **RBAC** | `rbac_assignments`, `rbac_check`, `rbac_grants` |
 | **Analytics** | `routing_stats` |
 
 **Resources**: `legion://runners` (full runner catalog), `legion://extensions/{name}` (extension detail)
@@ -314,9 +341,9 @@ Access Vault secrets inline: `<%= Legion::Crypt.read('pushover/token') %>`
 
 Browse: [LegionIO GitHub](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
 
-### Core (13 operational extensions)
+### Core (16 operational extensions)
 
-`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-coldstart`
+`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-synapse` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-telemetry` `lex-audit` `task_pruner`
 
 ### Agentic (242 cognitive extensions)
 
@@ -340,7 +367,7 @@ Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with three-tier 
 
 ### Service Integrations (8 common + 15 additional)
 
-**Common**: `lex-http` `lex-redis` `lex-s3` `lex-github` `lex-consul` `lex-nomad` `lex-vault` `lex-microsoft_teams`
+**Common**: `lex-http` `lex-redis` `lex-s3` `lex-github` `lex-consul` `lex-tfe` `lex-vault` `lex-kerberos` `lex-microsoft_teams`
 
 **Additional**: `lex-ssh` `lex-slack` `lex-smtp` `lex-influxdb` `lex-pagerduty` `lex-elasticsearch` `lex-chef` `lex-pushover` `lex-twilio` `lex-todoist` `lex-pushbullet` `lex-sleepiq` `lex-elastic_app_search` `lex-memcached` `lex-sonos`
 
@@ -389,6 +416,10 @@ No paid tiers. No feature gates. Full HA out of the box.
 - **Cluster secret**: Generated at first startup, distributed via Vault or in-memory
 - **JWT auth**: Bearer token authentication on the REST API
 - **API key support**: `X-API-Key` header authentication
+- **RBAC**: Role-based access control with Vault-style flat policies
+- **Rate limiting**: Sliding-window per-IP/agent/tenant rate limiting
+- **API versioning**: `/api/v1/` prefix with deprecation headers
+- **Kerberos**: SPNEGO/GSSAPI authentication with LDAP group resolution
 
 ## Docker
 
@@ -446,7 +477,7 @@ Each phase registers with `Legion::Readiness`. All phases are individually toggl
 git clone https://github.com/LegionIO/LegionIO.git
 cd LegionIO
 bundle install
-bundle exec rspec       # 880 examples, 0 failures
+bundle exec rspec       # 1379 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
