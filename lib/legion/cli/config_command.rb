@@ -182,6 +182,29 @@ module Legion
         raise SystemExit, exit_code if exit_code != 0
       end
 
+      desc 'import SOURCE', 'Import configuration from a URL or local file'
+      option :force, type: :boolean, default: false, desc: 'Overwrite existing imported config'
+      def import(source)
+        out = formatter
+        require_relative 'config_import'
+
+        out.info("Fetching config from #{source}...")
+        body = ConfigImport.fetch_source(source)
+        config = ConfigImport.parse_payload(body)
+        path = ConfigImport.write_config(config, force: options[:force])
+        summary = ConfigImport.summary(config)
+
+        out.success("Config written to #{path}")
+        out.info("Sections: #{summary[:sections].join(', ')}")
+        if summary[:vault_clusters].any?
+          out.info("Vault clusters: #{summary[:vault_clusters].join(', ')}")
+          out.info("Run 'legion' to authenticate via LDAP during onboarding")
+        end
+      rescue CLI::Error => e
+        formatter.error(e.message)
+        raise SystemExit, 1
+      end
+
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
