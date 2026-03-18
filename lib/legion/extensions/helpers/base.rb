@@ -4,19 +4,62 @@ module Legion
   module Extensions
     module Helpers
       module Base
+        # Words that mark the boundary between extension namespace segments and
+        # internal module structure. Segment extraction stops at these words.
+        NAMESPACE_BOUNDARIES = %w[Actor Actors Runners Helpers Transport Data].freeze
+
+        def segments
+          @segments ||= derive_segments_from_namespace
+        end
+
+        def lex_slug
+          segments.join('.')
+        end
+
+        def log_tag
+          Helpers::Segments.segments_to_log_tag(segments)
+        end
+
+        def amqp_prefix
+          Helpers::Segments.segments_to_amqp_prefix(segments)
+        end
+
+        def settings_path
+          Helpers::Segments.segments_to_settings_path(segments)
+        end
+
+        def table_prefix
+          Helpers::Segments.segments_to_table_prefix(segments)
+        end
+
         def lex_class
-          @lex_class ||= Kernel.const_get(calling_class_array[0..2].join('::'))
+          @lex_class ||= begin
+            parts = calling_class_array
+            ext_idx = parts.index('Extensions')
+            # All LEX extensions must be under Legion::Extensions::. If 'Extensions'
+            # is not present, this is a misconfigured caller — fail loudly.
+            raise ArgumentError, "#{calling_class} is not under Legion::Extensions namespace" unless ext_idx
+
+            end_idx = ext_idx + 1
+            end_idx += 1 while end_idx < parts.length && !NAMESPACE_BOUNDARIES.include?(parts[end_idx])
+            # NameError cannot occur here: lex_class is only ever called from autobuild,
+            # build_transport, build_runners, build_actors, and transport helpers — all of
+            # which execute while the extension module is already required and fully defined.
+            # The constant we resolve (e.g. Legion::Extensions::Http) is the very module
+            # that owns this method, so it must already exist.
+            Kernel.const_get(parts[0...end_idx].join('::'))
+          end
         end
         alias extension_class lex_class
 
         def lex_name
-          @lex_name ||= calling_class_array[2].gsub(/(?<!^)[A-Z]/) { "_#{Regexp.last_match(0)}" }.downcase
+          segments.join('_')
         end
         alias extension_name lex_name
         alias lex_filename lex_name
 
         def lex_const
-          @lex_const ||= calling_class_array[2]
+          @lex_const ||= lex_class.to_s.split('::').last
         end
 
         def calling_class
@@ -52,7 +95,12 @@ module Legion
         end
 
         def full_path
-          @full_path ||= "#{Gem::Specification.find_by_name("lex-#{lex_name}").gem_dir}/lib/legion/extensions/#{lex_filename}"
+          @full_path ||= begin
+            gem_name = "lex-#{segments.join('-')}"
+            gem_dir = Gem::Specification.find_by_name(gem_name).gem_dir
+            require_path = Helpers::Segments.derive_require_path(gem_name)
+            "#{gem_dir}/lib/#{require_path}"
+          end
         end
         alias extension_path full_path
 
@@ -77,6 +125,28 @@ module Legion
               ret[key.to_sym] = v
             end
           end
+        end
+
+        private
+
+        def derive_segments_from_namespace
+          parts = calling_class_array
+          ext_idx = parts.index('Extensions')
+          return [camelize_to_snake(parts[0])] unless ext_idx
+
+          ext_parts = []
+          ((ext_idx + 1)...parts.length).each do |i|
+            break if NAMESPACE_BOUNDARIES.include?(parts[i])
+
+            ext_parts << camelize_to_snake(parts[i])
+          end
+          ext_parts.empty? ? [camelize_to_snake(parts[ext_idx + 1])] : ext_parts
+        end
+
+        def camelize_to_snake(str)
+          str.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+             .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+             .downcase
         end
       end
     end

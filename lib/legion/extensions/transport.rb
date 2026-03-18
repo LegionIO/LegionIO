@@ -52,10 +52,9 @@ module Legion
         end
         return build_default_exchange if default_exchange
 
+        ext_amqp = amqp_prefix
         transport_class::Exchanges.const_set(exchange.split('::').pop, Class.new(Legion::Transport::Exchange) do
-          def exchange_name
-            self.class.ancestors.first.to_s.split('::')[5].downcase
-          end
+          define_method(:exchange_name) { "#{ext_amqp}.#{self.class.to_s.split('::').last.downcase}" }
         end)
       end
 
