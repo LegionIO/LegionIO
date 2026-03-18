@@ -38,7 +38,7 @@ module Legion
 
         def start_spinner(label)
           stop_spinner
-          @active_spinner = TTY::Spinner.new(
+          @active_spinner = ::TTY::Spinner.new(
             "#{PURPLE}:spinner#{RESET} #{label}",
             format:      SPINNER_FORMAT,
             hide_cursor: true,

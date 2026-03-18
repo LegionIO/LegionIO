@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# LegionIO TTY Toolkit Proof of Concept
+# Usage: ruby exe/legion-tty (no bundle exec needed)
+
+RubyVM::YJIT.enable if defined?(RubyVM::YJIT)
+
+# Skip Bundler entirely — load only the gems we need directly.
+# bundle exec adds ~70s scanning 272 path gems through Zscaler.
+gem 'tty-box'
+gem 'tty-cursor'
+gem 'tty-font'
+gem 'tty-markdown'
+gem 'tty-progressbar'
+gem 'tty-reader'
+gem 'tty-screen'
+
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
+
+require 'legion/version'
+require 'legion/cli/theme'
+require 'legion/cli/tty/splash'
+require 'legion/cli/tty/chat_ui'
+
+Legion::CLI::TTY::Splash.run(version: Legion::VERSION)
+Legion::CLI::TTY::ChatUI.run

@@ -8,9 +8,9 @@ RSpec.describe 'Legion Chat Integration' do
     expect(Legion::CLI::Main.subcommands).to include('chat')
   end
 
-  it 'routes bare legion to chat' do
+  it 'routes piped stdin legion to chat prompt' do
     content = File.read(File.expand_path('../../../../exe/legion', __dir__))
-    expect(content).to include("ARGV.replace(['chat'])")
+    expect(content).to include("ARGV.replace(['chat', 'prompt', ''])")
   end
 
   it 'has all expected tools registered' do

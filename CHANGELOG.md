@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.62] - 2026-03-18
+
+### Added
+- `legionio` binary for daemon and operational CLI
+- `Legion::CLI::Interactive` Thor class for dev-workflow commands (chat, commit, pr, review, memory, plan, init, tty)
+- `legion-tty` as runtime dependency
+- Shell completions for both `legion` and `legionio` binaries
+
+### Changed
+- `exe/legion` now routes bare invocation to TTY shell, args to Interactive CLI
+- `exe/legionio` handles all daemon and operational commands
+
 ## [1.4.61] - 2026-03-18
 
 ### Added
