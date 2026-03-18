@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.63] - 2026-03-18
+
+### Added
+- `legionio config import SOURCE` command for importing config from URL or local file
+- Supports raw JSON and base64-encoded JSON payloads
+- Deep merges with existing `~/.legionio/settings/imported.json` (or `--force` to overwrite)
+- Displays imported sections and vault cluster count
+
 ## [1.4.62] - 2026-03-18
 
 ### Added
