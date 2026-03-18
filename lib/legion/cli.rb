@@ -41,6 +41,7 @@ module Legion
     autoload :Cost,        'legion/cli/cost_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
+    autoload :Tty,         'legion/cli/tty_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -226,6 +227,9 @@ module Legion
 
       desc 'notebook', 'Read and export Jupyter notebooks'
       subcommand 'notebook', Legion::CLI::Notebook
+
+      desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
+      subcommand 'tty', Legion::CLI::Tty
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
