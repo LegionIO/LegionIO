@@ -7,8 +7,8 @@ module Legion
     class Doctor
       class ConfigCheck
         CONFIG_PATHS = [
+          File.expand_path('~/.legionio/settings'),
           '/etc/legionio',
-          File.expand_path('~/legionio'),
           File.expand_path('./settings')
         ].freeze
 

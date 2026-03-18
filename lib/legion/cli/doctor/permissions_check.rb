@@ -5,8 +5,9 @@ module Legion
     class Doctor
       class PermissionsCheck
         DIRECTORIES = [
-          '/var/log/legion',
-          '/var/run',
+          File.expand_path('~/.legionio'),
+          File.expand_path('~/.legionio/settings'),
+          File.expand_path('~/.legionio/logs'),
           '/tmp'
         ].freeze
 

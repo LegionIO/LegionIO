@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.66] - 2026-03-18
+
+### Fixed
+- Doctor config check now looks in `~/.legionio/settings` (the actual default settings directory)
+- Doctor permissions check now checks `~/.legionio/` directories instead of `/var/run`
+
 ## [1.4.65] - 2026-03-18
 
 ### Fixed
