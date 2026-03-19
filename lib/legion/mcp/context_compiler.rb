@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'embedding_index'
+
 module Legion
   module MCP
     module ContextCompiler
@@ -112,6 +114,7 @@ module Legion
       # Clears the memoized tool_index.
       def reset!
         @tool_index = nil
+        Legion::MCP::EmbeddingIndex.reset! if defined?(Legion::MCP::EmbeddingIndex)
       end
 
       def build_tool_index
@@ -131,10 +134,38 @@ module Legion
         keywords = intent_string.downcase.split
         return [] if keywords.empty?
 
+        kw_scores = keyword_score_map(keywords)
+        sem_scores = semantic_score_map(intent_string)
+        use_semantic = !sem_scores.empty?
+
         tool_index.values.map do |entry|
+          kw_raw = kw_scores[entry[:name]] || 0
+          if use_semantic
+            max_kw = kw_scores.values.max || 1
+            normalized_kw = max_kw.positive? ? kw_raw.to_f / max_kw : 0.0
+            sem = sem_scores[entry[:name]] || 0.0
+            blended = (normalized_kw * 0.4) + (sem * 0.6)
+          else
+            blended = kw_raw.to_f
+          end
+
+          { name: entry[:name], description: entry[:description], score: blended }
+        end
+      end
+
+      def keyword_score_map(keywords)
+        tool_index.values.to_h do |entry|
           haystack = "#{entry[:name].downcase} #{entry[:description].downcase}"
-          score    = keywords.count { |kw| haystack.include?(kw) }
-          { name: entry[:name], description: entry[:description], score: score }
+          score = keywords.count { |kw| haystack.include?(kw) }
+          [entry[:name], score]
+        end
+      end
+
+      def semantic_score_map(intent_string)
+        return {} unless defined?(Legion::MCP::EmbeddingIndex) && Legion::MCP::EmbeddingIndex.populated?
+
+        Legion::MCP::EmbeddingIndex.semantic_match(intent_string, limit: tool_index.size).to_h do |result|
+          [result[:name], result[:score]]
         end
       end
     end

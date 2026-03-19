@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'legion/mcp/embedding_index'
 
 # Stub ::MCP::Tool base class if not already loaded
 unless defined?(MCP::Tool)
@@ -357,6 +358,54 @@ RSpec.describe Legion::MCP::ContextCompiler do
       second_index = described_class.tool_index
       # After reset the index is rebuilt — it may be equal in value but is a new object
       expect(second_index).not_to equal(first_index)
+    end
+  end
+
+  context 'with semantic score blending' do
+    let(:fake_embedder) { ->(text) { ('a'..'z').map { |c| text.downcase.count(c).to_f } } }
+
+    before do
+      described_class.reset!
+      Legion::MCP::EmbeddingIndex.reset!
+      tool_data = described_class.tool_index.values
+      Legion::MCP::EmbeddingIndex.build_from_tool_data(tool_data, embedder: fake_embedder)
+    end
+
+    after do
+      Legion::MCP::EmbeddingIndex.reset!
+    end
+
+    it 'returns scored results when embeddings are populated' do
+      results = described_class.match_tools('execute a runner function', limit: 5)
+      expect(results).not_to be_empty
+      expect(results.first).to have_key(:score)
+      expect(results.first[:score]).to be > 0
+    end
+
+    it 'blends scores to produce values between 0 and 1' do
+      results = described_class.match_tools('run task', limit: 35)
+      results.each do |r|
+        expect(r[:score]).to be_between(0.0, 1.1) # slight tolerance for float math
+      end
+    end
+
+    it 'still works after EmbeddingIndex is reset (falls back to keyword)' do
+      Legion::MCP::EmbeddingIndex.reset!
+      results = described_class.match_tools('run task', limit: 5)
+      expect(results).not_to be_empty
+    end
+  end
+
+  describe '.reset!' do
+    it 'clears both tool_index and EmbeddingIndex' do
+      described_class.tool_index # force build
+      fake_embedder = ->(text) { ('a'..'z').map { |c| text.downcase.count(c).to_f } }
+      Legion::MCP::EmbeddingIndex.build_from_tool_data(
+        [{ name: 'test.tool', description: 'Test', params: [] }],
+        embedder: fake_embedder
+      )
+      described_class.reset!
+      expect(Legion::MCP::EmbeddingIndex.size).to eq(0)
     end
   end
 end

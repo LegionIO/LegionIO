@@ -72,6 +72,27 @@ module Legion
         puts 'Observation data cleared.'
       end
 
+      desc 'embeddings', 'Show MCP tool embedding index status'
+      def embeddings
+        require 'legion/mcp/embedding_index'
+        data = {
+          index_size: Legion::MCP::EmbeddingIndex.size,
+          coverage:   Legion::MCP::EmbeddingIndex.coverage,
+          populated:  Legion::MCP::EmbeddingIndex.populated?
+        }
+
+        if options['json']
+          puts ::JSON.pretty_generate(data.transform_keys(&:to_s))
+          return
+        end
+
+        puts 'MCP Embedding Index'
+        puts '=' * 40
+        puts "Index Size: #{data[:index_size]}"
+        puts "Coverage:   #{(data[:coverage] * 100).round(1)}%"
+        puts "Populated:  #{data[:populated]}"
+      end
+
       private
 
       def serialize_stats(data)

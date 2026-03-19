@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'json'
 require 'legion/mcp/observer'
+require 'legion/mcp/embedding_index'
 
 require 'thor'
 
@@ -17,7 +18,10 @@ end
 require 'legion/cli/observe_command'
 
 RSpec.describe Legion::CLI::ObserveCommand do
-  before(:each) { Legion::MCP::Observer.reset! }
+  before(:each) do
+    Legion::MCP::Observer.reset!
+    Legion::MCP::EmbeddingIndex.reset!
+  end
 
   describe '#stats' do
     let(:command) { described_class.new }
@@ -117,6 +121,43 @@ RSpec.describe Legion::CLI::ObserveCommand do
       allow($stdin).to receive(:gets).and_return("no\n")
       command.reset
       expect(Legion::MCP::Observer.stats[:total_calls]).to eq(1)
+    end
+  end
+
+  describe '#embeddings' do
+    let(:command) { described_class.new }
+
+    before do
+      allow(command).to receive(:options).and_return({ 'json' => false })
+      Legion::MCP::EmbeddingIndex.reset!
+    end
+
+    it 'outputs index size' do
+      expect { command.embeddings }.to output(/Index Size.*0/).to_stdout
+    end
+
+    it 'outputs coverage' do
+      expect { command.embeddings }.to output(/Coverage/).to_stdout
+    end
+
+    it 'shows populated status when index has entries' do
+      fake_embedder = ->(text) { ('a'..'z').map { |c| text.downcase.count(c).to_f } }
+      Legion::MCP::EmbeddingIndex.build_from_tool_data(
+        [{ name: 'legion.run_task', description: 'Execute', params: [] }],
+        embedder: fake_embedder
+      )
+      expect { command.embeddings }.to output(/Index Size.*1/).to_stdout
+    end
+
+    it 'outputs JSON when --json flag is set' do
+      allow(command).to receive(:options).and_return({ 'json' => true })
+      output = StringIO.new
+      $stdout = output
+      command.embeddings
+      $stdout = STDOUT
+      parsed = JSON.parse(output.string)
+      expect(parsed).to have_key('index_size')
+      expect(parsed).to have_key('coverage')
     end
   end
 end

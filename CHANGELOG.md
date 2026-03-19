@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.73] - 2026-03-19
+
+### Added
+- TBI Phase 3: semantic tool retrieval via embedding vectors
+- `Legion::MCP::EmbeddingIndex` module: in-memory embedding cache with pure-Ruby cosine similarity
+- `ContextCompiler` semantic score blending: 60% semantic + 40% keyword when embeddings available, keyword-only fallback
+- `Server.populate_embedding_index`: auto-populates tool embeddings on MCP server build (no-op if LLM unavailable)
+- `legion observe embeddings` subcommand: index size, coverage, and populated status
+- 61 new specs (1666 total): EmbeddingIndex unit, ContextCompiler semantic blending, integration wiring, CLI
+
 ## [1.4.72] - 2026-03-19
 
 ### Added

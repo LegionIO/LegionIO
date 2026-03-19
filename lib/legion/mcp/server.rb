@@ -36,6 +36,7 @@ require_relative 'tools/rbac_check'
 require_relative 'tools/rbac_assignments'
 require_relative 'tools/rbac_grants'
 require_relative 'context_compiler'
+require_relative 'embedding_index'
 require_relative 'tools/do_action'
 require_relative 'tools/discover_tools'
 require_relative 'resources/runner_catalog'
@@ -109,10 +110,20 @@ module Legion
             build_filtered_tool_list.map(&:to_h)
           end
 
+          # Populate embedding index for semantic tool matching (lazy — no-op if LLM unavailable)
+          populate_embedding_index
+
           Resources::RunnerCatalog.register(server)
           Resources::ExtensionInfo.register_read_handler(server)
 
           server
+        end
+
+        def populate_embedding_index(embedder: EmbeddingIndex.default_embedder)
+          return unless embedder
+
+          tool_data = ContextCompiler.tool_index.values
+          EmbeddingIndex.build_from_tool_data(tool_data, embedder: embedder)
         end
 
         def wire_observer(data)
