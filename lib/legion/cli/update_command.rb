@@ -33,6 +33,7 @@ module Legion
 
         before = snapshot_versions(target_gems)
         results = update_gems(target_gems, gem_bin, dry_run: options[:dry_run])
+        Gem::Specification.reset unless options[:dry_run]
         after = options[:dry_run] ? before : snapshot_versions(target_gems)
 
         if options[:json]

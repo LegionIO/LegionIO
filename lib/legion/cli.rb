@@ -42,6 +42,7 @@ module Legion
     autoload :Cost,        'legion/cli/cost_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
+    autoload :Llm,         'legion/cli/llm_command'
     autoload :Tty,         'legion/cli/tty_command'
     autoload :Interactive, 'legion/cli/interactive'
 
@@ -60,7 +61,8 @@ module Legion
       def version
         out = formatter
         if options[:json]
-          out.json(version: Legion::VERSION, ruby: RUBY_VERSION, platform: RUBY_PLATFORM)
+          out.json(version: Legion::VERSION, ruby: RUBY_VERSION, platform: RUBY_PLATFORM,
+                   components: installed_components, extensions: discovered_lexs.size)
         else
           out.banner(version: Legion::VERSION)
           out.spacer
@@ -233,6 +235,9 @@ module Legion
       desc 'notebook', 'Read and export Jupyter notebooks'
       subcommand 'notebook', Legion::CLI::Notebook
 
+      desc 'llm', 'LLM provider diagnostics (status, ping, models)'
+      subcommand 'llm', Legion::CLI::Llm
+
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
 
@@ -304,7 +309,8 @@ module Legion
 
         def installed_components
           components = { legionio: Legion::VERSION }
-          %w[legion-transport legion-data legion-cache legion-crypt legion-json legion-logging legion-settings].each do |gem_name|
+          %w[legion-transport legion-data legion-cache legion-crypt legion-json legion-logging legion-settings
+             legion-llm legion-gaia legion-tty].each do |gem_name|
             spec = Gem::Specification.find_by_name(gem_name)
             short = gem_name.sub('legion-', '')
             components[short.to_sym] = spec.version.to_s

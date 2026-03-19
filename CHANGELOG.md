@@ -1,5 +1,20 @@
 # Legion Changelog
 
+## [1.4.68] - 2026-03-19
+
+### Added
+- `legionio llm` subcommand for LLM provider diagnostics
+  - `llm status` (default) — show LLM state, enabled providers, routing, system memory
+  - `llm providers` — list all providers with enabled/disabled and reachability status
+  - `llm models` — list available models per enabled provider (Ollama discovery + cloud defaults)
+  - `llm ping` — test connectivity to each enabled provider with latency measurement
+  - All subcommands support `--json` output
+- `legionio version` now shows legion-llm, legion-gaia, and legion-tty in components list
+- `legionio version --json` now includes components hash and extension count
+
+### Fixed
+- `legionio update` now correctly detects gem version changes (was showing "already latest" for every gem due to stale in-memory gem spec cache after subprocess install)
+
 ## [1.4.67] - 2026-03-18
 
 ### Added
