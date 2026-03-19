@@ -27,9 +27,9 @@ module Legion
       end
 
       def generate_base_modules
-        lex_class.const_set('Transport', Module.new) unless lex_class.const_defined?('Transport')
+        lex_class.const_set('Transport', Module.new) unless lex_class.const_defined?('Transport', false)
         %w[Queues Exchanges Messages Consumers].each do |thing|
-          next if transport_class.const_defined? thing
+          next if transport_class.const_defined?(thing, false)
 
           transport_class.const_set(thing, Module.new)
         end
@@ -68,7 +68,7 @@ module Legion
       end
 
       def auto_create_dlx_exchange
-        dlx = if transport_class::Exchanges.const_defined? 'Dlx'
+        dlx = if transport_class::Exchanges.const_defined?('Dlx', false)
                 transport_class::Exchanges::Dlx
               else
                 transport_class::Exchanges.const_set('Dlx', Class.new(default_exchange) do
@@ -86,7 +86,7 @@ module Legion
       end
 
       def auto_create_dlx_queue
-        return if transport_class::Queues.const_defined?('Dlx')
+        return if transport_class::Queues.const_defined?('Dlx', false)
 
         special_name = default_exchange.new.exchange_name
         dlx_queue = Legion::Transport::Queue.new "#{special_name}.dlx", auto_delete: false

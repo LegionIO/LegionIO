@@ -1,5 +1,25 @@
 # Legion Changelog
 
+## [1.4.70] - 2026-03-19
+
+### Added
+- GAIA cognitive layer as a core boot phase: `setup_gaia` runs between LLM and telemetry in the startup sequence
+- Two-phase extension loading: all extensions are fully loaded (require + autobuild) before any actors are hooked (AMQP subscriptions, timers, etc.), preventing race conditions during boot
+- `gaia: true` parameter on `Service.new` to control GAIA initialization
+- GAIA graceful shutdown and reload support (shuts down before extensions, restarts after data)
+
+### Changed
+- Boot order is now deterministic: Logging -> Settings -> Crypt -> Transport -> Cache -> Data -> RBAC -> LLM -> GAIA -> Telemetry -> Extensions -> API
+- Extension actors are collected into `@pending_actors` during `load_extensions`, then started all at once via `hook_all_actors`
+
+## [1.4.69] - 2026-03-19
+
+### Fixed
+- Constant resolution bug in transport/subscription layers: `const_defined?` and `const_get` now pass `inherit: false` to prevent Ruby from finding top-level gem constants (`::Redis`, `::Vault`, `::Data`) through `Object` when checking dynamically created `Module.new` namespaces (`Transport::Exchanges`, `Transport::Queues`)
+- `Subscription#queue` now uses `queues.const_get(actor_const, false)` instead of `Kernel.const_get(queue_string)` to search only the Queues module's own constants
+- Added `llm-gateway` to `core_extension_names` so it is included under `:core` role profile
+- `build_extension_entry` now forces nesting for multi-segment gem names (e.g. `lex-llm-gateway`) to produce correct require paths regardless of call-site `nesting:` argument
+
 ## [1.4.68] - 2026-03-19
 
 ### Added

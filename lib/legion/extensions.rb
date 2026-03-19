@@ -18,9 +18,11 @@ module Legion
         @subscription_tasks = []
         @local_tasks = []
         @actors = []
+        @pending_actors = []
 
         find_extensions
         load_extensions
+        hook_all_actors
       end
 
       attr_reader :local_tasks
@@ -124,14 +126,14 @@ module Legion
 
         if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Hash)
           extension.meta_actors.each_value do |actor|
-            extension.log.debug("hooking meta actor: #{actor}") if has_logger
-            hook_actor(**actor)
+            extension.log.debug("deferring meta actor: #{actor}") if has_logger
+            @pending_actors << actor
           end
         end
 
         extension.actors.each_value do |actor|
-          extension.log.debug("hooking literal actor: #{actor}") if has_logger
-          hook_actor(**actor)
+          extension.log.debug("deferring literal actor: #{actor}") if has_logger
+          @pending_actors << actor
         end
         extension.log.info "Loaded v#{extension::VERSION}"
         Legion::Events.emit('extension.loaded', name: ext_name, version: entry[:gem_name])
@@ -159,6 +161,14 @@ module Legion
         Legion::Logging.error e.message
         Legion::Logging.error e.backtrace
         false
+      end
+
+      def hook_all_actors
+        return if @pending_actors.nil? || @pending_actors.empty?
+
+        Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
+        @pending_actors.each { |actor| hook_actor(**actor) }
+        @pending_actors = []
       end
 
       def hook_actor(extension:, extension_name:, actor_class:, size: 1, **opts)
@@ -303,7 +313,7 @@ module Legion
       end
 
       def core_extension_names
-        %w[codegen conditioner exec health lex log metering node ping scheduler tasker task_pruner telemetry
+        %w[codegen conditioner exec health lex llm-gateway log metering node ping scheduler tasker task_pruner telemetry
            transformer].freeze
       end
 
@@ -449,6 +459,9 @@ module Legion
       def build_extension_entry(gem_name, category, categories, nesting:)
         segments = Helpers::Segments.derive_segments(gem_name)
         tier     = category == :default ? 5 : (categories.dig(category, :tier) || 5)
+
+        # Multi-segment gem names always need nesting for correct require paths
+        nesting = true if segments.length > 1
 
         if nesting
           const_path   = Helpers::Segments.derive_const_path(gem_name)

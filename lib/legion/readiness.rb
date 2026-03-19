@@ -2,7 +2,7 @@
 
 module Legion
   module Readiness
-    COMPONENTS = %i[settings crypt transport cache data extensions api].freeze
+    COMPONENTS = %i[settings crypt transport cache data gaia extensions api].freeze
     DRAIN_TIMEOUT = 5
 
     class << self

@@ -7,11 +7,12 @@ module Legion
     def modules
       base = [Legion::Crypt, Legion::Transport, Legion::Cache, Legion::Data, Legion::Supervision]
       base << Legion::LLM if defined?(Legion::LLM)
+      base << Legion::Gaia if defined?(Legion::Gaia)
       base.freeze
     end
 
     def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/ParameterLists
-                   crypt: true, api: true, llm: true, log_level: 'info', http_port: nil)
+                   crypt: true, api: true, llm: true, gaia: true, log_level: 'info', http_port: nil)
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
@@ -49,6 +50,11 @@ module Legion
       if llm
         setup_llm
         Legion::Readiness.mark_ready(:llm)
+      end
+
+      if gaia
+        setup_gaia
+        Legion::Readiness.mark_ready(:gaia)
       end
 
       setup_telemetry
@@ -210,6 +216,16 @@ module Legion
       Legion::Logging.warn "Legion::LLM failed to load: #{e.message}"
     end
 
+    def setup_gaia
+      require 'legion/gaia'
+      Legion::Settings.merge_settings('gaia', Legion::Gaia::Settings.default)
+      Legion::Gaia.boot
+    rescue LoadError
+      Legion::Logging.info 'Legion::Gaia gem is not installed, starting without cognitive layer'
+    rescue StandardError => e
+      Legion::Logging.warn "Legion::Gaia failed to load: #{e.message}"
+    end
+
     def setup_transport
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
@@ -295,6 +311,11 @@ module Legion
 
       Legion::Metrics.reset! if defined?(Legion::Metrics)
 
+      if defined?(Legion::Gaia) && Legion::Gaia.started?
+        Legion::Gaia.shutdown
+        Legion::Readiness.mark_not_ready(:gaia)
+      end
+
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
 
@@ -330,6 +351,11 @@ module Legion
 
       shutdown_api
 
+      if defined?(Legion::Gaia) && Legion::Gaia.started?
+        Legion::Gaia.shutdown
+        Legion::Readiness.mark_not_ready(:gaia)
+      end
+
       Legion::Extensions.shutdown
       Legion::Readiness.mark_not_ready(:extensions)
 
@@ -356,6 +382,9 @@ module Legion
 
       setup_data
       Legion::Readiness.mark_ready(:data)
+
+      setup_gaia
+      Legion::Readiness.mark_ready(:gaia)
 
       setup_supervision
 

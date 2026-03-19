@@ -30,8 +30,8 @@ module Legion
         end
 
         def queue
-          create_queue unless queues.const_defined?(actor_const)
-          Kernel.const_get queue_string
+          create_queue unless queues.const_defined?(actor_const, false)
+          queues.const_get(actor_const, false)
         end
 
         def queue_string
