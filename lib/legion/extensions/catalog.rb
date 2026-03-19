@@ -92,6 +92,11 @@ module Legion
           Legion::Logging.debug { "Catalog persist failed: #{e.message}" } if defined?(Legion::Logging)
         end
       end
+
+      if defined?(Legion::Data::Local)
+        migrations_path = File.expand_path('../../data/local_migrations', __dir__)
+        Legion::Data::Local.register_migrations(name: :extension_catalog, path: migrations_path) if Dir.exist?(migrations_path)
+      end
     end
   end
 end
