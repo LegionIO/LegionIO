@@ -28,11 +28,15 @@ module Legion
             hook_class = Kernel.const_get(hook_class_name)
             next unless hook_class < Legion::Extensions::Hooks::Base
 
+            mount_suffix = hook_class.mount_path || ''
+            route_path = "#{extension_name}/#{hook_name}#{mount_suffix}"
+
             @hooks[hook_name.to_sym] = {
               extension:      lex_class.to_s.downcase,
               extension_name: extension_name,
               hook_name:      hook_name,
-              hook_class:     hook_class
+              hook_class:     hook_class,
+              route_path:     route_path
             }
           end
         end

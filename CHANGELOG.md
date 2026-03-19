@@ -1,5 +1,24 @@
 # Legion Changelog
 
+## [1.4.76] - 2026-03-19
+
+### Added
+- `Hooks::Base.mount(path)` DSL for extension-derived URL suffixes (e.g., `/callback`)
+- `GET /api/hooks/lex/*` splat route for hook discovery via GET requests
+- `POST /api/hooks/lex/*` splat route with `route_path`-based hook dispatch
+- `Legion::API.find_hook_by_path(path)` for direct route-path lookup in hook registry
+- `route_path` field stored in hook registry entries and returned in `GET /api/hooks` listing
+- Runner-controlled responses: `result[:response]` hash with `:status`, `:content_type`, `:body`
+- `build_payload`, `dispatch_hook`, `render_custom_response` extracted helpers in Routes::Hooks
+
+### Changed
+- `register_hook` now accepts `route_path:` keyword; defaults to `lex_name/hook_name` if omitted
+- `builders/hooks.rb` computes `route_path` from `extension_name/hook_name + mount_path`
+- `extensions/core.rb` passes `route_path:` when calling `Legion::API.register_hook`
+- `GET /api/hooks` listing now includes `route_path` and updated `endpoint` field
+- Removed `Routes::OAuth` (moved OAuth callback to lex-microsoft_teams hook with mount path)
+- `handle_hook_request` refactored into smaller helpers to stay within complexity limits
+
 ## [1.4.75] - 2026-03-19
 
 ### Added

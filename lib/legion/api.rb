@@ -23,7 +23,6 @@ require_relative 'api/hooks'
 require_relative 'api/workers'
 require_relative 'api/coldstart'
 require_relative 'api/gaia'
-require_relative 'api/oauth'
 require_relative 'api/openapi'
 require_relative 'api/rbac'
 require_relative 'api/auth'
@@ -101,7 +100,6 @@ module Legion
     register Routes::Workers
     register Routes::Coldstart
     register Routes::Gaia
-    register Routes::OAuth
     register Routes::Rbac
     register Routes::Auth
     register Routes::AuthWorker
@@ -121,15 +119,17 @@ module Legion
         @hook_registry ||= {}
       end
 
-      def register_hook(lex_name:, hook_name:, hook_class:, default_runner: nil)
-        key = "#{lex_name}/#{hook_name}"
+      def register_hook(lex_name:, hook_name:, hook_class:, default_runner: nil, route_path: nil)
+        route = route_path || "#{lex_name}/#{hook_name}"
+        key = route
         hook_registry[key] = {
           lex_name:       lex_name,
           hook_name:      hook_name,
           hook_class:     hook_class,
-          default_runner: default_runner
+          default_runner: default_runner,
+          route_path:     route
         }
-        Legion::Logging.debug "Registered hook endpoint: POST /api/hooks/#{key}"
+        Legion::Logging.debug "Registered hook endpoint: /api/hooks/lex/#{route}"
       end
 
       def find_hook(lex_name, hook_name = nil)
@@ -139,6 +139,10 @@ module Legion
           hook_registry["#{lex_name}/webhook"] ||
             hook_registry.values.find { |h| h[:lex_name] == lex_name }
         end
+      end
+
+      def find_hook_by_path(path)
+        hook_registry[path] || hook_registry.values.find { |h| h[:route_path] == path }
       end
 
       def registered_hooks

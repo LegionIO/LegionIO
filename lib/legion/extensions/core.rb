@@ -150,7 +150,8 @@ module Legion
             lex_name:       extension_name,
             hook_name:      hook_info[:hook_name],
             hook_class:     hook_info[:hook_class],
-            default_runner: hook_info[:hook_class].new.runner_class || default_runner
+            default_runner: hook_info[:hook_class].new.runner_class || default_runner,
+            route_path:     hook_info[:route_path]
           )
         end
       end

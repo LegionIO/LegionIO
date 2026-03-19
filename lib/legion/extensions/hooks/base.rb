@@ -44,8 +44,12 @@ module Legion
             @verify_config = { header: header.upcase.tr('-', '_'), secret: secret }
           end
 
+          def mount(path)
+            @mount_path = path
+          end
+
           attr_reader :route_type, :route_header_name, :route_field_name,
-                      :route_mapping, :verify_type, :verify_config
+                      :route_mapping, :verify_type, :verify_config, :mount_path
         end
 
         # Instance methods called by the API layer
