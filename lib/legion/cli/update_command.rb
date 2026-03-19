@@ -127,6 +127,21 @@ module Legion
             puts 'All gems are up to date'
           end
           out.error("#{failed.size} gem(s) failed to update") if failed.any?
+
+          suggest_detect(out)
+        end
+
+        def suggest_detect(out)
+          require 'legion/extensions/detect'
+          missing = Legion::Extensions::Detect.missing
+          return if missing.empty?
+
+          out.spacer
+          puts "  #{missing.size} new extension(s) recommended based on your environment:"
+          missing.each { |name| puts "    gem install #{name}" }
+          puts "  Run 'legionio detect --install' to install them"
+        rescue LoadError
+          nil
         end
       end
     end

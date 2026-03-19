@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.67] - 2026-03-18
+
+### Added
+- `legionio detect` subcommand — scan environment and recommend extensions (requires lex-detect gem)
+  - `detect scan` (default) — show detected software and recommended extensions
+  - `detect catalog` — show full detection catalog
+  - `detect missing` — list extensions that should be installed
+  - `--install` flag to install missing extensions after scan
+  - `--json` output mode
+- `legionio update` now suggests new extensions via lex-detect after updating gems
+
 ## [1.4.66] - 2026-03-18
 
 ### Fixed

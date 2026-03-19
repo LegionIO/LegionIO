@@ -35,6 +35,7 @@ module Legion
     autoload :Auth,       'legion/cli/auth_command'
     autoload :Rbac,       'legion/cli/rbac_command'
     autoload :Audit,      'legion/cli/audit_command'
+    autoload :Detect,     'legion/cli/detect_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
@@ -210,6 +211,9 @@ module Legion
 
       desc 'audit SUBCOMMAND', 'Audit log inspection and verification'
       subcommand 'audit', Legion::CLI::Audit
+
+      desc 'detect', 'Scan environment and recommend extensions'
+      subcommand 'detect', Legion::CLI::Detect
 
       desc 'update', 'Update Legion gems to latest versions'
       subcommand 'update', Legion::CLI::Update
