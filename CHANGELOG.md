@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.75] - 2026-03-19
+
+### Added
+- `Legion::Extensions::Catalog` singleton state machine tracking extension lifecycle (registered/loaded/starting/running/stopping/stopped)
+- `Legion::Extensions::Permissions` three-layer file permission model (sandbox, declared paths, auto-approve globs)
+- `GET /api/catalog` and `GET /api/catalog/:name` extension capability manifest endpoints
+- Tier 0 routing in `POST /api/llm/chat` via `Legion::MCP::TierRouter` for LLM-free cached responses
+- Data::Local migrations for extension_catalog and extension_permissions tables
+- Catalog lifecycle wired into extension loader (register/loaded/running/stopping/stopped transitions)
+
 ## [1.4.74] - 2026-03-19
 
 ### Changed
