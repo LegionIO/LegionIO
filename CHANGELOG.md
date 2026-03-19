@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.74] - 2026-03-19
+
+### Changed
+- Extracted `Legion::MCP` to dedicated `legion-mcp` gem (v0.1.0)
+- Replaced `mcp` gem dependency with `legion-mcp`
+
 ## [1.4.73] - 2026-03-19
 
 ### Added
