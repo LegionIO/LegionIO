@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'legion/extensions/core'
+require 'legion/extensions/catalog'
 require 'legion/runner'
 
 module Legion
@@ -30,6 +31,8 @@ module Legion
       def shutdown
         return nil if @loaded_extensions.nil?
 
+        @loaded_extensions.each { |name| Catalog.transition(name, :stopping) }
+
         @subscription_tasks.each do |task|
           task[:threadpool].shutdown
           task[:threadpool].kill unless task[:threadpool].wait_for_termination(5)
@@ -40,6 +43,7 @@ module Legion
         @timer_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
         @poll_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
 
+        @loaded_extensions.each { |name| Catalog.transition(name, :stopped) }
         Legion::Logging.info 'Successfully shut down all actors'
       end
 
@@ -58,10 +62,12 @@ module Legion
             next
           end
 
+          Catalog.register(gem_name)
           unless load_extension(entry)
             Legion::Logging.warn("#{gem_name} failed to load")
             next
           end
+          Catalog.transition(gem_name, :loaded)
           @loaded_extensions.push(gem_name)
         end
         Legion::Logging.info(
@@ -169,6 +175,7 @@ module Legion
         Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
         @pending_actors.each { |actor| hook_actor(**actor) }
         @pending_actors = []
+        @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
       end
 
       def hook_actor(extension:, extension_name:, actor_class:, size: 1, **opts)
