@@ -43,7 +43,8 @@ module Legion
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
     autoload :Llm,         'legion/cli/llm_command'
-    autoload :Tty,         'legion/cli/tty_command'
+    autoload :Tty,            'legion/cli/tty_command'
+    autoload :ObserveCommand, 'legion/cli/observe_command'
     autoload :Interactive, 'legion/cli/interactive'
 
     class Main < Thor
@@ -240,6 +241,9 @@ module Legion
 
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
+
+      desc 'observe SUBCOMMAND', 'MCP tool observation stats'
+      subcommand 'observe', Legion::CLI::ObserveCommand
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.72] - 2026-03-19
+
+### Added
+- TBI Phase 0+2: MCP tool observation pipeline and usage-based filtering
+- `Legion::MCP::Observer` module: in-memory tool call recording with counters, ring buffer, and intent tracking
+- `Legion::MCP::UsageFilter` module: scores tools by frequency, recency, and keyword match; prunes dead tools
+- MCP `instrumentation_callback` wiring: automatically records all `tools/call` invocations via Observer
+- MCP `tools_list_handler` wiring: dynamically filters and ranks tools per-request based on usage data
+- `legion observe` CLI command: `stats`, `recent`, `reset` subcommands for MCP tool usage inspection
+- 96 new specs covering Observer, UsageFilter, CLI command, and integration wiring
+
 ## [1.4.71] - 2026-03-19
 
 ### Added

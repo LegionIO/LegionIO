@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'observer'
+require_relative 'usage_filter'
 require_relative 'tools/run_task'
 require_relative 'tools/describe_runner'
 require_relative 'tools/list_tasks'
@@ -97,10 +99,42 @@ module Legion
             resource_templates: Resources::ExtensionInfo.resource_templates
           )
 
+          if defined?(Observer)
+            ::MCP.configure do |c|
+              c.instrumentation_callback = ->(idata) { Server.wire_observer(idata) }
+            end
+          end
+
+          server.tools_list_handler do |_params|
+            build_filtered_tool_list.map(&:to_h)
+          end
+
           Resources::RunnerCatalog.register(server)
           Resources::ExtensionInfo.register_read_handler(server)
 
           server
+        end
+
+        def wire_observer(data)
+          return unless data[:method] == 'tools/call' && data[:tool_name]
+
+          duration_ms = (data[:duration].to_f * 1000).to_i
+          params_keys = data[:tool_arguments].respond_to?(:keys) ? data[:tool_arguments].keys : []
+          success     = data[:error].nil?
+
+          Observer.record(
+            tool_name:   data[:tool_name],
+            duration_ms: duration_ms,
+            success:     success,
+            params_keys: params_keys,
+            error:       data[:error]
+          )
+        end
+
+        def build_filtered_tool_list(keywords: [])
+          tool_names = TOOL_CLASSES.map { |tc| tc.respond_to?(:tool_name) ? tc.tool_name : tc.name }
+          ranked     = UsageFilter.ranked_tools(tool_names, keywords: keywords)
+          ranked.filter_map { |name| TOOL_CLASSES.find { |tc| (tc.respond_to?(:tool_name) ? tc.tool_name : tc.name) == name } }
         end
 
         private
