@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 
 gemspec
 
+gem 'legion-mcp', path: '../legion-mcp'
 gem 'mysql2'
 
 group :test do

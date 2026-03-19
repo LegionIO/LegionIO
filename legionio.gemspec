@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.bindir        = 'exe'
   spec.executables   = %w[legion legionio]
 
-  spec.add_dependency 'mcp', '~> 0.8'
+  spec.add_dependency 'legion-mcp'
 
   spec.add_dependency 'bootsnap', '>= 1.18'
   spec.add_dependency 'concurrent-ruby', '>= 1.2'
