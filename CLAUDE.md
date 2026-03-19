@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.70
+**Version**: 1.4.74
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -145,23 +145,8 @@ Legion (lib/legion.rb)
 │   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
 │                      # Populated by extensions via Legion::API.register_hook(...)
 │
-├── MCP (mcp gem)      # MCP server for AI agent integration
-│   ├── MCP.server     # Singleton factory: Legion::MCP.server returns MCP::Server instance
-│   ├── Server         # MCP::Server builder, tool/resource registration
-│   ├── Tools/         # 35 MCP::Tool subclasses (legion.* namespace)
-│   │   ├── RunTask         # Agentic: dot notation task execution
-│   │   ├── DescribeRunner  # Agentic: runner/function discovery
-│   │   ├── List/Get/Delete Task + GetTaskLogs
-│   │   ├── List/Create/Update/Delete Chain
-│   │   ├── List/Create/Update/Delete Relationship
-│   │   ├── List/Get/Enable/Disable Extension
-│   │   ├── List/Create/Update/Delete Schedule
-│   │   ├── GetStatus, GetConfig
-│   │   ├── ListWorkers, ShowWorker, WorkerLifecycle, WorkerCosts, TeamSummary, RoutingStats
-│   │   └── RbacAssignments, RbacCheck, RbacGrants
-│   └── Resources/
-│       ├── RunnerCatalog   # legion://runners - all ext.runner.func paths
-│       └── ExtensionInfo   # legion://extensions/{name} - extension detail template
+├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
+│   └── (35 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
 │
 ├── DigitalWorker      # Digital worker platform (AI-as-labor governance)
 │   ├── Lifecycle      # Worker state machine (active/paused/retired/terminated)
@@ -483,11 +468,11 @@ legion
 
 ### MCP Design
 
-- Uses `mcp` gem (~> 0.8): `MCP::Server`, `MCP::Tool`, `MCP::Resource`
-- Transports: `MCP::Server::Transports::StdioTransport`, `MCP::Server::Transports::StreamableHTTPTransport`
-- HTTP transport uses rackup + puma
+Extracted to the `legion-mcp` gem (v0.1.0). See `legion-mcp/CLAUDE.md` for full architecture.
+
 - `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
 - Tool naming: `legion.snake_case_name` (dot namespace, not slash)
+- Tier 0 routing: PatternStore + TierRouter + ContextGuard for LLM-free cached responses
 
 ## Dependencies
 
@@ -507,7 +492,7 @@ legion
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `rackup` (>= 2.0) | Rack server launcher for MCP HTTP transport |
-| `mcp` (~> 0.8) | MCP server SDK |
+| `legion-mcp` | MCP server + Tier 0 routing (extracted gem) |
 | `reline` (>= 0.5) | Interactive line editing for chat REPL |
 | `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
 | `tty-spinner` (~> 0.9) | Spinner animation for CLI loading states |
@@ -604,19 +589,12 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/tenant_context.rb` | Thread-local tenant context propagation (set, clear, with block) |
 | `lib/legion/tenants.rb` | Tenant CRUD, suspension, quota enforcement |
 | `lib/legion/capacity/model.rb` | Workforce capacity calculation (throughput, utilization, forecast, per-worker) |
-| **MCP** | |
-| `lib/legion/mcp.rb` | Entry point: `Legion::MCP.server` singleton factory, `server_for(token:)` |
-| `lib/legion/mcp/auth.rb` | MCP authentication: JWT + API key verification |
-| `lib/legion/mcp/tool_governance.rb` | Risk-tier tool filtering and invocation audit |
-| `lib/legion/mcp/server.rb` | MCP::Server builder, TOOL_CLASSES array, governance-aware build |
+| **MCP** (extracted to `legion-mcp` gem) | |
 | `lib/legion/digital_worker.rb` | DigitalWorker module entry point |
 | `lib/legion/digital_worker/lifecycle.rb` | Worker state machine |
 | `lib/legion/digital_worker/registry.rb` | In-process worker registry |
 | `lib/legion/digital_worker/risk_tier.rb` | AIRB risk tier + governance constraints |
 | `lib/legion/digital_worker/value_metrics.rb` | Token/cost/latency tracking |
-| `lib/legion/mcp/tools/` | 35 MCP::Tool subclasses (incl. rbac_assignments, rbac_check, rbac_grants) |
-| `lib/legion/mcp/resources/runner_catalog.rb` | `legion://runners` resource |
-| `lib/legion/mcp/resources/extension_info.rb` | `legion://extensions/{name}` resource template |
 | **CLI v2** | |
 | `lib/legion/cli.rb` | `Legion::CLI::Main` Thor app, global flags, version, start/stop/status/check |
 | `lib/legion/cli/output.rb` | `Output::Formatter`: color, tables, JSON mode, ANSI stripping |
@@ -713,8 +691,6 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `API::Routes::Relationships` | Fully implemented (backed by legion-data migration 013) |
 | `API::Routes::Chains` | 501 stub - no data model |
 | `API::Middleware::Auth` | JWT Bearer auth middleware — real token validation and API key (`X-API-Key` header) auth both implemented |
-| `MCP::Auth` | JWT + API key authentication for MCP server (HTTP transport) |
-| `MCP::ToolGovernance` | Risk-tier tool filtering + audit — disabled by default, opt-in via settings |
 | `legion-data` chains/relationships models | Not yet implemented |
 
 ## Rubocop Notes
@@ -728,7 +704,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1433 examples, 0 failures
+bundle exec rspec       # 1427 examples, 0 failures
 bundle exec rubocop     # 418 files, 0 offenses
 ```
 
