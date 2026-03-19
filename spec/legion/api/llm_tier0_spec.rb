@@ -62,7 +62,7 @@ RSpec.describe 'POST /api/llm/chat Tier 0 routing' do
   context 'when TierRouter returns tier 0' do
     before do
       tier_router = Module.new do
-        def self.route(intent:, params: {}, context: {})
+        def self.route(intent:, params: {}, context: {}) # rubocop:disable Lint/UnusedMethodArgument
           { tier: 0, response: { answer: 'cached response' }, latency_ms: 2, pattern_confidence: 0.95 }
         end
       end
@@ -82,7 +82,7 @@ RSpec.describe 'POST /api/llm/chat Tier 0 routing' do
   context 'when TierRouter returns tier 2' do
     before do
       tier_router = Module.new do
-        def self.route(intent:, params: {}, context: {})
+        def self.route(intent:, params: {}, context: {}) # rubocop:disable Lint/UnusedMethodArgument
           { tier: 2, response: nil, reason: 'no pattern' }
         end
       end

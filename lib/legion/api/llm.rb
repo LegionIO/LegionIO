@@ -28,27 +28,27 @@ module Legion
           register_chat(app)
         end
 
-        def self.register_chat(app)
+        def self.register_chat(app) # rubocop:disable Metrics/MethodLength
           app.post '/api/llm/chat' do # rubocop:disable Metrics/BlockLength
             require_llm!
 
             body = parse_request_body
             validate_required!(body, :message)
 
-            message    = body[:message]
+            message = body[:message]
 
             # Tier 0 check — serve from PatternStore if available
             if defined?(Legion::MCP::TierRouter)
               tier_result = Legion::MCP::TierRouter.route(
-                intent: message,
-                params: body.except(:message, :model, :provider, :request_id),
+                intent:  message,
+                params:  body.except(:message, :model, :provider, :request_id),
                 context: {}
               )
               if tier_result[:tier]&.zero?
                 return json_response({
-                                       response: tier_result[:response],
-                                       tier: 0,
-                                       latency_ms: tier_result[:latency_ms],
+                                       response:           tier_result[:response],
+                                       tier:               0,
+                                       latency_ms:         tier_result[:latency_ms],
                                        pattern_confidence: tier_result[:pattern_confidence]
                                      })
               end

@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module ExtensionCatalog
-        def self.registered(app) # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+        def self.registered(app)
           app.get '/api/catalog' do
             entries = Legion::Extensions::Catalog.all.map do |name, entry|
               build_catalog_manifest(name, entry)
@@ -26,14 +26,14 @@ module Legion
       end
     end
 
-    helpers do
+    helpers do # rubocop:disable Metrics/BlockLength
       def build_catalog_manifest(name, entry)
         {
-          name: name,
-          state: entry[:state].to_s,
-          started_at: entry[:started_at]&.iso8601,
-          permissions: build_catalog_permissions(name),
-          runners: build_catalog_runners(name),
+          name:          name,
+          state:         entry[:state].to_s,
+          started_at:    entry[:started_at]&.iso8601,
+          permissions:   build_catalog_permissions(name),
+          runners:       build_catalog_runners(name),
           known_intents: build_catalog_known_intents(name)
         }
       end
@@ -41,8 +41,8 @@ module Legion
       def build_catalog_permissions(name)
         declared = Legion::Extensions::Permissions.declared_paths(name)
         {
-          sandbox: Legion::Extensions::Permissions.sandbox_path(name),
-          read_paths: declared[:read_paths],
+          sandbox:     Legion::Extensions::Permissions.sandbox_path(name),
+          read_paths:  declared[:read_paths],
           write_paths: declared[:write_paths]
         }
       rescue StandardError
@@ -57,7 +57,7 @@ module Legion
 
         ext.runners.to_h do |runner|
           [runner.values[:name], {
-            methods: runner.functions.map { |f| f.values[:name] },
+            methods:     runner.functions.map { |f| f.values[:name] },
             description: runner.values[:description]
           }]
         end
@@ -68,11 +68,11 @@ module Legion
       def build_catalog_known_intents(name)
         return [] unless defined?(Legion::MCP::PatternStore)
 
-        Legion::MCP::PatternStore.patterns.select do |_hash, pattern|
+        matched = Legion::MCP::PatternStore.patterns.select do |_hash, pattern|
           pattern[:tool_chain]&.any? { |t| t.start_with?(name) }
-        end.map do |_hash, pattern|
-          { intent: pattern[:intent_text], tool_chain: pattern[:tool_chain],
-            confidence: pattern[:confidence] }
+        end
+        matched.map do |_hash, pattern|
+          { intent: pattern[:intent_text], tool_chain: pattern[:tool_chain], confidence: pattern[:confidence] }
         end
       rescue StandardError
         []

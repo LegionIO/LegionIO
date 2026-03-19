@@ -11,10 +11,10 @@ module Legion
           return if @entries&.key?(lex_name)
 
           entries[lex_name] = {
-            state: state,
+            state:         state,
             registered_at: Time.now,
-            started_at: nil,
-            stopped_at: nil
+            started_at:    nil,
+            stopped_at:    nil
           }
         end
 
@@ -68,9 +68,9 @@ module Legion
                         Legion::Transport::Connection.session_open?
 
           Legion::Transport::Messages::Dynamic.new(
-            function: 'catalog_transition',
+            function:    'catalog_transition',
             routing_key: "legion.catalog.#{lex_name}.#{new_state}",
-            args: { lex_name: lex_name, state: new_state.to_s, timestamp: Time.now.to_i }
+            args:        { lex_name: lex_name, state: new_state.to_s, timestamp: Time.now.to_i }
           ).publish
         rescue StandardError => e
           Legion::Logging.debug { "Catalog publish failed: #{e.message}" } if defined?(Legion::Logging)
