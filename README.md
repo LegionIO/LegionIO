@@ -14,7 +14,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.61** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.67** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -83,6 +83,7 @@ gem 'legionio'
 | `legion-llm` | AI chat, commit, review, agents, multi-provider LLM routing |
 | `legion-cache` | Redis/Memcached caching for extensions |
 | `legion-crypt` | Vault integration, encryption, JWT auth |
+| `legion-tty` | TTY UI components (spinners, tables, prompts) |
 
 ## Infrastructure
 
@@ -487,7 +488,7 @@ Each phase registers with `Legion::Readiness`. All phases are individually toggl
 git clone https://github.com/LegionIO/LegionIO.git
 cd LegionIO
 bundle install
-bundle exec rspec       # 1379 examples, 0 failures
+bundle exec rspec       # 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

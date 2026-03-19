@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.65
+**Version**: 1.4.67
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -501,9 +501,11 @@ legion
 | `bootsnap` (>= 1.18) | YARV bytecode + load-path caching |
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
+| `rackup` (>= 2.0) | Rack server launcher for MCP HTTP transport |
 | `mcp` (~> 0.8) | MCP server SDK |
 | `reline` (>= 0.5) | Interactive line editing for chat REPL |
 | `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
+| `tty-spinner` (~> 0.9) | Spinner animation for CLI loading states |
 | `sinatra` (>= 4.0) | HTTP API framework |
 | `thor` (>= 1.3) | CLI framework |
 
