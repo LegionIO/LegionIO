@@ -2,6 +2,7 @@
 
 require 'legion/extensions/core'
 require 'legion/extensions/catalog'
+require 'legion/extensions/permissions'
 require 'legion/runner'
 
 module Legion
