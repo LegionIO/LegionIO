@@ -33,6 +33,9 @@ require_relative 'tools/routing_stats'
 require_relative 'tools/rbac_check'
 require_relative 'tools/rbac_assignments'
 require_relative 'tools/rbac_grants'
+require_relative 'context_compiler'
+require_relative 'tools/do_action'
+require_relative 'tools/discover_tools'
 require_relative 'resources/runner_catalog'
 require_relative 'resources/extension_info'
 
@@ -72,7 +75,9 @@ module Legion
         Tools::RoutingStats,
         Tools::RbacCheck,
         Tools::RbacAssignments,
-        Tools::RbacGrants
+        Tools::RbacGrants,
+        Tools::DoAction,
+        Tools::DiscoverTools
       ].freeze
 
       class << self

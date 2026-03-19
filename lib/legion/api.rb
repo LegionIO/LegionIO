@@ -33,6 +33,7 @@ require_relative 'api/auth_kerberos'
 require_relative 'api/capacity'
 require_relative 'api/audit'
 require_relative 'api/metrics'
+require_relative 'api/llm'
 
 module Legion
   class API < Sinatra::Base
@@ -108,6 +109,7 @@ module Legion
     register Routes::Capacity
     register Routes::Audit
     register Routes::Metrics
+    register Routes::Llm
 
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 

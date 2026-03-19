@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.67
+**Version**: 1.4.70
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -39,20 +39,25 @@ Before any Legion code loads, `exe/legion` applies three performance optimizatio
 ```
 Legion.start
   └── Legion::Service.new
-      ├── 1. setup_logging      (legion-logging)
-      ├── 2. setup_settings     (legion-settings, loads /etc/legionio, ~/legionio, ./settings)
-      ├── 3. Legion::Crypt.start (legion-crypt, Vault connection)
-      ├── 4. setup_transport    (legion-transport, RabbitMQ connection)
-      ├── 5. require legion-cache
-      ├── 6. setup_data         (legion-data, MySQL/SQLite + migrations, optional)
-      ├── 7. setup_llm          (legion-llm, optional)
-      ├── 8. setup_supervision  (process supervision)
-      ├── 9. load_extensions    (discover + load LEX gems, filtered by role profile)
-      ├── 10. Legion::Crypt.cs  (distribute cluster secret)
-      └── 11. setup_api         (start Sinatra/Puma on port 4567)
+      ├── 1.  setup_logging      (legion-logging)
+      ├── 2.  setup_settings     (legion-settings, loads /etc/legionio, ~/legionio, ./settings)
+      ├── 3.  Legion::Crypt.start (legion-crypt, Vault connection)
+      ├── 4.  setup_transport    (legion-transport, RabbitMQ connection)
+      ├── 5.  require legion-cache
+      ├── 6.  setup_data         (legion-data, MySQL/SQLite + migrations, optional)
+      ├── 7.  setup_rbac         (legion-rbac, optional)
+      ├── 8.  setup_llm          (legion-llm, optional)
+      ├── 9.  setup_gaia         (legion-gaia, cognitive layer, optional)
+      ├── 10. setup_telemetry    (OpenTelemetry, optional)
+      ├── 11. setup_supervision  (process supervision)
+      ├── 12. load_extensions    (two-phase: require+autobuild all, then hook_all_actors)
+      ├── 13. Legion::Crypt.cs   (distribute cluster secret)
+      └── 14. setup_api          (start Sinatra/Puma on port 4567)
 ```
 
 Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
+
+Extension loading is two-phase: all extensions are `require`d and `autobuild` runs first, collecting actors into `@pending_actors`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet.
 
 ### Reload Sequence
 
@@ -66,7 +71,7 @@ Legion (lib/legion.rb)
 │                      # Entry points: Legion.start, .shutdown, .reload
 ├── Process            # Daemonization: PID management, signal traps (SIGINT=quit), main loop
 ├── Readiness          # Startup readiness tracking
-│                      # COMPONENTS: settings, crypt, transport, cache, data, extensions, api
+│                      # COMPONENTS: settings, crypt, transport, cache, data, gaia, extensions, api
 │                      # Readiness.ready? checks all; /api/ready returns JSON status
 ├── Events             # In-process pub/sub event bus
 │                      # Events.on(name) / .emit(name, **payload) / .once / .off
@@ -723,8 +728,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1379 examples, 0 failures
-bundle exec rubocop     # 396 files, 0 offenses
+bundle exec rspec       # 1433 examples, 0 failures
+bundle exec rubocop     # 418 files, 0 offenses
 ```
 
 Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.

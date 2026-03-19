@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.71] - 2026-03-19
+
+### Added
+- `POST /api/llm/chat` daemon endpoint with async (202) and sync (201) response paths
+- `ContextCompiler` module: categorizes 35 MCP tools into 9 groups with keyword matching
+- `legion.do` meta-tool: natural language intent routing to best-matching MCP tool
+- `legion.tools` meta-tool: compressed catalog, category browsing, and intent-matched discovery
+
+### Fixed
+- `ContextCompiler.build_tool_index` now handles `MCP::Tool::InputSchema` objects (not just hashes)
+
 ## [1.4.70] - 2026-03-19
 
 ### Added
