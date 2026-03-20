@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.74
+**Version**: 1.4.78
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -557,7 +557,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/settings.rb` | Settings: read/write with redaction + readonly guards |
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
-| `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress |
+| `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress; supports custom response headers |
 | `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
 | `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
 | `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
@@ -704,7 +704,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1427 examples, 0 failures
+bundle exec rspec       # 1459 examples, 0 failures
 bundle exec rubocop     # 418 files, 0 offenses
 ```
 
