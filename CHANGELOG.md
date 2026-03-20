@@ -6,6 +6,9 @@
 - `Legion::Extensions.load_yaml_agents` — loads YAML/JSON agent definitions from `~/.legionio/agents/` or configured directory
 - `generate_yaml_runner` — dynamically generates a runner Module for each agent with `llm`, `script`, and `http` function types
 - YAML agent loading integrated into `hook_extensions` boot sequence
+- Governance API routes under `/api/governance/approvals` (list, show, submit, approve, reject)
+- HTML governance dashboard at `/governance/` with approve/reject buttons, 30s auto-poll, and reviewer dialog
+- Static file serving enabled for `public/` directory in Sinatra
 
 ## [1.4.83] - 2026-03-20
 
