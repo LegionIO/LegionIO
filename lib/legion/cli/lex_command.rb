@@ -167,8 +167,9 @@ module Legion
         out.warn('Restart Legion for changes to take effect') unless options[:json]
       end
 
-      desc 'run EXTENSION COMMAND [METHOD]', 'Run a LEX CLI command (or use alias: legion lex ALIAS COMMAND METHOD)'
-      def run(ext_name, command = nil, method_name = nil)
+      desc 'invoke_ext EXTENSION COMMAND [METHOD]', 'Run a LEX CLI command'
+      map 'exec' => :invoke_ext
+      def invoke_ext(ext_name, command = nil, method_name = nil)
         out = formatter
         manifest = LexCliManifest.new
         gem_name = manifest.resolve_alias(ext_name) || "lex-#{ext_name}"
