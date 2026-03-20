@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.80] - 2026-03-20
+
+### Added
+- `legion eval run` CLI subcommand for CI/CD threshold-based eval gating
+- `--dataset`, `--threshold`, `--evaluator`, `--exit-code` options on `eval run`
+- JSON report output to stdout with per-row scores, summary, and timestamp
+- `.github/workflow-templates/eval-gate.yml` reusable GitHub Actions workflow template
+- PR annotation step in workflow template for inline eval result comments
+
 ## [1.4.79] - 2026-03-20
 
 ### Added

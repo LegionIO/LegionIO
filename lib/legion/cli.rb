@@ -36,6 +36,7 @@ module Legion
     autoload :Rbac,       'legion/cli/rbac_command'
     autoload :Audit,      'legion/cli/audit_command'
     autoload :Detect,     'legion/cli/detect_command'
+    autoload :Eval,       'legion/cli/eval_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
@@ -241,6 +242,9 @@ module Legion
 
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
+
+      desc 'eval SUBCOMMAND', 'Eval gating and experiment management'
+      subcommand 'eval', Legion::CLI::Eval
 
       desc 'observe SUBCOMMAND', 'MCP tool observation stats'
       subcommand 'observe', Legion::CLI::ObserveCommand
