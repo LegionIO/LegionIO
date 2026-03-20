@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.78] - 2026-03-19
+
+### Added
+- Response headers support in `render_custom_response`: runners can return `response[:headers]` hash for custom HTTP headers
+
+### Removed
+- Legacy `POST /api/hooks/:lex_name/:hook_name` route (superseded by `GET|POST /api/hooks/lex/*` splat routes in v1.4.76)
+- Hardcoded `GET /api/auth/negotiate` Kerberos route (migrated to lex-kerberos hook at `/api/hooks/lex/kerberos/negotiate`)
+- `Routes::AuthKerberos` module and `api/auth_kerberos.rb` file
+
 ## [1.4.77] - 2026-03-19
 
 ### Added

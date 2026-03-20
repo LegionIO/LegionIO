@@ -7,7 +7,6 @@ module Legion
         def self.registered(app)
           register_list(app)
           register_lex_routes(app)
-          register_legacy_trigger(app)
         end
 
         def self.register_list(app)
@@ -83,45 +82,12 @@ module Legion
         def self.render_custom_response(context, resp)
           context.status resp[:status] || 200
           context.content_type resp[:content_type] || 'application/json'
+          resp[:headers]&.each { |k, v| context.headers[k] = v }
           resp[:body] || ''
         end
 
-        def self.register_legacy_trigger(app)
-          app.post '/api/hooks/:lex_name/?:hook_name?' do
-            content_type :json
-            lex_name = params[:lex_name].downcase
-            hook_name = params[:hook_name]&.downcase
-
-            hook_entry = Legion::API.find_hook(lex_name, hook_name)
-            halt 404, json_error('not_found', "no hook registered for '#{lex_name}'", status_code: 404) if hook_entry.nil?
-
-            body = request.body.read
-            hook = hook_entry[:hook_class].new
-
-            halt 401, json_error('unauthorized', 'hook verification failed', status_code: 401) unless hook.verify(request.env, body)
-
-            payload = body.nil? || body.empty? ? {} : Legion::JSON.load(body)
-            function = hook.route(request.env, payload)
-            halt 422, json_error('unhandled_event', 'hook could not route this event', status_code: 422) if function.nil?
-
-            runner = hook.runner_class || hook_entry[:default_runner]
-            halt 500, json_error('no_runner', 'no runner class configured for this hook', status_code: 500) if runner.nil?
-
-            result = Legion::Ingress.run(
-              payload: payload, runner_class: runner, function: function,
-              source: 'webhook', check_subtask: true, generate_task: true
-            )
-
-            json_response({ task_id: result[:task_id], status: result[:status] })
-          rescue StandardError => e
-            Legion::Logging.error "Hook error: #{e.message}"
-            Legion::Logging.error e.backtrace&.first(5)
-            json_error('internal_error', e.message, status_code: 500)
-          end
-        end
-
         class << self
-          private :register_list, :register_lex_routes, :register_legacy_trigger,
+          private :register_list, :register_lex_routes,
                   :handle_hook_request, :build_payload, :dispatch_hook, :render_custom_response
         end
       end

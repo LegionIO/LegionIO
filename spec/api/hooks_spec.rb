@@ -60,13 +60,6 @@ RSpec.describe 'Hooks API' do
     end
   end
 
-  describe 'POST /api/hooks/:lex_name (legacy)' do
-    it 'returns 404 for unregistered hook' do
-      post '/api/hooks/nonexistent'
-      expect(last_response.status).to eq(404)
-    end
-  end
-
   describe 'Hooks::Base.mount' do
     it 'stores mount_path on the class' do
       klass = Class.new(Legion::Extensions::Hooks::Base)
