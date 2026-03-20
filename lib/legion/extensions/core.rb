@@ -3,6 +3,7 @@
 require_relative 'builders/actors'
 require_relative 'builders/helpers'
 require_relative 'builders/hooks'
+require_relative 'builders/routes'
 require_relative 'builders/runners'
 
 require_relative 'helpers/segments'
@@ -39,6 +40,7 @@ module Legion
       include Legion::Extensions::Builder::Helpers
       include Legion::Extensions::Builder::Actors
       include Legion::Extensions::Builder::Hooks
+      include Legion::Extensions::Builder::Routes
 
       def autobuild
         @actors = {}
@@ -56,7 +58,9 @@ module Legion
         build_runners
         build_actors
         build_hooks
+        build_routes
         register_hooks
+        register_routes
       end
 
       def data_required?
@@ -152,6 +156,21 @@ module Legion
             hook_class:     hook_info[:hook_class],
             default_runner: hook_info[:hook_class].new.runner_class || default_runner,
             route_path:     hook_info[:route_path]
+          )
+        end
+      end
+
+      def register_routes
+        return if @routes.nil? || @routes.empty?
+        return unless defined?(Legion::API)
+
+        @routes.each_value do |route_info|
+          Legion::API.register_route(
+            lex_name:     route_info[:lex_name],
+            runner_name:  route_info[:runner_name],
+            function:     route_info[:function],
+            runner_class: route_info[:runner_class],
+            route_path:   route_info[:route_path]
           )
         end
       end
