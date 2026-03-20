@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.86] - 2026-03-20
+
+### Added
+- `legion payroll` CLI subcommand for workforce cost visibility (summary, report, forecast, budget)
+- Integrated with `Helpers::Economics` from lex-metering for labor economics data
+
 ## [1.4.85] - 2026-03-20
 
 ### Added
