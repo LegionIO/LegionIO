@@ -34,6 +34,7 @@ module Legion
     autoload :Telemetry,  'legion/cli/telemetry_command'
     autoload :Auth,       'legion/cli/auth_command'
     autoload :Rbac,       'legion/cli/rbac_command'
+    autoload :Acp,        'legion/cli/acp_command'
     autoload :Audit,      'legion/cli/audit_command'
     autoload :Detect,     'legion/cli/detect_command'
     autoload :Eval,       'legion/cli/eval_command'
@@ -163,6 +164,9 @@ module Legion
       desc 'generate SUBCOMMAND', 'Code generators for LEX components'
       map 'g' => :generate
       subcommand 'generate', Legion::CLI::Generate
+
+      desc 'acp SUBCOMMAND', 'Start ACP agent for editor integration'
+      subcommand 'acp', Legion::CLI::Acp
 
       desc 'mcp SUBCOMMAND', 'Start MCP server for AI agent integration'
       subcommand 'mcp', Legion::CLI::Mcp
