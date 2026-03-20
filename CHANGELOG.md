@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.88] - 2026-03-20
+
+### Added
+- ACP provider spec: 25 tests covering agent card discovery, task submission, task status, task cancellation stub, and status translation
+- Refactored ACP helpers into `Legion::API::Helpers::Acp` module for testability
+
 ## [1.4.87] - 2026-03-20
 
 ### Added

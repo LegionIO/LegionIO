@@ -2,9 +2,66 @@
 
 module Legion
   class API < Sinatra::Base
+    module Helpers
+      module Acp
+        def build_agent_card
+          name = begin
+            Legion::Settings[:client][:name]
+          rescue StandardError
+            'legion'
+          end
+          port = begin
+            settings.port || 4567
+          rescue StandardError
+            4567
+          end
+          {
+            name:               name,
+            description:        'LegionIO digital worker',
+            url:                "http://#{request.host}:#{port}/api/acp",
+            version:            '2.0',
+            protocol:           'acp/1.0',
+            capabilities:       discover_capabilities,
+            authentication:     { schemes: ['bearer'] },
+            defaultInputModes:  ['text/plain', 'application/json'],
+            defaultOutputModes: ['text/plain', 'application/json']
+          }
+        end
+
+        def discover_capabilities
+          if defined?(Legion::Extensions::Mesh::Helpers::Registry)
+            Legion::Extensions::Mesh::Helpers::Registry.new.capabilities.keys.map(&:to_s)
+          else
+            []
+          end
+        rescue StandardError
+          []
+        end
+
+        def find_task(id)
+          return nil unless defined?(Legion::Data)
+
+          Legion::Data::Model::Task[id.to_i]&.values
+        rescue StandardError
+          nil
+        end
+
+        def translate_status(status)
+          case status&.to_s
+          when /completed/ then 'completed'
+          when /exception|failed/ then 'failed'
+          when /queued|scheduled/ then 'queued'
+          else 'in_progress'
+          end
+        end
+      end
+    end
+
     module Routes
       module Acp
         def self.registered(app)
+          app.helpers Legion::API::Helpers::Acp
+
           app.get '/.well-known/agent.json' do
             card = build_agent_card
             content_type :json
@@ -41,59 +98,6 @@ module Legion
           app.delete '/api/acp/tasks/:id' do
             halt 501, json_error(501, 'Task cancellation not implemented')
           end
-        end
-      end
-    end
-
-    helpers do
-      def build_agent_card
-        name = begin
-          Legion::Settings[:client][:name]
-        rescue StandardError
-          'legion'
-        end
-        port = begin
-          settings.port || 4567
-        rescue StandardError
-          4567
-        end
-        {
-          name:               name,
-          description:        'LegionIO digital worker',
-          url:                "http://#{request.host}:#{port}/api/acp",
-          version:            '2.0',
-          protocol:           'acp/1.0',
-          capabilities:       discover_capabilities,
-          authentication:     { schemes: ['bearer'] },
-          defaultInputModes:  ['text/plain', 'application/json'],
-          defaultOutputModes: ['text/plain', 'application/json']
-        }
-      end
-
-      def discover_capabilities
-        if defined?(Legion::Extensions::Mesh::Helpers::Registry)
-          Legion::Extensions::Mesh::Helpers::Registry.new.capabilities.keys.map(&:to_s)
-        else
-          []
-        end
-      rescue StandardError
-        []
-      end
-
-      def find_task(id)
-        return nil unless defined?(Legion::Data)
-
-        Legion::Data::Model::Task[id.to_i]&.values
-      rescue StandardError
-        nil
-      end
-
-      def translate_status(status)
-        case status&.to_s
-        when /completed/ then 'completed'
-        when /exception|failed/ then 'failed'
-        when /queued|scheduled/ then 'queued'
-        else 'in_progress'
         end
       end
     end
