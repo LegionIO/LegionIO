@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.85] - 2026-03-20
+
+### Added
+- `legion lex fixes` CLI command to list pending auto-fix patches (filterable by status)
+- `legion lex approve-fix FIX_ID` CLI command to approve LLM-generated fixes
+- `legion lex reject-fix FIX_ID` CLI command to reject LLM-generated fixes
+- `with_data` helper to `legion lex` subcommand class for data-required operations
+
 ## [1.4.84] - 2026-03-20
 
 ### Added
