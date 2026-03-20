@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.80] - 2026-03-20
+
+### Added
+- OpenInference OTel span helpers (LLM, EMBEDDING, TOOL, CHAIN, EVALUATOR, AGENT)
+- SafetyMetrics sliding window module for behavioral monitoring
+- 4 safety alert rules (action burst, scope escalation spike, probe detected, confidence collapse)
+- OpenInference TOOL spans in Ingress.run
+- OpenInference CHAIN spans in Subscription actor dispatch
+- SafetyMetrics wired into service boot sequence
+
 ## [1.4.79] - 2026-03-20
 
 ### Added
