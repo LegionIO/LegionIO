@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.81] - 2026-03-20
+
+### Added
+- Fingerprint mixin for actor skip-if-unchanged optimization (`Legion::Extensions::Actors::Fingerprint`)
+- SHA256-based `skip_or_run` gate: skips execution when `fingerprint_source` is stable
+- Fingerprint integrated into `Every` and `Poll` actors via `include Fingerprint`
+- Extracted `poll_cycle` method from Poll actor for clean separation of timer vs logic
+
 ## [1.4.80] - 2026-03-20
 
 ### Added
