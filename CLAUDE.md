@@ -349,7 +349,7 @@ legion
 
   plan                               # read-only exploration mode (no writes/edits/shell)
     [--model MODEL] [--provider PROVIDER]
-    # Slash commands: /save (writes plan to docs/plans/), /help, /quit
+    # Slash commands: /save (writes plan to docs/work/planning/), /help, /quit
 
   swarm                              # multi-agent workflow orchestration
     start NAME                       # run a workflow from .legion/swarms/NAME.json
@@ -654,7 +654,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/version.rb` | CLI version display helper |
 | `lib/legion/docs/site_generator.rb` | Static documentation site generator |
 | `lib/legion/cli/memory_command.rb` | `legion memory` subcommands (list, add, forget, search, clear) |
-| `lib/legion/cli/plan_command.rb` | `legion plan` — read-only exploration mode with /save to docs/plans/ |
+| `lib/legion/cli/plan_command.rb` | `legion plan` — read-only exploration mode with /save to docs/work/planning/ |
 | `lib/legion/cli/swarm_command.rb` | `legion swarm` — multi-agent workflow orchestration from `.legion/swarms/` |
 | `lib/legion/cli/commit_command.rb` | `legion commit` — AI-generated commit messages via LLM |
 | `lib/legion/cli/pr_command.rb` | `legion pr` — AI-generated PR title + description via LLM |
