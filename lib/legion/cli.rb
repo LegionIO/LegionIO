@@ -41,6 +41,8 @@ module Legion
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
+    autoload :Prompt,     'legion/cli/prompt_command'
+    autoload :Dataset,    'legion/cli/dataset_command'
     autoload :Cost,        'legion/cli/cost_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
@@ -237,6 +239,12 @@ module Legion
 
       desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
       subcommand 'skill', Legion::CLI::Skill
+
+      desc 'prompt SUBCOMMAND', 'Manage versioned LLM prompt templates'
+      subcommand 'prompt', Legion::CLI::Prompt
+
+      desc 'dataset SUBCOMMAND', 'Manage versioned datasets'
+      subcommand 'dataset', Legion::CLI::Dataset
 
       desc 'cost', 'Cost visibility and reporting'
       subcommand 'cost', Legion::CLI::Cost

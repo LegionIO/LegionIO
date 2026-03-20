@@ -45,6 +45,8 @@ _legion() {
         commit)     _legion_commit ;;
         pr)         _legion_pr ;;
         review)     _legion_review ;;
+        prompt)     _legion_prompt ;;
+        dataset)    _legion_dataset ;;
       esac
       ;;
   esac
@@ -62,6 +64,8 @@ _legion_commands() {
     'init:Interactive project setup wizard'
     'tty:Launch interactive TTY shell'
     'ask:Quick AI prompt (shortcut for chat prompt)'
+    'prompt:Manage versioned LLM prompt templates'
+    'dataset:Manage versioned datasets'
     'version:Show version information'
     'help:Show help'
   )
@@ -835,6 +839,125 @@ _legion_check() {
     '--full[Full boot cycle (extensions + API)]' \
     '--json[Output as JSON]' \
     '--no-color[Disable color output]'
+}
+
+_legion_prompt() {
+  local -a subcmds
+  subcmds=(
+    'list:List all prompts'
+    'show:Show a prompt template and parameters'
+    'create:Create a new prompt'
+    'tag:Tag a prompt version'
+    'diff:Show text diff between two versions of a prompt'
+  )
+
+  _arguments -C \
+    '--json[Output as JSON]' \
+    '--no-color[Disable color output]' \
+    '--help[Show help]' \
+    '1: :->cmd' \
+    '*:: :->args'
+
+  case $state in
+    cmd)  _describe 'prompt command' subcmds ;;
+    args)
+      case $words[1] in
+        list)
+          _arguments \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        show)
+          _arguments \
+            ':prompt name:' \
+            '--version[Specific version number]:version:' \
+            '--tag[Tag name to resolve]:tag:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        create)
+          _arguments \
+            ':prompt name:' \
+            '--template[Prompt template text]:template:' \
+            '--description[Short description]:desc:' \
+            '--model-params[Model parameters as JSON]:json:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        tag)
+          _arguments \
+            ':prompt name:' \
+            ':tag name:' \
+            '--version[Version to tag]:version:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        diff)
+          _arguments \
+            ':prompt name:' \
+            ':version 1:' \
+            ':version 2:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_legion_dataset() {
+  local -a subcmds
+  subcmds=(
+    'list:List all datasets'
+    'show:Show dataset info and first 10 rows'
+    'import:Import a dataset from a file'
+    'export:Export a dataset to a file'
+  )
+
+  _arguments -C \
+    '--json[Output as JSON]' \
+    '--no-color[Disable color output]' \
+    '--help[Show help]' \
+    '1: :->cmd' \
+    '*:: :->args'
+
+  case $state in
+    cmd)  _describe 'dataset command' subcmds ;;
+    args)
+      case $words[1] in
+        list)
+          _arguments \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        show)
+          _arguments \
+            ':dataset name:' \
+            '--version[Specific version number]:version:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        import)
+          _arguments \
+            ':dataset name:' \
+            ':file path:_files' \
+            '--format[File format]:format:(json csv jsonl)' \
+            '--description[Dataset description]:desc:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+        export)
+          _arguments \
+            ':dataset name:' \
+            ':output path:_files' \
+            '--format[File format]:format:(json csv jsonl)' \
+            '--version[Version to export]:version:' \
+            '--json[Output as JSON]' \
+            '--no-color[Disable color output]'
+          ;;
+      esac
+      ;;
+  esac
 }
 
 _legion "$@"

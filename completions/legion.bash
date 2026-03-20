@@ -26,7 +26,7 @@ _legion_complete() {
     cword=$COMP_CWORD
   }
 
-  local top_commands="chat commit pr review memory plan init tty ask version help"
+  local top_commands="chat commit pr review memory plan init tty ask prompt dataset version help"
   local global_flags="--json --no-color --verbose --config-dir --help"
 
   # Top-level command
@@ -262,6 +262,33 @@ _legion_complete() {
 
     version)
       COMPREPLY=($(compgen -W "--json --no-color --help" -- "${cur}"))
+      ;;
+
+    prompt)
+      if [[ $cword -eq 2 ]]; then
+        COMPREPLY=($(compgen -W "list show create tag diff" -- "${cur}"))
+      else
+        case "${words[2]}" in
+          list)   COMPREPLY=($(compgen -W "--json --no-color --help" -- "${cur}")) ;;
+          show)   COMPREPLY=($(compgen -W "--version --tag --json --no-color --help" -- "${cur}")) ;;
+          create) COMPREPLY=($(compgen -W "--template --description --model-params --json --no-color --help" -- "${cur}")) ;;
+          tag)    COMPREPLY=($(compgen -W "--version --json --no-color --help" -- "${cur}")) ;;
+          diff)   COMPREPLY=($(compgen -W "--json --no-color --help" -- "${cur}")) ;;
+        esac
+      fi
+      ;;
+
+    dataset)
+      if [[ $cword -eq 2 ]]; then
+        COMPREPLY=($(compgen -W "list show import export" -- "${cur}"))
+      else
+        case "${words[2]}" in
+          list)   COMPREPLY=($(compgen -W "--json --no-color --help" -- "${cur}")) ;;
+          show)   COMPREPLY=($(compgen -W "--version --json --no-color --help" -- "${cur}")) ;;
+          import) COMPREPLY=($(compgen -W "--format --description --json --no-color --help" -- "${cur}")) ;;
+          export) COMPREPLY=($(compgen -W "--format --version --json --no-color --help" -- "${cur}")) ;;
+        esac
+      fi
       ;;
 
     dream)

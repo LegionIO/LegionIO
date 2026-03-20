@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.93] - 2026-03-20
+
+### Added
+- `legion prompt` CLI subcommand for versioned LLM prompt template management (list, show, create, tag, diff)
+- `legion dataset` CLI subcommand for versioned dataset management (list, show, import, export)
+- Both commands wrap `lex-prompt` and `lex-dataset` extension clients via `begin/rescue LoadError` guards
+- Both commands guard with `Connection.ensure_data` and follow existing `with_*_client` pattern
+- Tab completion entries for `prompt` and `dataset` in `completions/legion.bash` and `completions/_legion`
+
 ## [1.4.92] - 2026-03-20
 
 ### Added
