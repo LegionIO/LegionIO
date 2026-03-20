@@ -29,6 +29,7 @@ module Legion
               extension_class: lex_class,
               runner_name:     runner_name,
               runner_class:    runner_class,
+              runner_module:   loaded_runner,
               runner_path:     file,
               class_methods:   {}
             }
