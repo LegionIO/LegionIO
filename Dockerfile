@@ -4,8 +4,9 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libpq-dev git && \
     rm -rf /var/lib/apt/lists/*
-COPY Gemfile Gemfile.lock ./
-RUN bundle config set --local deployment true && \
+COPY Gemfile legionio.gemspec ./
+COPY lib/legion/version.rb lib/legion/
+RUN bundle lock && \
     bundle config set --local without 'development test' && \
     bundle install --jobs 4 --retry 3
 COPY . .
