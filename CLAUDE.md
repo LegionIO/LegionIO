@@ -46,8 +46,8 @@ Legion.start
       ├── 5.  require legion-cache
       ├── 6.  setup_data         (legion-data, MySQL/SQLite + migrations, optional)
       ├── 7.  setup_rbac         (legion-rbac, optional)
-      ├── 8.  setup_llm          (legion-llm, optional)
-      ├── 9.  setup_gaia         (legion-gaia, cognitive layer, optional)
+      ├── 8.  setup_llm          (legion-llm, AI provider setup + routing, optional)
+      ├── 9.  setup_gaia         (legion-gaia, cognitive coordination layer, optional)
       ├── 10. setup_telemetry    (OpenTelemetry, optional)
       ├── 11. setup_supervision  (process supervision)
       ├── 12. load_extensions    (two-phase: require+autobuild all, then hook_all_actors)
@@ -213,6 +213,10 @@ Legion (lib/legion.rb)
     ├── Pr                 # `legion pr` - AI-generated PR title and description via LLM
     ├── Review             # `legion review` - AI code review with severity levels
     ├── Gaia               # `legion gaia` - Gaia status
+    ├── Llm                # `legion llm` - LLM subsystem status and provider health
+    ├── Detect             # `legion detect scan` - scan environment and recommend extensions
+    ├── Observe            # `legion observe stats` - MCP tool usage statistics from Observer
+    ├── Tty                # `legion tty interactive` - launch rich terminal UI (legion-tty)
     ├── Graph              # `legion graph show` - task relationship graph (mermaid/dot)
     ├── Trace              # `legion trace search` - NL trace search via LLM
     ├── Dashboard          # `legion dashboard` - TUI operational dashboard with auto-refresh
@@ -563,10 +567,12 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
 | `lib/legion/api/token.rb` | Token: JWT token issuance endpoint |
 | `lib/legion/api/openapi.rb` | OpenAPI: `Legion::API::OpenAPI.spec` / `.to_json`; also served at `GET /api/openapi.json` |
-| `lib/legion/api/oauth.rb` | OAuth: `GET /api/oauth/microsoft_teams/callback` — receives delegated OAuth redirect and stores tokens |
 | `lib/legion/api/capacity.rb` | Capacity: aggregate, forecast, and per-worker capacity endpoints |
 | `lib/legion/api/tenants.rb` | Tenants: listing, provisioning, suspension, quota check |
+| `lib/legion/api/catalog.rb` | Catalog: extension catalog with metadata endpoints |
+| `lib/legion/api/llm.rb` | LLM: provider status and routing configuration endpoints |
 | `lib/legion/api/audit.rb` | Audit: list, show, count, export audit log entries |
+| `lib/legion/api/auth.rb` | Auth: combined token exchange endpoint (`POST /api/auth/token` — JWKS verify + RBAC claims mapper) |
 | `lib/legion/api/auth_human.rb` | Auth: human user authentication endpoints |
 | `lib/legion/api/auth_worker.rb` | Auth: digital worker authentication endpoints |
 | `lib/legion/api/rbac.rb` | RBAC: role listing, permission grants, access checks |
@@ -660,10 +666,17 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/pr_command.rb` | `legion pr` — AI-generated PR title + description via LLM |
 | `lib/legion/cli/review_command.rb` | `legion review` — AI code review with severity levels (CRITICAL/WARNING/SUGGESTION/NOTE) |
 | `lib/legion/cli/gaia_command.rb` | `legion gaia` subcommands (status) |
+| `lib/legion/cli/llm_command.rb` | `legion llm` subcommands (status) — LLM subsystem status and provider health |
+| `lib/legion/cli/detect_command.rb` | `legion detect scan` — scan environment and recommend extensions |
+| `lib/legion/cli/observe_command.rb` | `legion observe stats` — MCP tool usage statistics from Observer |
+| `lib/legion/cli/tty_command.rb` | `legion tty interactive` — launch rich terminal UI (legion-tty interactive shell) |
+| `lib/legion/cli/interactive.rb` | `Interactive` Thor class — shared CLI module for `legion` binary entry point |
+| `lib/legion/cli/config_import.rb` | `legion config import` — import config from external sources |
 | `lib/legion/cli/schedule_command.rb` | `legion schedule` subcommands (list, show, add, remove, logs) |
 | `lib/legion/cli/completion_command.rb` | `legion completion` subcommands (bash, zsh, install) |
 | `lib/legion/cli/openapi_command.rb` | `legion openapi` subcommands (generate, routes); also `GET /api/openapi.json` endpoint |
-| `lib/legion/cli/doctor_command.rb` | `legion doctor` — 10-check environment diagnosis; `Doctor::Result` value object with status/message/prescription/auto_fixable |
+| `lib/legion/cli/doctor_command.rb` | `legion doctor` — 11-check environment diagnosis; `Doctor::Result` value object with status/message/prescription/auto_fixable |
+| `lib/legion/cli/doctor/` | Individual check modules: ruby_version, bundle, config, rabbitmq, database, cache, vault, extensions, pid, permissions, plus result.rb |
 | `lib/legion/cli/telemetry_command.rb` | `legion telemetry` subcommands (stats, ingest) — session log analytics |
 | `lib/legion/cli/auth_command.rb` | `legion auth` subcommands (teams) — delegated OAuth browser flow for external services |
 | `completions/legion.bash` | Bash tab completion script |

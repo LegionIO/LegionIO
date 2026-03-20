@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.79] - 2026-03-20
+
+### Added
+- Unified LEX routing layer: auto-expose runner functions as POST endpoints at `/api/lex/{ext}/{runner}/{action}`
+- `Builders::Routes` auto-discovers runner public methods during extension autobuild
+- `Routes::Lex` wildcard handler dispatches through Ingress with JWT + RBAC
+- `GET /api/lex` listing endpoint for route discovery
+- Settings-based configuration at `api.lex_routes` (global enable, per-extension enable, runner/function exclusions)
+- `skip_routes` DSL for runner modules to opt out of auto-route exposure
+- Auto-routes included in OpenAPI spec generation
+- `runner_module` reference stored in builders runner hash for introspection
+
 ## [1.4.78] - 2026-03-19
 
 ### Added

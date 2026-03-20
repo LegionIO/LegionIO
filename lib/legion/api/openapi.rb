@@ -125,6 +125,7 @@ module Legion
           { name: 'Events',        description: 'SSE event stream and recent event buffer' },
           { name: 'Transport',     description: 'RabbitMQ transport status and publish' },
           { name: 'Hooks',         description: 'Extension webhook endpoints' },
+          { name: 'Lex',           description: 'Auto-registered LEX runner routes' },
           { name: 'Workers',       description: 'Digital worker lifecycle management' },
           { name: 'Teams',         description: 'Team-level worker and cost views' },
           { name: 'Coldstart',     description: 'Cold-start memory ingestion (requires lex-coldstart + lex-memory)' },
@@ -146,6 +147,7 @@ module Legion
           .merge(event_paths)
           .merge(transport_paths)
           .merge(hook_paths)
+          .merge(lex_paths)
           .merge(worker_paths)
           .merge(team_paths)
           .merge(coldstart_paths)
@@ -1087,6 +1089,93 @@ module Legion
         }
       end
       private_class_method :hook_paths
+
+      def self.lex_route_responses
+        {
+          '200' => {
+            description: 'Success',
+            content:     {
+              'application/json' => {
+                schema: {
+                  type:       'object',
+                  properties: {
+                    data: {
+                      type:       'object',
+                      properties: {
+                        task_id: { type: 'string' },
+                        status:  { type: 'string' },
+                        result:  { type: 'object' }
+                      }
+                    },
+                    meta: META_SCHEMA
+                  }
+                }
+              }
+            }
+          },
+          '401' => { description: 'Unauthorized',     content: { 'application/json' => { schema: ERROR_SCHEMA } } },
+          '403' => { description: 'Forbidden',        content: { 'application/json' => { schema: ERROR_SCHEMA } } },
+          '404' => { description: 'Not found',        content: { 'application/json' => { schema: ERROR_SCHEMA } } },
+          '500' => { description: 'Internal error',   content: { 'application/json' => { schema: ERROR_SCHEMA } } }
+        }
+      end
+      private_class_method :lex_route_responses
+
+      def self.lex_paths
+        base = {
+          '/api/lex' => {
+            get: {
+              tags:        ['Lex'],
+              summary:     'List auto-registered LEX runner routes',
+              operationId: 'listLexRoutes',
+              responses:   {
+                '200' => ok_response('Lex route list', {
+                                       type:       'object',
+                                       properties: {
+                                         data: {
+                                           type:  'array',
+                                           items: {
+                                             type:       'object',
+                                             properties: {
+                                               endpoint:     { type: 'string' },
+                                               extension:    { type: 'string' },
+                                               runner:       { type: 'string' },
+                                               function:     { type: 'string' },
+                                               runner_class: { type: 'string' }
+                                             }
+                                           }
+                                         },
+                                         meta: { '$ref' => '#/components/schemas/Meta' }
+                                       }
+                                     }),
+                '401' => UNAUTH_RESPONSE
+              }
+            }
+          }
+        }
+
+        # Auto-routes (LEX)
+        if defined?(Legion::API) && Legion::API.respond_to?(:registered_routes)
+          Legion::API.registered_routes.each do |route|
+            path_key = "/api/lex/#{route[:route_path]}"
+            base[path_key] = {
+              post: {
+                operationId: "#{route[:lex_name]}.#{route[:runner_name]}.#{route[:function]}",
+                summary:     "Invoke #{route[:runner_name]}##{route[:function]} on lex-#{route[:lex_name]}",
+                tags:        [route[:lex_name]],
+                requestBody: {
+                  required: false,
+                  content:  { 'application/json' => { schema: { type: 'object' } } }
+                },
+                responses:   lex_route_responses
+              }
+            }
+          end
+        end
+
+        base
+      end
+      private_class_method :lex_paths
 
       def self.worker_paths
         {

@@ -14,7 +14,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.67** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.78** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -461,11 +461,13 @@ legion start
       ├── 4. Transport        (legion-transport — RabbitMQ)
       ├── 5. Cache            (legion-cache — Redis/Memcached)
       ├── 6. Data             (legion-data — database + migrations)
-      ├── 7. LLM              (legion-llm — AI provider setup + routing)
-      ├── 8. Supervision      (process supervision)
-      ├── 9. Extensions       (discover + load 280+ LEX gems, filtered by role profile)
-      ├── 10. Cluster Secret  (distribute via Vault or memory)
-      └── 11. API             (Sinatra/Puma on port 4567)
+      ├── 7. RBAC             (legion-rbac — optional role-based access control)
+      ├── 8. LLM              (legion-llm — AI provider setup + routing)
+      ├── 9. GAIA             (legion-gaia — cognitive coordination layer)
+      ├── 10. Supervision     (process supervision)
+      ├── 11. Extensions      (discover + load 280+ LEX gems, filtered by role profile)
+      ├── 12. Cluster Secret  (distribute via Vault or memory)
+      └── 13. API             (Sinatra/Puma on port 4567)
 ```
 
 Each phase registers with `Legion::Readiness`. All phases are individually toggleable.
