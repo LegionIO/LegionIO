@@ -181,7 +181,7 @@ Legion (lib/legion.rb)
     ├── Start              # `legion start` - daemon boot via Legion::Process
     ├── Status             # `legion status` - probes API or shows static info
     ├── Check              # `legion check` - smoke-test subsystems, 3 depth levels
-    ├── Lex                # `legion lex` - list, info, create, enable, disable + LexGenerator
+    ├── Lex                # `legion lex` - list, info, create, enable, disable, exec/invoke_ext + LexGenerator
     ├── Task               # `legion task` - list, show, logs, trigger (mapped as run), purge
     ├── Chain              # `legion chain` - list, create, delete
     ├── Config             # `legion config` - show (redacted), path, validate, scaffold
@@ -614,7 +614,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/start.rb` | `legion start` — boots Legion::Process |
 | `lib/legion/cli/status.rb` | `legion status` — probes API or returns static info |
 | `lib/legion/cli/check_command.rb` | `legion check` — 3-level smoke test, exit code 0/1 |
-| `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + LexGenerator scaffolding |
+| `lib/legion/cli/lex_command.rb` | `legion lex` subcommands + LexGenerator scaffolding + `invoke_ext`/`exec` dispatch via LexCliManifest |
+| `lib/legion/cli/lex_cli_manifest.rb` | JSON manifest cache for LEX CLI commands (alias resolution, staleness check) |
 | `lib/legion/cli/task_command.rb` | `legion task` subcommands (list, show, logs, trigger/run, purge) |
 | `lib/legion/cli/chain_command.rb` | `legion chain` subcommands (list, create, delete) |
 | `lib/legion/cli/config_command.rb` | `legion config` subcommands (show, path, validate, scaffold) |
