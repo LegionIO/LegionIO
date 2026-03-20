@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.82] - 2026-03-20
+
+### Added
+- `legion check --privacy` command: verifies enterprise privacy mode (flag set, no cloud API keys, external endpoints unreachable)
+- `PrivacyCheck` class with three probes: flag_set, no_cloud_keys, no_external_endpoints
+- `Legion::Service.log_privacy_mode_status` logs enterprise privacy state at startup
+
 ## [1.4.81] - 2026-03-20
 
 ### Added

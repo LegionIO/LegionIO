@@ -138,8 +138,13 @@ module Legion
       DESC
       option :extensions, type: :boolean, default: false, desc: 'Also load extensions'
       option :full, type: :boolean, default: false, desc: 'Full boot cycle (extensions + API)'
+      option :privacy, type: :boolean, default: false, desc: 'Verify enterprise privacy mode'
       def check
-        exit_code = Legion::CLI::Check.run(formatter, options)
+        exit_code = if options[:privacy]
+                      Legion::CLI::Check.run_privacy(formatter, options)
+                    else
+                      Legion::CLI::Check.run(formatter, options)
+                    end
         exit(exit_code) if exit_code != 0
       end
 
