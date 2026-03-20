@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.78
+**Version**: 1.4.79
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -95,9 +95,10 @@ Legion (lib/legion.rb)
 │   │   └── Nothing    # No-op actor
 │   ├── Builders/      # Build actors and runners from LEX definitions
 │   │   ├── Actors     # Build actors from extension definitions
-│   │   ├── Runners    # Build runners from extension definitions
+│   │   ├── Runners    # Build runners from extension definitions (stores runner_module ref)
 │   │   ├── Helpers    # Builder utilities
-│   │   └── Hooks      # Webhook hook system builder
+│   │   ├── Hooks      # Webhook hook system builder
+│   │   └── Routes     # Auto-route builder: introspects runners, registers POST /api/lex/* routes
 │   ├── Helpers/       # Helper mixins for extensions
 │   │   ├── Base       # Base helper mixin
 │   │   ├── Core       # Core helper mixin
@@ -128,6 +129,7 @@ Legion (lib/legion.rb)
 │   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   ├── Hooks      # List + trigger registered extension hooks
+│   │   ├── Lex        # Auto-routes: `POST /api/lex/*` wildcard + `GET /api/lex` listing
 │   │   ├── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
 │   │   ├── Coldstart  # `POST /api/coldstart/ingest` — trigger lex-coldstart ingest from API
 │   │   ├── Capacity   # Aggregate, forecast, per-worker capacity endpoints
@@ -142,8 +144,10 @@ Legion (lib/legion.rb)
 │   │   ├── ApiVersion # `/api/v1/` rewrite, Deprecation/Sunset headers
 │   │   ├── BodyLimit  # Request body size limit (1MB max, returns 413)
 │   │   └── RateLimit  # Sliding-window rate limiting with per-IP/agent/tenant tiers
-│   └── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
-│                      # Populated by extensions via Legion::API.register_hook(...)
+│   ├── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
+│   │                  # Populated by extensions via Legion::API.register_hook(...)
+│   └── route_registry # Class-level registry: register_route, find_route_by_path, registered_routes
+│                      # Populated by Builders::Routes during autobuild
 │
 ├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
 │   └── (35 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
@@ -528,7 +532,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/extensions.rb` | LEX discovery, loading, actor hooking, shutdown |
 | `lib/legion/extensions/core.rb` | Extension mixin (requirement flags, autobuild) |
 | `lib/legion/extensions/actors/` | Actor types: base, every, loop, once, poll, subscription, nothing, defaults |
-| `lib/legion/extensions/builders/` | Build actors, runners, helpers, hooks from definitions |
+| `lib/legion/extensions/builders/` | Build actors, runners, helpers, hooks, routes from definitions |
 | `lib/legion/extensions/helpers/` | Mixins: base, core, cache, data, logger, transport, task, lex |
 | `lib/legion/extensions/data/` | Extension-level migrator and model |
 | `lib/legion/extensions/hooks/base.rb` | Webhook hook base class |
@@ -562,6 +566,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
 | `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress; supports custom response headers |
+| `lib/legion/api/lex.rb` | Lex auto-routes: `POST /api/lex/*` wildcard dispatch + `GET /api/lex` listing |
 | `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
 | `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
 | `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
@@ -717,7 +722,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1459 examples, 0 failures
+bundle exec rspec       # 1499 examples, 0 failures
 bundle exec rubocop     # 418 files, 0 offenses
 ```
 
