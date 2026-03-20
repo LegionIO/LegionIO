@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.77] - 2026-03-19
+
+### Added
+- Hardcoded deny list in `Extensions::Permissions` blocking access to `~/.ssh`, `~/.gnupg`, `~/.aws/credentials`
+- Deny list overrides all other permission checks including explicit approvals
+
 ## [1.4.76] - 2026-03-19
 
 ### Added

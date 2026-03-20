@@ -22,6 +22,19 @@ RSpec.describe Legion::Extensions::Permissions do
       expect(described_class.allowed?('lex-github', '/etc/passwd', :read)).to be false
     end
 
+    it 'denies access to ~/.ssh even if explicitly approved' do
+      described_class.approve('lex-github', File.expand_path('~/.ssh/'), :read)
+      expect(described_class.allowed?('lex-github', File.expand_path('~/.ssh/id_rsa'), :read)).to be false
+    end
+
+    it 'denies access to ~/.gnupg' do
+      expect(described_class.allowed?('lex-github', File.expand_path('~/.gnupg/private-keys'), :read)).to be false
+    end
+
+    it 'denies access to ~/.aws/credentials' do
+      expect(described_class.allowed?('lex-github', File.expand_path('~/.aws/credentials'), :read)).to be false
+    end
+
     it 'allows paths matching auto-approve globs' do
       described_class.add_auto_approve('lex-github', ['/Users/test/repos/**'])
       expect(described_class.allowed?('lex-github', '/Users/test/repos/myapp/README.md', :read)).to be true

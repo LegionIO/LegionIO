@@ -5,6 +5,12 @@ module Legion
     module Permissions
       SANDBOX_BASE = File.expand_path('~/.legionio/data').freeze
 
+      DENY_LIST = [
+        File.expand_path('~/.ssh'),
+        File.expand_path('~/.gnupg'),
+        File.expand_path('~/.aws/credentials')
+      ].freeze
+
       class << self
         def sandbox_path(lex_name)
           File.join(SANDBOX_BASE, lex_name)
@@ -12,6 +18,7 @@ module Legion
 
         def allowed?(lex_name, path, access_type)
           expanded = File.expand_path(path)
+          return false if denied?(expanded)
           return true if in_sandbox?(lex_name, expanded)
           return true if auto_approved?(lex_name, expanded)
           return true if explicitly_approved?(lex_name, expanded, access_type)
@@ -64,6 +71,10 @@ module Legion
 
         def declarations
           @declarations ||= {}
+        end
+
+        def denied?(expanded_path)
+          DENY_LIST.any? { |denied| expanded_path.start_with?(denied) || expanded_path == denied }
         end
 
         def in_sandbox?(lex_name, expanded_path)
