@@ -20,6 +20,7 @@ require_relative 'api/settings'
 require_relative 'api/events'
 require_relative 'api/transport'
 require_relative 'api/hooks'
+require_relative 'api/lex'
 require_relative 'api/workers'
 require_relative 'api/coldstart'
 require_relative 'api/gaia'
@@ -96,6 +97,7 @@ module Legion
     register Routes::Events
     register Routes::Transport
     register Routes::Hooks
+    register Routes::Lex
     register Routes::Workers
     register Routes::Coldstart
     register Routes::Gaia
@@ -145,6 +147,29 @@ module Legion
 
       def registered_hooks
         hook_registry.values
+      end
+
+      def route_registry
+        @route_registry ||= {}
+      end
+
+      def register_route(lex_name:, runner_name:, function:, runner_class:, route_path:)
+        route_registry[route_path] = {
+          lex_name:     lex_name,
+          runner_name:  runner_name,
+          function:     function,
+          runner_class: runner_class,
+          route_path:   route_path
+        }
+        Legion::Logging.debug "Registered LEX route: POST /api/lex/#{route_path}"
+      end
+
+      def find_route_by_path(path)
+        route_registry[path]
+      end
+
+      def registered_routes
+        route_registry.values
       end
     end
   end

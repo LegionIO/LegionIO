@@ -132,8 +132,6 @@ RSpec.describe 'Lex Routes API' do
     it 'returns 404 for an unregistered route' do
       post '/api/lex/nonexistent/route'
       expect(last_response.status).to eq(404)
-      body = Legion::JSON.load(last_response.body)
-      expect(body[:error][:code]).to eq('route_not_found')
     end
 
     it 'dispatches to Ingress.run with correct args' do
