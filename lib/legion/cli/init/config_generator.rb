@@ -44,12 +44,12 @@ module Legion
             workspace_dir
           end
 
-          private
-
           GITIGNORE_ENTRIES = %w[
             .legion-context/
             .legion-worktrees/
           ].freeze
+
+          private
 
           def ensure_gitignore_entries(dir)
             gitignore_path = File.join(dir, '.gitignore')
@@ -62,7 +62,7 @@ module Legion
             content = existing
             content += "\n" unless content.empty? || content.end_with?("\n")
             content += "# Legion workspace\n" unless existing_lines.any? { |l| l.include?('Legion') }
-            content += additions.join("\n") + "\n"
+            content += "#{additions.join("\n")}\n"
             File.write(gitignore_path, content)
           end
 

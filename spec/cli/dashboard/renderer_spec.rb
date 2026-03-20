@@ -9,18 +9,18 @@ RSpec.describe Legion::CLI::Dashboard::Renderer do
   describe '#render' do
     it 'includes org chart section when departments are present' do
       data = {
-        workers: [],
-        events: [],
-        health: {},
+        workers:     [],
+        events:      [],
+        health:      {},
         departments: [
           {
-            name: 'lex-audit',
+            name:  'lex-audit',
             roles: [
               { name: 'audit.write', workers: [{ name: 'audit-bot', status: 'active' }] }
             ]
           }
         ],
-        fetched_at: Time.now
+        fetched_at:  Time.now
       }
       output = renderer.render(data)
       expect(output).to include('Org Chart:')

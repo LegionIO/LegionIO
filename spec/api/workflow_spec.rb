@@ -31,12 +31,13 @@ RSpec.describe 'Workflow API' do
 
       it 'returns nodes and edges' do
         allow(Legion::Graph::Builder).to receive(:build).and_return({
-          nodes: {
-            'lex-audit.write' => { label: 'lex-audit.write', type: 'trigger' },
-            'lex-data.store'  => { label: 'lex-data.store', type: 'action' }
-          },
-          edges: [{ from: 'lex-audit.write', to: 'lex-data.store', label: 'persist', chain_id: nil }]
-        })
+                                                                      nodes: {
+                                                                        'lex-audit.write' => { label: 'lex-audit.write', type: 'trigger' },
+                                                                        'lex-data.store'  => { label: 'lex-data.store', type: 'action' }
+                                                                      },
+                                                                      edges: [{ from: 'lex-audit.write', to: 'lex-data.store', label: 'persist',
+chain_id: nil }]
+                                                                    })
 
         get '/api/relationships/graph'
         expect(last_response.status).to eq(200)
@@ -59,12 +60,13 @@ RSpec.describe 'Workflow API' do
 
       it 'filters by extension parameter' do
         allow(Legion::Graph::Builder).to receive(:build).and_return({
-          nodes: {
-            'lex-audit.write' => { label: 'lex-audit.write', type: 'trigger' },
-            'lex-data.store'  => { label: 'lex-data.store', type: 'action' }
-          },
-          edges: [{ from: 'lex-audit.write', to: 'lex-data.store', label: 'persist', chain_id: nil }]
-        })
+                                                                      nodes: {
+                                                                        'lex-audit.write' => { label: 'lex-audit.write', type: 'trigger' },
+                                                                        'lex-data.store'  => { label: 'lex-data.store', type: 'action' }
+                                                                      },
+                                                                      edges: [{ from: 'lex-audit.write', to: 'lex-data.store', label: 'persist',
+chain_id: nil }]
+                                                                    })
 
         get '/api/relationships/graph', extension: 'lex-audit'
         expect(last_response.status).to eq(200)

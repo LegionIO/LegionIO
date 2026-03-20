@@ -25,7 +25,10 @@ module Legion
           return { success: true, files: [] } unless Dir.exist?(base)
 
           files = Dir.glob(File.join(base, '**', '*')).select { |f| File.file?(f) }
-                     .map { |f| f.sub("#{context_dir}/", '') }
+                                                      .map do |f|
+            f.sub("#{context_dir}/",
+                  '')
+          end
           { success: true, files: files }
         end
 

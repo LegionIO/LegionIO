@@ -10,21 +10,21 @@ module Legion
         end
 
         module GovernanceHelpers
-          def run_governance_runner(method, **kwargs)
+          def run_governance_runner(method, **)
             require 'legion/extensions/audit/runners/approval_queue'
             runner = Object.new.extend(Legion::Extensions::Audit::Runners::ApprovalQueue)
-            runner.send(method, **kwargs)
+            runner.send(method, **)
           rescue LoadError
             halt 503, json_error('service_unavailable', 'lex-audit not available', status_code: 503)
           end
         end
 
-        def self.register_approvals(app) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+        def self.register_approvals(app)
           app.get '/api/governance/approvals' do
             require_data!
             result = run_governance_runner(:list_pending,
-                                          tenant_id: params[:tenant_id],
-                                          limit: (params[:limit] || 50).to_i)
+                                           tenant_id: params[:tenant_id],
+                                           limit:     (params[:limit] || 50).to_i)
             json_response(result)
           end
 
@@ -45,10 +45,10 @@ module Legion
             halt 422, json_error('missing_field', 'requester_id is required', status_code: 422) unless body[:requester_id]
 
             result = run_governance_runner(:submit,
-                                          approval_type: body[:approval_type],
-                                          payload: body[:payload] || {},
-                                          requester_id: body[:requester_id],
-                                          tenant_id: body[:tenant_id])
+                                           approval_type: body[:approval_type],
+                                           payload:       body[:payload] || {},
+                                           requester_id:  body[:requester_id],
+                                           tenant_id:     body[:tenant_id])
             json_response(result, status_code: 201)
           end
 
@@ -58,8 +58,8 @@ module Legion
             halt 422, json_error('missing_field', 'reviewer_id is required', status_code: 422) unless body[:reviewer_id]
 
             result = run_governance_runner(:approve,
-                                          id: params[:id].to_i,
-                                          reviewer_id: body[:reviewer_id])
+                                           id:          params[:id].to_i,
+                                           reviewer_id: body[:reviewer_id])
             json_response(result)
           end
 
@@ -69,8 +69,8 @@ module Legion
             halt 422, json_error('missing_field', 'reviewer_id is required', status_code: 422) unless body[:reviewer_id]
 
             result = run_governance_runner(:reject,
-                                          id: params[:id].to_i,
-                                          reviewer_id: body[:reviewer_id])
+                                           id:          params[:id].to_i,
+                                           reviewer_id: body[:reviewer_id])
             json_response(result)
           end
         end

@@ -21,11 +21,11 @@ module Legion
             extensions.map do |ext|
               functions = Legion::Data::Model::Function.where(extension_id: ext.id).all
               {
-                name: ext.name,
+                name:  ext.name,
                 roles: functions.map do |func|
                   ext_workers = workers.select { |w| w.extension_name == ext.name }
                   {
-                    name: func.name,
+                    name:    func.name,
                     workers: ext_workers.map { |w| { id: w.id, name: w.name, status: w.lifecycle_state } }
                   }
                 end

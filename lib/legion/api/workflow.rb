@@ -9,7 +9,7 @@ module Legion
           app.get '/api/relationships/graph' do
             require_data!
             graph = build_relationship_graph(
-              chain_id: params[:chain_id]&.to_i,
+              chain_id:  params[:chain_id]&.to_i,
               extension: params[:extension]
             )
             json_response(graph)

@@ -57,7 +57,7 @@ module Legion
       def serialize_commands(commands)
         commands.transform_values do |cmd|
           {
-            'class' => cmd[:class_name],
+            'class'   => cmd[:class_name],
             'methods' => cmd[:methods].transform_values { |m| { 'desc' => m[:desc], 'args' => m[:args] } }
           }
         end

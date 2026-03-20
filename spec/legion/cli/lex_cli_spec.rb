@@ -12,14 +12,14 @@ RSpec.describe 'LEX CLI dispatch' do
 
   before do
     manifest.write_manifest(
-      gem_name: 'lex-microsoft_teams',
+      gem_name:    'lex-microsoft_teams',
       gem_version: '0.6.0',
-      alias_name: 'teams',
-      commands: {
+      alias_name:  'teams',
+      commands:    {
         'auth' => {
           class_name: 'Legion::Extensions::MicrosoftTeams::CLI::Auth',
-          methods: {
-            'login' => { desc: 'Authenticate via browser', args: %w[tenant_id client_id] },
+          methods:    {
+            'login'  => { desc: 'Authenticate via browser', args: %w[tenant_id client_id] },
             'status' => { desc: 'Show auth state', args: [] }
           }
         }

@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.83] - 2026-03-20
+
+### Added
+- `Helpers::Context` for filesystem-based inter-agent context sharing
+- Org chart API endpoint (`GET /api/org-chart`) with dashboard panel
+- Workflow relationship graph API (`GET /api/relationships/graph`)
+- Workflow visualizer web page (`public/workflow/`) with Cytoscape.js
+- `--worktree` flag for `legion chat` with auto-checkpointing
+- `.legion-context/` and `.legion-worktrees/` in generated `.gitignore`
+
 ## [1.4.82] - 2026-03-20
 
 ### Added

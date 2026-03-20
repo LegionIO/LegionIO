@@ -1184,8 +1184,8 @@ module Legion
           @checkpoint_count += 1
           Legion::Extensions::Exec::Helpers::Checkpoint.save(
             worktree_path: @worktree_path,
-            label: "step-#{@checkpoint_count}",
-            task_id: @worktree_task_id
+            label:         "step-#{@checkpoint_count}",
+            task_id:       @worktree_task_id
           )
         rescue StandardError => e
           chat_log.debug "worktree checkpoint failed: #{e.message}"
