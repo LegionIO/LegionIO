@@ -2,7 +2,7 @@
 FROM ruby:3.4-slim AS builder
 WORKDIR /app
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential libpq-dev git && \
+    apt-get install -y --no-install-recommends build-essential libpq-dev default-libmysqlclient-dev git && \
     rm -rf /var/lib/apt/lists/*
 COPY Gemfile legionio.gemspec ./
 COPY lib/legion/version.rb lib/legion/
@@ -14,7 +14,7 @@ COPY . .
 # Runtime stage
 FROM ruby:3.4-slim AS runtime
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq5 curl && \
+    apt-get install -y --no-install-recommends libpq5 default-mysql-client-core curl && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -r legion && useradd -r -g legion -d /app -s /sbin/nologin legion
 WORKDIR /app
