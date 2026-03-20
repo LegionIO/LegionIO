@@ -1,0 +1,11 @@
+.git
+.github
+spec
+docs
+*.md
+.rubocop.yml
+.rspec
+tmp
+log
+.dockerignore
+Dockerfile
