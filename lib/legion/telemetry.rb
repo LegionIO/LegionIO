@@ -2,6 +2,8 @@
 
 module Legion
   module Telemetry
+    autoload :OpenInference, 'legion/telemetry/open_inference'
+
     module_function
 
     def otel_available?
