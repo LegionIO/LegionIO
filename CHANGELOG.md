@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.89] - 2026-03-20
+
+### Added
+- ACP provider routes: `GET /.well-known/agent.json`, `POST /api/acp/tasks`, `GET /api/acp/tasks/:id`, `DELETE /api/acp/tasks/:id` (501 stub)
+- `Legion::API::Routes::Acp` module for bidirectional ACP interoperability
+- `build_agent_card`, `discover_capabilities`, `find_task`, `translate_status` API helpers for ACP support
+
 ## [1.4.88] - 2026-03-20
 
 ### Added
