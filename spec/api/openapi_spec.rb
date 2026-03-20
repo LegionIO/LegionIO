@@ -29,6 +29,11 @@ RSpec.describe Legion::API::OpenAPI do
       expect(spec).to have_key(:paths)
     end
 
+    it 'includes Lex in tags' do
+      tag_names = spec[:tags].map { |t| t[:name] }
+      expect(tag_names).to include('Lex')
+    end
+
     it 'has components key' do
       expect(spec).to have_key(:components)
     end
@@ -76,6 +81,7 @@ RSpec.describe Legion::API::OpenAPI do
         /api/transport/publish
         /api/hooks
         /api/hooks/{lex_name}/{hook_name}
+        /api/lex
         /api/workers
         /api/workers/{id}
         /api/workers/{id}/lifecycle
@@ -105,6 +111,10 @@ RSpec.describe Legion::API::OpenAPI do
 
       it 'has GET /api/tasks with Tasks tag' do
         expect(paths['/api/tasks'][:get][:tags]).to include('Tasks')
+      end
+
+      it 'has GET /api/lex with Lex tag' do
+        expect(paths['/api/lex'][:get][:tags]).to include('Lex')
       end
 
       it 'has POST /api/tasks' do
