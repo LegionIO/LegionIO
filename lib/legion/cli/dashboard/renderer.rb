@@ -17,6 +17,8 @@ module Legion
           lines << events_section(data[:events] || [])
           lines << separator
           lines << health_section(data[:health] || {})
+          lines << separator
+          lines << org_chart_section(data[:departments] || [])
           lines << footer_line(data[:fetched_at])
           lines.flatten.join("\n")
         end
@@ -61,6 +63,24 @@ module Legion
         def health_section(health)
           components = health.map { |k, v| "#{k}: #{v}" }.join(' | ')
           "Health: #{components.empty? ? 'unknown' : components}"
+        end
+
+        def org_chart_section(departments)
+          lines = ['Org Chart:']
+          if departments.empty?
+            lines << '  (no departments)'
+          else
+            departments.each do |dept|
+              lines << "  #{dept[:name]}"
+              (dept[:roles] || []).each do |role|
+                lines << "    +-- #{role[:name]}"
+                (role[:workers] || []).each do |w|
+                  lines << "    |   +-- #{w[:name]} (#{w[:status]})"
+                end
+              end
+            end
+          end
+          lines
         end
 
         def footer_line(fetched_at)
