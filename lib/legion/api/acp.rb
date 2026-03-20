@@ -48,15 +48,15 @@ module Legion
     helpers do
       def build_agent_card
         name = begin
-                 Legion::Settings[:client][:name]
-               rescue StandardError
-                 'legion'
-               end
+          Legion::Settings[:client][:name]
+        rescue StandardError
+          'legion'
+        end
         port = begin
-                 settings.port || 4567
-               rescue StandardError
-                 4567
-               end
+          settings.port || 4567
+        rescue StandardError
+          4567
+        end
         {
           name:               name,
           description:        'LegionIO digital worker',

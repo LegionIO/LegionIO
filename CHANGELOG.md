@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.87] - 2026-03-20
+
+### Added
+- OpenInference OTel span instrumentation (Ingress TOOL spans, Subscription CHAIN spans)
+- SafetyMetrics sliding window module with 4 default alert rules
+- Fingerprint mixin for actor skip-if-unchanged optimization
+
 ## [1.4.86] - 2026-03-20
 
 ### Added
