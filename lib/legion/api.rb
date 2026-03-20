@@ -35,6 +35,7 @@ require_relative 'api/metrics'
 require_relative 'api/llm'
 require_relative 'api/catalog'
 require_relative 'api/org_chart'
+require_relative 'api/workflow'
 
 module Legion
   class API < Sinatra::Base
@@ -92,6 +93,7 @@ module Legion
     register Routes::Extensions
     register Routes::Nodes
     register Routes::Schedules
+    register Routes::Workflow
     register Routes::Relationships
     register Routes::Chains
     register Routes::Settings
