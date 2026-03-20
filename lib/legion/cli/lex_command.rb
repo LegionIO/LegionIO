@@ -2,6 +2,7 @@
 
 require 'fileutils'
 require 'legion/extensions/helpers/segments'
+require 'legion/cli/lex_cli_manifest'
 
 module Legion
   module CLI
@@ -164,6 +165,46 @@ module Legion
           out.warn("Extension '#{name}' not found in settings (may not be configured)")
         end
         out.warn('Restart Legion for changes to take effect') unless options[:json]
+      end
+
+      desc 'run EXTENSION COMMAND [METHOD]', 'Run a LEX CLI command (or use alias: legion lex ALIAS COMMAND METHOD)'
+      def run(ext_name, command = nil, method_name = nil) # rubocop:disable Metrics/MethodLength
+        out = formatter
+        manifest = LexCliManifest.new
+        gem_name = manifest.resolve_alias(ext_name) || "lex-#{ext_name}"
+        gem_manifest = manifest.read_manifest(gem_name)
+
+        unless gem_manifest
+          out.error("Unknown extension: #{ext_name}. Run `legion lex list` to see installed extensions.")
+          return
+        end
+
+        unless command && gem_manifest.dig('commands', command)
+          out.header("Available commands for #{ext_name}:")
+          gem_manifest['commands'].each do |cmd, info|
+            methods = info['methods'].map { |m, d| "#{m} - #{d['desc']}" }.join(', ')
+            puts "  #{out.colorize(cmd, :cyan)}: #{methods}"
+          end
+          return
+        end
+
+        unless method_name && gem_manifest.dig('commands', command, 'methods', method_name)
+          methods = gem_manifest.dig('commands', command, 'methods')
+          out.header("Available methods for #{command}:")
+          methods.each do |m, d|
+            puts "  #{out.colorize(m, :cyan)} - #{d['desc']}"
+          end
+          return
+        end
+
+        require gem_name.tr('-', '/').tr('_', '/')
+        klass = Object.const_get(gem_manifest.dig('commands', command, 'class'))
+        instance = klass.new
+        instance.public_send(method_name.to_sym)
+      rescue LoadError => e
+        out.error("Failed to load #{gem_name}: #{e.message}")
+      rescue StandardError => e
+        out.error("Error running #{ext_name} #{command} #{method_name}: #{e.message}")
       end
 
       no_commands do # rubocop:disable Metrics/BlockLength
