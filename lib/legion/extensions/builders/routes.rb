@@ -13,9 +13,7 @@ module Legion
         def build_routes
           @routes = {}
           return if lex_route_settings[:enabled] == false
-
-          disabled_exts = Array(lex_route_settings[:disabled_extensions])
-          return if disabled_exts.include?(extension_name)
+          return if extension_disabled?
 
           @runners.each_value do |runner_info|
             runner_name   = runner_info[:runner_name]
@@ -26,7 +24,7 @@ module Legion
 
             methods = runner_module.instance_methods(false)
             methods -= runner_module.skip_routes if runner_module.respond_to?(:skip_routes)
-            methods -= excluded_functions_for(runner_name)
+            methods -= excluded_functions_for
 
             methods.each do |function|
               route_path = "#{extension_name}/#{runner_name}/#{function}"
@@ -49,19 +47,18 @@ module Legion
           Legion::Settings.dig(:api, :lex_routes) || {}
         end
 
-        def excluded_runner?(runner_name)
-          runners_list = Array(lex_route_settings[:exclude_runners])
-          runners_list.include?("#{extension_name}/#{runner_name}")
+        def extension_disabled?
+          lex_route_settings.dig(:extensions, extension_name.to_sym, :enabled) == false
         end
 
-        def excluded_functions_for(runner_name)
-          functions_list = Array(lex_route_settings[:exclude_functions])
-          functions_list.filter_map do |path|
-            parts = path.split('/')
-            next unless parts.length == 3 && parts[0] == extension_name && parts[1] == runner_name
+        def excluded_runner?(runner_name)
+          runners_list = Array(lex_route_settings.dig(:extensions, extension_name.to_sym, :exclude_runners))
+          runners_list.include?(runner_name)
+        end
 
-            parts[2].to_sym
-          end
+        def excluded_functions_for
+          functions_list = Array(lex_route_settings.dig(:extensions, extension_name.to_sym, :exclude_functions))
+          functions_list.select { |f| f.is_a?(String) || f.is_a?(Symbol) }.map(&:to_sym)
         end
       end
     end

@@ -184,8 +184,8 @@ RSpec.describe Legion::Extensions::Builder::Routes do
     context 'when extension is disabled in settings' do
       before do
         allow(Legion::Settings).to receive(:dig).with(:api, :lex_routes).and_return({
-                                                                                      enabled:             true,
-                                                                                      disabled_extensions: ['test_lex']
+                                                                                      enabled:    true,
+                                                                                      extensions: { test_lex: { enabled: false } }
                                                                                     })
         setup_runners(dummy_builder, {
                         runner1: {
@@ -205,8 +205,8 @@ RSpec.describe Legion::Extensions::Builder::Routes do
     context 'when a runner is in exclude_runners settings' do
       before do
         allow(Legion::Settings).to receive(:dig).with(:api, :lex_routes).and_return({
-                                                                                      enabled:         true,
-                                                                                      exclude_runners: ['test_lex/runner1']
+                                                                                      enabled:    true,
+                                                                                      extensions: { test_lex: { exclude_runners: ['runner1'] } }
                                                                                     })
         setup_runners(dummy_builder, {
                         runner1: {
@@ -226,8 +226,8 @@ RSpec.describe Legion::Extensions::Builder::Routes do
     context 'when a function is in exclude_functions settings' do
       before do
         allow(Legion::Settings).to receive(:dig).with(:api, :lex_routes).and_return({
-                                                                                      enabled:           true,
-                                                                                      exclude_functions: ['test_lex/runner1/fetch_data']
+                                                                                      enabled:    true,
+                                                                                      extensions: { test_lex: { exclude_functions: ['fetch_data'] } }
                                                                                     })
         setup_runners(dummy_builder, {
                         runner1: {
