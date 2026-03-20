@@ -1,0 +1,24 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Actors
+        class Ingest < Legion::Extensions::Actors::Subscription
+          include Legion::Extensions::<%= lex_class %>::Runners::Transform
+
+          QUEUE    = 'legion.<%= lex_name %>.ingest'
+          EXCHANGE = 'legion.<%= lex_name %>'
+
+          def self.queue
+            QUEUE
+          end
+
+          def self.exchange
+            EXCHANGE
+          end
+        end
+      end
+    end
+  end
+end

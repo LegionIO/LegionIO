@@ -1,0 +1,17 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Transport
+        module Queues
+          class Ingest < Legion::Transport::Queue
+            QUEUE_NAME   = 'legion.<%= lex_name %>.ingest'
+            EXCHANGE_NAME = 'legion.<%= lex_name %>'
+            ROUTING_KEY  = 'ingest'
+          end
+        end
+      end
+    end
+  end
+end

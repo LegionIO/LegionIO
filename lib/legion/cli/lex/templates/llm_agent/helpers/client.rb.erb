@@ -1,0 +1,43 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Helpers
+        class Client
+          attr_reader :model, :temperature, :max_tokens
+
+          def initialize(model: nil, temperature: 0.7, max_tokens: 1024, **)
+            @model       = model
+            @temperature = temperature
+            @max_tokens  = max_tokens
+          end
+
+          def chat(prompt:, **override)
+            return { success: false, reason: 'legion-llm not available' } unless defined?(Legion::LLM)
+
+            opts = { prompt: prompt, temperature: @temperature, max_tokens: @max_tokens }
+            opts[:model] = @model if @model
+            opts.merge!(override)
+
+            Legion::LLM.chat(**opts)
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def structured(prompt:, schema:, **override)
+            return { success: false, reason: 'legion-llm not available' } unless defined?(Legion::LLM)
+
+            opts = { prompt: prompt, schema: schema }
+            opts[:model] = @model if @model
+            opts.merge!(override)
+
+            Legion::LLM.structured(**opts)
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+        end
+      end
+    end
+  end
+end

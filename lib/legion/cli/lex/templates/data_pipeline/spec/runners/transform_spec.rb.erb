@@ -1,0 +1,41 @@
+# frozen_string_literal: true
+
+RSpec.describe Legion::Extensions::<%= lex_class %>::Runners::Transform do
+  subject { described_class }
+
+  let(:test_class) do
+    Class.new do
+      extend Legion::Extensions::<%= lex_class %>::Runners::Transform
+    end
+  end
+
+  it { should be_a Module }
+  it { is_expected.to respond_to(:transform).with_any_keywords }
+
+  describe '#transform' do
+    it 'returns success for a valid payload' do
+      result = test_class.transform(payload: { key: 'value' })
+      expect(result[:success]).to be true
+      expect(result[:data]).to be_a(Hash)
+    end
+
+    it 'returns failure when payload is nil' do
+      result = test_class.transform(payload: nil)
+      expect(result[:success]).to be false
+      expect(result[:reason]).to include('required')
+    end
+
+    it 'returns failure when payload is not a Hash' do
+      result = test_class.transform(payload: 'not a hash')
+      expect(result[:success]).to be false
+      expect(result[:reason]).to include('Hash')
+    end
+
+    it 'handles unexpected errors gracefully' do
+      allow(test_class).to receive(:process).and_raise(StandardError, 'unexpected')
+      result = test_class.transform(payload: { key: 'value' })
+      expect(result[:success]).to be false
+      expect(result[:reason]).to eq('unexpected')
+    end
+  end
+end

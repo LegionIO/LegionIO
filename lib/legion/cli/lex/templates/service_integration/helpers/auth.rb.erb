@@ -1,0 +1,37 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Helpers
+        module Auth
+          # Build an auth hash from settings or explicit kwargs.
+          # Supports three methods:
+          #   api_key  — { method: :api_key,  key: '...', header: 'X-API-Key' }
+          #   bearer   — { method: :bearer,   token: '...' }
+          #   basic    — { method: :basic,    username: '...', password: '...' }
+          def self.from_settings(settings = {})
+            return {} if settings.nil? || settings.empty?
+
+            auth = settings[:auth] || settings['auth'] || {}
+            return {} if auth.empty?
+
+            auth
+          end
+
+          def self.api_key(key, header: 'X-API-Key')
+            { method: :api_key, key: key, header: header }
+          end
+
+          def self.bearer(token)
+            { method: :bearer, token: token }
+          end
+
+          def self.basic(username, password)
+            { method: :basic, username: username, password: password }
+          end
+        end
+      end
+    end
+  end
+end

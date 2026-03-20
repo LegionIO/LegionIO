@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Transport
+        module Exchanges
+          class <%= name_class %> < Legion::Transport::Exchange
+            EXCHANGE_NAME = 'legion.<%= lex_name %>'
+            EXCHANGE_TYPE = :direct
+          end
+        end
+      end
+    end
+  end
+end

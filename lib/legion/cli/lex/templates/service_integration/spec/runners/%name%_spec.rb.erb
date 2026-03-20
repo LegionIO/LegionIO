@@ -1,0 +1,52 @@
+# frozen_string_literal: true
+
+require 'webmock/rspec'
+
+RSpec.describe Legion::Extensions::<%= lex_class %>::Runners::<%= name_class %> do
+  subject { described_class }
+
+  let(:base_url) { 'https://api.example.com' }
+  let(:test_class) do
+    Class.new do
+      extend Legion::Extensions::<%= lex_class %>::Runners::<%= name_class %>
+
+      def self.settings
+        { base_url: 'https://api.example.com' }
+      end
+    end
+  end
+
+  before { WebMock.enable! }
+  after  { WebMock.disable! }
+
+  it { should be_a Module }
+  it { is_expected.to respond_to(:list).with_any_keywords }
+  it { is_expected.to respond_to(:get).with_any_keywords }
+  it { is_expected.to respond_to(:create).with_any_keywords }
+  it { is_expected.to respond_to(:update).with_any_keywords }
+  it { is_expected.to respond_to(:delete).with_any_keywords }
+
+  describe '#list' do
+    before do
+      stub_request(:get, "#{base_url}/")
+        .to_return(status: 200, body: '[]', headers: { 'Content-Type' => 'application/json' })
+    end
+
+    it 'returns success' do
+      result = test_class.list
+      expect(result[:success]).to be true
+    end
+  end
+
+  describe '#get' do
+    before do
+      stub_request(:get, "#{base_url}/42")
+        .to_return(status: 200, body: '{"id":42}', headers: { 'Content-Type' => 'application/json' })
+    end
+
+    it 'returns success with data' do
+      result = test_class.get(id: 42)
+      expect(result[:success]).to be true
+    end
+  end
+end

@@ -1,0 +1,19 @@
+# frozen_string_literal: true
+
+RSpec.describe Legion::Extensions::<%= lex_class %>::Actors::Ingest do
+  it 'inherits from Subscription actor' do
+    expect(described_class.ancestors).to include(Legion::Extensions::Actors::Subscription)
+  end
+
+  it 'includes the Transform runner' do
+    expect(described_class.ancestors).to include(Legion::Extensions::<%= lex_class %>::Runners::Transform)
+  end
+
+  it 'defines a queue name' do
+    expect(described_class::QUEUE).to include('<%= lex_name %>')
+  end
+
+  it 'defines an exchange name' do
+    expect(described_class::EXCHANGE).to include('<%= lex_name %>')
+  end
+end

@@ -1,0 +1,14 @@
+---
+# Default prompt template for <%= gem_name %>
+# Customize system and user prompts for your use case.
+
+system: |
+  You are a helpful assistant for <%= lex_class %>.
+  Respond concisely and accurately.
+
+user: |
+  <%= '{{input}}' %>
+
+examples:
+  - input: "What can you help me with?"
+    expected: "I can help you with <%= lex_class.downcase %>-related tasks."

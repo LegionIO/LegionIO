@@ -62,6 +62,72 @@ RSpec.describe Legion::CLI::Lex do
         lex.create('mycustomext')
       end
     end
+
+    describe '--template option' do
+      it 'passes the template name to LexGenerator' do
+        expect(Legion::Extensions).to receive(:check_reserved_words)
+        gen = double(generate: nil)
+        expect(Legion::CLI::LexGenerator).to receive(:new)
+          .with('myext', anything, anything, gem_name: 'lex-myext', template: 'llm-agent')
+          .and_return(gen)
+
+        lex = build_lex(template: 'llm-agent')
+        lex.create('myext')
+      end
+
+      it 'falls back to basic and warns on unknown template' do
+        allow(Legion::Extensions).to receive(:check_reserved_words)
+        allow(Legion::CLI::LexGenerator).to receive(:new).and_return(double(generate: nil))
+        expect(out).to receive(:warn).with(/unknown template/i)
+
+        lex = build_lex(template: 'nonexistent-template')
+        lex.create('myext')
+      end
+
+      it 'uses basic template by default' do
+        expect(Legion::Extensions).to receive(:check_reserved_words)
+        gen = double(generate: nil)
+        expect(Legion::CLI::LexGenerator).to receive(:new)
+          .with('myext', anything, anything, gem_name: 'lex-myext', template: 'basic')
+          .and_return(gen)
+
+        lex = build_lex
+        lex.create('myext')
+      end
+    end
+
+    describe '--list-templates option' do
+      it 'outputs the template list and returns without creating anything' do
+        expect(Legion::CLI::LexGenerator).not_to receive(:new)
+        allow(out).to receive(:header)
+        allow(out).to receive(:table)
+
+        lex = build_lex(list_templates: true)
+        lex.create
+      end
+
+      it 'renders a table with template info' do
+        expect(out).to receive(:header).with(/template/i)
+        expect(out).to receive(:table) do |headers, rows|
+          expect(headers).to include('template')
+          expect(headers).to include('description')
+          expect(rows).not_to be_empty
+        end
+
+        lex = build_lex(list_templates: true)
+        lex.create
+      end
+    end
+
+    describe 'when NAME is omitted without --list-templates' do
+      it 'outputs an error and returns' do
+        expect(Legion::CLI::LexGenerator).not_to receive(:new)
+        expect(out).to receive(:error).with(/NAME is required/)
+
+        lex = build_lex
+        lex.create
+      end
+    end
   end
 
   describe '#discover_all' do

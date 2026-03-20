@@ -1,0 +1,46 @@
+# frozen_string_literal: true
+
+require 'webmock/rspec'
+
+RSpec.describe Legion::Extensions::<%= lex_class %>::Helpers::Client do
+  let(:base_url) { 'https://api.example.com' }
+
+  before { WebMock.enable! }
+  after  { WebMock.disable! }
+
+  describe '.connection' do
+    it 'raises ArgumentError when base_url is missing' do
+      expect { described_class.connection }.to raise_error(ArgumentError, /base_url/)
+    end
+
+    it 'returns a Faraday connection' do
+      conn = described_class.connection(base_url: base_url)
+      expect(conn).to be_a(Faraday::Connection)
+    end
+
+    it 'sets Content-Type header to application/json' do
+      conn = described_class.connection(base_url: base_url)
+      expect(conn.headers['Content-Type']).to eq('application/json')
+    end
+
+    context 'with api_key auth' do
+      it 'sets the API key header' do
+        conn = described_class.connection(
+          base_url: base_url,
+          auth: { method: :api_key, key: 'secret', header: 'X-API-Key' }
+        )
+        expect(conn.headers['X-API-Key']).to eq('secret')
+      end
+    end
+
+    context 'with bearer auth' do
+      it 'sets Authorization header' do
+        conn = described_class.connection(
+          base_url: base_url,
+          auth: { method: :bearer, token: 'mytoken' }
+        )
+        expect(conn.headers['Authorization']).to eq('Bearer mytoken')
+      end
+    end
+  end
+end

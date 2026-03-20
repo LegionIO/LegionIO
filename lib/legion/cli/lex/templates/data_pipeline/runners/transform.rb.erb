@@ -1,0 +1,56 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Runners
+        module Transform
+          extend Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?('Helpers::Lex')
+
+          # Main transform entry point. Receives a payload hash, returns transformed output.
+          def transform(payload:, options: {}, **)
+            validated = validate_input(payload)
+            return validated unless validated[:success]
+
+            result = process(validated[:data], options)
+            publish_output(result) if defined?(Legion::Transport)
+
+            { success: true, data: result }
+          rescue StandardError => e
+            handle_error(e, payload)
+          end
+
+          private
+
+          def validate_input(payload)
+            return { success: false, reason: 'payload is required' } if payload.nil?
+            return { success: false, reason: 'payload must be a Hash' } unless payload.is_a?(Hash)
+
+            { success: true, data: payload }
+          end
+
+          def process(data, _options)
+            # TODO: implement transformation logic
+            data
+          end
+
+          def publish_output(result)
+            return unless defined?(Legion::Transport)
+
+            Legion::Transport::Messages::<%= name_class %>Output.new(data: result).publish
+          rescue StandardError
+            nil
+          end
+
+          def handle_error(error, payload)
+            {
+              success: false,
+              reason:  error.message,
+              payload: payload
+            }
+          end
+        end
+      end
+    end
+  end
+end

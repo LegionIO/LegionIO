@@ -1,0 +1,53 @@
+# frozen_string_literal: true
+
+require 'faraday'
+require 'json'
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Helpers
+        class Client
+          DEFAULT_TIMEOUT = 30
+
+          class << self
+            def connection(base_url: nil, timeout: DEFAULT_TIMEOUT, auth: {}, **)
+              raise ArgumentError, 'base_url is required' if base_url.nil? || base_url.empty?
+
+              Faraday.new(url: base_url) do |conn|
+                conn.options.timeout      = timeout
+                conn.options.open_timeout = timeout
+                conn.headers['Content-Type'] = 'application/json'
+                conn.headers['Accept']       = 'application/json'
+
+                apply_auth(conn, auth)
+
+                conn.response :json, content_type: /\bjson$/
+                conn.adapter Faraday.default_adapter
+              end
+            end
+
+            private
+
+            def apply_auth(conn, auth)
+              method = auth[:method] || auth['method']
+
+              case method&.to_sym
+              when :api_key
+                header = auth[:header] || auth['header'] || 'X-API-Key'
+                conn.headers[header] = auth[:key] || auth['key']
+              when :bearer
+                token = auth[:token] || auth['token']
+                conn.headers['Authorization'] = "Bearer #{token}"
+              when :basic
+                conn.request :authorization, :basic,
+                             auth[:username] || auth['username'],
+                             auth[:password] || auth['password']
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end

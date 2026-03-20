@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.92] - 2026-03-20
+
+### Added
+- `--template` option on `legion lex create` to scaffold pattern-specific extensions: `llm-agent`, `service-integration`, `data-pipeline` (default: `basic`)
+- `--list-templates` option on `legion lex create` to display available templates with descriptions
+- `LexTemplates::TemplateOverlay` class renders ERB template files into the target extension directory
+- ERB scaffold templates under `lib/legion/cli/lex/templates/`: `llm_agent/`, `service_integration/`, `data_pipeline/`
+- `llm-agent` template: LLM runner with `Legion::LLM.chat` and structured output, helpers/client.rb with model/temperature kwargs, default prompt YAML, spec with LLM mock
+- `service-integration` template: CRUD runners (list/get/create/update/delete), Faraday HTTP client helper with api_key/bearer/basic auth, auth helper, specs with WebMock stubs
+- `data-pipeline` template: transform runner with validate/process/publish pattern, subscription ingest actor, transport exchange/queue/message scaffolds, runner and actor specs
+- Template registry extended with `data-pipeline`, `template_dir` class method, new `llm-agent`/`service-integration` entries with `template_dir` keys
+
 ## [1.4.91] - 2026-03-20
 
 ### Fixed

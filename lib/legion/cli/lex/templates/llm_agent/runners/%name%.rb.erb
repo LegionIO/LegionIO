@@ -1,0 +1,37 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Runners
+        module <%= name_class %>
+          extend Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?('Helpers::Lex')
+
+          def run(prompt:, model: nil, temperature: nil, structured: false, schema: nil, **)
+            llm_opts = { prompt: prompt }
+            llm_opts[:model] = model if model
+            llm_opts[:temperature] = temperature if temperature
+
+            if structured && defined?(Legion::LLM)
+              response = Legion::LLM.structured(prompt: prompt, schema: schema || default_schema)
+            elsif defined?(Legion::LLM)
+              response = Legion::LLM.chat(**llm_opts)
+            else
+              return { success: false, reason: 'legion-llm not available' }
+            end
+
+            { success: true, response: response }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          private
+
+          def default_schema
+            { type: 'object', properties: { result: { type: 'string' } } }
+          end
+        end
+      end
+    end
+  end
+end

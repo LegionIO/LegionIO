@@ -1,0 +1,40 @@
+# frozen_string_literal: true
+
+RSpec.describe Legion::Extensions::<%= lex_class %>::Runners::<%= name_class %> do
+  subject { described_class }
+
+  let(:test_class) do
+    Class.new do
+      extend Legion::Extensions::<%= lex_class %>::Runners::<%= name_class %>
+    end
+  end
+
+  before do
+    stub_const('Legion::LLM', Module.new do
+      def self.chat(**_opts)
+        { success: true, content: 'mock response' }
+      end
+
+      def self.structured(**_opts)
+        { success: true, result: 'mock result' }
+      end
+    end)
+  end
+
+  it { should be_a Module }
+  it { is_expected.to respond_to(:run).with_any_keywords }
+
+  describe '#run' do
+    it 'returns success with a response' do
+      result = test_class.run(prompt: 'hello')
+      expect(result[:success]).to be true
+    end
+
+    it 'returns failure when legion-llm is unavailable' do
+      hide_const('Legion::LLM')
+      result = test_class.run(prompt: 'hello')
+      expect(result[:success]).to be false
+      expect(result[:reason]).to include('legion-llm')
+    end
+  end
+end

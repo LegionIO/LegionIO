@@ -1,0 +1,61 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Runners
+        module <%= name_class %>
+          extend Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?('Helpers::Lex')
+
+          def list(**opts)
+            client = Helpers::Client.connection(**settings.merge(opts))
+            response = client.get('/')
+            { success: true, data: response.body }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def get(id:, **)
+            client = Helpers::Client.connection(**settings)
+            response = client.get("/#{id}")
+            { success: true, data: response.body }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def create(**payload)
+            client = Helpers::Client.connection(**settings)
+            response = client.post('/') { |req| req.body = payload.to_json }
+            { success: true, data: response.body }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def update(id:, **payload)
+            client = Helpers::Client.connection(**settings)
+            response = client.put("/#{id}") { |req| req.body = payload.to_json }
+            { success: true, data: response.body }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          def delete(id:, **)
+            client = Helpers::Client.connection(**settings)
+            response = client.delete("/#{id}")
+            { success: true, status: response.status }
+          rescue StandardError => e
+            { success: false, reason: e.message }
+          end
+
+          private
+
+          def settings
+            return {} unless defined?(Legion::Settings)
+
+            Legion::Settings.dig(:extensions, :<%= lex_name %>) || {}
+          end
+        end
+      end
+    end
+  end
+end

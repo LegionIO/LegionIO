@@ -3,6 +3,7 @@
 require 'fileutils'
 require 'legion/extensions/helpers/segments'
 require 'legion/cli/lex_cli_manifest'
+require 'legion/cli/lex_templates'
 
 module Legion
   module CLI
@@ -96,12 +97,32 @@ module Legion
       method_option :bundle_install, type: :boolean, default: true, desc: 'Run bundle install'
       method_option :category, type: :string, default: nil,
                                desc: 'Extension category (agentic, ai, gaia). Determines namespace nesting and gem prefix.'
-      def create(name)
+      method_option :template, type: :string, default: 'basic',
+                               desc: 'Scaffold template: basic, llm-agent, service-integration, data-pipeline'
+      method_option :list_templates, type: :boolean, default: false,
+                                     desc: 'List available scaffold templates and exit'
+      def create(name = nil)
         out = formatter
+
+        if options[:list_templates]
+          render_template_list(out)
+          return
+        end
+
+        unless name
+          out.error('NAME is required. Usage: legion lex create NAME [--template TEMPLATE]')
+          return
+        end
 
         if options[:category] && options[:category] !~ /\A[a-z][a-z0-9_-]*\z/
           out.error('--category must be lowercase letters, numbers, underscores, or hyphens')
           return
+        end
+
+        template_name = options[:template] || 'basic'
+        unless LexTemplates.valid?(template_name)
+          out.warn("Unknown template '#{template_name}', falling back to 'basic'. Run `legion lex create --list-templates` to see available templates.")
+          template_name = 'basic'
         end
 
         gem_name = options[:category] ? "lex-#{options[:category]}-#{name}" : "lex-#{name}"
@@ -119,11 +140,11 @@ module Legion
 
         Legion::Extensions.check_reserved_words(gem_name, known_org: false)
 
-        out.success("Creating #{gem_name}...")
+        out.success("Creating #{gem_name} (template: #{template_name})...")
 
         vars = { filename: target_dir, class_name: name.split('_').map(&:capitalize).join, lex: name }
 
-        generator = LexGenerator.new(name, vars, options, gem_name: gem_name)
+        generator = LexGenerator.new(name, vars, options, gem_name: gem_name, template: template_name)
         generator.generate(out)
 
         out.spacer
@@ -267,6 +288,17 @@ module Legion
           )
         end
 
+        def render_template_list(out)
+          templates = LexTemplates.list
+          if options[:json]
+            out.json(templates)
+          else
+            out.header('Available scaffold templates')
+            rows = templates.map { |t| [t[:name], t[:description]] }
+            out.table(%w[template description], rows)
+          end
+        end
+
         def render_flat_table(out, rows)
           table_rows = rows.map do |l|
             [l[:name], l[:version], l[:category].to_s, l[:tier].to_s, out.status(l[:status]), l[:runners].to_s, l[:actors].to_s]
@@ -399,16 +431,18 @@ module Legion
 
     # Thin generator class that wraps the template logic
     class LexGenerator
-      def initialize(name, vars, options, gem_name: nil)
-        @name    = name
-        @vars    = vars
-        @options = options
-        @gem_name = gem_name || "lex-#{name}"
-        @target = @gem_name
+      def initialize(name, vars, options, gem_name: nil, template: 'basic')
+        @name      = name
+        @vars      = vars
+        @options   = options
+        @gem_name  = gem_name || "lex-#{name}"
+        @target    = @gem_name
+        @template  = template || 'basic'
       end
 
       def generate(out)
         create_structure(out)
+        apply_template_overlay(out) unless @template == 'basic'
         init_git(out) if @options[:git_init]
         run_bundle(out) if @options[:bundle_install]
       end
@@ -513,6 +547,18 @@ module Legion
 
       def write_template(path, content)
         File.write(path, content)
+      end
+
+      def apply_template_overlay(out)
+        segs       = Legion::Extensions::Helpers::Segments.derive_segments(@gem_name)
+        lex_class  = segs.map(&:capitalize).join('::')
+        lex_name   = @name
+        name_class = @name.split(/[_-]/).map(&:capitalize).join
+        gem_name   = @gem_name
+
+        vars = { lex_class: lex_class, lex_name: lex_name, name_class: name_class, gem_name: gem_name }
+        overlay = LexTemplates::TemplateOverlay.new(@template, @target, vars)
+        overlay.apply(out)
       end
 
       def init_git(out)

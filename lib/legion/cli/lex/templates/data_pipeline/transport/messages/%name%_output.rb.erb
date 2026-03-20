@@ -1,0 +1,27 @@
+# frozen_string_literal: true
+
+module Legion
+  module Extensions
+    module <%= lex_class %>
+      module Transport
+        module Messages
+          class <%= name_class %>Output < Legion::Transport::Message
+            EXCHANGE_NAME = 'legion.<%= lex_name %>'
+            ROUTING_KEY   = 'output'
+
+            attr_accessor :data
+
+            def initialize(data:)
+              @data = data
+              super()
+            end
+
+            def to_payload
+              { data: @data }
+            end
+          end
+        end
+      end
+    end
+  end
+end
