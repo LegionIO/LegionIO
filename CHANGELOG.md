@@ -44,6 +44,10 @@
 ## [1.4.81] - 2026-03-20
 
 ### Added
+- Fingerprint mixin for actor skip-if-unchanged optimization (`Legion::Extensions::Actors::Fingerprint`)
+- SHA256-based `skip_or_run` gate: skips execution when `fingerprint_source` is stable
+- Fingerprint integrated into `Every` and `Poll` actors via `include Fingerprint`
+- Extracted `poll_cycle` method from Poll actor for clean separation of timer vs logic
 - `legion eval experiments` subcommand: list all experiment runs with status and summary
 - `legion eval promote --experiment NAME --tag TAG` subcommand: tag a prompt version for production via lex-prompt
 - `legion eval compare --run1 NAME --run2 NAME` subcommand: side-by-side diff of two experiment runs
@@ -52,6 +56,12 @@
 ## [1.4.80] - 2026-03-20
 
 ### Added
+- OpenInference OTel span helpers (LLM, EMBEDDING, TOOL, CHAIN, EVALUATOR, AGENT)
+- SafetyMetrics sliding window module for behavioral monitoring
+- 4 safety alert rules (action burst, scope escalation spike, probe detected, confidence collapse)
+- OpenInference TOOL spans in Ingress.run
+- OpenInference CHAIN spans in Subscription actor dispatch
+- SafetyMetrics wired into service boot sequence
 - `legion eval run` CLI subcommand for CI/CD threshold-based eval gating
 - `--dataset`, `--threshold`, `--evaluator`, `--exit-code` options on `eval run`
 - JSON report output to stdout with per-row scores, summary, and timestamp

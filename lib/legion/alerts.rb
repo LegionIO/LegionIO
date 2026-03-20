@@ -13,7 +13,18 @@ module Legion
         condition: { count_threshold: 10, window_seconds: 60 }, severity: 'warning',
         channels: %w[events log], cooldown_seconds: 300 },
       { name: 'budget_exceeded', event_pattern: 'finops.budget_exceeded', severity: 'warning',
-        channels: %w[events log], cooldown_seconds: 3600 }
+        channels: %w[events log], cooldown_seconds: 3600 },
+      { name: 'safety_action_burst', event_pattern: 'ingress.received',
+        condition: { count_threshold: 100, window_seconds: 60 }, severity: 'warning',
+        channels: %w[events log], cooldown_seconds: 300 },
+      { name: 'safety_scope_escalation_spike', event_pattern: 'rbac.deny',
+        condition: { count_threshold: 5, window_seconds: 300 }, severity: 'critical',
+        channels: %w[events log], cooldown_seconds: 300 },
+      { name: 'safety_probe_detected', event_pattern: 'privatecore.probe_detected', severity: 'critical',
+        channels: %w[events log], cooldown_seconds: 0 },
+      { name: 'safety_confidence_collapse', event_pattern: 'synapse.confidence_update',
+        condition: { count_threshold: 3, window_seconds: 300 }, severity: 'warning',
+        channels: %w[events log], cooldown_seconds: 300 }
     ].freeze
 
     class Engine

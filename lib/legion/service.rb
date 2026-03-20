@@ -11,7 +11,7 @@ module Legion
       base.freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/ParameterLists
+    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
                    crypt: true, api: true, llm: true, gaia: true, log_level: 'info', http_port: nil)
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
@@ -58,6 +58,7 @@ module Legion
       end
 
       setup_telemetry
+      setup_safety_metrics
       setup_supervision if supervision
 
       if extensions
@@ -284,6 +285,15 @@ module Legion
       Legion::Logging.info 'OpenTelemetry gems not installed, starting without telemetry'
     rescue StandardError => e
       Legion::Logging.warn "OpenTelemetry setup failed: #{e.message}"
+    end
+
+    def setup_safety_metrics
+      require_relative 'telemetry/safety_metrics'
+      Legion::Telemetry::SafetyMetrics.start
+    rescue LoadError
+      nil
+    rescue StandardError => e
+      Legion::Logging.debug "[safety_metrics] setup skipped: #{e.message}" if defined?(Legion::Logging)
     end
 
     def setup_supervision

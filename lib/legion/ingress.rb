@@ -73,13 +73,21 @@ module Legion
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
-        Legion::Runner.run(
-          runner_class:  rc,
-          function:      fn,
-          check_subtask: check_subtask,
-          generate_task: generate_task,
-          **message
-        )
+        runner_block = lambda {
+          Legion::Runner.run(
+            runner_class:  rc,
+            function:      fn,
+            check_subtask: check_subtask,
+            generate_task: generate_task,
+            **message
+          )
+        }
+
+        if defined?(Legion::Telemetry::OpenInference)
+          Legion::Telemetry::OpenInference.tool_span(name: "#{rc}.#{fn}", parameters: message) { |_span| runner_block.call }
+        else
+          runner_block.call
+        end
       rescue PayloadTooLarge => e
         { success: false, status: 'task.blocked', error: { code: 'payload_too_large', message: e.message } }
       rescue InvalidRunnerClass => e

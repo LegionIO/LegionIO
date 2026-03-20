@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative 'fingerprint'
 
 module Legion
   module Extensions
     module Actors
       class Every
         include Legion::Extensions::Actors::Base
+        include Legion::Extensions::Actors::Fingerprint
 
         def initialize(**_opts)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            use_runner? ? runner : manual
+            skip_or_run { use_runner? ? runner : manual }
           end
 
           @timer.execute

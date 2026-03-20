@@ -111,14 +111,11 @@ module Legion
             delivery_info = rmq_message.first
 
             message = process_message(payload, metadata, delivery_info)
+            fn = find_function(message)
             if use_runner?
-              Legion::Runner.run(**message,
-                                 runner_class:  runner_class,
-                                 function:      find_function(message),
-                                 check_subtask: check_subtask?,
-                                 generate_task: generate_task?)
+              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
             else
-              runner_class.send(find_function(message), **message)
+              runner_class.send(fn, **message)
             end
             @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
 
@@ -129,6 +126,24 @@ module Legion
             Legion::Logging.error message
             Legion::Logging.error function
             @queue.reject(delivery_info.delivery_tag) if manual_ack
+          end
+        end
+
+        private
+
+        def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
+          run_block = lambda {
+            Legion::Runner.run(**message,
+                               runner_class:  runner_cls,
+                               function:      function,
+                               check_subtask: check_subtask,
+                               generate_task: generate_task)
+          }
+
+          if defined?(Legion::Telemetry::OpenInference)
+            Legion::Telemetry::OpenInference.chain_span(type: 'task_chain') { |_span| run_block.call }
+          else
+            run_block.call
           end
         end
       end
