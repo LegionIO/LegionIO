@@ -45,6 +45,7 @@ module Legion
     autoload :Llm,         'legion/cli/llm_command'
     autoload :Tty,            'legion/cli/tty_command'
     autoload :ObserveCommand, 'legion/cli/observe_command'
+    autoload :Eval,           'legion/cli/eval_command'
     autoload :Interactive, 'legion/cli/interactive'
 
     class Main < Thor
@@ -244,6 +245,9 @@ module Legion
 
       desc 'observe SUBCOMMAND', 'MCP tool observation stats'
       subcommand 'observe', Legion::CLI::ObserveCommand
+
+      desc 'eval SUBCOMMAND', 'Evaluate LLM outputs against quality criteria'
+      subcommand 'eval', Legion::CLI::Eval
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
