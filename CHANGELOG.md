@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.84] - 2026-03-20
+
+### Added
+- `Legion::Extensions.load_yaml_agents` — loads YAML/JSON agent definitions from `~/.legionio/agents/` or configured directory
+- `generate_yaml_runner` — dynamically generates a runner Module for each agent with `llm`, `script`, and `http` function types
+- YAML agent loading integrated into `hook_extensions` boot sequence
+
 ## [1.4.83] - 2026-03-20
 
 ### Added

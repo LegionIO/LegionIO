@@ -6,7 +6,26 @@ require 'fileutils'
 
 RSpec.describe 'Legion::Extensions YAML agent loading' do
   before do
-    Legion::Extensions.instance_variable_set(:@yaml_agents, nil)
+    Legion::Extensions.instance_variable_set(:@load_yaml_agents, nil)
+
+    # Stub the AgentLoader in case the installed legion-settings gem doesn't yet include it
+    unless defined?(Legion::Settings::AgentLoader)
+      stub_const('Legion::Settings::AgentLoader', Module.new do
+        def self.load_agents(dir)
+          return [] unless dir && Dir.exist?(dir)
+
+          require 'yaml'
+          Dir.glob(File.join(dir, '*.{yaml,yml,json}')).filter_map do |path|
+            content = File.read(path)
+            defn = YAML.safe_load(content, symbolize_names: true)
+            next unless defn.is_a?(Hash) && defn[:name] && defn.dig(:runner, :functions)&.any?
+
+            defn
+          end
+        end
+      end)
+      $LOADED_FEATURES << 'legion/settings/agent_loader.rb'
+    end
   end
 
   describe '.load_yaml_agents' do
