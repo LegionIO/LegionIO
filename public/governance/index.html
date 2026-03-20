@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legion Governance Board</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #1a1025; color: #e0d8f0; }
+    #header { background: #2d1f42; padding: 12px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #6b3fa0; }
+    #header h1 { font-size: 18px; color: #c4a0ff; }
+    #controls { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+    #controls label { font-size: 13px; color: #a090c0; }
+    #controls select, #controls button {
+      background: #3a2855; color: #e0d8f0; border: 1px solid #6b3fa0; border-radius: 4px;
+      padding: 4px 10px; font-size: 13px; cursor: pointer;
+    }
+    #controls button:hover { background: #5a3880; }
+    #main { padding: 20px; }
+    #status-bar { font-size: 12px; color: #8070a0; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; background: #231638; border-radius: 6px; overflow: hidden; }
+    thead { background: #3a2855; }
+    th { padding: 10px 12px; text-align: left; font-size: 12px; color: #c4a0ff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #2d1f42; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #2a1e3a; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-pending  { background: #4a3800; color: #ffd060; }
+    .badge-approved { background: #1a3a1a; color: #60d060; }
+    .badge-rejected { background: #3a1a1a; color: #d06060; }
+    .btn { padding: 4px 10px; border-radius: 4px; border: 1px solid; font-size: 12px; cursor: pointer; }
+    .btn-approve { background: #1a3a1a; color: #60d060; border-color: #3a8a3a; }
+    .btn-approve:hover { background: #2a4a2a; }
+    .btn-reject  { background: #3a1a1a; color: #d06060; border-color: #8a3a3a; }
+    .btn-reject:hover  { background: #4a2a2a; }
+    .empty-state { text-align: center; padding: 40px; color: #6b3fa0; font-size: 14px; }
+    .payload-summary { font-size: 11px; color: #a090c0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #refresh-indicator { font-size: 11px; color: #6b3fa0; margin-left: 8px; }
+    dialog { background: #231638; border: 1px solid #6b3fa0; border-radius: 8px; padding: 24px; color: #e0d8f0; min-width: 320px; }
+    dialog::backdrop { background: rgba(0,0,0,0.6); }
+    dialog h2 { color: #c4a0ff; font-size: 16px; margin-bottom: 16px; }
+    dialog label { display: block; font-size: 13px; color: #a090c0; margin-bottom: 6px; }
+    dialog input { width: 100%; background: #3a2855; border: 1px solid #6b3fa0; border-radius: 4px; padding: 6px 10px; color: #e0d8f0; font-size: 13px; margin-bottom: 16px; }
+    dialog .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    dialog .dialog-actions button { background: #3a2855; color: #e0d8f0; border: 1px solid #6b3fa0; border-radius: 4px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+    dialog .dialog-actions .btn-confirm { background: #6b3fa0; border-color: #8b5fc0; }
+    dialog .dialog-actions .btn-confirm:hover { background: #7b4fb0; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Legion Governance Board</h1>
+    <div id="controls">
+      <label for="status-filter">Status:</label>
+      <select id="status-filter">
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button id="refresh-btn">Refresh</button>
+      <span id="refresh-indicator"></span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="status-bar">Loading approvals...</div>
+    <table id="approval-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Requester</th>
+          <th>Payload</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="approval-tbody">
+        <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <dialog id="reviewer-dialog">
+    <h2 id="dialog-title">Confirm Action</h2>
+    <label for="reviewer-id-input">Reviewer ID</label>
+    <input type="text" id="reviewer-id-input" placeholder="your-user-id">
+    <div class="dialog-actions">
+      <button id="dialog-cancel">Cancel</button>
+      <button id="dialog-confirm" class="btn-confirm">Confirm</button>
+    </div>
+  </dialog>
+
+  <script>
+    const API_BASE = '/api/governance/approvals';
+    let pollTimer = null;
+    let pendingAction = null;
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleString();
+      } catch (e) {
+        return iso;
+      }
+    }
+
+    function payloadSummary(raw) {
+      if (!raw) return '';
+      try {
+        const parsed = JSON.parse(raw);
+        const data = parsed.data || parsed;
+        const keys = Object.keys(data);
+        if (keys.length === 0) return '{}';
+        return keys.slice(0, 3).join(', ') + (keys.length > 3 ? '...' : '');
+      } catch (e) {
+        return String(raw).slice(0, 40);
+      }
+    }
+
+    function renderBadge(statusVal) {
+      const span = document.createElement('span');
+      span.className = 'badge badge-' + statusVal;
+      span.textContent = statusVal;
+      return span;
+    }
+
+    function renderRow(item) {
+      const tr = document.createElement('tr');
+
+      const tdId = document.createElement('td');
+      tdId.textContent = item.id;
+      tr.appendChild(tdId);
+
+      const tdType = document.createElement('td');
+      tdType.textContent = item.approval_type;
+      tr.appendChild(tdType);
+
+      const tdReq = document.createElement('td');
+      tdReq.textContent = item.requester_id;
+      tr.appendChild(tdReq);
+
+      const tdPayload = document.createElement('td');
+      const payloadDiv = document.createElement('div');
+      payloadDiv.className = 'payload-summary';
+      payloadDiv.textContent = payloadSummary(item.payload);
+      payloadDiv.title = item.payload || '';
+      tdPayload.appendChild(payloadDiv);
+      tr.appendChild(tdPayload);
+
+      const tdCreated = document.createElement('td');
+      tdCreated.textContent = formatDate(item.created_at);
+      tr.appendChild(tdCreated);
+
+      const tdStatus = document.createElement('td');
+      tdStatus.appendChild(renderBadge(item.status));
+      tr.appendChild(tdStatus);
+
+      const tdActions = document.createElement('td');
+      if (item.status === 'pending') {
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'btn btn-approve';
+        approveBtn.textContent = 'Approve';
+        approveBtn.addEventListener('click', function () { openDialog('approve', item.id); });
+        tdActions.appendChild(approveBtn);
+
+        tdActions.appendChild(document.createTextNode(' '));
+
+        const rejectBtn = document.createElement('button');
+        rejectBtn.className = 'btn btn-reject';
+        rejectBtn.textContent = 'Reject';
+        rejectBtn.addEventListener('click', function () { openDialog('reject', item.id); });
+        tdActions.appendChild(rejectBtn);
+      } else {
+        const reviewed = document.createElement('span');
+        reviewed.style.fontSize = '11px';
+        reviewed.style.color = '#6b3fa0';
+        reviewed.textContent = item.reviewer_id ? 'by ' + item.reviewer_id : 'decided';
+        tdActions.appendChild(reviewed);
+      }
+      tr.appendChild(tdActions);
+
+      return tr;
+    }
+
+    function renderTable(approvals) {
+      const tbody = document.getElementById('approval-tbody');
+      while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
+
+      if (!approvals || approvals.length === 0) {
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = 7;
+        emptyTd.className = 'empty-state';
+        emptyTd.textContent = 'No approvals found.';
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        return;
+      }
+
+      approvals.forEach(function (item) {
+        tbody.appendChild(renderRow(item));
+      });
+    }
+
+    function loadApprovals() {
+      const statusFilter = document.getElementById('status-filter').value;
+      const indicator = document.getElementById('refresh-indicator');
+      indicator.textContent = 'Loading...';
+
+      const url = statusFilter === 'pending'
+        ? API_BASE
+        : API_BASE + '?status=' + encodeURIComponent(statusFilter);
+
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (body) {
+          const approvals = (body.data && body.data.approvals) ? body.data.approvals : [];
+          const count = (body.data && body.data.count != null) ? body.data.count : approvals.length;
+          renderTable(approvals);
+          const statusBar = document.getElementById('status-bar');
+          statusBar.textContent = count + ' result(s) — last updated ' + new Date().toLocaleTimeString();
+          indicator.textContent = '';
+        })
+        .catch(function (err) {
+          const statusBar = document.getElementById('status-bar');
+          statusBar.textContent = 'Error loading approvals: ' + err.message;
+          indicator.textContent = 'Error';
+        });
+    }
+
+    function openDialog(action, approvalId) {
+      pendingAction = { action: action, approvalId: approvalId };
+      const dialog = document.getElementById('reviewer-dialog');
+      const title = document.getElementById('dialog-title');
+      title.textContent = action === 'approve' ? 'Approve Request #' + approvalId : 'Reject Request #' + approvalId;
+      document.getElementById('reviewer-id-input').value = '';
+      dialog.showModal();
+    }
+
+    document.getElementById('dialog-cancel').addEventListener('click', function () {
+      document.getElementById('reviewer-dialog').close();
+      pendingAction = null;
+    });
+
+    document.getElementById('dialog-confirm').addEventListener('click', function () {
+      const reviewerId = document.getElementById('reviewer-id-input').value.trim();
+      if (!reviewerId) {
+        document.getElementById('reviewer-id-input').focus();
+        return;
+      }
+      document.getElementById('reviewer-dialog').close();
+      if (!pendingAction) return;
+
+      const url = API_BASE + '/' + pendingAction.approvalId + '/' + pendingAction.action;
+      fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer_id: reviewerId })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function () { loadApprovals(); })
+        .catch(function (err) {
+          const statusBar = document.getElementById('status-bar');
+          statusBar.textContent = 'Action failed: ' + err.message;
+        });
+
+      pendingAction = null;
+    });
+
+    document.getElementById('refresh-btn').addEventListener('click', function () { loadApprovals(); });
+    document.getElementById('status-filter').addEventListener('change', function () { loadApprovals(); });
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(function () { loadApprovals(); }, 30000);
+    }
+
+    loadApprovals();
+    startPolling();
+  </script>
+</body>
+</html>

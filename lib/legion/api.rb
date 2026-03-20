@@ -45,6 +45,8 @@ module Legion
 
     set :show_exceptions, false
     set :raise_errors, false
+    set :public_folder, File.expand_path('../../public', __dir__)
+    set :static, true
 
     configure do
       set :logging, nil
