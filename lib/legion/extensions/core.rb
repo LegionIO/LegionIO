@@ -186,6 +186,8 @@ module Legion
       def auto_generate_data
         require 'legion/extensions/data'
         log.debug 'running meta magic to generate a data base class'
+        return if Kernel.const_defined? "#{lex_class}::Data"
+
         Kernel.const_get(lex_class.to_s).const_set('Data', Module.new { extend Legion::Extensions::Data })
       rescue StandardError => e
         log.error e.message

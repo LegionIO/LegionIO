@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.91] - 2026-03-20
+
+### Fixed
+- Guard `auto_generate_data` against overwriting existing `Data` module on extensions (fixes lex-synapse constant collision)
+
 ## [1.4.90] - 2026-03-20
 
 ### Fixed
