@@ -26,7 +26,7 @@ module Legion
           dataset = Legion::Data::Connection.sequel.from(default_schema_table).where(namespace: @extension)
           return dataset if dataset.any?
 
-          Legion::Data::Model::Extension.insert(active: 1, namespace: @extension, name: @lex_name)
+          Legion::Data::Model::Extension.insert(active: true, namespace: @extension, name: @lex_name)
           Legion::Data::Connection.sequel.from(default_schema_table).where(namespace: @extension)
         end
         alias ds schema_dataset

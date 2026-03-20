@@ -322,7 +322,7 @@ module Legion
 
       Legion::Metrics.reset! if defined?(Legion::Metrics)
 
-      if defined?(Legion::Gaia) && Legion::Gaia.started?
+      if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
         Legion::Gaia.shutdown
         Legion::Readiness.mark_not_ready(:gaia)
       end
@@ -362,7 +362,7 @@ module Legion
 
       shutdown_api
 
-      if defined?(Legion::Gaia) && Legion::Gaia.started?
+      if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
         Legion::Gaia.shutdown
         Legion::Readiness.mark_not_ready(:gaia)
       end

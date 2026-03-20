@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.90] - 2026-03-20
+
+### Fixed
+- Extension migrator uses `true` instead of `1` for PostgreSQL boolean `active` column
+- Shutdown guards `Legion::Gaia.started?` with `respond_to?` to handle partial GAIA load failures
+
 ## [1.4.89] - 2026-03-20
 
 ### Added
