@@ -3,6 +3,7 @@
 module Legion
   module Telemetry
     autoload :OpenInference, 'legion/telemetry/open_inference'
+    autoload :SafetyMetrics, 'legion/telemetry/safety_metrics'
 
     module_function
 
