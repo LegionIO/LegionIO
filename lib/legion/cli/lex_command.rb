@@ -2,6 +2,7 @@
 
 require 'fileutils'
 require 'legion/extensions/helpers/segments'
+require 'legion/cli/lex_cli_manifest'
 
 module Legion
   module CLI
@@ -166,6 +167,98 @@ module Legion
         out.warn('Restart Legion for changes to take effect') unless options[:json]
       end
 
+      desc 'invoke_ext EXTENSION COMMAND [METHOD]', 'Run a LEX CLI command'
+      map 'exec' => :invoke_ext
+      def invoke_ext(ext_name, command = nil, method_name = nil)
+        out = formatter
+        manifest = LexCliManifest.new
+        gem_name = manifest.resolve_alias(ext_name) || "lex-#{ext_name}"
+        gem_manifest = manifest.read_manifest(gem_name)
+
+        unless gem_manifest
+          out.error("Unknown extension: #{ext_name}. Run `legion lex list` to see installed extensions.")
+          return
+        end
+
+        unless command && gem_manifest.dig('commands', command)
+          out.header("Available commands for #{ext_name}:")
+          gem_manifest['commands'].each do |cmd, info|
+            methods = info['methods'].map { |m, d| "#{m} - #{d['desc']}" }.join(', ')
+            puts "  #{out.colorize(cmd, :cyan)}: #{methods}"
+          end
+          return
+        end
+
+        unless method_name && gem_manifest.dig('commands', command, 'methods', method_name)
+          methods = gem_manifest.dig('commands', command, 'methods')
+          out.header("Available methods for #{command}:")
+          methods.each do |m, d|
+            puts "  #{out.colorize(m, :cyan)} - #{d['desc']}"
+          end
+          return
+        end
+
+        require gem_name.tr('-', '/').tr('_', '/')
+        klass = Object.const_get(gem_manifest.dig('commands', command, 'class'))
+        instance = klass.new
+        instance.public_send(method_name.to_sym)
+      rescue LoadError => e
+        out.error("Failed to load #{gem_name}: #{e.message}")
+      rescue StandardError => e
+        out.error("Error running #{ext_name} #{command} #{method_name}: #{e.message}")
+      end
+
+      desc 'fixes', 'List pending auto-fix patches'
+      option :status, type: :string, desc: 'Filter by status: pending, approved, rejected'
+      def fixes
+        out = formatter
+        with_data do
+          require 'legion/extensions/codegen/runners/auto_fix'
+          result = Legion::Extensions::Codegen::Runners::AutoFix.list_fixes(status: options[:status])
+          if options[:json]
+            out.json(result)
+          elsif result[:fixes].empty?
+            out.warn('No fixes found')
+          else
+            rows = result[:fixes].map do |f|
+              [f[:fix_id][0..7], f[:gem_name], f[:status], f[:specs_passed] ? 'PASS' : 'FAIL',
+               f[:branch], f[:created_at]]
+            end
+            out.table(%w[ID Gem Status Specs Branch Created], rows)
+          end
+        end
+      end
+
+      desc 'approve-fix FIX_ID', 'Approve an auto-generated fix'
+      def approve_fix(fix_id)
+        out = formatter
+        with_data do
+          require 'legion/extensions/codegen/runners/auto_fix'
+          result = Legion::Extensions::Codegen::Runners::AutoFix.approve_fix(fix_id: fix_id)
+          if result[:success]
+            out.success("Fix #{fix_id} approved. Merge the branch manually.")
+          else
+            out.error("Failed to approve: #{result[:reason]}")
+          end
+        end
+      end
+      map 'approve_fix' => :approve_fix
+
+      desc 'reject-fix FIX_ID', 'Reject an auto-generated fix'
+      def reject_fix(fix_id)
+        out = formatter
+        with_data do
+          require 'legion/extensions/codegen/runners/auto_fix'
+          result = Legion::Extensions::Codegen::Runners::AutoFix.reject_fix(fix_id: fix_id)
+          if result[:success]
+            out.success("Fix #{fix_id} rejected.")
+          else
+            out.error("Failed to reject: #{result[:reason]}")
+          end
+        end
+      end
+      map 'reject_fix' => :reject_fix
+
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
@@ -292,6 +385,14 @@ module Legion
           end
         rescue StandardError
           'unknown'
+        end
+
+        def with_data
+          Connection.ensure_data
+          yield
+        rescue CLI::Error => e
+          formatter.error(e.message)
+          raise SystemExit, 1
         end
       end
     end

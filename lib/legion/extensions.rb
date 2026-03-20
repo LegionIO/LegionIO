@@ -24,6 +24,7 @@ module Legion
 
         find_extensions
         load_extensions
+        load_yaml_agents
         hook_all_actors
       end
 
@@ -418,7 +419,72 @@ module Legion
         @extensions
       end
 
+      def load_yaml_agents
+        @load_yaml_agents ||= begin
+          require 'legion/settings/agent_loader'
+          dir = default_agents_directory
+          definitions = Legion::Settings::AgentLoader.load_agents(dir)
+          definitions.each { |d| d[:_runner_module] = generate_yaml_runner(d) }
+          definitions
+        rescue LoadError
+          []
+        end
+      end
+
       private
+
+      def default_agents_directory
+        custom = Legion::Settings.dig(:agents, :directory)
+        return custom if custom && Dir.exist?(custom)
+
+        default = File.expand_path('~/.legionio/agents')
+        Dir.exist?(default) ? default : nil
+      rescue StandardError
+        nil
+      end
+
+      def generate_yaml_runner(definition)
+        mod = Module.new
+        definition[:runner][:functions].each do |func|
+          method_name = func[:name].to_sym
+          case func[:type]
+          when 'llm'
+            prompt_template = func[:prompt]
+            model = func[:model]
+            mod.define_method(method_name) do |**kwargs|
+              prompt = prompt_template.gsub(/\{\{(\w+(?:\.\w+)*)\}\}/) do
+                keys = Regexp.last_match(1).split('.').map(&:to_sym)
+                kwargs.dig(*keys).to_s
+              end
+              if defined?(Legion::LLM)
+                Legion::LLM.chat(messages: [{ role: 'user', content: prompt }], model: model)
+              else
+                { success: false, reason: :llm_unavailable }
+              end
+            end
+          when 'script'
+            command = func[:command]
+            mod.define_method(method_name) do |**kwargs|
+              require 'open3'
+              input = defined?(Legion::JSON) ? Legion::JSON.dump(kwargs) : ::JSON.dump(kwargs)
+              stdout, stderr, status = Open3.capture3(command, stdin_data: input)
+              { success: status.success?, stdout: stdout, stderr: stderr, exit_code: status.exitstatus }
+            end
+          when 'http'
+            url = func[:url]
+            mod.define_method(method_name) do |**kwargs|
+              require 'net/http'
+              uri = URI(url)
+              body = defined?(Legion::JSON) ? Legion::JSON.dump(kwargs) : ::JSON.dump(kwargs)
+              response = Net::HTTP.post(uri, body, 'Content-Type' => 'application/json')
+              { success: response.is_a?(Net::HTTPSuccess), status: response.code.to_i, body: response.body }
+            end
+          end
+        end
+        mod
+      end
+
+      public
 
       def lex_prefix(names)
         names.map { |n| n.start_with?('lex-') ? n : "lex-#{n}" }

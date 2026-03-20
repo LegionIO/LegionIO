@@ -30,6 +30,7 @@ module Legion
       class_option :fork,     type: :string, desc: 'Fork a saved session (load but save as new)'
       class_option :add_dir,  type: :array, default: [], desc: 'Additional directories to include in context'
       class_option :personality, type: :string, desc: 'Communication style (concise, verbose, educational)'
+      class_option :worktree, type: :boolean, default: false, desc: 'Run in isolated git worktree'
 
       autoload :Session, 'legion/cli/chat/session'
       autoload :StatusIndicator, 'legion/cli/chat/status_indicator'
@@ -54,6 +55,7 @@ module Legion
         load_custom_agents
 
         setup_notification_bridge
+        setup_worktree(out) if options[:worktree]
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
         out.banner(version: Legion::VERSION)
@@ -311,6 +313,7 @@ module Legion
                   index: tool_index, total: tool_total
                               })
                 puts out.dim("  [result] #{result_preview}")
+                worktree_auto_checkpoint
               }
             ) do |chunk|
               buffer << chunk.content if chunk.content
@@ -409,6 +412,7 @@ module Legion
           when '/quit', '/exit', '/q'
             show_session_stats(out)
             auto_save_session(out)
+            cleanup_worktree(out) if @worktree_path
             raise SystemExit, 0
           when '/help', '/h'
             show_help(out)
@@ -774,6 +778,11 @@ module Legion
         end
 
         def handle_rewind(arg, out)
+          if @worktree_path
+            handle_worktree_rewind(arg, out)
+            return
+          end
+
           require 'legion/cli/chat/checkpoint'
           if Chat::Checkpoint.entries.none?
             out.warn('No checkpoints available to rewind.')
@@ -1148,6 +1157,82 @@ module Legion
 
         def api_port_for_chat
           4567
+        end
+
+        def setup_worktree(out)
+          require 'legion/extensions/exec/helpers/worktree'
+          @worktree_task_id = "chat-#{SecureRandom.hex(4)}"
+          @checkpoint_count = 0
+          wt = Legion::Extensions::Exec::Helpers::Worktree.create(task_id: @worktree_task_id)
+          if wt[:success]
+            @worktree_path = wt[:path]
+            Dir.chdir(@worktree_path)
+            out.success("Worktree created: #{@worktree_path} (branch: #{wt[:branch]})")
+            chat_log.info "worktree created path=#{@worktree_path} branch=#{wt[:branch]}"
+          else
+            out.warn("Worktree creation failed: #{wt[:reason]}. Continuing without worktree.")
+            chat_log.warn "worktree creation failed: #{wt.inspect}"
+          end
+        rescue LoadError
+          out.warn('lex-exec not available. --worktree requires lex-exec. Continuing without worktree.')
+        end
+
+        def worktree_auto_checkpoint
+          return unless @worktree_path
+
+          require 'legion/extensions/exec/helpers/checkpoint'
+          @checkpoint_count += 1
+          Legion::Extensions::Exec::Helpers::Checkpoint.save(
+            worktree_path: @worktree_path,
+            label:         "step-#{@checkpoint_count}",
+            task_id:       @worktree_task_id
+          )
+        rescue StandardError => e
+          chat_log.debug "worktree checkpoint failed: #{e.message}"
+        end
+
+        def handle_worktree_rewind(arg, out)
+          require 'legion/extensions/exec/helpers/checkpoint'
+          list = Legion::Extensions::Exec::Helpers::Checkpoint.list_checkpoints(task_id: @worktree_task_id)
+          if list[:checkpoints].empty?
+            out.warn('No worktree checkpoints available.')
+            return
+          end
+
+          label = if arg.nil? || arg.strip.empty?
+                    list[:checkpoints].last[:label]
+                  elsif arg.strip.match?(/\A\d+\z/)
+                    target = [list[:checkpoints].size - arg.strip.to_i, 0].max
+                    list[:checkpoints][target][:label]
+                  else
+                    arg.strip
+                  end
+
+          result = Legion::Extensions::Exec::Helpers::Checkpoint.restore(
+            worktree_path: @worktree_path, label: label, task_id: @worktree_task_id
+          )
+          if result[:success]
+            chat_log.info "worktree rewind to #{label}"
+            out.success("Restored to checkpoint: #{label}")
+          else
+            out.warn("Rewind failed: #{result[:message]}")
+          end
+        end
+
+        def cleanup_worktree(out)
+          require 'legion/extensions/exec/helpers/worktree'
+          require 'legion/extensions/exec/helpers/checkpoint'
+
+          checkpoints = Legion::Extensions::Exec::Helpers::Checkpoint.list_checkpoints(task_id: @worktree_task_id)
+          if checkpoints[:checkpoints].any?
+            out.info("Worktree has #{checkpoints[:checkpoints].size} checkpoint(s). Branch: legion/#{@worktree_task_id}")
+            out.info('Worktree preserved. Merge manually or run: git worktree remove <path>')
+          else
+            Legion::Extensions::Exec::Helpers::Worktree.remove(task_id: @worktree_task_id)
+            out.info('Worktree removed (no checkpoints).')
+          end
+        rescue StandardError => e
+          chat_log.warn "worktree cleanup error: #{e.message}"
         end
       end
     end

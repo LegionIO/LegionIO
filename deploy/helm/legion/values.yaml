@@ -1,0 +1,69 @@
+image:
+  repository: ghcr.io/legionio/legion
+  tag: latest
+  pullPolicy: IfNotPresent
+
+worker:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilization: 70
+  env: []
+
+api:
+  replicas: 2
+  port: 4567
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  env: []
+
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  vhost: /
+  existingSecret: legion-rabbitmq
+
+postgresql:
+  host: postgresql
+  port: 5432
+  database: legion
+  existingSecret: legion-postgresql
+
+redis:
+  host: redis
+  port: 6379
+
+vault:
+  enabled: false
+  address: ""
+  role: legion
+
+serviceAccount:
+  create: true
+  name: legion
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

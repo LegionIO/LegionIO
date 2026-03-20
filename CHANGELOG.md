@@ -1,5 +1,46 @@
 # Legion Changelog
 
+## [1.4.86] - 2026-03-20
+
+### Added
+- `legion payroll` CLI subcommand for workforce cost visibility (summary, report, forecast, budget)
+- Integrated with `Helpers::Economics` from lex-metering for labor economics data
+
+## [1.4.85] - 2026-03-20
+
+### Added
+- `legion lex fixes` CLI command to list pending auto-fix patches (filterable by status)
+- `legion lex approve-fix FIX_ID` CLI command to approve LLM-generated fixes
+- `legion lex reject-fix FIX_ID` CLI command to reject LLM-generated fixes
+- `with_data` helper to `legion lex` subcommand class for data-required operations
+
+## [1.4.84] - 2026-03-20
+
+### Added
+- `Legion::Extensions.load_yaml_agents` — loads YAML/JSON agent definitions from `~/.legionio/agents/` or configured directory
+- `generate_yaml_runner` — dynamically generates a runner Module for each agent with `llm`, `script`, and `http` function types
+- YAML agent loading integrated into `hook_extensions` boot sequence
+- Governance API routes under `/api/governance/approvals` (list, show, submit, approve, reject)
+- HTML governance dashboard at `/governance/` with approve/reject buttons, 30s auto-poll, and reviewer dialog
+- Static file serving enabled for `public/` directory in Sinatra
+
+## [1.4.83] - 2026-03-20
+
+### Added
+- `Helpers::Context` for filesystem-based inter-agent context sharing
+- Org chart API endpoint (`GET /api/org-chart`) with dashboard panel
+- Workflow relationship graph API (`GET /api/relationships/graph`)
+- Workflow visualizer web page (`public/workflow/`) with Cytoscape.js
+- `--worktree` flag for `legion chat` with auto-checkpointing
+- `.legion-context/` and `.legion-worktrees/` in generated `.gitignore`
+
+## [1.4.82] - 2026-03-20
+
+### Added
+- `legion check --privacy` command: verifies enterprise privacy mode (flag set, no cloud API keys, external endpoints unreachable)
+- `PrivacyCheck` class with three probes: flag_set, no_cloud_keys, no_external_endpoints
+- `Legion::Service.log_privacy_mode_status` logs enterprise privacy state at startup
+
 ## [1.4.81] - 2026-03-20
 
 ### Added
@@ -7,6 +48,10 @@
 - SHA256-based `skip_or_run` gate: skips execution when `fingerprint_source` is stable
 - Fingerprint integrated into `Every` and `Poll` actors via `include Fingerprint`
 - Extracted `poll_cycle` method from Poll actor for clean separation of timer vs logic
+- `legion eval experiments` subcommand: list all experiment runs with status and summary
+- `legion eval promote --experiment NAME --tag TAG` subcommand: tag a prompt version for production via lex-prompt
+- `legion eval compare --run1 NAME --run2 NAME` subcommand: side-by-side diff of two experiment runs
+- `require_prompt!` guard for lex-prompt extension availability
 
 ## [1.4.80] - 2026-03-20
 
@@ -17,6 +62,11 @@
 - OpenInference TOOL spans in Ingress.run
 - OpenInference CHAIN spans in Subscription actor dispatch
 - SafetyMetrics wired into service boot sequence
+- `legion eval run` CLI subcommand for CI/CD threshold-based eval gating
+- `--dataset`, `--threshold`, `--evaluator`, `--exit-code` options on `eval run`
+- JSON report output to stdout with per-row scores, summary, and timestamp
+- `.github/workflow-templates/eval-gate.yml` reusable GitHub Actions workflow template
+- PR annotation step in workflow template for inline eval result comments
 
 ## [1.4.79] - 2026-03-20
 

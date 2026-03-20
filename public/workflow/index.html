@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legion Workflow Visualizer</title>
+  <script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #1a1025; color: #e0d8f0; }
+    #header { background: #2d1f42; padding: 12px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #6b3fa0; }
+    #header h1 { font-size: 18px; color: #c4a0ff; }
+    #controls { display: flex; gap: 10px; align-items: center; }
+    #controls label { font-size: 13px; color: #a090c0; }
+    #controls select, #controls button {
+      background: #3a2855; color: #e0d8f0; border: 1px solid #6b3fa0; border-radius: 4px;
+      padding: 4px 10px; font-size: 13px; cursor: pointer;
+    }
+    #controls button:hover { background: #5a3880; }
+    #main { display: flex; height: calc(100vh - 50px); }
+    #cy { flex: 1; background: #1a1025; }
+    #sidebar { width: 280px; background: #231638; border-left: 1px solid #3a2855; padding: 16px; overflow-y: auto; display: none; }
+    #sidebar h2 { font-size: 14px; color: #c4a0ff; margin-bottom: 8px; }
+    #sidebar .field { margin-bottom: 6px; font-size: 13px; }
+    #sidebar .field-label { color: #8070a0; }
+    #sidebar .field-value { color: #e0d8f0; }
+    #status { position: fixed; bottom: 10px; left: 10px; font-size: 12px; color: #6b3fa0; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Legion Workflow Graph</h1>
+    <div id="controls">
+      <label for="ext-filter">Extension:</label>
+      <select id="ext-filter"><option value="">All</option></select>
+      <button id="refresh-btn">Refresh</button>
+      <button id="fit-btn">Fit</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="cy"></div>
+    <div id="sidebar">
+      <h2>Node Details</h2>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+  <div id="status">Loading...</div>
+
+  <script>
+    (function () {
+      var palette = [
+        '#8b5cf6', '#6366f1', '#a78bfa', '#c084fc', '#818cf8',
+        '#7c3aed', '#6d28d9', '#4f46e5', '#9333ea', '#7e22ce'
+      ];
+
+      function hashColor(str) {
+        var h = 0;
+        for (var i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+        return palette[Math.abs(h) % palette.length];
+      }
+
+      var cy = cytoscape({
+        container: document.getElementById('cy'),
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'label': 'data(label)',
+              'background-color': 'data(color)',
+              'color': '#e0d8f0',
+              'text-valign': 'bottom',
+              'text-margin-y': 6,
+              'font-size': 11,
+              'width': 30,
+              'height': 30,
+              'border-width': 2,
+              'border-color': '#3a2855'
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'label': 'data(label)',
+              'width': 2,
+              'line-color': '#5a3880',
+              'target-arrow-color': '#5a3880',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier',
+              'font-size': 9,
+              'color': '#8070a0',
+              'text-rotation': 'autorotate'
+            }
+          },
+          {
+            selector: 'node:selected',
+            style: { 'border-color': '#c4a0ff', 'border-width': 3 }
+          }
+        ],
+        layout: { name: 'grid' }
+      });
+
+      var sidebar = document.getElementById('sidebar');
+      var detailContent = document.getElementById('detail-content');
+      var statusEl = document.getElementById('status');
+      var extFilter = document.getElementById('ext-filter');
+
+      function clearChildren(el) {
+        while (el.firstChild) el.removeChild(el.firstChild);
+      }
+
+      cy.on('tap', 'node', function (evt) {
+        var d = evt.target.data();
+        sidebar.style.display = 'block';
+        clearChildren(detailContent);
+        Object.keys(d).forEach(function (k) {
+          if (k === 'color') return;
+          var field = document.createElement('div');
+          field.className = 'field';
+          var label = document.createElement('span');
+          label.className = 'field-label';
+          label.textContent = k + ': ';
+          var value = document.createElement('span');
+          value.className = 'field-value';
+          value.textContent = String(d[k]);
+          field.appendChild(label);
+          field.appendChild(value);
+          detailContent.appendChild(field);
+        });
+      });
+
+      cy.on('tap', function (evt) {
+        if (evt.target === cy) sidebar.style.display = 'none';
+      });
+
+      function buildUrl() {
+        var ext = extFilter.value;
+        var url = '/api/relationships/graph';
+        if (ext) url += '?extension=' + encodeURIComponent(ext);
+        return url;
+      }
+
+      function loadGraph() {
+        statusEl.textContent = 'Fetching...';
+        fetch(buildUrl())
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            var data = json.data || {};
+            var nodes = data.nodes || [];
+            var edges = data.edges || [];
+
+            var extensions = {};
+            var elements = [];
+
+            nodes.forEach(function (n) {
+              extensions[n.extension || ''] = true;
+              elements.push({
+                data: {
+                  id: n.id,
+                  label: n.label || n.id,
+                  type: n.type || 'unknown',
+                  extension: n.extension || '',
+                  color: hashColor(n.extension || '')
+                }
+              });
+            });
+
+            edges.forEach(function (e) {
+              elements.push({
+                data: {
+                  id: e.source + '->' + e.target,
+                  source: e.source,
+                  target: e.target,
+                  label: e.label || ''
+                }
+              });
+            });
+
+            var current = extFilter.value;
+            clearChildren(extFilter);
+            var allOpt = document.createElement('option');
+            allOpt.value = '';
+            allOpt.textContent = 'All';
+            extFilter.appendChild(allOpt);
+
+            Object.keys(extensions).sort().forEach(function (ext) {
+              if (!ext) return;
+              var opt = document.createElement('option');
+              opt.value = ext;
+              opt.textContent = ext;
+              if (ext === current) opt.selected = true;
+              extFilter.appendChild(opt);
+            });
+
+            cy.elements().remove();
+            cy.add(elements);
+            cy.layout({ name: 'dagre', rankDir: 'TB', nodeSep: 50, rankSep: 80 }).run();
+
+            statusEl.textContent = nodes.length + ' nodes, ' + edges.length + ' edges | ' + new Date().toLocaleTimeString();
+          })
+          .catch(function (err) {
+            statusEl.textContent = 'Error: ' + err.message;
+          });
+      }
+
+      document.getElementById('refresh-btn').addEventListener('click', loadGraph);
+      document.getElementById('fit-btn').addEventListener('click', function () { cy.fit(); });
+      extFilter.addEventListener('change', loadGraph);
+
+      loadGraph();
+      setInterval(loadGraph, 60000);
+    })();
+  </script>
+</body>
+</html>

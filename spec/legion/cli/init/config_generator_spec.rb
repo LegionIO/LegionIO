@@ -27,5 +27,24 @@ RSpec.describe Legion::CLI::InitHelpers::ConfigGenerator do
         expect(content).to eq('{"custom": true}')
       end
     end
+
+    it 'creates .gitignore with legion entries' do
+      Dir.mktmpdir do |dir|
+        described_class.scaffold_workspace(dir)
+        gitignore = File.read(File.join(dir, '.gitignore'))
+        expect(gitignore).to include('.legion-context/')
+        expect(gitignore).to include('.legion-worktrees/')
+      end
+    end
+
+    it 'appends to existing .gitignore without duplicating' do
+      Dir.mktmpdir do |dir|
+        File.write(File.join(dir, '.gitignore'), "node_modules/\n.legion-context/\n")
+        described_class.scaffold_workspace(dir)
+        gitignore = File.read(File.join(dir, '.gitignore'))
+        expect(gitignore.scan('.legion-context/').size).to eq(1)
+        expect(gitignore).to include('.legion-worktrees/')
+      end
+    end
   end
 end

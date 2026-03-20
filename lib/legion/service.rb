@@ -142,6 +142,7 @@ module Legion
       Legion::Settings.load(config_dir: config_directory)
       Legion::Readiness.mark_ready(:settings)
       Legion::Logging.info('Legion::Settings Loaded')
+      self.class.log_privacy_mode_status
     end
 
     def apply_cli_overrides(http_port: nil)
@@ -411,6 +412,28 @@ module Legion
     def load_extensions
       require 'legion/runner'
       Legion::Extensions.hook_extensions
+    end
+
+    def self.log_privacy_mode_status
+      privacy = if Legion.const_defined?('Settings') && Legion::Settings.respond_to?(:enterprise_privacy?)
+                  Legion::Settings.enterprise_privacy?
+                else
+                  ENV['LEGION_ENTERPRISE_PRIVACY'] == 'true'
+                end
+
+      message = if privacy
+                  'enterprise_data_privacy enabled: cloud LLM blocked, telemetry suppressed'
+                else
+                  'enterprise_data_privacy disabled: all tiers available'
+                end
+
+      if Legion.const_defined?('Logging')
+        Legion::Logging.info(message)
+      else
+        $stdout.puts "[Legion] #{message}"
+      end
+    rescue StandardError
+      nil
     end
   end
 end

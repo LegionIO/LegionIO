@@ -17,7 +17,53 @@ module Legion
         api:        :transport
       }.freeze
 
+      autoload :PrivacyCheck, 'legion/cli/check/privacy_check'
+
+      PROBE_LABELS = {
+        flag_set:              'Privacy flag set',
+        no_cloud_keys:         'No cloud API keys configured',
+        no_external_endpoints: 'External endpoints unreachable'
+      }.freeze
+
       class << self
+        def run_privacy(formatter, options)
+          require 'legion/settings'
+          dir = Connection.send(:resolve_config_dir)
+          Legion::Settings.load(config_dir: dir)
+
+          checker = PrivacyCheck.new
+          results = checker.run
+
+          if options[:json]
+            formatter.json({ results: results, overall: checker.overall_pass? ? 'pass' : 'fail' })
+            return checker.overall_pass? ? 0 : 1
+          end
+
+          formatter.header('Enterprise Privacy Mode Check')
+          formatter.spacer
+
+          results.each do |probe, status|
+            label = PROBE_LABELS.fetch(probe, probe.to_s).ljust(36)
+            case status
+            when :pass
+              puts "  #{label}#{formatter.colorize('pass', :green)}"
+            when :fail
+              puts "  #{label}#{formatter.colorize('FAIL', :red)}"
+            when :skip
+              puts "  #{label}#{formatter.colorize('skip', :yellow)}"
+            end
+          end
+
+          formatter.spacer
+          if checker.overall_pass?
+            formatter.success('Privacy mode fully engaged')
+          else
+            formatter.error('Privacy mode check failed — see items above')
+          end
+
+          checker.overall_pass? ? 0 : 1
+        end
+
         def run(formatter, options)
           level = if options[:full]
                     :full

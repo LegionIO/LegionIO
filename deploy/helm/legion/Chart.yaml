@@ -1,0 +1,6 @@
+apiVersion: v2
+name: legion
+description: LegionIO async job engine
+version: 0.1.0
+appVersion: "1.4.13"
+type: application

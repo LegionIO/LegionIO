@@ -1,0 +1,118 @@
+# .github/workflow-templates/eval-gate.yml
+#
+# Eval gate workflow template for LegionIO CI/CD pipelines.
+# Copy this file to .github/workflows/eval-gate.yml in your repo and adjust the
+# env vars to match your dataset and threshold requirements.
+#
+# Required secrets:
+#   LEGIONIO_BOOTSTRAP_CONFIG  (base64-encoded bootstrap JSON, or omit for defaults)
+#
+# Usage:
+#   - Trigger manually (workflow_dispatch) or on push/PR targeting main
+#   - Job exits 0 if avg_score >= threshold, exits 1 and fails the pipeline if below
+
+name: Eval Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: 'Dataset name to evaluate'
+        required: true
+        default: 'default'
+      threshold:
+        description: 'Pass/fail threshold (0.0 - 1.0)'
+        required: false
+        default: '0.8'
+      evaluator:
+        description: 'Evaluator name (leave blank for first builtin template)'
+        required: false
+        default: ''
+
+env:
+  DATASET:   ${{ github.event.inputs.dataset   || 'default' }}
+  THRESHOLD: ${{ github.event.inputs.threshold || '0.8' }}
+  EVALUATOR: ${{ github.event.inputs.evaluator || '' }}
+
+jobs:
+  eval-gate:
+    name: Eval Gate (${{ env.DATASET }} @ ${{ env.THRESHOLD }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Install Legion
+        run: gem install legionio --no-document
+
+      - name: Bootstrap config (optional)
+        if: ${{ secrets.LEGIONIO_BOOTSTRAP_CONFIG != '' }}
+        env:
+          LEGIONIO_BOOTSTRAP_CONFIG: ${{ secrets.LEGIONIO_BOOTSTRAP_CONFIG }}
+        run: echo "Bootstrap config present"
+
+      - name: Run eval gate
+        id: eval
+        env:
+          LEGIONIO_BOOTSTRAP_CONFIG: ${{ secrets.LEGIONIO_BOOTSTRAP_CONFIG }}
+        run: |
+          EVAL_ARGS="--dataset $DATASET --threshold $THRESHOLD --exit-code --json"
+          if [ -n "$EVALUATOR" ]; then
+            EVAL_ARGS="$EVAL_ARGS --evaluator $EVALUATOR"
+          fi
+          legion eval run $EVAL_ARGS | tee eval-report.json
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.run_number }}
+          path: eval-report.json
+          retention-days: 30
+
+      - name: Annotate PR with eval results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync('eval-report.json', 'utf8'));
+            } catch (e) {
+              console.log('Could not parse eval report:', e.message);
+              return;
+            }
+            const gate   = report.passed ? 'PASSED' : 'FAILED';
+            const score  = (report.avg_score || 0).toFixed(3);
+            const thresh = report.threshold || 0;
+            const body   = [
+              `## Eval Gate: ${gate}`,
+              '',
+              `| Metric | Value |`,
+              `|--------|-------|`,
+              `| Dataset | \`${report.dataset}\` |`,
+              `| Evaluator | \`${report.evaluator}\` |`,
+              `| Avg Score | ${score} |`,
+              `| Threshold | ${thresh} |`,
+              `| Total Rows | ${report.summary?.total ?? 'N/A'} |`,
+              `| Passed | ${report.summary?.passed ?? 'N/A'} |`,
+              `| Failed | ${report.summary?.failed ?? 'N/A'} |`,
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              body:         body,
+            });

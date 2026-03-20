@@ -34,6 +34,9 @@ require_relative 'api/audit'
 require_relative 'api/metrics'
 require_relative 'api/llm'
 require_relative 'api/catalog'
+require_relative 'api/org_chart'
+require_relative 'api/workflow'
+require_relative 'api/governance'
 
 module Legion
   class API < Sinatra::Base
@@ -42,6 +45,8 @@ module Legion
 
     set :show_exceptions, false
     set :raise_errors, false
+    set :public_folder, File.expand_path('../../public', __dir__)
+    set :static, true
 
     configure do
       set :logging, nil
@@ -91,6 +96,7 @@ module Legion
     register Routes::Extensions
     register Routes::Nodes
     register Routes::Schedules
+    register Routes::Workflow
     register Routes::Relationships
     register Routes::Chains
     register Routes::Settings
@@ -110,6 +116,8 @@ module Legion
     register Routes::Metrics
     register Routes::Llm
     register Routes::ExtensionCatalog
+    register Routes::OrgChart
+    register Routes::Governance
 
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 

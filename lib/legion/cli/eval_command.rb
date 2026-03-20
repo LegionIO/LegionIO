@@ -1,161 +1,215 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module Legion
   module CLI
     class Eval < Thor
-      def self.exit_on_failure? = true
+      def self.exit_on_failure?
+        true
+      end
 
-      class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
-      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
-      class_option :verbose, type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
+      class_option :json,       type: :boolean, default: false, desc: 'Output as JSON'
+      class_option :no_color,   type: :boolean, default: false, desc: 'Disable color output'
+      class_option :verbose,    type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
       class_option :config_dir, type: :string, desc: 'Config directory path'
 
-      desc 'list', 'List available evaluators'
-      def list
-        with_eval_client do |client|
-          result = client.list_evaluators
-          if options[:json]
-            formatter.json(result)
-          else
-            render_evaluator_list(result)
-          end
-        end
-      end
-      default_task :list
-
-      desc 'check', 'Quick single-pair evaluation'
-      option :evaluator, type: :string, required: true, aliases: ['-e'], desc: 'Evaluator name'
-      option :input, type: :string, required: true, aliases: ['-i'], desc: 'Input text'
-      option :output, type: :string, required: true, aliases: ['-o'], desc: 'Output text'
-      option :expected, type: :string, aliases: ['-x'], desc: 'Expected output (if required)'
-      def check
-        with_eval_client do |client|
-          evaluator = client.build_evaluator(options[:evaluator].to_sym)
-          result = evaluator.evaluate(input: options[:input], output: options[:output],
-                                      expected: options[:expected])
-          render_check_result(result)
-          raise SystemExit, 1 unless result[:passed]
-        end
-      end
-
-      desc 'execute', 'Run evaluators against a dataset with threshold gating'
+      desc 'run', 'Run eval against a dataset and gate on a threshold'
       map 'run' => :execute
-      option :dataset, type: :string, required: true, aliases: ['-d'], desc: 'Dataset name'
-      option :evaluators, type: :string, required: true, aliases: ['-e'], desc: 'Comma-separated evaluators'
-      option :threshold, type: :numeric, default: 0.8, aliases: ['-t'], desc: 'Pass threshold'
-      option :exit_code, type: :boolean, default: false, desc: 'Exit with code 1 on failure'
-      option :format, type: :string, default: 'text', desc: 'Output format (text or json)'
+      option :dataset,   type: :string,  required: true,  aliases: '-d', desc: 'Dataset name'
+      option :threshold, type: :numeric, default: 0.8,    aliases: '-t', desc: 'Pass/fail threshold (0.0-1.0)'
+      option :evaluator, type: :string,  default: nil,    aliases: '-e', desc: 'Evaluator name'
+      option :exit_code, type: :boolean, default: false,                 desc: 'Exit 1 if gate fails (for CI use)'
       def execute
-        with_data do
-          dataset = load_dataset
-          results, duration_ms = run_evaluations(dataset)
-          output = build_run_output(dataset, results, duration_ms)
-          render_run_output(output)
-          raise SystemExit, 1 if options[:exit_code] && !output[:overall_passed]
+        setup_connection
+        require_eval!
+        require_dataset!
+
+        rows   = fetch_dataset_rows(options[:dataset])
+        report = run_evaluations(rows)
+
+        avg_score = report.dig(:summary, :avg_score) || 0.0
+        passed    = avg_score >= options[:threshold]
+
+        ci_report = build_ci_report(report, avg_score, passed)
+
+        if options[:json]
+          formatter.json(ci_report)
+        else
+          render_human_report(ci_report, avg_score, passed)
         end
+
+        exit(1) if options[:exit_code] && !passed
+      ensure
+        Connection.shutdown
+      end
+
+      desc 'experiments', 'List all tracked experiments'
+      def experiments
+        setup_connection
+        require_dataset!
+
+        client = Legion::Extensions::Dataset::Client.new
+        rows   = client.list_experiments
+        out    = formatter
+
+        if rows.empty?
+          out.warn('no experiments found')
+          return
+        end
+
+        if options[:json]
+          out.json(experiments: rows)
+        else
+          out.header('Experiments')
+          out.spacer
+          table_rows = rows.map do |r|
+            [r[:id].to_s, r[:name].to_s, r[:status].to_s, r[:created_at].to_s, r[:summary].to_s[0, 60]]
+          end
+          out.table(%w[id name status created summary], table_rows)
+        end
+      ensure
+        Connection.shutdown
+      end
+
+      desc 'promote', 'Tag a prompt version from a passing experiment for production'
+      option :experiment, type: :string, required: true, aliases: '-e', desc: 'Experiment name'
+      option :tag,        type: :string, required: true, aliases: '-t', desc: 'Tag to apply (e.g. production)'
+      def promote
+        setup_connection
+        require_dataset!
+        require_prompt!
+
+        dataset_client = Legion::Extensions::Dataset::Client.new
+        experiment     = dataset_client.get_experiment(name: options[:experiment])
+        raise CLI::Error, "Experiment '#{options[:experiment]}' not found" if experiment.nil?
+        raise CLI::Error, "Experiment '#{options[:experiment]}' has no prompt linked" if experiment[:prompt_name].nil?
+
+        prompt_client = Legion::Extensions::Prompt::Client.new
+        result = prompt_client.tag_prompt(
+          name:    experiment[:prompt_name],
+          tag:     options[:tag],
+          version: experiment[:prompt_version]
+        )
+
+        out = formatter
+        if options[:json]
+          out.json(result)
+        else
+          out.success("Tagged prompt '#{experiment[:prompt_name]}' v#{experiment[:prompt_version]} as '#{options[:tag]}'")
+        end
+      ensure
+        Connection.shutdown
+      end
+
+      desc 'compare', 'Compare two experiment runs side by side'
+      option :run1, type: :string, required: true, desc: 'First experiment name'
+      option :run2, type: :string, required: true, desc: 'Second experiment name'
+      def compare
+        setup_connection
+        require_dataset!
+
+        client = Legion::Extensions::Dataset::Client.new
+        diff   = client.compare_experiments(exp1_name: options[:run1], exp2_name: options[:run2])
+        raise CLI::Error, 'One or both experiments not found' if diff[:error]
+
+        out = formatter
+        if options[:json]
+          out.json(diff)
+        else
+          out.header("Compare: #{diff[:exp1]} vs #{diff[:exp2]}")
+          out.spacer
+          table_rows = [
+            ['Rows compared', diff[:rows_compared].to_s],
+            ['Regressions',   diff[:regression_count].to_s],
+            ['Improvements',  diff[:improvement_count].to_s]
+          ]
+          out.table(%w[metric value], table_rows)
+        end
+      ensure
+        Connection.shutdown
       end
 
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
-          @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+          @formatter ||= Output::Formatter.new(
+            json:  options[:json],
+            color: !options[:no_color]
+          )
         end
 
-        def with_eval_client
-          require 'legion/extensions/eval'
-          yield Legion::Extensions::Eval::Client.new
-        rescue LoadError => e
-          formatter.error("lex-eval not available: #{e.message}")
-          raise SystemExit, 2
-        end
-
-        def with_data
+        def setup_connection
+          Connection.config_dir = options[:config_dir] if options[:config_dir]
+          Connection.log_level  = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_data
-          yield
-        rescue CLI::Error => e
-          formatter.error(e.message)
-          raise SystemExit, 2
-        ensure
-          Connection.shutdown
         end
 
-        def load_dataset
-          dataset_client = build_dataset_client
-          dataset = dataset_client.get_dataset(name: options[:dataset])
-          return dataset unless dataset[:error]
+        def require_eval!
+          return if defined?(Legion::Extensions::Eval::Client)
 
-          formatter.error("Dataset '#{options[:dataset]}' not found")
-          raise SystemExit, 2
+          raise CLI::Error, 'lex-eval extension is not loaded. Install and enable it first.'
         end
 
-        def run_evaluations(dataset)
-          eval_client = build_eval_client
-          names = options[:evaluators].split(',').map(&:strip)
-          start_time = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-          results = {}
+        def require_dataset!
+          return if defined?(Legion::Extensions::Dataset::Client)
 
-          names.each do |name|
-            eval_result = eval_client.run_evaluation(
-              evaluator_name: name, evaluator_config: {},
-              inputs: dataset[:rows].map { |r| { input: r[:input], output: r[:expected_output] || '', expected: nil } }
-            )
-            avg = eval_result[:summary][:avg_score]
-            results[name] = { avg_score: avg, passed: avg >= options[:threshold], threshold: options[:threshold] }
+          raise CLI::Error, 'lex-dataset extension is not loaded. Install and enable it first.'
+        end
+
+        def require_prompt!
+          return if defined?(Legion::Extensions::Prompt::Client)
+
+          raise CLI::Error, 'lex-prompt extension is not loaded. Install and enable it first.'
+        end
+
+        def fetch_dataset_rows(name)
+          client = Legion::Extensions::Dataset::Client.new
+          result = client.get_dataset(name: name)
+          raise CLI::Error, "Dataset '#{name}' not found" if result[:error]
+
+          result[:rows].map do |r|
+            { input: r[:input], output: r[:input], expected: r[:expected_output] }
           end
-
-          duration = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start_time) * 1000).round
-          [results, duration]
         end
 
-        def build_run_output(dataset, results, duration_ms)
-          { dataset: options[:dataset], evaluators: results,
-            overall_passed: results.values.all? { |r| r[:passed] },
-            rows_evaluated: dataset[:rows]&.size || 0, duration_ms: duration_ms }
+        def run_evaluations(rows)
+          Legion::Extensions::Eval::Client.new.run_evaluation(inputs: rows)
         end
 
-        def render_evaluator_list(result)
-          formatter.heading('Available Evaluators')
-          result[:evaluators].each do |tmpl|
-            formatter.detail({ name: tmpl[:name], category: tmpl[:category],
-                               type: tmpl[:type], threshold: tmpl[:threshold] })
-            formatter.spacer
-          end
-          formatter.info("#{result[:evaluators].size} evaluators available")
+        def build_ci_report(report, avg_score, passed)
+          {
+            dataset:   options[:dataset],
+            evaluator: report[:evaluator],
+            threshold: options[:threshold],
+            avg_score: avg_score,
+            passed:    passed,
+            summary:   report[:summary],
+            results:   report[:results],
+            timestamp: Time.now.utc.iso8601
+          }
         end
 
-        def render_check_result(result)
-          if options[:json]
-            formatter.json(result)
+        def render_human_report(report, avg_score, passed)
+          out = formatter
+          out.header("Eval Gate: #{report[:dataset]}")
+          out.spacer
+          out.detail({
+                       dataset:   report[:dataset],
+                       evaluator: report[:evaluator],
+                       total:     report.dig(:summary, :total),
+                       passed:    report.dig(:summary, :passed),
+                       failed:    report.dig(:summary, :failed),
+                       avg_score: format('%.3f', avg_score),
+                       threshold: report[:threshold],
+                       gate:      passed ? 'PASSED' : 'FAILED'
+                     })
+          out.spacer
+
+          if passed
+            out.success("Gate PASSED (avg_score=#{format('%.3f', avg_score)} >= threshold=#{report[:threshold]})")
           else
-            status = result[:passed] ? 'PASS' : 'FAIL'
-            formatter.heading("Evaluation: #{options[:evaluator]} — #{status}")
-            formatter.detail({ score: result[:score], passed: result[:passed],
-                               explanation: result[:explanation] })
+            out.warn("Gate FAILED (avg_score=#{format('%.3f', avg_score)} < threshold=#{report[:threshold]})")
           end
-        end
-
-        def render_run_output(output)
-          if options[:format] == 'json' || options[:json]
-            formatter.json(output)
-          else
-            formatter.heading("Eval Run: #{output[:dataset]}")
-            output[:evaluators].each do |name, r|
-              formatter.detail({ evaluator: name, avg_score: r[:avg_score],
-                                 threshold: r[:threshold], status: r[:passed] ? 'PASS' : 'FAIL' })
-            end
-            formatter.spacer
-            formatter.info("Overall: #{output[:overall_passed] ? 'ALL PASSED' : 'FAILED'} (#{output[:duration_ms]}ms)")
-          end
-        end
-
-        def build_eval_client
-          require 'legion/extensions/eval'
-          Legion::Extensions::Eval::Client.new
-        end
-
-        def build_dataset_client
-          require 'legion/extensions/dataset'
-          db = Legion::Data::Connection.default if defined?(Legion::Data::Connection)
-          Legion::Extensions::Dataset::Client.new(db: db)
         end
       end
     end

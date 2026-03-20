@@ -34,8 +34,10 @@ module Legion
     autoload :Telemetry,  'legion/cli/telemetry_command'
     autoload :Auth,       'legion/cli/auth_command'
     autoload :Rbac,       'legion/cli/rbac_command'
+    autoload :Acp,        'legion/cli/acp_command'
     autoload :Audit,      'legion/cli/audit_command'
     autoload :Detect,     'legion/cli/detect_command'
+    autoload :Eval,       'legion/cli/eval_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
@@ -45,7 +47,7 @@ module Legion
     autoload :Llm,         'legion/cli/llm_command'
     autoload :Tty,            'legion/cli/tty_command'
     autoload :ObserveCommand, 'legion/cli/observe_command'
-    autoload :Eval,           'legion/cli/eval_command'
+    autoload :Payroll,        'legion/cli/payroll_command'
     autoload :Interactive, 'legion/cli/interactive'
 
     class Main < Thor
@@ -138,8 +140,13 @@ module Legion
       DESC
       option :extensions, type: :boolean, default: false, desc: 'Also load extensions'
       option :full, type: :boolean, default: false, desc: 'Full boot cycle (extensions + API)'
+      option :privacy, type: :boolean, default: false, desc: 'Verify enterprise privacy mode'
       def check
-        exit_code = Legion::CLI::Check.run(formatter, options)
+        exit_code = if options[:privacy]
+                      Legion::CLI::Check.run_privacy(formatter, options)
+                    else
+                      Legion::CLI::Check.run(formatter, options)
+                    end
         exit(exit_code) if exit_code != 0
       end
 
@@ -158,6 +165,9 @@ module Legion
       desc 'generate SUBCOMMAND', 'Code generators for LEX components'
       map 'g' => :generate
       subcommand 'generate', Legion::CLI::Generate
+
+      desc 'acp SUBCOMMAND', 'Start ACP agent for editor integration'
+      subcommand 'acp', Legion::CLI::Acp
 
       desc 'mcp SUBCOMMAND', 'Start MCP server for AI agent integration'
       subcommand 'mcp', Legion::CLI::Mcp
@@ -243,11 +253,14 @@ module Legion
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
 
+      desc 'eval SUBCOMMAND', 'Eval gating and experiment management'
+      subcommand 'eval', Legion::CLI::Eval
+
       desc 'observe SUBCOMMAND', 'MCP tool observation stats'
       subcommand 'observe', Legion::CLI::ObserveCommand
 
-      desc 'eval SUBCOMMAND', 'Evaluate LLM outputs against quality criteria'
-      subcommand 'eval', Legion::CLI::Eval
+      desc 'payroll SUBCOMMAND', 'Workforce cost and labor economics'
+      subcommand 'payroll', Legion::CLI::Payroll
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
