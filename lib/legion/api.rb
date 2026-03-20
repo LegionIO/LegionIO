@@ -37,6 +37,7 @@ require_relative 'api/catalog'
 require_relative 'api/org_chart'
 require_relative 'api/workflow'
 require_relative 'api/governance'
+require_relative 'api/acp'
 
 module Legion
   class API < Sinatra::Base
@@ -118,6 +119,7 @@ module Legion
     register Routes::ExtensionCatalog
     register Routes::OrgChart
     register Routes::Governance
+    register Routes::Acp
 
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 
