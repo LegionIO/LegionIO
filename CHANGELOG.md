@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.81] - 2026-03-20
+
+### Added
+- `legion eval experiments` subcommand: list all experiment runs with status and summary
+- `legion eval promote --experiment NAME --tag TAG` subcommand: tag a prompt version for production via lex-prompt
+- `legion eval compare --run1 NAME --run2 NAME` subcommand: side-by-side diff of two experiment runs
+- `require_prompt!` guard for lex-prompt extension availability
+
 ## [1.4.80] - 2026-03-20
 
 ### Added
