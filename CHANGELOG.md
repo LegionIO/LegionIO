@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.98] - 2026-03-20
+
+### Fixed
+- `auto_generate_data` and `auto_generate_transport` use `lex_class.const_defined?(:Data, false)` instead of `Kernel.const_defined?` — fixes constant overwrite when extensions pre-define their own Data/Transport modules (e.g. lex-synapse)
+
 ## [1.4.97] - 2026-03-20
 
 ### Fixed

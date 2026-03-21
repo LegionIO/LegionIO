@@ -178,22 +178,22 @@ module Legion
       def auto_generate_transport
         require 'legion/extensions/transport'
         log.debug 'running meta magic to generate a transport base class'
-        if Kernel.const_defined?("#{lex_class}::Transport", false)
-          mod = Kernel.const_get("#{lex_class}::Transport", false)
+        if lex_class.const_defined?(:Transport, false)
+          mod = lex_class.const_get(:Transport, false)
           mod.extend(Legion::Extensions::Transport) unless mod.respond_to?(:build)
         else
-          Kernel.const_get(lex_class.to_s).const_set('Transport', Module.new { extend Legion::Extensions::Transport })
+          lex_class.const_set(:Transport, Module.new { extend Legion::Extensions::Transport })
         end
       end
 
       def auto_generate_data
         require 'legion/extensions/data'
         log.debug 'running meta magic to generate a data base class'
-        if Kernel.const_defined?("#{lex_class}::Data", false)
-          mod = Kernel.const_get("#{lex_class}::Data", false)
+        if lex_class.const_defined?(:Data, false)
+          mod = lex_class.const_get(:Data, false)
           mod.extend(Legion::Extensions::Data) unless mod.respond_to?(:build)
         else
-          Kernel.const_get(lex_class.to_s).const_set('Data', Module.new { extend Legion::Extensions::Data })
+          lex_class.const_set(:Data, Module.new { extend Legion::Extensions::Data })
         end
       rescue StandardError => e
         log.error e.message
