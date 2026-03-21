@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.104] - 2026-03-21
+
+### Added
+- `legion notebook read PATH` — parse and display a .ipynb notebook with Rouge syntax highlighting
+- `legion notebook cells PATH` — list all cells with index numbers and line counts
+- `legion notebook export PATH --format md|script` — export notebook to markdown or Python script
+- `legion notebook create PATH --description "..."` — generate a new notebook from natural language via LLM (requires legion-llm)
+- `Legion::Notebook::Parser` — parse .ipynb JSON into structured data (metadata, kernel, language, cells with outputs)
+- `Legion::Notebook::Renderer` — display notebook cells in terminal with Rouge syntax highlighting
+- `Legion::Notebook::Generator` — generate notebooks from natural language; strips LLM markdown fences; validates .ipynb structure
+
 ## [1.4.103] - 2026-03-21
 
 ### Added
