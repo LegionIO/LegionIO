@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.99] - 2026-03-21
+
+### Fixed
+- `Base#manual` resolves String `runner_class` via `Kernel.const_get` before calling `.send` — fixes NoMethodError on lex-telemetry Publisher and lex-llm-gateway SpoolFlush actors
+- `Base#manual` falls back to `:action` when `runner_function` is not defined — fixes NameError on self-contained actors (lex-lex AgentWatcher, lex-detect ObserverTick)
+
 ## [1.4.98] - 2026-03-20
 
 ### Fixed

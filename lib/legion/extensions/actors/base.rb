@@ -14,7 +14,10 @@ module Legion
         end
 
         def manual
-          runner_class.send(runner_function, **args)
+          klass = runner_class
+          klass = Kernel.const_get(klass) if klass.is_a?(String)
+          func = respond_to?(:runner_function) ? runner_function : :action
+          klass.send(func, **args)
         rescue StandardError => e
           Legion::Logging.error e.message
           Legion::Logging.error e.backtrace
