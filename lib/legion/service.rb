@@ -11,7 +11,7 @@ module Legion
       base.freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
+    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/CyclomaticComplexity,Metrics/ParameterLists,Metrics/MethodLength,Metrics/PerceivedComplexity
                    crypt: true, api: true, llm: true, gaia: true, log_level: 'info', http_port: nil)
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
@@ -65,6 +65,8 @@ module Legion
         load_extensions
         Legion::Readiness.mark_ready(:extensions)
       end
+
+      Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
 
       Legion::Extensions::Memory::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Memory::Helpers::ErrorTracer)
 

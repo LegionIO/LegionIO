@@ -17,7 +17,11 @@ module Legion
           klass = runner_class
           klass = Kernel.const_get(klass) if klass.is_a?(String)
           func = respond_to?(:runner_function) ? runner_function : :action
-          klass.send(func, **args)
+          if klass == self.class
+            send(func, **args)
+          else
+            klass.send(func, **args)
+          end
         rescue StandardError => e
           Legion::Logging.error e.message
           Legion::Logging.error e.backtrace

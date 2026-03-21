@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.101] - 2026-03-21
+
+### Fixed
+- add post-extension GAIA rediscovery in service boot sequence
+- fix self-contained actor dispatch to call instance methods instead of class methods
+
 ## [1.4.100] - 2026-03-21
 
 ### Changed
