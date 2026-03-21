@@ -30,6 +30,7 @@ require_relative 'api/rbac'
 require_relative 'api/auth'
 require_relative 'api/auth_worker'
 require_relative 'api/auth_human'
+require_relative 'api/auth_saml'
 require_relative 'api/capacity'
 require_relative 'api/audit'
 require_relative 'api/metrics'
@@ -40,6 +41,7 @@ require_relative 'api/workflow'
 require_relative 'api/governance'
 require_relative 'api/acp'
 require_relative 'api/prompts'
+require_relative 'api/marketplace'
 
 module Legion
   class API < Sinatra::Base
@@ -114,6 +116,7 @@ module Legion
     register Routes::Auth
     register Routes::AuthWorker
     register Routes::AuthHuman
+    register Routes::AuthSaml
     register Routes::Capacity
     register Routes::Audit
     register Routes::Metrics
@@ -123,6 +126,7 @@ module Legion
     register Routes::Governance
     register Routes::Acp
     register Routes::Prompts
+    register Routes::Marketplace
 
     use Legion::API::Middleware::RequestLogger
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)

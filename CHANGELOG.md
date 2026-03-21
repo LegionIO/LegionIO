@@ -1,5 +1,26 @@
 # Legion Changelog
 
+## [1.4.105] - 2026-03-21
+
+### Added
+- `Legion::API::Routes::AuthSaml` — SAML 2.0 SP authentication flow
+- `GET /api/auth/saml/metadata` — generates SP metadata XML (delegates to `OneLogin::RubySaml::Metadata`)
+- `GET /api/auth/saml/login` — initiates IdP redirect via `OneLogin::RubySaml::Authrequest`
+- `POST /api/auth/saml/acs` — validates SAML assertion, extracts claims (nameid, email, displayName, groups), maps groups to Legion RBAC roles, and issues a Legion JWT
+- Routes are only registered when `OneLogin::RubySaml` is defined and `auth.saml.enabled` is true
+- Claims mapping delegates to `Legion::Rbac::ClaimsMapper.groups_to_roles` when available, falls back to `['worker']`
+- Configuration via `Legion::Settings.dig(:auth, :saml)` — keys: `idp_sso_url`, `idp_cert`, `sp_entity_id`, `sp_acs_url`, `group_map`, `default_role`, `want_assertions_signed`, `want_assertions_encrypted`
+- `Legion::Registry` review workflow: `submit_for_review`, `approve`, `reject`, `deprecate`, `pending_reviews`, `usage_stats` class methods
+- `Legion::Registry::Entry` gains `status`, `review_notes`, `reject_reason`, `successor`, `sunset_date`, and timestamp fields; `deprecated?` and `pending_review?` predicates
+- `legion marketplace submit NAME` — submit extension for review
+- `legion marketplace review` — list extensions pending review
+- `legion marketplace approve NAME [--notes TEXT]` — approve an extension
+- `legion marketplace reject NAME [--reason TEXT]` — reject an extension
+- `legion marketplace deprecate NAME [--successor NAME] [--sunset-date DATE]` — mark extension as deprecated
+- `legion marketplace stats NAME` — show usage statistics (install count, active instances, downloads)
+- `Legion::API::Routes::Marketplace` — full REST API: `GET /api/marketplace`, `GET /api/marketplace/:name`, `POST /api/marketplace/:name/submit`, `POST /api/marketplace/:name/approve`, `POST /api/marketplace/:name/reject`, `POST /api/marketplace/:name/deprecate`, `GET /api/marketplace/:name/stats`
+- 123 new specs across registry, CLI, and API layers
+
 ## [1.4.104] - 2026-03-21
 
 ### Added
