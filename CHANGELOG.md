@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.94] - 2026-03-20
+
+### Added
+- `legion prompt play NAME` subcommand: renders a prompt template with variables and sends it to an LLM via `Legion::LLM.chat`
+- `--variables` (JSON), `--version`, `--model`, `--provider`, and `--compare` options on `play`
+- Compare mode (`--compare VERSION`): renders two prompt versions, calls LLM for each, displays side-by-side responses and diff when they differ
+- JSON output mode for `play` and compare via `--json`
+- `Connection.ensure_llm` called inside `with_prompt_client` so LLM is available to all prompt subcommands
+- 14 new specs for `play` covering single-version, compare, LLM unavailable, JSON output, and error paths
+
 ## [1.4.93] - 2026-03-20
 
 ### Added

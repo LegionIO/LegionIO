@@ -140,6 +140,36 @@ module Legion
         end
       end
 
+      desc 'play NAME', 'Run a prompt through an LLM and display the response'
+      option :variables, type: :string,  desc: 'Template variables as JSON'
+      option :version,   type: :numeric, desc: 'Prompt version'
+      option :model,     type: :string,  desc: 'LLM model override'
+      option :provider,  type: :string,  desc: 'LLM provider override'
+      option :compare,   type: :numeric, desc: 'Compare with this version'
+      def play(name)
+        out = formatter
+        with_prompt_client do |client|
+          unless defined?(Legion::LLM) && Legion::LLM.started?
+            out.error('legion-llm is not available. Install legion-llm and configure a provider.')
+            raise SystemExit, 1
+          end
+
+          vars = parse_variables(options[:variables], out)
+          return if vars.nil?
+
+          llm_kwargs = {}
+          llm_kwargs[:model]    = options[:model]    if options[:model]
+          llm_kwargs[:provider] = options[:provider] if options[:provider]
+
+          base_ctx = { name: name, vars: vars, llm_kwargs: llm_kwargs, client: client, out: out }
+          if options[:compare]
+            run_compare(base_ctx.merge(ver_a: options[:version], ver_b: options[:compare]))
+          else
+            run_single(base_ctx.merge(version: options[:version]))
+          end
+        end
+      end
+
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
@@ -152,6 +182,7 @@ module Legion
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level  = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_data
+          Connection.ensure_llm
 
           begin
             require 'legion/extensions/prompt'
@@ -181,6 +212,15 @@ module Legion
           nil
         end
 
+        def parse_variables(raw, out)
+          return {} if raw.nil? || raw.empty?
+
+          ::JSON.parse(raw)
+        rescue ::JSON::ParserError => e
+          out.error("Invalid JSON for --variables: #{e.message}")
+          nil
+        end
+
         def diff_lines(old_text, new_text)
           old_lines = old_text.split("\n")
           new_lines = new_text.split("\n")
@@ -190,6 +230,102 @@ module Legion
           old_lines.each { |l| result << "- #{l}" unless new_set.include?(l) }
           new_lines.each { |l| result << "+ #{l}" unless old_set.include?(l) }
           result.join("\n")
+        end
+
+        def run_single(ctx)
+          name, version, vars, llm_kwargs, client, out = ctx.values_at(:name, :version, :vars, :llm_kwargs, :client, :out)
+          prompt = fetch_prompt(name, version, client, out)
+          return if prompt.nil?
+
+          rendered = render_prompt(name, version, vars, client, out)
+          return if rendered.nil?
+
+          response = Legion::LLM.chat(
+            messages: [{ role: 'user', content: rendered }],
+            **llm_kwargs
+          )
+
+          if options[:json]
+            out.json({ name: name, version: prompt[:version], rendered: rendered,
+                       response: response[:content], usage: response[:usage] })
+          else
+            out.header("Prompt: #{name} (v#{prompt[:version]})")
+            out.spacer
+            out.header('Rendered Template')
+            puts rendered
+            out.spacer
+            out.header('LLM Response')
+            puts response[:content]
+            display_usage(response[:usage], out)
+          end
+        end
+
+        def run_compare(ctx)
+          name, ver_a, ver_b, vars, llm_kwargs, client, out =
+            ctx.values_at(:name, :ver_a, :ver_b, :vars, :llm_kwargs, :client, :out)
+          prompt_a = fetch_prompt(name, ver_a, client, out)
+          return if prompt_a.nil?
+
+          prompt_b = fetch_prompt(name, ver_b, client, out)
+          return if prompt_b.nil?
+
+          rendered_a = render_prompt(name, prompt_a[:version], vars, client, out)
+          return if rendered_a.nil?
+
+          rendered_b = render_prompt(name, prompt_b[:version], vars, client, out)
+          return if rendered_b.nil?
+
+          response_a = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_a }], **llm_kwargs)
+          response_b = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_b }], **llm_kwargs)
+
+          if options[:json]
+            out.json({ name: name, version_a: prompt_a[:version], version_b: prompt_b[:version],
+                       rendered_a: rendered_a, rendered_b: rendered_b,
+                       response_a: response_a[:content], response_b: response_b[:content],
+                       usage_a: response_a[:usage], usage_b: response_b[:usage] })
+          else
+            out.header("Version A (v#{prompt_a[:version]})")
+            puts response_a[:content]
+            out.spacer
+            out.header("Version B (v#{prompt_b[:version]})")
+            puts response_b[:content]
+            content_a = response_a[:content].to_s
+            content_b = response_b[:content].to_s
+            if content_a != content_b
+              out.spacer
+              out.header('Diff (A vs B)')
+              puts diff_lines(content_a, content_b)
+            end
+          end
+        end
+
+        def fetch_prompt(name, version, client, out)
+          kwargs = { name: name }
+          kwargs[:version] = version if version
+          result = client.get_prompt(**kwargs)
+          if result[:error]
+            out.error("Prompt '#{name}': #{result[:error]}")
+            raise SystemExit, 1
+          end
+          result
+        end
+
+        def render_prompt(name, version, vars, client, out)
+          kwargs = { name: name, variables: vars }
+          kwargs[:version] = version if version
+          result = client.render_prompt(**kwargs)
+          if result.is_a?(Hash) && result[:error]
+            out.error("Render error for '#{name}': #{result[:error]}")
+            raise SystemExit, 1
+          end
+          result.is_a?(Hash) ? result[:rendered] : result
+        end
+
+        def display_usage(usage, out)
+          return unless usage && !usage.empty?
+
+          out.spacer
+          out.detail(usage)
         end
       end
     end
