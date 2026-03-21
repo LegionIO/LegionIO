@@ -42,6 +42,7 @@ module Legion
     autoload :Init,       'legion/cli/init_command'
     autoload :Skill,      'legion/cli/skill_command'
     autoload :Prompt,     'legion/cli/prompt_command'
+    autoload :Image,      'legion/cli/image_command'
     autoload :Dataset,    'legion/cli/dataset_command'
     autoload :Cost,        'legion/cli/cost_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
@@ -266,6 +267,9 @@ module Legion
 
       desc 'observe SUBCOMMAND', 'MCP tool observation stats'
       subcommand 'observe', Legion::CLI::ObserveCommand
+
+      desc 'image SUBCOMMAND', 'Multimodal image analysis and comparison'
+      subcommand 'image', Legion::CLI::Image
 
       desc 'payroll SUBCOMMAND', 'Workforce cost and labor economics'
       subcommand 'payroll', Legion::CLI::Payroll

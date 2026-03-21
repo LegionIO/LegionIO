@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.102] - 2026-03-21
+
+### Added
+- `legion image analyze PATH` — analyze an image file via LLM; supports `--prompt`, `--model`, `--provider`, `--format text|json`
+- `legion image compare PATH1 PATH2` — compare two images side by side via LLM with same options
+- Supports png, jpg, jpeg, gif, webp; base64-encodes image data and builds multimodal content blocks for the LLM message
+
 ## [1.4.101] - 2026-03-21
 
 ### Fixed

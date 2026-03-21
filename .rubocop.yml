@@ -42,6 +42,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/auth_command.rb'
     - 'lib/legion/cli/detect_command.rb'
     - 'lib/legion/cli/prompt_command.rb'
+    - 'lib/legion/cli/image_command.rb'
     - 'lib/legion/api/acp.rb'
 
 Metrics/AbcSize:
