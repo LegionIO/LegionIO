@@ -22,13 +22,13 @@ RSpec.describe Legion::CLI::Team do
 
   describe '#list' do
     it 'shows all configured teams' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return({ ops: {}, dev: {} })
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return({ ops: {}, dev: {} })
       cmd = build_command
       expect { cmd.list }.to output(/ops/).to_stdout
     end
 
     it 'shows a message when no teams are configured' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(nil)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(nil)
       cmd = build_command
       expect { cmd.list }.to output(/No teams configured/i).to_stdout
     end
@@ -37,20 +37,20 @@ RSpec.describe Legion::CLI::Team do
   describe '#show' do
     it 'shows team members when team exists' do
       teams = { engineering: { members: %w[alice bob] } }
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(teams)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(teams)
       cmd = build_command
       expect { cmd.show('engineering') }.to output(/alice/).to_stdout
     end
 
     it 'shows error when team does not exist' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return({})
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return({})
       cmd = build_command
       expect { cmd.show('unknown') }.to output(/not found/i).to_stdout
     end
 
     it 'shows "No members" when team has no members' do
       teams = { empty_team: { members: [] } }
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(teams)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(teams)
       cmd = build_command
       expect { cmd.show('empty_team') }.to output(/No members/i).to_stdout
     end

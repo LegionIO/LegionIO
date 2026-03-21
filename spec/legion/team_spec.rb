@@ -35,17 +35,17 @@ RSpec.describe Legion::Team do
   describe '.find' do
     it 'returns team data by symbol key' do
       teams = { engineering: { name: 'engineering', members: ['alice'] } }
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(teams)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(teams)
       expect(described_class.find('engineering')).to eq({ name: 'engineering', members: ['alice'] })
     end
 
     it 'returns nil when team does not exist' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return({})
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return({})
       expect(described_class.find('unknown')).to be_nil
     end
 
     it 'returns nil when no teams are configured' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(nil)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(nil)
       expect(described_class.find('anything')).to be_nil
     end
   end
@@ -53,17 +53,17 @@ RSpec.describe Legion::Team do
   describe '.list' do
     it 'returns team names as strings' do
       teams = { engineering: {}, ops: {} }
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(teams)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(teams)
       expect(described_class.list).to contain_exactly('engineering', 'ops')
     end
 
     it 'returns an empty array when no teams are configured' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return(nil)
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return(nil)
       expect(described_class.list).to eq([])
     end
 
     it 'returns an empty array when teams hash is empty' do
-      allow(Legion::Settings).to receive(:dig).with(:teams).and_return({})
+      allow(Legion::Settings).to receive(:[]).with(:teams).and_return({})
       expect(described_class.list).to eq([])
     end
   end
