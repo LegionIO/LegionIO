@@ -4,11 +4,13 @@ module Legion
   module DigitalWorker
     module Lifecycle
       TRANSITIONS = {
-        'bootstrap'  => %w[active terminated],
-        'active'     => %w[paused retired terminated],
-        'paused'     => %w[active retired terminated],
-        'retired'    => %w[terminated],
-        'terminated' => []
+        'bootstrap'        => %w[active terminated],
+        'pending_approval' => %w[active rejected],
+        'active'           => %w[paused retired terminated],
+        'paused'           => %w[active retired terminated],
+        'retired'          => %w[terminated],
+        'rejected'         => [],
+        'terminated'       => []
       }.freeze
 
       GOVERNANCE_REQUIRED = {
@@ -24,19 +26,23 @@ module Legion
 
       # Map lifecycle states to lex-extinction containment levels
       EXTINCTION_MAPPING = {
-        'active'     => 0, # no containment
-        'paused'     => 2, # capability restriction
-        'retired'    => 3, # supervised-only
-        'terminated' => 4  # full termination (irreversible in lex-extinction)
+        'active'           => 0, # no containment
+        'paused'           => 2, # capability restriction
+        'retired'          => 3, # supervised-only
+        'terminated'       => 4, # full termination (irreversible in lex-extinction)
+        'pending_approval' => 1, # held — no capability, awaiting decision
+        'rejected'         => 4  # treated as terminated for containment
       }.freeze
 
       # Map lifecycle states to lex-consent tiers
       CONSENT_MAPPING = {
-        'bootstrap'  => :consult,    # most restrictive during bootstrap
-        'active'     => :autonomous, # earned autonomy
-        'paused'     => :consult,    # back to restrictive
-        'retired'    => :inform,     # notification only
-        'terminated' => :inform
+        'bootstrap'        => :consult,    # most restrictive during bootstrap
+        'active'           => :autonomous, # earned autonomy
+        'paused'           => :consult,    # back to restrictive
+        'retired'          => :inform,     # notification only
+        'terminated'       => :inform,
+        'pending_approval' => :consult,    # held at consult until approved
+        'rejected'         => :inform      # read-only / no execution
       }.freeze
 
       class InvalidTransition  < StandardError; end

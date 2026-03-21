@@ -8,6 +8,7 @@ module Legion
           register_collection(app)
           register_member(app)
           register_sub_resources(app)
+          register_approvals(app)
           register_teams(app)
         end
 
@@ -212,6 +213,52 @@ module Legion
           end
         end
 
+        def self.register_approvals(app)
+          require 'legion/digital_worker/registration'
+
+          app.get '/api/workers/approvals' do
+            require_data!
+            workers = Legion::DigitalWorker::Registration.pending_approvals
+            json_response({ data: workers.map(&:values), count: workers.size })
+          end
+
+          app.post '/api/workers/:id/approve' do
+            require_data!
+            body     = parse_request_body
+            approver = body[:approver] || current_owner_msid || 'api'
+            notes    = body[:notes]
+
+            worker = Legion::DigitalWorker::Registration.approve(params[:id], approver: approver, notes: notes)
+            json_response(worker.values)
+          rescue ArgumentError => e
+            json_error('invalid_request', e.message, status_code: 422)
+          rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            json_error('invalid_transition', e.message, status_code: 422)
+          rescue StandardError => e
+            Legion::Logging.error "API worker approve error: #{e.message}"
+            json_error('approve_error', e.message, status_code: 500)
+          end
+
+          app.post '/api/workers/:id/reject' do
+            require_data!
+            body     = parse_request_body
+            approver = body[:approver] || current_owner_msid || 'api'
+            reason   = body[:reason]
+
+            halt 422, json_error('missing_field', 'reason is required', status_code: 422) unless reason
+
+            worker = Legion::DigitalWorker::Registration.reject(params[:id], approver: approver, reason: reason)
+            json_response(worker.values)
+          rescue ArgumentError => e
+            json_error('invalid_request', e.message, status_code: 422)
+          rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            json_error('invalid_transition', e.message, status_code: 422)
+          rescue StandardError => e
+            Legion::Logging.error "API worker reject error: #{e.message}"
+            json_error('reject_error', e.message, status_code: 500)
+          end
+        end
+
         def self.register_teams(app)
           app.get '/api/teams/:team/workers' do
             require_data!
@@ -232,7 +279,7 @@ module Legion
         end
 
         class << self
-          private :register_collection, :register_member, :register_sub_resources, :register_teams
+          private :register_collection, :register_member, :register_sub_resources, :register_approvals, :register_teams
         end
       end
     end

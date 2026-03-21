@@ -7,6 +7,7 @@ gemspec
 gem 'mysql2'
 
 group :test do
+  gem 'graphql'
   gem 'rack-test'
   gem 'rake'
   gem 'rspec'

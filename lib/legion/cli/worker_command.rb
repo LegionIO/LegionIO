@@ -123,6 +123,68 @@ module Legion
         with_data { create_worker(name) }
       end
 
+      desc 'approvals', 'List workers pending AIRB approval'
+      def approvals
+        out = formatter
+        with_data do
+          require 'legion/digital_worker/registration'
+          workers = Legion::DigitalWorker::Registration.pending_approvals
+
+          if options[:json]
+            out.json(workers.map(&:to_hash))
+          else
+            rows = workers.map do |w|
+              age = w.created_at ? "#{((Time.now.utc - w.created_at) / 3600).round(1)}h" : '-'
+              [w.worker_id[0..7], w.name, w.risk_tier || '-', w.owner_msid, age]
+            end
+            out.table(%w[ID Name RiskTier Owner PendingFor], rows)
+            puts "  #{workers.size} worker(s) pending approval"
+          end
+        end
+      end
+
+      desc 'approve WORKER_ID', 'Approve a worker registration'
+      option :notes, type: :string, desc: 'Approval notes'
+      def approve(worker_id)
+        out = formatter
+        with_data do
+          require 'legion/digital_worker/registration'
+          worker = Legion::DigitalWorker::Registration.approve(worker_id, approver: 'cli', notes: options[:notes])
+          if options[:json]
+            out.json({ worker_id: worker.worker_id, lifecycle_state: worker.lifecycle_state, approved: true })
+          else
+            out.success("Worker #{worker.name} approved and activated")
+          end
+        rescue ArgumentError => e
+          out.error(e.message)
+        rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+          out.error("Invalid transition: #{e.message}")
+        end
+      end
+
+      desc 'reject WORKER_ID', 'Reject a worker registration'
+      option :reason, type: :string, required: true, desc: 'Rejection reason'
+      def reject(worker_id)
+        out = formatter
+        with_data do
+          require 'legion/digital_worker/registration'
+          unless options[:reason]
+            out.error('--reason is required to reject a worker')
+            return
+          end
+          worker = Legion::DigitalWorker::Registration.reject(worker_id, approver: 'cli', reason: options[:reason])
+          if options[:json]
+            out.json({ worker_id: worker.worker_id, lifecycle_state: worker.lifecycle_state, rejected: true })
+          else
+            out.success("Worker #{worker.name} rejected")
+          end
+        rescue ArgumentError => e
+          out.error(e.message)
+        rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+          out.error("Invalid transition: #{e.message}")
+        end
+      end
+
       desc 'costs WORKER_ID', 'Show cost summary for a worker'
       option :period, type: :string, default: 'weekly', desc: 'Period: daily, weekly, monthly'
       def costs(worker_id)

@@ -42,6 +42,7 @@ require_relative 'api/governance'
 require_relative 'api/acp'
 require_relative 'api/prompts'
 require_relative 'api/marketplace'
+require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
   class API < Sinatra::Base
@@ -127,6 +128,7 @@ module Legion
     register Routes::Acp
     register Routes::Prompts
     register Routes::Marketplace
+    register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)

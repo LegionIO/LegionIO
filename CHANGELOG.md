@@ -1,5 +1,31 @@
 # Legion Changelog
 
+## [1.4.106] - 2026-03-21
+
+### Added
+- `Legion::DigitalWorker::Registration` module with full approval workflow: `register`, `approve`, `reject`, `pending_approvals`, `approval_required?`, and `escalate`
+- Workers with `high` or `critical` risk tiers are created in `pending_approval` state instead of `bootstrap`, triggering an AIRB intake
+- `Legion::DigitalWorker::Airb` module for AIRB integration: `create_intake`, `check_status`, `sync_status` (mock API by default; live API activated via `Legion::Settings.dig(:airb)`)
+- New lifecycle states `pending_approval` and `rejected` in `Lifecycle::TRANSITIONS`, with appropriate `EXTINCTION_MAPPING` and `CONSENT_MAPPING` entries
+- Transition rules: `pending_approval -> active` (approve), `pending_approval -> rejected` (reject)
+- CLI subcommands: `legion worker approvals`, `legion worker approve ID [--notes TEXT]`, `legion worker reject ID --reason TEXT`
+- API routes: `GET /api/workers/approvals`, `POST /api/workers/:id/approve`, `POST /api/workers/:id/reject`
+- 37 new specs across `registration_spec.rb` (28 examples) and `airb_spec.rb` (9 examples)
+- `Legion::Phi` module — HIPAA/BAA PHI tagging and tracking: `PHI_TAG`, `tag`, `tagged?`, `phi_fields`, `redact`, `erase`, `auto_detect_fields`
+- `Legion::Phi::AccessLog` module — PHI access audit trail: `log_access`, `log_access!`, `recent_access`; integrates with `Legion::Audit` when available, falls back to `Legion::Logging`
+- `Legion::Phi::Erasure` module — cryptographic erasure: `erase_record` (AES-256-GCM with throwaway key), `erase_for_subject` (HIPAA right to deletion), `erasure_log`
+- Pattern-based auto-detection of PHI fields (ssn, mrn, dob, patient_name, phone, email, address, diagnosis, npi, insurance_id, etc.) via configurable regex patterns in `legion-settings` at `phi.field_patterns`
+- `Legion::Crypt` guarded throughout — falls back to stdlib OpenSSL when `legion-crypt` is not loaded
+- 59 new specs across `phi_spec.rb` (30 examples), `phi/access_log_spec.rb` (15 examples), `phi/erasure_spec.rb` (14 examples)
+- `Legion::API::Routes::GraphQL` — GraphQL API layer using graphql-ruby (optional dependency, guarded with `defined?(GraphQL)`)
+- `POST /api/graphql` — executes GraphQL queries; parses `query`, `variables`, `operationName` from JSON body
+- `GET /api/graphql` — serves GraphiQL browser IDE for interactive introspection
+- `Legion::API::GraphQL::Schema` — root schema with `max_depth: 10`, `max_complexity: 200`
+- `Legion::API::GraphQL::Types::QueryType` — root query with `workers`, `worker`, `extensions`, `extension`, `tasks`, `node` fields and filtering arguments
+- `Legion::API::GraphQL::Types::WorkerType`, `ExtensionType`, `TaskType`, `NodeType` — field definitions for each domain object
+- Data resolution falls back gracefully: uses `Legion::Data` models when connected, falls back to `Legion::DigitalWorker::Registry` / `Legion::Registry` in-memory stores otherwise
+- 45 new specs in `spec/legion/api/graphql_spec.rb`
+
 ## [1.4.105] - 2026-03-21
 
 ### Added
