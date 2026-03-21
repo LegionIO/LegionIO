@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.96] - 2026-03-20
+
+### Fixed
+- `auto_generate_data` and `auto_generate_transport` in `core.rb` now extend existing namespace modules (e.g. `Synapse::Data::Model`) with the appropriate `Legion::Extensions::Data` or `Legion::Extensions::Transport` mixin when `build` is not already defined, instead of returning early and leaving them without a `build` method
+
 ## [1.4.95] - 2026-03-20
 
 ### Added
