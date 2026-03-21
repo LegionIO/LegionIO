@@ -58,7 +58,7 @@ module Legion
             model      = body[:model]
             provider   = body[:provider]
 
-            if cache_available?
+            if cache_available? && env['HTTP_X_LEGION_SYNC'] != 'true'
               llm = Legion::LLM
               rc  = Legion::LLM::ResponseCache
               rc.init_request(request_id)

@@ -8,6 +8,7 @@ require_relative 'readiness'
 require_relative 'api/middleware/auth'
 require_relative 'api/middleware/body_limit'
 require_relative 'api/middleware/rate_limit'
+require_relative 'api/middleware/request_logger'
 require_relative 'api/helpers'
 require_relative 'api/validators'
 require_relative 'api/tasks'
@@ -123,6 +124,7 @@ module Legion
     register Routes::Acp
     register Routes::Prompts
 
+    use Legion::API::Middleware::RequestLogger
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 
     # Hook registry (preserved from original implementation)
