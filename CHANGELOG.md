@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.95] - 2026-03-20
+
+### Added
+- `GET /api/prompts` — list all prompt templates via lex-prompt Client
+- `GET /api/prompts/:name` — show prompt details for the latest version
+- `POST /api/prompts/:name/run` — render a prompt template with variables and run it through Legion::LLM; returns rendered_prompt, response, usage, model, version
+- 503 guard for missing lex-prompt dependency (LoadError rescue in `prompt_client` helper)
+- 503 guard for LLM subsystem unavailable on the `/run` endpoint
+- 404 on prompt not found, 422 on version not found for `/run`
+- 32 new specs in `spec/legion/api/prompts_spec.rb` covering all routes and error paths
+
 ## [1.4.94] - 2026-03-20
 
 ### Added
