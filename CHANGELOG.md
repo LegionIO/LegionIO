@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.107] - 2026-03-21
+
+### Added
+- `Legion::Docs::SiteGenerator` — full static site generator with kramdown + rouge syntax highlighting
+- Converts markdown guides to HTML with navigation sidebar and styled template
+- CLI reference auto-generation via Thor command introspection
+- Extension reference auto-generation via Bundler gem discovery
+- `Legion::CLI::Docs` — `legion docs generate` and `legion docs serve` subcommands
+- 39 new specs (2248 total, 0 failures)
+
 ## [1.4.106] - 2026-03-21
 
 ### Added

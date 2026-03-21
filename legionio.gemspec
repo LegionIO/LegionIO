@@ -36,6 +36,8 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'legion-mcp'
 
+  spec.add_dependency 'kramdown', '>= 2.0'
+
   spec.add_dependency 'bootsnap', '>= 1.18'
   spec.add_dependency 'concurrent-ruby', '>= 1.2'
   spec.add_dependency 'concurrent-ruby-ext', '>= 1.2'

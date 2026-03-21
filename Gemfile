@@ -4,6 +4,7 @@ source 'https://rubygems.org'
 
 gemspec
 
+gem 'kramdown', '>= 2.0'
 gem 'mysql2'
 
 group :test do

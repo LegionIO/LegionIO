@@ -53,6 +53,7 @@ module Legion
     autoload :ObserveCommand, 'legion/cli/observe_command'
     autoload :Payroll,        'legion/cli/payroll_command'
     autoload :Interactive, 'legion/cli/interactive'
+    autoload :Docs,        'legion/cli/docs_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -277,6 +278,9 @@ module Legion
 
       desc 'payroll SUBCOMMAND', 'Workforce cost and labor economics'
       subcommand 'payroll', Legion::CLI::Payroll
+
+      desc 'docs SUBCOMMAND', 'Documentation site generator'
+      subcommand 'docs', Legion::CLI::Docs
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
