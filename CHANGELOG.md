@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.97] - 2026-03-20
+
+### Fixed
+- Suppress Puma startup banner by adding `quiet: true` to server settings (routes all API logging through Legion::Logging)
+
 ## [1.4.96] - 2026-03-20
 
 ### Fixed
