@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.103] - 2026-03-21
+
+### Added
+- `Legion::Team` module — team registry backed by settings (current, members, find, list)
+- `Legion::Team::CostAttribution` — tags LLM request metadata with team and user context
+- `legion team` CLI subcommand — list, show, current, set, create, add-member
+
 ## [1.4.102] - 2026-03-21
 
 ### Added

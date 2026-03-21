@@ -45,6 +45,7 @@ module Legion
     autoload :Image,      'legion/cli/image_command'
     autoload :Dataset,    'legion/cli/dataset_command'
     autoload :Cost,        'legion/cli/cost_command'
+    autoload :Team,        'legion/cli/team_command'
     autoload :Marketplace, 'legion/cli/marketplace_command'
     autoload :Notebook,    'legion/cli/notebook_command'
     autoload :Llm,         'legion/cli/llm_command'
@@ -249,6 +250,9 @@ module Legion
 
       desc 'cost', 'Cost visibility and reporting'
       subcommand 'cost', Legion::CLI::Cost
+
+      desc 'team SUBCOMMAND', 'Team and multi-user management'
+      subcommand 'team', Legion::CLI::Team
 
       desc 'marketplace', 'Extension marketplace (search, info, scan)'
       subcommand 'marketplace', Legion::CLI::Marketplace
