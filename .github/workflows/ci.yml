@@ -20,13 +20,16 @@ jobs:
     if: needs.release.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger daemon build
+      - name: Trigger unified Homebrew build
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_DISPATCH_TOKEN }}
+          LEGIONIO_VERSION: ${{ needs.release.outputs.version }}
         run: |
           gh api repos/LegionIO/homebrew-tap/dispatches \
-            -f event_type=build-daemon \
-            -f "client_payload[legionio_version]=${{ needs.release.outputs.version }}"
+            -f event_type=build-legion \
+            -f "client_payload[legionio_version]=$LEGIONIO_VERSION" \
+            -f "client_payload[ruby_version]=3.4.8" \
+            -f "client_payload[package_revision]=1"
 
   docker-build:
     name: Build Docker Image
