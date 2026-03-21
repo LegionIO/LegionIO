@@ -177,6 +177,13 @@ module Legion
         Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
         @pending_actors.each { |actor| hook_actor(**actor) }
         @pending_actors = []
+        Legion::Logging.info(
+          "Actors hooked: subscription:#{@subscription_tasks.count}," \
+          "every:#{@timer_tasks.count}," \
+          "poll:#{@poll_tasks.count}," \
+          "once:#{@once_tasks.count}," \
+          "loop:#{@loop_tasks.count}"
+        )
         @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
       end
 
@@ -216,7 +223,7 @@ module Legion
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Subscription
           hook_subscription_actor(extension_hash, size, opts)
         else
-          Legion::Logging.fatal 'did not match any actor classes'
+          Legion::Logging.fatal "#{actor_class} did not match any actor classes (ancestors: #{actor_class.ancestors.first(5).map(&:to_s)})"
         end
       end
 

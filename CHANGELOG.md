@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.100] - 2026-03-21
+
+### Changed
+- `hook_actor` FATAL now logs actor class name and ancestors for debugging unmatched actors
+- `hook_all_actors` logs actor type counts after hooking (subscription/every/poll/once/loop)
+
 ## [1.4.99] - 2026-03-21
 
 ### Fixed
