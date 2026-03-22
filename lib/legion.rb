@@ -13,6 +13,8 @@ require 'legion/extensions'
 
 module Legion
   autoload :Region, 'legion/region'
+  autoload :Lock,   'legion/lock'
+  autoload :Leader, 'legion/leader'
 
   attr_reader :service
 

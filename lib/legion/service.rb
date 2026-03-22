@@ -254,6 +254,7 @@ module Legion
     def register_logging_hooks
       return unless Legion::Transport::Connection.session_open?
 
+      require 'legion/transport/exchanges/logging' unless defined?(Legion::Transport::Exchanges::Logging)
       exchange = Legion::Transport::Exchanges::Logging.new
 
       %i[fatal error warn].each do |level|
@@ -380,6 +381,8 @@ module Legion
 
       Legion::Data.shutdown if Legion::Settings[:data][:connected]
       Legion::Readiness.mark_not_ready(:data)
+
+      Legion::Leader.reset! if defined?(Legion::Leader)
 
       Legion::Cache.shutdown
       Legion::Readiness.mark_not_ready(:cache)
