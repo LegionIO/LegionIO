@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.112] - 2026-03-21
+
+### Added
+- `Legion::Lock` distributed locking module (Redis SET NX PX acquire, Lua compare-and-delete release)
+- `Legion::Leader` leader election module with periodic renewal via distributed lock
+- `Legion::Extensions::Actors::Singleton` mixin for singleton actor enforcement (one instance per cluster)
+- `Legion::Leader.reset!` called in shutdown sequence to release leadership before process exit
+
 ## [1.4.111] - 2026-03-21
 
 ### Added
