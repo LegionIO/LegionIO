@@ -46,6 +46,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/notebook_command.rb'
     - 'lib/legion/api/acp.rb'
     - 'lib/legion/api/auth_saml.rb'
+    - 'lib/legion/cli/failover_command.rb'
 
 Metrics/AbcSize:
   Max: 60

@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.111] - 2026-03-21
+
+### Added
+- Register logging hooks in boot sequence: fatal/error/warn published to `legion.logging` RMQ exchange
+- Routing key pattern: `legion.<source>.<level>` (e.g., `legion.core.fatal`, `legion.lex-slack.error`)
+
+## [1.4.110] - 2026-03-21
+
+### Added
+- Domain restrictions in extension Sandbox (allowed_domains on Policy, domain_allowed? check)
+- Sandbox.allowed? class method for combined capability + domain checks
+
 ## [1.4.109] - 2026-03-21
 
 ### Added

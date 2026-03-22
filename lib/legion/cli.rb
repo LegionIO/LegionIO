@@ -54,6 +54,7 @@ module Legion
     autoload :Payroll,        'legion/cli/payroll_command'
     autoload :Interactive, 'legion/cli/interactive'
     autoload :Docs,        'legion/cli/docs_command'
+    autoload :Failover,    'legion/cli/failover_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -281,6 +282,9 @@ module Legion
 
       desc 'docs SUBCOMMAND', 'Documentation site generator'
       subcommand 'docs', Legion::CLI::Docs
+
+      desc 'failover SUBCOMMAND', 'Region failover management'
+      subcommand 'failover', Legion::CLI::Failover
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

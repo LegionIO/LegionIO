@@ -36,6 +36,54 @@ RSpec.describe Legion::Sandbox do
       expect(policy.capabilities).to be_empty
     end
   end
+
+  describe '.allowed?' do
+    it 'returns false when agent domain does not match allowed domains' do
+      described_class.register_policy(
+        'lex-claims-tool',
+        capabilities:    ['data:read'],
+        allowed_domains: ['claims_optimization']
+      )
+      expect(
+        described_class.allowed?(gem_name: 'lex-claims-tool', agent_domain: 'clinical_care')
+      ).to be false
+    end
+
+    it 'returns true when domains match' do
+      described_class.register_policy(
+        'lex-claims-tool',
+        capabilities:    ['data:read'],
+        allowed_domains: ['claims_optimization']
+      )
+      expect(
+        described_class.allowed?(gem_name: 'lex-claims-tool', agent_domain: 'claims_optimization')
+      ).to be true
+    end
+
+    it 'returns true when no domain restrictions are set' do
+      described_class.register_policy(
+        'lex-general-tool',
+        capabilities: ['data:read']
+      )
+      expect(
+        described_class.allowed?(gem_name: 'lex-general-tool', agent_domain: 'anything')
+      ).to be true
+    end
+
+    it 'checks both capability and domain' do
+      described_class.register_policy(
+        'lex-restricted',
+        capabilities:    ['data:read'],
+        allowed_domains: ['claims']
+      )
+      expect(
+        described_class.allowed?(gem_name: 'lex-restricted', capability: 'data:read', agent_domain: 'claims')
+      ).to be true
+      expect(
+        described_class.allowed?(gem_name: 'lex-restricted', capability: 'network:outbound', agent_domain: 'claims')
+      ).to be false
+    end
+  end
 end
 
 RSpec.describe Legion::Sandbox::Policy do
@@ -49,5 +97,22 @@ RSpec.describe Legion::Sandbox::Policy do
   it 'filters invalid capabilities' do
     bad_policy = described_class.new(extension_name: 'test', capabilities: ['invalid:cap'])
     expect(bad_policy.capabilities).to be_empty
+  end
+
+  describe '#domain_allowed?' do
+    it 'allows when no domain restrictions set' do
+      policy = described_class.new(extension_name: 'test', capabilities: ['data:read'])
+      expect(policy.domain_allowed?('anything')).to be true
+    end
+
+    it 'allows matching domain' do
+      policy = described_class.new(extension_name: 'test', capabilities: ['data:read'], allowed_domains: ['clinical'])
+      expect(policy.domain_allowed?('clinical')).to be true
+    end
+
+    it 'rejects non-matching domain' do
+      policy = described_class.new(extension_name: 'test', capabilities: ['data:read'], allowed_domains: ['clinical'])
+      expect(policy.domain_allowed?('claims')).to be false
+    end
   end
 end

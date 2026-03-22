@@ -12,23 +12,31 @@ module Legion
         transport:publish transport:subscribe
       ].freeze
 
-      attr_reader :extension_name, :capabilities
+      attr_reader :extension_name, :capabilities, :allowed_domains
 
-      def initialize(extension_name:, capabilities: [])
+      def initialize(extension_name:, capabilities: [], allowed_domains: nil)
         @extension_name = extension_name
         @capabilities = capabilities.select { |c| CAPABILITIES.include?(c) }.freeze
+        @allowed_domains = allowed_domains&.map(&:to_s)&.freeze
       end
 
       def allowed?(capability)
         capabilities.include?(capability.to_s)
       end
+
+      def domain_allowed?(agent_domain)
+        return true if allowed_domains.nil? || allowed_domains.empty?
+
+        allowed_domains.include?(agent_domain.to_s)
+      end
     end
 
     class << self
-      def register_policy(extension_name, capabilities:)
+      def register_policy(extension_name, capabilities:, allowed_domains: nil)
         policies[extension_name] = Policy.new(
-          extension_name: extension_name,
-          capabilities:   capabilities
+          extension_name:  extension_name,
+          capabilities:    capabilities,
+          allowed_domains: allowed_domains
         )
       end
 
@@ -41,6 +49,19 @@ module Legion
 
         policy = policy_for(extension_name)
         raise SecurityError, "Extension #{extension_name} not authorized for: #{capability}" unless policy.allowed?(capability)
+
+        true
+      end
+
+      def allowed?(extension_name: nil, gem_name: nil, capability: nil, agent_domain: nil)
+        ext = extension_name || gem_name
+        return true unless enforcement_enabled?
+
+        policy = policy_for(ext)
+
+        return false if capability && !policy.allowed?(capability)
+
+        return false if agent_domain && !policy.domain_allowed?(agent_domain)
 
         true
       end

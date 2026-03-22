@@ -12,6 +12,8 @@ require 'legion/service'
 require 'legion/extensions'
 
 module Legion
+  autoload :Region, 'legion/region'
+
   attr_reader :service
 
   def self.start
