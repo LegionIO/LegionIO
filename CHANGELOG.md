@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.4.108] - 2026-03-21
+
+### Added
+- `Legion::Registry::SecurityScanner` static analysis check — detects dangerous Ruby patterns (eval, system, exec, backtick, IO.popen, Open3) in extension source files
+- `Legion::Registry::Persistence` module — syncs in-memory registry with `extensions_registry` DB table (load at boot, persist on register/update)
+- Boot-time auto-population of `Legion::Registry` from discovered extensions with gemspec capability reading
+- `Legion::Sandbox` auto-wiring from gemspec `legion.capabilities` metadata at extension load
+- `legion marketplace install NAME` command — validates lex- naming, installs gem, registers in registry
+- `legion marketplace publish` command — full pipeline: rspec, rubocop, gem build, gem push, security scan, register
+- `Legion::Registry::Governance` module — naming convention enforcement, auto-approve by risk tier, review requirements via `Legion::Settings`
+- 65 new specs (2380 total, 0 failures)
+
 ## [1.4.107] - 2026-03-21
 
 ### Added
