@@ -70,6 +70,7 @@ module Legion
             next
           end
           Catalog.transition(gem_name, :loaded)
+          register_in_registry(gem_name: gem_name, version: entry[:version])
           @loaded_extensions.push(gem_name)
         end
         Legion::Logging.info(
@@ -227,7 +228,40 @@ module Legion
         end
       end
 
+      def register_in_registry(gem_name:, version: nil, description: nil)
+        return unless defined?(Legion::Registry)
+        return if Legion::Registry.lookup(gem_name)
+
+        capabilities = read_gemspec_capabilities(gem_name)
+        entry = Legion::Registry::Entry.new(
+          name:         gem_name,
+          version:      version,
+          description:  description,
+          capabilities: capabilities,
+          airb_status:  'pending',
+          risk_tier:    'low'
+        )
+        Legion::Registry.register(entry)
+        register_sandbox_policy(gem_name: gem_name, capabilities: capabilities)
+      end
+
+      def register_sandbox_policy(gem_name:, capabilities: [])
+        return unless defined?(Legion::Sandbox)
+
+        Legion::Sandbox.register_policy(gem_name, capabilities: capabilities)
+      end
+
       private
+
+      def read_gemspec_capabilities(gem_name)
+        spec = Gem::Specification.find_by_name(gem_name)
+        raw  = spec.metadata['legion.capabilities']
+        return [] unless raw
+
+        raw.split(',').map(&:strip)
+      rescue Gem::MissingSpecError
+        []
+      end
 
       def hook_subscription_actor(extension_hash, size, opts)
         ext_name   = extension_hash[:extension_name]
