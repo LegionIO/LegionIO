@@ -7,7 +7,7 @@ module Legion
       class WorkerNotActive    < StandardError; end
       class InsufficientConsent < StandardError; end
 
-      CONSENT_HIERARCHY = %w[supervised consult notify autonomous].freeze
+      CONSENT_HIERARCHY = %w[supervised consult inform autonomous].freeze
 
       @local_workers = Set.new
       @local_workers_mutex = Mutex.new

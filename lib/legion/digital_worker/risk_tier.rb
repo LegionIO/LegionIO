@@ -8,7 +8,7 @@ module Legion
       # Maps AIRB risk tiers to governance and consent constraints.
       # These constraints are enforced when a worker attempts to execute a task.
       CONSTRAINTS = {
-        'low'      => { min_consent: 'notify',     governance_gate: false, council_required: false },
+        'low'      => { min_consent: 'inform',     governance_gate: false, council_required: false },
         'medium'   => { min_consent: 'consult',    governance_gate: false, council_required: false },
         'high'     => { min_consent: 'consult',    governance_gate: true,  council_required: true  },
         'critical' => { min_consent: 'supervised', governance_gate: true,  council_required: true  }

@@ -60,6 +60,31 @@ RSpec.describe Legion::DigitalWorker::Registry do
     end
   end
 
+  describe 'CONSENT_HIERARCHY' do
+    it 'uses inform (not notify) to match Lifecycle::CONSENT_MAPPING' do
+      expect(described_class::CONSENT_HIERARCHY).to include('inform')
+      expect(described_class::CONSENT_HIERARCHY).not_to include('notify')
+    end
+
+    it 'orders tiers from most restrictive to most autonomous' do
+      expect(described_class::CONSENT_HIERARCHY).to eq(%w[supervised consult inform autonomous])
+    end
+  end
+
+  describe '.consent_sufficient?' do
+    it 'returns true when current tier meets required tier' do
+      expect(described_class.consent_sufficient?('autonomous', 'inform')).to be true
+    end
+
+    it 'returns false when current tier is below required tier' do
+      expect(described_class.consent_sufficient?('supervised', 'autonomous')).to be false
+    end
+
+    it 'returns true when tiers are equal' do
+      expect(described_class.consent_sufficient?('inform', 'inform')).to be true
+    end
+  end
+
   describe 'thread safety' do
     let(:worker) do
       double('worker', active?: true, consent_tier: 'autonomous', lifecycle_state: 'active')

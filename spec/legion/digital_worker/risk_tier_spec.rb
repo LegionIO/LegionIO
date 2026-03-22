@@ -60,8 +60,8 @@ RSpec.describe Legion::DigitalWorker::RiskTier do
   end
 
   describe '.min_consent' do
-    it 'returns notify for low tier' do
-      expect(described_class.min_consent('low')).to eq('notify')
+    it 'returns inform for low tier' do
+      expect(described_class.min_consent('low')).to eq('inform')
     end
 
     it 'returns consult for medium tier' do
@@ -170,8 +170,8 @@ RSpec.describe Legion::DigitalWorker::RiskTier do
   end
 
   describe '.consent_compliant?' do
-    # CONSENT_HIERARCHY = %w[supervised consult notify autonomous]
-    # Index 0=supervised, 1=consult, 2=notify, 3=autonomous
+    # CONSENT_HIERARCHY = %w[supervised consult inform autonomous]
+    # Index 0=supervised, 1=consult, 2=inform, 3=autonomous
     # Compliant when hierarchy.index(worker.consent_tier) >= hierarchy.index(min_consent)
     let(:worker) { double('worker', worker_id: 'abc-123') }
 
@@ -181,21 +181,21 @@ RSpec.describe Legion::DigitalWorker::RiskTier do
     end
 
     it 'returns true when consent tier exactly meets the minimum' do
-      # low requires 'notify' (index 2); worker at 'notify' (index 2) — compliant
+      # low requires 'inform' (index 2); worker at 'inform' (index 2) — compliant
       allow(worker).to receive(:risk_tier).and_return('low')
-      allow(worker).to receive(:consent_tier).and_return('notify')
+      allow(worker).to receive(:consent_tier).and_return('inform')
       expect(described_class.consent_compliant?(worker)).to be(true)
     end
 
     it 'returns true when consent tier exceeds the minimum' do
-      # low requires 'notify' (index 2); 'autonomous' is index 3 — compliant
+      # low requires 'inform' (index 2); 'autonomous' is index 3 — compliant
       allow(worker).to receive(:risk_tier).and_return('low')
       allow(worker).to receive(:consent_tier).and_return('autonomous')
       expect(described_class.consent_compliant?(worker)).to be(true)
     end
 
     it 'returns false when consent tier is below the minimum' do
-      # low requires 'notify' (index 2); 'supervised' is index 0 — non-compliant
+      # low requires 'inform' (index 2); 'supervised' is index 0 — non-compliant
       allow(worker).to receive(:risk_tier).and_return('low')
       allow(worker).to receive(:consent_tier).and_return('supervised')
       expect(described_class.consent_compliant?(worker)).to be(false)
