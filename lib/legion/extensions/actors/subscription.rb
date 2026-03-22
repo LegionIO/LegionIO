@@ -112,6 +112,19 @@ module Legion
 
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
+
+            affinity_result = check_region_affinity(message)
+            if affinity_result == :reject
+              Legion::Logging.warn "Rejecting message: region affinity mismatch (region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+              @queue.reject(delivery_info.delivery_tag) if manual_ack
+              next
+            end
+
+            if affinity_result == :remote
+              Legion::Logging.debug 'Processing remote-region message ' \
+                                    "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+            end
+
             if use_runner?
               dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
             else
@@ -130,6 +143,14 @@ module Legion
         end
 
         private
+
+        def check_region_affinity(message)
+          return :local unless defined?(Legion::Region)
+
+          region = message[:region]
+          affinity = message[:region_affinity]
+          Legion::Region.affinity_for(region, affinity)
+        end
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
           run_block = lambda {
