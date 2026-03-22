@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.119] - 2026-03-22
+
+### Added
+- `legion setup claude-code` installs Legion MCP server entry into `~/.claude/settings.json` and writes the `/legion` slash command skill to `~/.claude/commands/legion.md`
+- `legion setup cursor` installs Legion MCP server entry into `.cursor/mcp.json` in the current project directory
+- `legion setup vscode` installs Legion MCP server entry into `.vscode/mcp.json` using the VS Code stdio server format
+- `legion setup status` shows which platforms (Claude Code, Cursor, VS Code) have Legion MCP configured
+- All `legion setup` subcommands support `--force` to overwrite existing entries and `--json` for machine-readable output
+- MCP installs merge with existing server configs rather than overwriting unrelated entries
+
 ## [1.4.118] - 2026-03-22
 
 ### Added

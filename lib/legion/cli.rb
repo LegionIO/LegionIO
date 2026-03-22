@@ -41,6 +41,7 @@ module Legion
     autoload :Eval,       'legion/cli/eval_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
+    autoload :Setup,      'legion/cli/setup_command'
     autoload :Skill,      'legion/cli/skill_command'
     autoload :Prompt,     'legion/cli/prompt_command'
     autoload :Image,      'legion/cli/image_command'
@@ -254,6 +255,9 @@ module Legion
 
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
+
+      desc 'setup SUBCOMMAND', 'Set up Legion MCP integration for IDEs'
+      subcommand 'setup', Legion::CLI::Setup
 
       desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
       subcommand 'skill', Legion::CLI::Skill

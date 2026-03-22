@@ -48,6 +48,7 @@ Metrics/BlockLength:
     - 'lib/legion/api/acp.rb'
     - 'lib/legion/api/auth_saml.rb'
     - 'lib/legion/cli/failover_command.rb'
+    - 'lib/legion/cli/setup_command.rb'
 
 Metrics/AbcSize:
   Max: 60
