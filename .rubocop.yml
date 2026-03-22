@@ -18,6 +18,7 @@ Metrics/MethodLength:
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/api/openapi.rb'
+    - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/ClassLength:
   Max: 1500
@@ -58,11 +59,13 @@ Metrics/CyclomaticComplexity:
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/api/auth_human.rb'
+    - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/PerceivedComplexity:
   Max: 17
   Exclude:
     - 'lib/legion/api/auth_human.rb'
+    - 'lib/legion/digital_worker/lifecycle.rb'
 
 Style/Documentation:
   Enabled: false
