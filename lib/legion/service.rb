@@ -45,6 +45,7 @@ module Legion
       if transport
         setup_transport
         Legion::Readiness.mark_ready(:transport)
+        register_logging_hooks
       end
 
       if cache
@@ -248,6 +249,27 @@ module Legion
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
       Legion::Transport::Connection.setup
+    end
+
+    def register_logging_hooks
+      return unless Legion::Transport::Connection.session_open?
+
+      exchange = Legion::Transport::Exchanges::Logging.new
+
+      %i[fatal error warn].each do |level|
+        Legion::Logging.send(:"on_#{level}") do |event|
+          next unless Legion::Transport::Connection.session_open?
+
+          source = event[:lex] || 'core'
+          routing_key = "legion.#{source}.#{level}"
+          exchange.publish(Legion::JSON.dump(event), routing_key: routing_key)
+        rescue StandardError
+          nil
+        end
+      end
+
+      Legion::Logging.enable_hooks!
+      Legion::Logging.info('Logging hooks registered for RMQ publishing')
     end
 
     def setup_alerts

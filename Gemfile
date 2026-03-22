@@ -4,6 +4,8 @@ source 'https://rubygems.org'
 
 gemspec
 
+gem 'legion-logging', path: '../legion-logging'
+
 gem 'kramdown', '>= 2.0'
 gem 'mysql2'
 
