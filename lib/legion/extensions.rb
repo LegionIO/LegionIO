@@ -20,7 +20,7 @@ module Legion
         @subscription_tasks = []
         @local_tasks = []
         @actors = []
-        @pending_actors = []
+        @pending_actors = Concurrent::Array.new
 
         find_extensions
         load_extensions
@@ -52,7 +52,8 @@ module Legion
       def load_extensions
         @extensions ||= []
         @loaded_extensions ||= []
-        @extensions.each do |entry|
+
+        eligible = @extensions.filter_map do |entry|
           gem_name = entry[:gem_name]
           ext_name = entry[:require_path].split('/').last
 
@@ -65,14 +66,11 @@ module Legion
           end
 
           Catalog.register(gem_name)
-          unless load_extension(entry)
-            Legion::Logging.warn("#{gem_name} failed to load")
-            next
-          end
-          Catalog.transition(gem_name, :loaded)
-          register_in_registry(gem_name: gem_name, version: entry[:version])
-          @loaded_extensions.push(gem_name)
+          entry
         end
+
+        load_extensions_parallel(eligible)
+
         Legion::Logging.info(
           "#{@extensions.count} extensions loaded with " \
           "subscription:#{@subscription_tasks.count}," \
@@ -81,6 +79,32 @@ module Legion
           "once:#{@once_tasks.count}," \
           "loop:#{@loop_tasks.count}"
         )
+      end
+
+      def load_extensions_parallel(eligible)
+        return if eligible.empty?
+
+        pool_size = [4, eligible.count].min
+        executor = Concurrent::FixedThreadPool.new(pool_size)
+
+        futures = eligible.map do |entry|
+          Concurrent::Promises.future_on(executor, entry) { |e| load_extension(e) ? e : nil }
+        end
+
+        results = futures.map(&:value)
+
+        executor.shutdown
+        executor.wait_for_termination(30)
+
+        results.each_with_index do |result, idx|
+          if result
+            Catalog.transition(result[:gem_name], :loaded)
+            register_in_registry(gem_name: result[:gem_name], version: result[:version])
+            @loaded_extensions.push(result[:gem_name])
+          else
+            Legion::Logging.warn("#{eligible[idx][:gem_name]} failed to load")
+          end
+        end
       end
 
       def load_extension(entry) # rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength
@@ -177,7 +201,7 @@ module Legion
 
         Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
         @pending_actors.each { |actor| hook_actor(**actor) }
-        @pending_actors = []
+        @pending_actors.clear
         Legion::Logging.info(
           "Actors hooked: subscription:#{@subscription_tasks.count}," \
           "every:#{@timer_tasks.count}," \

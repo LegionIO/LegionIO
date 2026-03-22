@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.114] - 2026-03-22
+
+### Changed
+- Parallelize extension loading using Concurrent::Promises thread pool (4 workers)
+- Use Concurrent::Array for thread-safe pending_actors during parallel load
+- ~4x faster boot: extensions load concurrently instead of serially
+
 ## [1.4.112] - 2026-03-21
 
 ### Added
