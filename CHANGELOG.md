@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.122] - 2026-03-22
+
+### Added
+- GraphQL API via `graphql-ruby` gem: `POST /api/graphql` endpoint alongside existing REST API
+- Schema types: QueryType, WorkerType, TaskType, ExtensionType, TeamType with field-level resolvers
+- Resolver modules for workers, tasks, extensions, and teams (safe stubs with `defined?` guards)
+- 45 new specs for GraphQL schema, queries, and error handling
+
 ## [1.4.121] - 2026-03-22
 
 ### Added

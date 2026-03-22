@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Legion
-  VERSION = '1.4.121'
+  VERSION = '1.4.122'
 end
