@@ -32,7 +32,7 @@ module Legion
           register_chat(app)
         end
 
-        def self.register_chat(app) # rubocop:disable Metrics/MethodLength
+        def self.register_chat(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
           app.post '/api/llm/chat' do # rubocop:disable Metrics/BlockLength
             Legion::Logging.debug "API: POST /api/llm/chat params=#{params.keys}"
             require_llm!

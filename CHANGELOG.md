@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.121] - 2026-03-22
+
+### Added
+- Route `/api/llm/chat` through full Legion pipeline (Ingress -> RBAC -> Events -> Task -> Gateway metering -> LLM) when `lex-llm-gateway` is loaded
+- `gateway_available?` helper to detect gateway runner presence
+- Proper result extraction from `ingress_result[:result]` with support for RubyLLM response objects, error hashes, and plain strings
+- Error logging in async LLM rescue block (previously silent)
+
 ## [1.4.120] - 2026-03-22
 
 ### Added
