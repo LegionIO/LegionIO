@@ -84,7 +84,8 @@ module Legion
       def load_extensions_parallel(eligible)
         return if eligible.empty?
 
-        pool_size = [4, eligible.count].min
+        max_threads = Legion::Settings.dig(:extensions, :parallel_pool_size) || 24
+        pool_size = [eligible.count, max_threads].min
         executor = Concurrent::FixedThreadPool.new(pool_size)
 
         futures = eligible.map do |entry|

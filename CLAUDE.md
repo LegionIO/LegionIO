@@ -57,7 +57,7 @@ Legion.start
 
 Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
 
-Extension loading is two-phase and parallel: all extensions are `require`d and `autobuild` runs concurrently on a `Concurrent::FixedThreadPool(4)`, collecting actors into a thread-safe `Concurrent::Array` of `@pending_actors`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types sequentially. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet. Thread safety relies on ThreadLocal AMQP channels, per-extension Settings keys, and sequential post-processing of Catalog transitions and Registry writes.
+Extension loading is two-phase and parallel: all extensions are `require`d and `autobuild` runs concurrently on a `Concurrent::FixedThreadPool(min(count, extensions.parallel_pool_size))`, collecting actors into a thread-safe `Concurrent::Array` of `@pending_actors`. Pool size defaults to 24, configurable via `Legion::Settings[:extensions][:parallel_pool_size]`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types sequentially. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet. Thread safety relies on ThreadLocal AMQP channels, per-extension Settings keys, and sequential post-processing of Catalog transitions and Registry writes.
 
 ### Reload Sequence
 
@@ -476,7 +476,7 @@ legion
 
 ### MCP Design
 
-Extracted to the `legion-mcp` gem (v0.1.0). See `legion-mcp/CLAUDE.md` for full architecture.
+Extracted to the `legion-mcp` gem (v0.4.1). See `legion-mcp/CLAUDE.md` for full architecture.
 
 - `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
 - Tool naming: `legion.snake_case_name` (dot namespace, not slash)
@@ -500,7 +500,7 @@ Extracted to the `legion-mcp` gem (v0.1.0). See `legion-mcp/CLAUDE.md` for full 
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `rackup` (>= 2.0) | Rack server launcher for MCP HTTP transport |
-| `legion-mcp` | MCP server + Tier 0 routing (extracted gem) |
+| `legion-mcp` (>= 0.4) | MCP server + Tier 0 routing (extracted gem) |
 | `reline` (>= 0.5) | Interactive line editing for chat REPL |
 | `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
 | `tty-spinner` (~> 0.9) | Spinner animation for CLI loading states |
@@ -723,8 +723,8 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 1499 examples, 0 failures
-bundle exec rubocop     # 418 files, 0 offenses
+bundle exec rspec       # 2514 examples, 0 failures
+bundle exec rubocop     # 0 offenses
 ```
 
 Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.

@@ -14,7 +14,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.78** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.114** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -370,9 +370,9 @@ Brain-modeled cognitive architecture. 20 core orchestration extensions plus 222 
 
 Coordinated by [legion-gaia](https://github.com/LegionIO/legion-gaia), the cognitive coordination layer with tick-cycle scheduling, channel abstraction, and weighted routing across cognitive modules.
 
-### AI / LLM (3 provider extensions)
+### AI / LLM (7 provider extensions)
 
-`lex-claude` `lex-openai` `lex-gemini`
+`lex-azure-ai` `lex-bedrock` `lex-claude` `lex-foundry` `lex-gemini` `lex-openai` `lex-xai`
 
 Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with three-tier routing (local Ollama, fleet GPU servers, cloud APIs), intent-based dispatch, health tracking, and automatic model discovery.
 
