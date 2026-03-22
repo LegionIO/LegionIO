@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.117] - 2026-03-22
+
+### Added
+- `Legion::CLI::Error` gains `suggestions`, `code` attributes and `.actionable` factory method
+- `Legion::CLI::ErrorHandler` module: 6-pattern matcher maps common exceptions (RabbitMQ, DB, extensions, permissions, data, Vault) to actionable errors with fix suggestions
+- `ErrorHandler.wrap` wraps any `StandardError` into a `CLI::Error` with suggestions when a pattern matches
+- `ErrorHandler.format_error` prints suggestions below the error line when the error is actionable
+- `Legion::CLI::Main.start` overrides Thor's entry point to wrap unhandled exceptions through `ErrorHandler` before exiting
+
 ## [1.4.116] - 2026-03-22
 
 ### Added

@@ -3,6 +3,7 @@
 require 'thor'
 require 'legion/version'
 require 'legion/cli/error'
+require 'legion/cli/error_handler'
 require 'legion/cli/output'
 require 'legion/cli/connection'
 
@@ -59,6 +60,19 @@ module Legion
     class Main < Thor
       def self.exit_on_failure?
         true
+      end
+
+      def self.start(given_args = ARGV, config = {})
+        super
+      rescue Legion::CLI::Error => e
+        formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
+        ErrorHandler.format_error(e, formatter)
+        exit(1)
+      rescue StandardError => e
+        wrapped = ErrorHandler.wrap(e)
+        formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
+        ErrorHandler.format_error(wrapped, formatter)
+        exit(1)
       end
 
       class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
