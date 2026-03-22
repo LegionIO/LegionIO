@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.109] - 2026-03-21
+
+### Added
+- `Legion::Cluster::Lock` Redis backend: SETNX + TTL acquire, Lua compare-and-delete release, thread-safe token storage via `Concurrent::Map`
+- `Legion::Cluster::Lock.backend` auto-detection: `:redis` (preferred), `:postgres` (advisory locks), or `:none`
+- `Legion::ProcessRole` module: role presets (full, api, worker, router) controlling which Service subsystems start
+- `Legion::Service#initialize` role integration: `role:` parameter resolves via `ProcessRole`, explicit kwargs override role defaults
+- 24 new specs (2404 total, 0 failures)
+
 ## [1.4.108] - 2026-03-21
 
 ### Added

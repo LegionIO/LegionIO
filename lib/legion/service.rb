@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'readiness'
+require_relative 'process_role'
 
 module Legion
   class Service
@@ -11,8 +12,20 @@ module Legion
       base.freeze
     end
 
-    def initialize(transport: true, cache: true, data: true, supervision: true, extensions: true, # rubocop:disable Metrics/CyclomaticComplexity,Metrics/ParameterLists,Metrics/MethodLength,Metrics/PerceivedComplexity
-                   crypt: true, api: true, llm: true, gaia: true, log_level: 'info', http_port: nil)
+    def initialize(transport: nil, cache: nil, data: nil, supervision: nil, extensions: nil, # rubocop:disable Metrics/CyclomaticComplexity,Metrics/ParameterLists,Metrics/MethodLength,Metrics/PerceivedComplexity,Metrics/AbcSize
+                   crypt: nil, api: nil, llm: nil, gaia: nil, log_level: 'info', http_port: nil,
+                   role: nil)
+      role_opts = Legion::ProcessRole.resolve(role || Legion::ProcessRole.current)
+      transport  = role_opts[:transport] if transport.nil?
+      cache      = role_opts[:cache] if cache.nil?
+      data       = role_opts[:data] if data.nil?
+      supervision = role_opts[:supervision] if supervision.nil?
+      extensions = role_opts[:extensions] if extensions.nil?
+      crypt      = role_opts[:crypt] if crypt.nil?
+      api        = role_opts[:api] if api.nil?
+      llm        = role_opts[:llm] if llm.nil?
+      gaia       = role_opts[:gaia] if gaia.nil?
+
       setup_logging(log_level: log_level)
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
