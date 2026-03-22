@@ -7,11 +7,11 @@ RSpec.describe Legion::DigitalWorker::Lifecycle do
   let(:worker) do
     double('Worker',
            lifecycle_state: 'active',
-           worker_id: 'w1',
-           retired_at: nil,
-           retired_by: nil,
-           retired_reason: nil,
-           update: true)
+           worker_id:       'w1',
+           retired_at:      nil,
+           retired_by:      nil,
+           retired_reason:  nil,
+           update:          true)
   end
 
   before do
