@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.107
+**Version**: 1.4.114
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -50,14 +50,14 @@ Legion.start
       ├── 9.  setup_gaia         (legion-gaia, cognitive coordination layer, optional)
       ├── 10. setup_telemetry    (OpenTelemetry, optional)
       ├── 11. setup_supervision  (process supervision)
-      ├── 12. load_extensions    (two-phase: require+autobuild all, then hook_all_actors)
+      ├── 12. load_extensions    (parallel require+autobuild on 4-thread pool, then hook_all_actors)
       ├── 13. Legion::Crypt.cs   (distribute cluster secret)
       └── 14. setup_api          (start Sinatra/Puma on port 4567)
 ```
 
 Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
 
-Extension loading is two-phase: all extensions are `require`d and `autobuild` runs first, collecting actors into `@pending_actors`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet.
+Extension loading is two-phase and parallel: all extensions are `require`d and `autobuild` runs concurrently on a `Concurrent::FixedThreadPool(4)`, collecting actors into a thread-safe `Concurrent::Array` of `@pending_actors`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types sequentially. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet. Thread safety relies on ThreadLocal AMQP channels, per-extension Settings keys, and sequential post-processing of Catalog transitions and Registry writes.
 
 ### Reload Sequence
 
