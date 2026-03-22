@@ -232,6 +232,87 @@ module Legion
       end
 
       # ──────────────────────────────────────────────────────────
+      # install
+      # ──────────────────────────────────────────────────────────
+
+      desc 'install NAME', 'Install a lex extension gem'
+      def install(name)
+        require 'legion/registry'
+        out = formatter
+
+        unless name.start_with?('lex-')
+          out.error("Extension name must start with 'lex-'")
+          return
+        end
+
+        if Kernel.system('gem', 'install', name)
+          entry = Legion::Registry::Entry.new(name: name, status: :active, airb_status: 'pending')
+          Legion::Registry.register(entry)
+          out.success("'#{name}' installed successfully")
+        else
+          out.error("Failed to install '#{name}'")
+        end
+      end
+
+      # ──────────────────────────────────────────────────────────
+      # publish
+      # ──────────────────────────────────────────────────────────
+
+      desc 'publish', 'Publish current extension to rubygems'
+      def publish
+        require 'legion/registry'
+        require 'legion/registry/security_scanner'
+        out = formatter
+
+        gemspec_files = Dir.glob('*.gemspec')
+        if gemspec_files.empty?
+          out.error('No gemspec found — publish aborted')
+          return
+        end
+
+        gemspec_path = gemspec_files.first
+        gem_name = File.basename(gemspec_path, '.gemspec')
+
+        unless Kernel.system('bundle', 'exec', 'rspec')
+          out.error('Specs failed — publish aborted')
+          return
+        end
+
+        unless Kernel.system('bundle', 'exec', 'rubocop')
+          out.error('Rubocop failed — publish aborted')
+          return
+        end
+
+        unless Kernel.system('gem', 'build', gemspec_path)
+          out.error("Failed to build gem '#{gem_name}'")
+          return
+        end
+
+        gem_files = Dir.glob("#{gem_name}-*.gem")
+        if gem_files.empty?
+          out.error('No built gem file found after build')
+          return
+        end
+
+        gem_file = gem_files.max_by { |f| File.mtime(f) }
+
+        unless Kernel.system('gem', 'push', gem_file)
+          out.error("Failed to push '#{gem_file}'")
+          return
+        end
+
+        scanner = Legion::Registry::SecurityScanner.new
+        scan_result = scanner.scan(name: gem_file)
+
+        version = gem_file.sub("#{gem_name}-", '').sub('.gem', '')
+        entry = Legion::Registry::Entry.new(name: gem_name, version: version,
+                                            status: :active, airb_status: 'pending')
+        Legion::Registry.register(entry)
+
+        out.success("'#{gem_name}' v#{version} published — security: #{scan_result[:passed] ? 'passed' : 'failed'}")
+      end
+
+      # ──────────────────────────────────────────────────────────
       # stats
       # ──────────────────────────────────────────────────────────
 

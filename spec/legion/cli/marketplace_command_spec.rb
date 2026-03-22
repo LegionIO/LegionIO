@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'legion/registry'
+require 'legion/registry/security_scanner'
 require 'legion/cli/marketplace_command'
 require 'legion/cli/output'
 
@@ -268,6 +269,79 @@ RSpec.describe Legion::CLI::Marketplace do
       cmd = build_command(json: true, successor: nil, sunset_date: nil)
       expect(out).to receive(:json).with(hash_including(status: 'deprecated'))
       cmd.deprecate('lex-test')
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────
+  # install
+  # ──────────────────────────────────────────────────────────
+
+  describe '#install' do
+    it 'rejects names that do not start with lex-' do
+      expect(out).to receive(:error).with(/must start with 'lex-'/)
+      build_command.install('my-gem')
+    end
+
+    it 'calls gem install for a valid lex name' do
+      allow(Kernel).to receive(:system).and_return(true)
+      expect(Kernel).to receive(:system).with('gem', 'install', 'lex-foo').and_return(true)
+      build_command.install('lex-foo')
+    end
+
+    it 'reports success when install succeeds' do
+      allow(Kernel).to receive(:system).and_return(true)
+      expect(out).to receive(:success).with(/'lex-foo' installed successfully/)
+      build_command.install('lex-foo')
+    end
+
+    it 'reports error when install fails' do
+      allow(Kernel).to receive(:system).and_return(false)
+      expect(out).to receive(:error).with(/Failed to install/)
+      build_command.install('lex-foo')
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────
+  # publish
+  # ──────────────────────────────────────────────────────────
+
+  describe '#publish' do
+    before do
+      allow(Kernel).to receive(:system).and_return(true)
+      allow(Dir).to receive(:glob).with('*.gemspec').and_return(['lex-foo.gemspec'])
+      allow(Dir).to receive(:glob).with('lex-foo-*.gem').and_return(['lex-foo-1.0.0.gem'])
+      allow(File).to receive(:mtime).with('lex-foo-1.0.0.gem').and_return(Time.now)
+      allow(Legion::Registry::SecurityScanner).to receive(:new).and_return(
+        instance_double(Legion::Registry::SecurityScanner, scan: { passed: true, checks: [] })
+      )
+    end
+
+    it 'errors when no gemspec found' do
+      allow(Dir).to receive(:glob).with('*.gemspec').and_return([])
+      expect(out).to receive(:error).with(/no gemspec found/i)
+      build_command.publish
+    end
+
+    it 'errors when rspec fails' do
+      allow(Kernel).to receive(:system).with('bundle', 'exec', 'rspec').and_return(false)
+      expect(out).to receive(:error).with(/specs failed/i)
+      build_command.publish
+    end
+
+    it 'errors when rubocop fails' do
+      allow(Kernel).to receive(:system).with('bundle', 'exec', 'rspec').and_return(true)
+      allow(Kernel).to receive(:system).with('bundle', 'exec', 'rubocop').and_return(false)
+      expect(out).to receive(:error).with(/rubocop failed/i)
+      build_command.publish
+    end
+
+    it 'builds and pushes gem on success' do
+      expect(Kernel).to receive(:system).with('bundle', 'exec', 'rspec').and_return(true)
+      expect(Kernel).to receive(:system).with('bundle', 'exec', 'rubocop').and_return(true)
+      expect(Kernel).to receive(:system).with('gem', 'build', 'lex-foo.gemspec').and_return(true)
+      expect(Kernel).to receive(:system).with('gem', 'push', 'lex-foo-1.0.0.gem').and_return(true)
+      expect(out).to receive(:success).with(/published/)
+      build_command.publish
     end
   end
 
