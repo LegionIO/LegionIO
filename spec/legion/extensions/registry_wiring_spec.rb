@@ -19,7 +19,7 @@ RSpec.describe 'Extension Registry wiring' do
         expect(entry).not_to be_nil
         expect(entry.name).to eq('lex-example')
         expect(entry.version).to eq('1.0.0')
-        expect(entry.airb_status).to eq('pending')
+        expect(entry.airb_status).to eq('approved')
         expect(entry.risk_tier).to eq('low')
       end
 
