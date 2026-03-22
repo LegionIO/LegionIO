@@ -16,7 +16,7 @@ RSpec.describe Legion::Registry do
   describe '.register / .lookup' do
     it 'stores and retrieves entries' do
       described_class.register(entry)
-      expect(described_class.lookup('lex-test')).to eq(entry)
+      expect(described_class.lookup('lex-test').name).to eq(entry.name)
     end
   end
 
@@ -31,7 +31,7 @@ RSpec.describe Legion::Registry do
   describe '.all' do
     it 'returns all entries' do
       described_class.register(entry)
-      expect(described_class.all).to eq([entry])
+      expect(described_class.all.map(&:name)).to eq([entry.name])
     end
   end
 
@@ -55,7 +55,7 @@ RSpec.describe Legion::Registry do
   describe '.approved' do
     it 'filters by approved status' do
       described_class.register(entry)
-      pending_entry = Legion::Registry::Entry.new(name: 'lex-pending', airb_status: 'pending')
+      pending_entry = Legion::Registry::Entry.new(name: 'lex-pending', airb_status: 'pending', risk_tier: 'high')
       described_class.register(pending_entry)
       expect(described_class.approved.map(&:name)).to eq(['lex-test'])
     end

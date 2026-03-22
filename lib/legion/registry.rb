@@ -40,8 +40,15 @@ module Legion
 
     class << self
       def register(entry)
+        raise ArgumentError, "Extension name '#{entry.name}' violates naming convention" if defined?(Governance) && !Governance.check_name(entry.name)
+
         store[entry.name] = entry
-        Persistence.persist(entry) if defined?(Persistence)
+
+        if defined?(Governance) && Governance.auto_approve?(entry.risk_tier)
+          update_entry(entry.name, entry, status: :approved, airb_status: 'approved', approved_at: Time.now.utc)
+        end
+
+        Persistence.persist(store[entry.name]) if defined?(Persistence)
       end
 
       def unregister(name)
@@ -155,3 +162,4 @@ module Legion
 end
 
 require_relative 'registry/persistence'
+require_relative 'registry/governance'

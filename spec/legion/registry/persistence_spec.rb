@@ -32,7 +32,7 @@ RSpec.describe Legion::Registry::Persistence do
             description: 'HTTP client extension',
             status:      'active',
             airb_status: 'approved',
-            risk_tier:   'low'
+            risk_tier:   'medium'
           },
           {
             name:        'lex-redis',
