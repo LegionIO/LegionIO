@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.124] - 2026-03-22
+
+### Changed
+- Update gemspec dependency version constraints for all legion-* gems to match current releases
+
 ## [1.4.123] - 2026-03-22
 
 ### Changed
