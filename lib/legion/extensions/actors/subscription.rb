@@ -123,6 +123,7 @@ module Legion
             if affinity_result == :remote
               Legion::Logging.debug 'Processing remote-region message ' \
                                     "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+              record_cross_region_metric(message)
             end
 
             if use_runner?
@@ -143,6 +144,18 @@ module Legion
         end
 
         private
+
+        def record_cross_region_metric(message)
+          return unless defined?(Legion::Extensions::Telemetry::Runners::Telemetry)
+
+          Legion::Extensions::Telemetry::Runners::Telemetry.record_cross_region(
+            from_region: message[:region],
+            to_region:   Legion::Region.current,
+            affinity:    message[:region_affinity]
+          )
+        rescue StandardError
+          nil
+        end
 
         def check_region_affinity(message)
           return :local unless defined?(Legion::Region)
