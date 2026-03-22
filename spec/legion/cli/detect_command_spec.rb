@@ -35,6 +35,14 @@ RSpec.describe Legion::CLI::Detect do
   end
 
   before do
+    installer_mod = Module.new do
+      def self.install(gem_names, dry_run: false)
+        return { installed: gem_names, failed: [] } if dry_run
+
+        { installed: gem_names, failed: [] }
+      end
+    end
+
     detect_mod = Module.new do
       def self.scan; end
       def self.missing; end
@@ -42,14 +50,15 @@ RSpec.describe Legion::CLI::Detect do
       def self.install_missing!(**); end
     end
     stub_const('Legion::Extensions::Detect', detect_mod)
+    stub_const('Legion::Extensions::Detect::Installer', installer_mod)
     allow(Legion::Extensions::Detect).to receive(:scan).and_return(scan_results)
     allow(Legion::Extensions::Detect).to receive(:missing).and_return(%w[lex-slack lex-redis])
     allow(Legion::Extensions::Detect).to receive(:catalog).and_return(catalog)
     allow(Legion::Extensions::Detect).to receive(:install_missing!)
       .and_return({ installed: %w[lex-slack lex-redis], failed: [] })
+    allow(Legion::Extensions::Detect::Installer).to receive(:install)
+      .and_return({ installed: %w[lex-slack lex-redis], failed: [] })
 
-    # Stub the require so it doesn't fail (gem not in bundle).
-    # Thor warns about the method stub but it's harmless in tests.
     allow_any_instance_of(described_class).to receive(:require_detect_gem)
   end
 
@@ -69,9 +78,68 @@ RSpec.describe Legion::CLI::Detect do
       expect(parsed[:detections].size).to eq(3)
     end
 
-    it 'installs missing when --install is passed' do
+    it 'launches interactive install when --install is passed' do
+      allow_any_instance_of(described_class).to receive(:tty_prompt_available?).and_return(false)
+      allow($stdin).to receive(:gets).and_return("all\n")
       capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(Legion::Extensions::Detect::Installer).to have_received(:install).with(%w[lex-slack lex-redis])
+    end
+
+    it 'installs all without prompting when --install-all is passed' do
+      capture_stdout { described_class.start(%w[scan --install-all --no-color]) }
       expect(Legion::Extensions::Detect).to have_received(:install_missing!)
+    end
+  end
+
+  describe 'interactive install' do
+    before do
+      allow_any_instance_of(described_class).to receive(:tty_prompt_available?).and_return(false)
+    end
+
+    it 'shows numbered list and installs selected gems' do
+      allow($stdin).to receive(:gets).and_return("1\n")
+      output = capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(output).to include('lex-slack')
+      expect(Legion::Extensions::Detect::Installer).to have_received(:install).with(%w[lex-slack])
+    end
+
+    it 'installs all when user types "all"' do
+      allow($stdin).to receive(:gets).and_return("all\n")
+      capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(Legion::Extensions::Detect::Installer).to have_received(:install).with(%w[lex-slack lex-redis])
+    end
+
+    it 'installs none when user types "none"' do
+      allow($stdin).to receive(:gets).and_return("none\n")
+      output = capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(output).to include('No extensions selected')
+    end
+
+    it 'handles comma-separated selection' do
+      allow($stdin).to receive(:gets).and_return("1,2\n")
+      capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(Legion::Extensions::Detect::Installer).to have_received(:install).with(%w[lex-slack lex-redis])
+    end
+
+    it 'shows dry run when --dry-run is passed' do
+      allow($stdin).to receive(:gets).and_return("1\n")
+      output = capture_stdout { described_class.start(%w[scan --install --dry-run --no-color]) }
+      expect(output).to include('Would install')
+      expect(output).to include('lex-slack')
+      expect(Legion::Extensions::Detect::Installer).not_to have_received(:install)
+    end
+
+    it 'shows success when nothing is missing' do
+      allow(Legion::Extensions::Detect).to receive(:missing).and_return([])
+      output = capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(output).to include('All detected extensions are installed')
+    end
+
+    it 'includes signal info in the numbered list' do
+      allow($stdin).to receive(:gets).and_return("none\n")
+      output = capture_stdout { described_class.start(%w[scan --install --no-color]) }
+      expect(output).to include('app:Slack.app')
+      expect(output).to include('brew_formula:redis')
     end
   end
 

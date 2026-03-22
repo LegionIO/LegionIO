@@ -19,7 +19,8 @@ module Legion
       default_task :scan
 
       desc 'scan', 'Scan environment and recommend extensions (default)'
-      option :install, type: :boolean, default: false, desc: 'Install missing extensions after scan'
+      option :install, type: :boolean, default: false, desc: 'Interactive install of missing extensions after scan'
+      option :install_all, type: :boolean, default: false, desc: 'Install all missing extensions without prompting'
       option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'
       option :format, type: :string, enum: %w[sarif markdown json], desc: 'Output format (sarif, markdown, json)'
       def scan
@@ -35,7 +36,11 @@ module Legion
           out.json(detections: results)
         else
           display_detections(out, results)
-          install_missing(out) if options[:install]
+          if options[:install]
+            interactive_install(out, results)
+          elsif options[:install_all]
+            install_missing(out)
+          end
         end
       end
 
@@ -128,6 +133,98 @@ module Legion
 
           out.spacer
           puts "  #{installed_count} of #{total_count} extension(s) installed"
+        end
+
+        def interactive_install(out, results)
+          missing_gems = Legion::Extensions::Detect.missing
+          return out.success('All detected extensions are installed') if missing_gems.empty?
+
+          signal_map = build_signal_map(results)
+          selected = pick_extensions(out, missing_gems, signal_map)
+          if selected.empty?
+            puts '  No extensions selected'
+            return
+          end
+
+          if options[:dry_run]
+            out.header('Would install')
+            selected.each { |name| puts "  #{name}" }
+            return
+          end
+
+          install_selected(out, selected)
+        end
+
+        def pick_extensions(out, missing_gems, signal_map)
+          if tty_prompt_available?
+            pick_with_tty_prompt(missing_gems, signal_map)
+          else
+            pick_with_numbers(out, missing_gems, signal_map)
+          end
+        end
+
+        def pick_with_tty_prompt(missing_gems, signal_map)
+          require 'tty-prompt'
+          prompt = ::TTY::Prompt.new
+
+          choices = missing_gems.map do |name|
+            label = signal_map[name] ? "#{name} (#{signal_map[name]})" : name
+            { name: label, value: name }
+          end
+
+          prompt.multi_select('Select extensions to install:', choices, per_page: 20, echo: false)
+        end
+
+        def pick_with_numbers(out, missing_gems, signal_map)
+          out.spacer
+          out.header('Missing Extensions')
+          missing_gems.each_with_index do |name, idx|
+            reason = signal_map[name] ? " (#{signal_map[name]})" : ''
+            puts "  #{out.colorize((idx + 1).to_s.rjust(3), :label)}  #{name}#{reason}"
+          end
+          out.spacer
+          puts '  Enter numbers to install (comma-separated), "all", or "none":'
+          print '  > '
+          input = $stdin.gets&.strip || 'none'
+
+          return missing_gems.dup if input.downcase == 'all'
+          return [] if input.empty? || input.downcase == 'none'
+
+          indices = input.split(/[,\s]+/).filter_map { |s| s.to_i - 1 if s.match?(/\A\d+\z/) }
+          indices.filter_map { |i| missing_gems[i] if i >= 0 && i < missing_gems.size }.uniq
+        end
+
+        def build_signal_map(results)
+          map = {}
+          results.each do |detection|
+            signals = detection[:matched_signals].join(', ')
+            detection[:installed].each do |gem_name, installed|
+              map[gem_name] = signals unless installed
+            end
+          end
+          map
+        end
+
+        def install_selected(out, selected)
+          out.header("Installing #{selected.size} extension(s)")
+          result = Legion::Extensions::Detect::Installer.install(selected)
+
+          result[:installed].each { |name| out.success("  Installed #{name}") }
+          result[:failed].each { |f| out.error("  Failed: #{f[:name]} — #{f[:error]}") }
+
+          out.spacer
+          if result[:failed].empty?
+            out.success("#{result[:installed].size} extension(s) installed")
+          else
+            out.warn("#{result[:installed].size} installed, #{result[:failed].size} failed")
+          end
+        end
+
+        def tty_prompt_available?
+          require 'tty-prompt'
+          true
+        rescue LoadError
+          false
         end
 
         def install_missing(out)

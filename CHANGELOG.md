@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.118] - 2026-03-22
+
+### Added
+- `legion detect --install` interactive extension picker: multi-select via tty-prompt (when available) or numbered list fallback
+- `legion detect --install-all` for non-interactive bulk install of all missing extensions
+- Signal context shown in picker (e.g., which app/formula triggered the recommendation)
+
 ## [1.4.117] - 2026-03-22
 
 ### Added
