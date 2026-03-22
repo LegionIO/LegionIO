@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.125] - 2026-03-22
+
+### Changed
+- Parallelize update command version checks using RubyGems HTTP API and concurrent-ruby thread pool
+- Skip `gem install` entirely when all gems are already at latest version
+- Only install gems that are actually outdated instead of reinstalling all gems
+
 ## [1.4.124] - 2026-03-22
 
 ### Changed

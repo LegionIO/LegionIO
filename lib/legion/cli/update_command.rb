@@ -3,6 +3,9 @@
 require 'English'
 require 'thor'
 require 'rbconfig'
+require 'concurrent'
+require 'net/http'
+require 'json'
 
 module Legion
   module CLI
@@ -72,27 +75,65 @@ module Legion
         end
 
         def update_gems(gem_names, gem_bin, dry_run: false)
+          local_versions = snapshot_versions(gem_names)
+          remote_versions = fetch_remote_versions_parallel(gem_names)
+
+          outdated = gem_names.select do |name|
+            remote = remote_versions[name]
+            local = local_versions[name]
+            remote && local && Gem::Version.new(remote) > Gem::Version.new(local)
+          end
+
+          if dry_run
+            return gem_names.map do |name|
+              local = local_versions[name]
+              remote = remote_versions[name]
+              needs_update = remote && local && Gem::Version.new(remote) > Gem::Version.new(local)
+              { name: name, from: local, to: remote, status: needs_update ? 'available' : 'current' }
+            end
+          end
+
+          return gem_names.map { |name| { name: name, status: 'updated', output: '' } } if outdated.empty?
+
+          output = `#{gem_bin} install #{outdated.join(' ')} --no-document 2>&1`
+          success = $CHILD_STATUS.success?
           gem_names.map do |name|
-            if dry_run
-              remote = fetch_remote_version(name)
-              local = begin
-                Gem::Specification.find_by_name(name).version.to_s
-              rescue Gem::MissingSpecError
-                nil
-              end
-              { name: name, from: local, to: remote, status: remote && remote != local ? 'available' : 'current' }
-            else
-              output = `#{gem_bin} install #{name} --no-document 2>&1`
-              success = $CHILD_STATUS.success?
+            if outdated.include?(name)
               { name: name, status: success ? 'updated' : 'failed', output: output.strip }
+            else
+              { name: name, status: 'updated', output: '' }
             end
           end
         end
 
+        def fetch_remote_versions_parallel(gem_names)
+          results = Concurrent::Hash.new
+          pool = Concurrent::FixedThreadPool.new([gem_names.size, 24].min)
+          latch = Concurrent::CountDownLatch.new(gem_names.size)
+
+          gem_names.each do |name|
+            pool.post do
+              version = fetch_remote_version(name)
+              results[name] = version if version
+            rescue StandardError => e
+              Legion::Logging.debug("UpdateCommand#fetch_remote_version #{name}: #{e.message}") if defined?(Legion::Logging)
+            ensure
+              latch.count_down
+            end
+          end
+
+          latch.wait(30)
+          pool.shutdown
+          results
+        end
+
         def fetch_remote_version(name)
-          output = `gem search ^#{name}$ --remote --no-verbose 2>/dev/null`.strip
-          match = output.match(/#{Regexp.escape(name)}\s+\(([^)]+)\)/)
-          match ? match[1] : nil
+          uri = URI("https://rubygems.org/api/v1/versions/#{name}/latest.json")
+          response = Net::HTTP.get_response(uri)
+          return nil unless response.is_a?(Net::HTTPSuccess)
+
+          data = ::JSON.parse(response.body)
+          data['version']
         end
 
         def display_results(out, results, before, after)
