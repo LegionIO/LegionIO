@@ -5,6 +5,9 @@
 ### Added
 - Register logging hooks in boot sequence: fatal/error/warn published to `legion.logging` RMQ exchange
 - Routing key pattern: `legion.<source>.<level>` (e.g., `legion.core.fatal`, `legion.lex-slack.error`)
+- `Legion::Region` module: cloud metadata detection (AWS IMDSv2, Azure IMDS), region affinity routing
+- `Legion::Region::Failover`: promote regions with replication lag checks, --dry-run, --force
+- `legion failover` CLI: promote and status subcommands for region failover management
 
 ## [1.4.110] - 2026-03-21
 
