@@ -10,13 +10,15 @@ module Legion
     def otel_available?
       defined?(OpenTelemetry::Trace) &&
         OpenTelemetry::Trace.current_span != OpenTelemetry::Trace::Span::INVALID
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#otel_available? failed: #{e.message}" if defined?(Legion::Logging)
       false
     end
 
     def enabled?
       defined?(OpenTelemetry::SDK) ? true : false
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#enabled? failed: #{e.message}" if defined?(Legion::Logging)
       false
     end
 
@@ -42,7 +44,8 @@ module Legion
 
       span.record_exception(exception)
       span.status = OpenTelemetry::Trace::Status.error(exception.message)
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#record_exception failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -56,7 +59,8 @@ module Legion
               end
         [k.to_s, val]
       end
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#sanitize_attributes failed: #{e.message}" if defined?(Legion::Logging)
       {}
     end
 
@@ -77,13 +81,15 @@ module Legion
 
       tracing = telemetry[:tracing]
       tracing.is_a?(Hash) ? tracing : {}
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#tracing_settings failed: #{e.message}" if defined?(Legion::Logging)
       {}
     end
 
     def otel_init_error?(error)
       error.message.include?('OpenTelemetry') || error.message.include?('tracer')
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#otel_init_error? check failed: #{e.message}" if defined?(Legion::Logging)
       false
     end
 
@@ -119,7 +125,8 @@ module Legion
       processor = OpenTelemetry::SDK::Trace::Export::SimpleSpanProcessor.new(exporter)
       OpenTelemetry.tracer_provider.add_span_processor(processor)
       true
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Telemetry#configure_console failed: #{e.message}" if defined?(Legion::Logging)
       false
     end
   end

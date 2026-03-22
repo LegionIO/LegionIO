@@ -12,33 +12,39 @@ module Legion
 
         settings = begin
           Legion::Settings.dig(:telemetry, :open_inference)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "OpenInference#open_inference_enabled? failed to read settings: #{e.message}" if defined?(Legion::Logging)
           {}
         end
         settings.is_a?(Hash) ? settings.fetch(:enabled, true) : true
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#open_inference_enabled? failed: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
       def include_io?
         settings = begin
           Legion::Settings.dig(:telemetry, :open_inference)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "OpenInference#include_io? failed to read settings: #{e.message}" if defined?(Legion::Logging)
           {}
         end
         settings.is_a?(Hash) ? settings.fetch(:include_input_output, true) : true
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#include_io? failed: #{e.message}" if defined?(Legion::Logging)
         true
       end
 
       def truncate_limit
         settings = begin
           Legion::Settings.dig(:telemetry, :open_inference)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "OpenInference#truncate_limit failed to read settings: #{e.message}" if defined?(Legion::Logging)
           {}
         end
         settings.is_a?(Hash) ? settings.fetch(:truncate_values_at, DEFAULT_TRUNCATE) : DEFAULT_TRUNCATE
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#truncate_limit failed: #{e.message}" if defined?(Legion::Logging)
         DEFAULT_TRUNCATE
       end
 
@@ -150,7 +156,8 @@ module Legion
         span.set_attribute('llm.token_count.prompt', result[:input_tokens]) if result[:input_tokens]
         span.set_attribute('llm.token_count.completion', result[:output_tokens]) if result[:output_tokens]
         span.set_attribute('output.value', truncate_value(result[:content].to_s)) if include_io? && result[:content]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#annotate_llm_result failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 
@@ -159,7 +166,8 @@ module Legion
 
         val = result.is_a?(Hash) ? result.to_json : result.to_s
         span.set_attribute('output.value', truncate_value(val))
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#annotate_output failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 
@@ -169,7 +177,8 @@ module Legion
         span.set_attribute('eval.score', result[:score]) if result[:score]
         span.set_attribute('eval.passed', result[:passed]) unless result[:passed].nil?
         span.set_attribute('eval.explanation', result[:explanation]) if result[:explanation]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#annotate_eval_result failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
     end

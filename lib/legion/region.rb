@@ -9,7 +9,8 @@ module Legion
     def current
       setting = defined?(Legion::Settings) ? Legion::Settings.dig(:region, :current) : nil
       setting || detect_from_metadata
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#current failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -29,7 +30,8 @@ module Legion
       return nil unless defined?(Legion::Settings)
 
       Legion::Settings.dig(:region, :primary)
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#primary failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -37,7 +39,8 @@ module Legion
       return nil unless defined?(Legion::Settings)
 
       Legion::Settings.dig(:region, :failover)
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#failover failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -45,13 +48,15 @@ module Legion
       return [] unless defined?(Legion::Settings)
 
       Legion::Settings.dig(:region, :peers) || []
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#peers failed: #{e.message}" if defined?(Legion::Logging)
       []
     end
 
     def detect_from_metadata
       detect_aws_region || detect_azure_region
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#detect_from_metadata failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -71,7 +76,8 @@ module Legion
         response = http.request(req)
         response.is_a?(Net::HTTPSuccess) ? response.body.strip : nil
       end
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#detect_aws_region failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 
@@ -84,7 +90,8 @@ module Legion
         response = http.request(req)
         response.is_a?(Net::HTTPSuccess) ? response.body.strip : nil
       end
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Region#detect_azure_region failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
   end

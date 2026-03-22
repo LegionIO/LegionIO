@@ -107,7 +107,8 @@ module Legion
           return [] unless defined?(Legion::Settings)
 
           Legion::Settings.dig(:permissions, :auto_approve) || []
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Permissions#load_global_auto_approve failed: #{e.message}" if defined?(Legion::Logging)
           []
         end
 
@@ -115,7 +116,8 @@ module Legion
           return [] unless defined?(Legion::Settings)
 
           Legion::Settings.dig(lex_name.tr('-', '_').to_sym, :permissions, :auto_approve) || []
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Permissions#load_lex_auto_approve failed for #{lex_name}: #{e.message}" if defined?(Legion::Logging)
           []
         end
 
@@ -132,7 +134,8 @@ module Legion
             model.insert(lex_name: lex_name, path: path, access_type: access_type.to_s,
                          approved: approved, created_at: Time.now, updated_at: Time.now)
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Permissions#persist_approval failed for #{lex_name} #{path}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
       end

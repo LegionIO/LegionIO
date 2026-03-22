@@ -42,7 +42,8 @@ module Legion
           return DEFAULTS.merge(overrides) if overrides.is_a?(Hash)
 
           DEFAULTS
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Registry::Governance#load_config failed: #{e.message}" if defined?(Legion::Logging)
           DEFAULTS
         end
       end

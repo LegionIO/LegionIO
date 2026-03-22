@@ -20,6 +20,7 @@ module Legion
             path = MemoryStore.add(text, scope: sym_scope)
             "Saved to #{sym_scope} memory (#{path})"
           rescue StandardError => e
+            Legion::Logging.warn("SaveMemory#execute failed: #{e.message}") if defined?(Legion::Logging)
             "Error saving memory: #{e.message}"
           end
         end

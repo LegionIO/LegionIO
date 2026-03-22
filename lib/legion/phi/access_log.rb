@@ -110,7 +110,8 @@ module Legion
         return [] unless defined?(Legion::Data::Model::AuditLog)
 
         Legion::Audit.recent(limit: limit, resource: resource, event_type: AUDIT_EVENT_TYPE)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "Phi::AccessLog#query_via_audit failed for resource=#{resource}: #{e.message}" if defined?(Legion::Logging)
         []
       end
 

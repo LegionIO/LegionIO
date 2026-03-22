@@ -107,7 +107,8 @@ module Legion
             safe_name = entry.path.gsub('/', '_').gsub('\\', '_')
             backup_path = File.join(storage_dir, "#{@entries.length}_#{safe_name}")
             File.write(backup_path, entry.content, encoding: 'utf-8')
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("Checkpoint#persist_entry failed for #{entry.path}: #{e.message}") if defined?(Legion::Logging)
             # In-memory fallback is always available via @entries
             nil
           end
@@ -117,7 +118,8 @@ module Legion
 
             FileUtils.rm_rf(@storage_dir)
             @storage_dir = nil
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("Checkpoint#cleanup_storage failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
         end

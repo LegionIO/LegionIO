@@ -325,7 +325,8 @@ module Legion
           begin
             Connection.ensure_settings
             ext_settings = Legion::Settings[:extensions] || {}
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("LexCommand#discover_all settings load failed: #{e.message}") if defined?(Legion::Logging)
             ext_settings = {}
           end
 
@@ -383,7 +384,8 @@ module Legion
           return [] unless Dir.exist?(runner_dir)
 
           Dir.glob("#{runner_dir}/*.rb").map { |f| File.basename(f, '.rb') }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LexCommand#extract_runners failed for #{spec.name}: #{e.message}") if defined?(Legion::Logging)
           []
         end
 
@@ -396,7 +398,8 @@ module Legion
             basename = File.basename(f, '.rb')
             { name: basename, type: guess_actor_type(f) }
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LexCommand#extract_actors failed for #{spec.name}: #{e.message}") if defined?(Legion::Logging)
           []
         end
 
@@ -415,7 +418,8 @@ module Legion
           else
             'unknown'
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("LexCommand#guess_actor_type failed for #{file_path}: #{e.message}") if defined?(Legion::Logging)
           'unknown'
         end
 

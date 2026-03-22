@@ -106,9 +106,11 @@ module Legion
 
       ::Process.kill(0, pid)
       :running
-    rescue Errno::ESRCH
+    rescue Errno::ESRCH => e
+      Legion::Logging.debug "Process#pid_status: pid=#{pid} is dead: #{e.message}" if defined?(Legion::Logging)
       :dead
-    rescue Errno::EPERM
+    rescue Errno::EPERM => e
+      Legion::Logging.debug "Process#pid_status: pid=#{pid} not owned: #{e.message}" if defined?(Legion::Logging)
       :not_owned
     end
 

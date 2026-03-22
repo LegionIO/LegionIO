@@ -39,7 +39,8 @@ module Legion
           end
 
           :pass
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("PrivacyCheck#check_no_cloud_keys failed: #{e.message}") if defined?(Legion::Logging)
           :skip
         end
 
@@ -63,7 +64,8 @@ module Legion
             return :fail if tcp_reachable?(host, port)
           end
           :pass
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("PrivacyCheck#check_no_external_endpoints failed: #{e.message}") if defined?(Legion::Logging)
           :skip
         end
 
@@ -77,7 +79,8 @@ module Legion
 
         def settings_loaded?
           defined?(Legion::Settings) && Legion::Settings.respond_to?(:enterprise_privacy?)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("PrivacyCheck#settings_loaded? failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
       end

@@ -108,7 +108,8 @@ module Legion
       return compiled_defaults if configured.nil? || configured.empty?
 
       configured.map { |p| Regexp.new(p, Regexp::IGNORECASE) }
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.warn "Phi#phi_patterns failed to compile configured patterns: #{e.message}" if defined?(Legion::Logging)
       compiled_defaults
     end
 
@@ -120,7 +121,8 @@ module Legion
       return nil unless defined?(Legion::Settings)
 
       Legion::Settings.dig(:phi, :field_patterns)
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Phi#settings_patterns failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
 

@@ -36,7 +36,8 @@ module Legion
       def all_manifests
         Dir.glob(File.join(@cache_dir, 'lex-*.json')).map do |path|
           ::JSON.parse(File.read(path))
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LexCliManifest#all_manifests failed to parse #{path}: #{e.message}") if defined?(Legion::Logging)
           nil
         end.compact
       end

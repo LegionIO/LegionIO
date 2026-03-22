@@ -181,15 +181,16 @@ module Legion
 
         def api_running?
           defined?(Legion::API) && Legion::API.running?
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("Check#api_running? failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
 
         def shutdown(started)
           started.reverse_each do |name|
             send(:"shutdown_#{name}")
-          rescue StandardError
-            # best-effort cleanup
+          rescue StandardError => e
+            Legion::Logging.warn("Check#shutdown failed for #{name}: #{e.message}") if defined?(Legion::Logging)
           end
         end
 

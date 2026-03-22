@@ -15,8 +15,8 @@ begin
   require 'legion/cli/chat/tools/search_memory'
   require 'legion/cli/chat/tools/web_search'
   require 'legion/cli/chat/tools/spawn_agent'
-rescue LoadError
-  # ruby_llm not available — chat tools will not be registered
+rescue LoadError => e
+  Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
 
 require 'legion/cli/chat/permissions'
@@ -51,7 +51,8 @@ module Legion
         def self.all_tools
           require 'legion/cli/chat/extension_tool_loader'
           builtin_tools + ExtensionToolLoader.discover
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("ToolRegistry#all_tools ExtensionToolLoader not available: #{e.message}") if defined?(Legion::Logging)
           builtin_tools
         end
       end

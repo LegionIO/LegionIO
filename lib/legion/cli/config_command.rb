@@ -28,7 +28,8 @@ module Legion
                      # Settings uses [] accessor, enumerate known sections
                      %i[client transport data cache crypt extensions api].to_h do |key|
                        [key, Legion::Settings[key]]
-                     rescue StandardError
+                     rescue StandardError => e
+                       Legion::Logging.warn("ConfigCommand#show settings key #{key} read failed: #{e.message}") if defined?(Legion::Logging)
                        [key, nil]
                      end.compact
                    end

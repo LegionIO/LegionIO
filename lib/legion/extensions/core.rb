@@ -17,8 +17,8 @@ require_relative 'helpers/cache'
 
 begin
   require 'legion/llm/helpers/llm'
-rescue LoadError
-  # legion-llm not installed, helper not available
+rescue LoadError => e
+  Legion::Logging.debug "Extensions::Core: legion-llm helpers not available: #{e.message}" if defined?(Legion::Logging)
 end
 
 require_relative 'actors/base'

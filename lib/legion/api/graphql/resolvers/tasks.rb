@@ -11,7 +11,8 @@ module Legion
                              Legion::Data.connection
 
             resolve_from_data(status: status, limit: limit)
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Tasks#resolve failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
 
@@ -22,7 +23,8 @@ module Legion
             dataset = dataset.where(status: status) if status
             dataset = dataset.limit(limit)          if limit
             dataset.all.map { |t| task_hash(t.values) }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Tasks#resolve_from_data failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
 

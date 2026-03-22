@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.123] - 2026-03-22
+
+### Changed
+- Add logging to silent rescue blocks: all rescue blocks now capture the exception variable and emit `Legion::Logging.debug` or `.warn` calls so errors are visible in logs rather than silently swallowed
+
 ## [1.4.122] - 2026-03-22
 
 ### Added

@@ -139,7 +139,8 @@ module Legion
 
       def safety_enabled?
         Legion::Settings.dig(:telemetry, :safety, :enabled)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "SafetyMetrics#safety_enabled? failed: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
@@ -158,7 +159,8 @@ module Legion
                                          'Governance constraint violations')
         Legion::Metrics.register_counter(:legion_safety_probe_detection_total,
                                          'Detected prompt injection probes')
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "SafetyMetrics#register_prometheus_metrics failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
     end

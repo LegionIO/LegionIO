@@ -66,10 +66,12 @@ module Legion
       def self.start(given_args = ARGV, config = {})
         super
       rescue Legion::CLI::Error => e
+        Legion::Logging.error("CLI::Main.start CLI error: #{e.message}") if defined?(Legion::Logging)
         formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
         ErrorHandler.format_error(e, formatter)
         exit(1)
       rescue StandardError => e
+        Legion::Logging.error("CLI::Main.start unexpected error: #{e.message}") if defined?(Legion::Logging)
         wrapped = ErrorHandler.wrap(e)
         formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
         ErrorHandler.format_error(wrapped, formatter)
@@ -348,9 +350,11 @@ module Legion
         else
           out.error("Dream cycle failed: #{parsed.dig(:error, :message) || response.code}")
         end
-      rescue Net::ReadTimeout
+      rescue Net::ReadTimeout => e
+        Legion::Logging.debug("CLI#dream read timeout (expected for background tasks): #{e.message}") if defined?(Legion::Logging)
         out.success('Dream cycle triggered on daemon (running in background)')
-      rescue Errno::ECONNREFUSED
+      rescue Errno::ECONNREFUSED => e
+        Legion::Logging.warn("CLI#dream daemon not running: #{e.message}") if defined?(Legion::Logging)
         out.error(format('Daemon not running (connection refused on port %d)', port))
         raise SystemExit, 1
       end
@@ -377,7 +381,8 @@ module Legion
             spec = Gem::Specification.find_by_name(gem_name)
             short = gem_name.sub('legion-', '')
             components[short.to_sym] = spec.version.to_s
-          rescue Gem::MissingSpecError
+          rescue Gem::MissingSpecError => e
+            Legion::Logging.debug("CLI#installed_components gem #{gem_name} not installed: #{e.message}") if defined?(Legion::Logging)
             components[gem_name.sub('legion-', '').to_sym] = '(not installed)'
           end
           components
@@ -396,7 +401,8 @@ module Legion
           Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
           api_settings = Legion::Settings[:api]
           (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("CLI#api_port failed: #{e.message}") if defined?(Legion::Logging)
           4567
         end
 

@@ -31,7 +31,8 @@ module Legion
           return [nil, nil] unless data.is_a?(Hash) && data[:adapter]
 
           [data[:adapter].to_s, data[:database].to_s]
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("DatabaseCheck#read_db_config failed: #{e.message}") if defined?(Legion::Logging)
           [nil, nil]
         end
 

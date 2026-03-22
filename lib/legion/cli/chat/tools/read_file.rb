@@ -29,6 +29,7 @@ module Legion
 
             "#{expanded} (#{lines.length} lines total)\n#{numbered.join}"
           rescue StandardError => e
+            Legion::Logging.warn("ReadFile#execute failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             "Error reading #{path}: #{e.message}"
           end
         end

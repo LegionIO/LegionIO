@@ -107,7 +107,8 @@ module Legion
           )
 
           { claims: claims, output_token: auth_result[:output_token] }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Auth#verify_negotiate failed: #{e.message}" if defined?(Legion::Logging)
           nil
         end
 
@@ -120,7 +121,8 @@ module Legion
           return {} unless defined?(Legion::Settings)
 
           Legion::Settings.dig(:kerberos, :role_map) || {}
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Auth#kerberos_role_map failed: #{e.message}" if defined?(Legion::Logging)
           {}
         end
 
@@ -128,7 +130,8 @@ module Legion
           return :entra unless defined?(Legion::Settings)
 
           Legion::Settings.dig(:kerberos, :fallback) || :entra
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Auth#kerberos_fallback failed: #{e.message}" if defined?(Legion::Logging)
           :entra
         end
 
@@ -155,7 +158,8 @@ module Legion
           return nil unless key
 
           Legion::Crypt::JWT.verify(token, verification_key: key)
-        rescue Legion::Crypt::JWT::Error
+        rescue Legion::Crypt::JWT::Error => e
+          Legion::Logging.debug "Auth#verify_token failed: #{e.message}" if defined?(Legion::Logging)
           nil
         end
 
@@ -168,7 +172,8 @@ module Legion
         def unauthorized(message)
           body = Legion::JSON.dump({ error: { code: 401, message: message }, meta: { timestamp: Time.now.utc.iso8601 } })
           [401, { 'content-type' => 'application/json' }, [body]]
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Auth#unauthorized JSON serialization failed: #{e.message}" if defined?(Legion::Logging)
           [401, { 'content-type' => 'application/json' }, ["{\"error\":{\"code\":401,\"message\":\"#{message}\"}}"]]
         end
       end

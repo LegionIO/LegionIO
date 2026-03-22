@@ -223,7 +223,8 @@ module Legion
         def tty_prompt_available?
           require 'tty-prompt'
           true
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("DetectCommand#tty_prompt_available? tty-prompt not available: #{e.message}") if defined?(Legion::Logging)
           false
         end
 

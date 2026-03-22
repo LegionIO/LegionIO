@@ -100,7 +100,8 @@ module Legion
         Legion::Data::Model::DigitalWorker
           .group_and_count(:lifecycle_state)
           .each { |row| @metrics[:active_workers].set(row[:count], labels: { lifecycle_state: row[:lifecycle_state] }) }
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Metrics#refresh_active_workers failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 

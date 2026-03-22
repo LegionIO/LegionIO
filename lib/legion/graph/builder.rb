@@ -36,7 +36,8 @@ module Legion
 
         def db_available?
           defined?(Legion::Data) && Legion::Data.connection&.table_exists?(:relationships)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Graph::Builder#db_available? check failed: #{e.message}" if defined?(Legion::Logging)
           false
         end
       end

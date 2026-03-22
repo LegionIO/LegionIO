@@ -155,7 +155,8 @@ module Legion
             to_region:   Legion::Region.current,
             affinity:    message[:region_affinity]
           )
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Subscription#record_cross_region_metric failed: #{e.message}" if defined?(Legion::Logging)
           nil
         end
 

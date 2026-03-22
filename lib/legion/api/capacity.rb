@@ -45,7 +45,8 @@ module Legion
           Legion::Data::Model::DigitalWorker.all.map do |w|
             { worker_id: w.worker_id, status: w.lifecycle_state }
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Capacity#fetch_worker_list failed: #{e.message}" if defined?(Legion::Logging)
           []
         end
       end

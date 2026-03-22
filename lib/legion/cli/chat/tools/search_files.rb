@@ -22,6 +22,7 @@ module Legion
             relative = matches.map { |f| f.sub("#{dir}/", '') }
             "#{relative.length} files matching #{pattern}:\n#{relative.join("\n")}"
           rescue StandardError => e
+            Legion::Logging.warn("SearchFiles#execute failed for pattern #{pattern}: #{e.message}") if defined?(Legion::Logging)
             "Error searching: #{e.message}"
           end
         end

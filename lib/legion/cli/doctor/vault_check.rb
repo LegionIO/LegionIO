@@ -34,7 +34,8 @@ module Legion
           addr = crypt[:vault_address] || crypt[:vault_addr] || "http://#{DEFAULT_HOST}:#{DEFAULT_PORT}"
           uri = URI.parse(addr)
           [uri.host || DEFAULT_HOST, uri.port || DEFAULT_PORT]
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("VaultCheck#read_vault_config failed: #{e.message}") if defined?(Legion::Logging)
           [nil, nil]
         end
 

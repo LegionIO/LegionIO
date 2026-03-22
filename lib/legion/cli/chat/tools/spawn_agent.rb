@@ -28,6 +28,7 @@ module Legion
               "Subagent #{result[:id]} started: #{task}"
             end
           rescue StandardError => e
+            Legion::Logging.warn("SpawnAgent#execute failed: #{e.message}") if defined?(Legion::Logging)
             "Error spawning subagent: #{e.message}"
           end
 

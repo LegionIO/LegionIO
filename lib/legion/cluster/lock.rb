@@ -86,7 +86,8 @@ module Legion
 
         store_token(name, token)
         token
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#acquire_redis failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 
@@ -107,7 +108,8 @@ module Legion
         result = client.call('EVAL', lua, 1, key, tok)
         delete_token(name)
         result == 1
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#release_redis failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
@@ -117,7 +119,8 @@ module Legion
         return false unless db
 
         db.fetch('SELECT pg_try_advisory_lock(?) AS acquired', key).first[:acquired]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#acquire_postgres failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
@@ -127,7 +130,8 @@ module Legion
         return false unless db
 
         db.fetch('SELECT pg_advisory_unlock(?) AS released', key).first[:released]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#release_postgres failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 

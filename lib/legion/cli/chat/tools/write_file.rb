@@ -21,6 +21,7 @@ module Legion
             File.write(expanded, content, encoding: 'utf-8')
             "Wrote #{content.lines.count} lines to #{expanded}"
           rescue StandardError => e
+            Legion::Logging.warn("WriteFile#execute failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             "Error writing #{path}: #{e.message}"
           end
         end

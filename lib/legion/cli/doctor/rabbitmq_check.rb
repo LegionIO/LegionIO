@@ -36,7 +36,8 @@ module Legion
           return unless defined?(Legion::Settings)
 
           Legion::Settings[:transport]&.dig(:host)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("RabbitmqCheck#settings_host failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -44,7 +45,8 @@ module Legion
           return unless defined?(Legion::Settings)
 
           Legion::Settings[:transport]&.dig(:port)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("RabbitmqCheck#settings_port failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

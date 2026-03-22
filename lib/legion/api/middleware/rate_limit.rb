@@ -71,7 +71,8 @@ module Legion
             status, headers, body = @app.call(env)
             [status, headers.merge(rate_limit_headers(result)), body]
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "RateLimit#call failed, passing through: #{e.message}" if defined?(Legion::Logging)
           @app.call(env)
         end
 

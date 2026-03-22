@@ -51,7 +51,8 @@ module Legion
             return nil unless defined?(Legion::Settings)
 
             Legion::Settings[:extensions]&.[](extension_name.to_sym)
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("ExtensionToolLoader#extension_settings failed for #{extension_name}: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 
@@ -82,7 +83,8 @@ module Legion
               gem_spec = Gem::Specification.find_by_name(info[:gem_name])
               ext_path = "#{gem_spec.gem_dir}/lib/legion/extensions/#{name}"
               [name, ext_path]
-            rescue Gem::MissingSpecError
+            rescue Gem::MissingSpecError => e
+              Legion::Logging.debug("ExtensionToolLoader#loaded_extension_paths gem not found for #{name}: #{e.message}") if defined?(Legion::Logging)
               nil
             end&.compact || []
           end

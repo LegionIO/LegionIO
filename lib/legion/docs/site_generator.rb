@@ -4,14 +4,14 @@ require 'fileutils'
 
 begin
   require 'kramdown'
-rescue LoadError
-  # kramdown optional — plain-text fallback used when absent
+rescue LoadError => e
+  Legion::Logging.debug "SiteGenerator: kramdown not available, plain-text fallback will be used: #{e.message}" if defined?(Legion::Logging)
 end
 
 begin
   require 'rouge'
-rescue LoadError
-  # rouge optional — syntax highlighting skipped when absent
+rescue LoadError => e
+  Legion::Logging.debug "SiteGenerator: rouge not available, syntax highlighting skipped: #{e.message}" if defined?(Legion::Logging)
 end
 
 module Legion
@@ -212,7 +212,8 @@ module Legion
           { name: "legion #{name}", description: cmd.description.to_s.split("\n").first.to_s }
         end
         cmds.sort_by { |c| c[:name] }
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "SiteGenerator#introspect_thor_commands failed: #{e.message}" if defined?(Legion::Logging)
         []
       end
 
@@ -254,7 +255,8 @@ module Legion
                 end
         specs.map { |s| { name: s.name, version: s.version.to_s } }
              .sort_by { |e| e[:name] }
-      rescue StandardError, LoadError
+      rescue StandardError, LoadError => e
+        Legion::Logging.debug "SiteGenerator#discover_extensions failed: #{e.message}" if defined?(Legion::Logging)
         []
       end
 

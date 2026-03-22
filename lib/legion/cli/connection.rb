@@ -121,8 +121,8 @@ module Legion
           Legion::Data.shutdown if @data_ready
           Legion::Cache.shutdown if @cache_ready
           Legion::Crypt.shutdown if @crypt_ready
-        rescue StandardError
-          # best-effort cleanup
+        rescue StandardError => e
+          Legion::Logging.warn("Connection#shutdown cleanup failed: #{e.message}") if defined?(Legion::Logging)
         end
 
         private

@@ -39,6 +39,7 @@ module Legion
         app = Legion::TTY::App.new(config_dir: config_dir)
         app.start
       rescue Interrupt
+        Legion::Logging.debug('TtyCommand#interactive interrupted by user') if defined?(Legion::Logging)
         app&.shutdown
       end
 

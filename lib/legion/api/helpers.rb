@@ -57,7 +57,8 @@ module Legion
         return {} if body.nil? || body.empty?
 
         Legion::JSON.load(body).transform_keys(&:to_sym)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "API#parse_request_body failed to parse JSON: #{e.message}" if defined?(Legion::Logging)
         halt 400, json_error('invalid_json', 'request body is not valid JSON', status_code: 400)
       end
 
@@ -87,7 +88,8 @@ module Legion
                    .select { |klass| klass < base_class }
                    .map { |klass| { name: klass.name } }
                    .sort_by { |h| h[:name].to_s }
-      rescue NameError
+      rescue NameError => e
+        Legion::Logging.debug "API#transport_subclasses failed for #{base_class}: #{e.message}" if defined?(Legion::Logging)
         []
       end
 

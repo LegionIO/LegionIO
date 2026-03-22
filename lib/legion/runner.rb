@@ -7,7 +7,7 @@ require 'legion/transport/messages/check_subtask'
 
 module Legion
   module Runner
-    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
+    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
       Legion::Logging.info "[Runner] start: #{runner_class}##{function} task_id=#{task_id}" if defined?(Legion::Logging)
       runner_class = Kernel.const_get(runner_class) if runner_class.is_a? String
@@ -30,7 +30,8 @@ module Legion
       raise 'No Function defined' if function.nil?
 
       result = runner_class.send(function, **args)
-    rescue Legion::Exception::HandledTask
+    rescue Legion::Exception::HandledTask => e
+      Legion::Logging.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}" if defined?(Legion::Logging)
       status = 'task.exception'
       result = { error: {} }
     rescue StandardError => e

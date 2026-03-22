@@ -69,7 +69,8 @@ module Legion
       def load_patterns
         custom = begin
           Legion::Settings.dig(:chat, :notifications, :patterns)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "NotificationBridge#load_patterns failed to read settings: #{e.message}" if defined?(Legion::Logging)
           nil
         end
         return DEFAULT_PATTERNS unless custom

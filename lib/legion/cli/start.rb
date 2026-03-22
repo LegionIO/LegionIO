@@ -41,7 +41,8 @@ module Legion
           return unless File.exist?(path)
 
           File.truncate(path, 0)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("Start#clear_log_file failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

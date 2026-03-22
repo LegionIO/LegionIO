@@ -74,7 +74,8 @@ module Legion
             begin
               args = Legion::JSON.load(v[:args])
               out.detail(args)
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.debug("TaskCommand#show args parse failed: #{e.message}") if defined?(Legion::Logging)
               puts "  #{v[:args]}"
             end
           end
@@ -207,7 +208,8 @@ module Legion
           return '-' if time.nil?
 
           time.strftime('%Y-%m-%d %H:%M:%S')
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("TaskCommand#format_time failed: #{e.message}") if defined?(Legion::Logging)
           time.to_s
         end
 
@@ -273,7 +275,8 @@ module Legion
 
           function_args = begin
             Legion::JSON.load(trigger_function.values[:args])
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("TaskCommand#resolve_target failed to parse function args: #{e.message}") if defined?(Legion::Logging)
             {}
           end
 

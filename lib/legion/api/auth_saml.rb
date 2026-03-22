@@ -31,7 +31,8 @@ module Legion
           return saml if saml.is_a?(Hash)
 
           {}
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "AuthSaml#resolve_saml_config failed: #{e.message}" if defined?(Legion::Logging)
           {}
         end
 
@@ -161,7 +162,8 @@ module Legion
             names.each do |n|
               v = attrs.multi(n)
               return Array(v) if v
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.debug "AuthSaml#multi_attr failed for attr=#{n}: #{e.message}" if defined?(Legion::Logging)
               nil
             end
             []
@@ -169,7 +171,8 @@ module Legion
 
           def safe_attr(attrs, name)
             attrs[name]
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug "AuthSaml#safe_attr failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
             nil
           end
 

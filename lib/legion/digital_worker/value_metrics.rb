@@ -34,7 +34,8 @@ module Legion
           Legion::Data.respond_to?(:connection) &&
           Legion::Data.connection.respond_to?(:table_exists?) &&
           Legion::Data.connection.table_exists?(:value_metrics)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "ValueMetrics#data_connected? check failed: #{e.message}" if defined?(Legion::Logging)
         false
       end
       private_class_method :data_connected?

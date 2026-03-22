@@ -28,7 +28,8 @@ module Legion
           uri = URI("http://#{host}:#{port}/ready")
           response = Net::HTTP.get_response(uri)
           JSON.parse(response.body, symbolize_names: true)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("Status#check_api failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 

@@ -52,7 +52,8 @@ module Legion
           response = http.get(uri.path)
           parsed   = ::JSON.parse(response.body, symbolize_names: true)
           parsed[:data] || parsed
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("GaiaCommand#probe_api failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -61,7 +62,8 @@ module Legion
           Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
           api_settings = Legion::Settings[:api]
           (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("GaiaCommand#api_port failed: #{e.message}") if defined?(Legion::Logging)
           4567
         end
 

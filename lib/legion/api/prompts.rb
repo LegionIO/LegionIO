@@ -17,7 +17,8 @@ module Legion
             define_method(:prompt_client) do
               require 'legion/extensions/prompt/client'
               Legion::Extensions::Prompt::Client.new
-            rescue LoadError
+            rescue LoadError => e
+              Legion::Logging.warn "Prompts#prompt_client failed to load lex-prompt: #{e.message}" if defined?(Legion::Logging)
               halt 503, json_error('prompt_unavailable', 'lex-prompt is not loaded', status_code: 503)
             end
           end

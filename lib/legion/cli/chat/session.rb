@@ -81,7 +81,8 @@ module Legion
 
         def model_id
           @chat.model&.id
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("Session#model_id failed: #{e.message}") if defined?(Legion::Logging)
           'unknown'
         end
 

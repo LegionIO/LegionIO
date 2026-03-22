@@ -14,7 +14,8 @@ module Legion
             require 'legion/extensions/audit/runners/approval_queue'
             runner = Object.new.extend(Legion::Extensions::Audit::Runners::ApprovalQueue)
             runner.send(method, **)
-          rescue LoadError
+          rescue LoadError => e
+            Legion::Logging.warn "Governance#run_governance_runner failed to load lex-audit: #{e.message}" if defined?(Legion::Logging)
             halt 503, json_error('service_unavailable', 'lex-audit not available', status_code: 503)
           end
         end

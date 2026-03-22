@@ -74,7 +74,8 @@ module Legion
 
         # Return an erasure marker with minimal forensic metadata (no recoverable data)
         "#{ERASURE_MARKER}[key_id=#{key_id},iv=#{iv.unpack1('H*')},tag=#{tag.unpack1('H*')},len=#{ciphertext.bytesize}]"
-      rescue OpenSSL::Cipher::CipherError
+      rescue OpenSSL::Cipher::CipherError => e
+        Legion::Logging.warn "Phi::Erasure#encrypt_and_erase cipher error for key_id=#{key_id}: #{e.message}" if defined?(Legion::Logging)
         ERASURE_MARKER
       end
 
@@ -105,8 +106,9 @@ module Legion
             "algorithm=#{entry[:algorithm]} at=#{entry[:erased_at]}"
           )
         end
-      rescue StandardError
+      rescue StandardError => e
         # Never raise from erasure log — ensure the erase always appears to succeed
+        Legion::Logging.warn "Phi::Erasure#append_erasure_log failed for subject=#{entry[:subject_id]}: #{e.message}" if defined?(Legion::Logging)
       end
 
       public_class_method :erase_for_subject, :erase_record, :erasure_log, :reset_erasure_log!

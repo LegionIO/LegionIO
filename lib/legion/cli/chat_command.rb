@@ -66,6 +66,7 @@ module Legion
 
         repl_loop(out)
       rescue Interrupt
+        Legion::Logging.debug('ChatCommand#interactive interrupted by user') if defined?(Legion::Logging)
         puts
         puts out.dim('Interrupted.')
         show_session_stats(out) if @session
@@ -133,7 +134,8 @@ module Legion
       no_commands do
         def chat_setting(*keys)
           Legion::Settings.dig(:chat, *keys)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("ChatCommand#chat_setting failed for #{keys.inspect}: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -175,7 +177,8 @@ module Legion
           require 'legion/chat/notification_bridge'
           @notification_bridge = Legion::Chat::NotificationBridge.new
           @notification_bridge.start
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("ChatCommand#setup_notification_bridge notification_bridge not available: #{e.message}") if defined?(Legion::Logging)
           @notification_bridge = nil
         end
 
@@ -202,7 +205,8 @@ module Legion
 
           require 'legion/cli/chat/markdown_renderer'
           Chat::MarkdownRenderer.render(text, color: out.color_enabled)
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("ChatCommand#render_response markdown_renderer not available: #{e.message}") if defined?(Legion::Logging)
           text
         end
 
@@ -328,6 +332,7 @@ module Legion
             out.error(e.message)
             break
           rescue Interrupt
+            Legion::Logging.debug('ChatCommand#repl_loop interrupted mid-input by user') if defined?(Legion::Logging)
             puts
             next
           rescue StandardError => e
@@ -364,6 +369,7 @@ module Legion
           result = lines.join("\n")
           result.strip.empty? ? '' : result
         rescue Interrupt
+          Legion::Logging.debug('ChatCommand#read_user_input interrupted during multiline input') if defined?(Legion::Logging)
           raise if first_line
 
           puts
@@ -836,7 +842,8 @@ module Legion
           messages = @session.chat.messages
           last_assistant = messages.reverse.find do |m|
             m[:role] == :assistant || m.role == :assistant
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("ChatCommand#handle_copy message role check failed: #{e.message}") if defined?(Legion::Logging)
             false
           end
           unless last_assistant
@@ -848,7 +855,8 @@ module Legion
           IO.popen('pbcopy', 'w') { |io| io.write(content) }
           chat_log.info "copy length=#{content.length}"
           out.success("Copied #{content.length} chars to clipboard")
-        rescue Errno::ENOENT
+        rescue Errno::ENOENT => e
+          Legion::Logging.debug("ChatCommand#handle_copy pbcopy not available: #{e.message}") if defined?(Legion::Logging)
           out.error('pbcopy not available (macOS only). Use terminal selection instead.')
         rescue StandardError => e
           out.error("Copy failed: #{e.message}")
@@ -1108,9 +1116,11 @@ module Legion
             [w[:worker_id].to_s[0..7], w[:name], w[:lifecycle_state], w[:consent_tier], w[:team] || '-']
           end
           out.table(%w[ID Name State Consent Team], rows)
-        rescue Errno::ECONNREFUSED
+        rescue Errno::ECONNREFUSED => e
+          Legion::Logging.debug("ChatCommand#handle_workers_in_chat daemon not running: #{e.message}") if defined?(Legion::Logging)
           out.warn('Daemon not running. Use `legion worker list` from another terminal.')
         rescue StandardError => e
+          Legion::Logging.warn("ChatCommand#handle_workers_in_chat failed: #{e.message}") if defined?(Legion::Logging)
           out.error("Failed to fetch workers: #{e.message}")
         end
 
@@ -1137,9 +1147,11 @@ module Legion
           else
             out.error("Dream cycle failed: #{response.code}")
           end
-        rescue Errno::ECONNREFUSED
+        rescue Errno::ECONNREFUSED => e
+          Legion::Logging.debug("ChatCommand#handle_dream_in_chat daemon not running: #{e.message}") if defined?(Legion::Logging)
           out.warn('Daemon not running. Use `legion dream` from another terminal.')
         rescue StandardError => e
+          Legion::Logging.warn("ChatCommand#handle_dream_in_chat failed: #{e.message}") if defined?(Legion::Logging)
           out.error("Dream failed: #{e.message}")
         end
 
@@ -1173,7 +1185,8 @@ module Legion
             out.warn("Worktree creation failed: #{wt[:reason]}. Continuing without worktree.")
             chat_log.warn "worktree creation failed: #{wt.inspect}"
           end
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("ChatCommand#setup_worktree lex-exec not available: #{e.message}") if defined?(Legion::Logging)
           out.warn('lex-exec not available. --worktree requires lex-exec. Continuing without worktree.')
         end
 

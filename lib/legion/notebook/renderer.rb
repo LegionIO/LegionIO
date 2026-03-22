@@ -60,7 +60,8 @@ module Legion
           lexer     = Rouge::Lexer.find(language.to_s) || Rouge::Lexers::PlainText.new
           formatter = Rouge::Formatters::Terminal256.new(Rouge::Themes::Monokai.new)
           formatter.format(lexer.lex(code))
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug "Notebook::Renderer#highlight rouge not available: #{e.message}" if defined?(Legion::Logging)
           code
         end
       end

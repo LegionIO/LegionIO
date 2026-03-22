@@ -137,7 +137,8 @@ module Legion
 
           parsed = ::JSON.parse(response.body, symbolize_names: true)
           parsed[:data]
-        rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL, SocketError, Net::OpenTimeout
+        rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL, SocketError, Net::OpenTimeout => e
+          Legion::Logging.debug("Coldstart#try_api_ingest daemon not reachable: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -146,7 +147,8 @@ module Legion
           Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
           api_settings = Legion::Settings[:api]
           (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("Coldstart#api_port_from_settings failed: #{e.message}") if defined?(Legion::Logging)
           4567
         end
 

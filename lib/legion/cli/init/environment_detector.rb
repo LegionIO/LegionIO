@@ -25,7 +25,8 @@ module Legion
 
             Socket.tcp('localhost', 5672, connect_timeout: 2) { true }
             { available: true, source: 'localhost' }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("EnvironmentDetector#check_rabbitmq not reachable: #{e.message}") if defined?(Legion::Logging)
             { available: false }
           end
 
@@ -46,7 +47,8 @@ module Legion
 
             Socket.tcp('localhost', 6379, connect_timeout: 2) { true }
             { available: true, source: 'localhost' }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("EnvironmentDetector#check_redis not reachable: #{e.message}") if defined?(Legion::Logging)
             { available: false }
           end
 

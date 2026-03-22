@@ -25,8 +25,10 @@ module Legion
 
             output
           rescue Chat::WebSearch::SearchError => e
+            Legion::Logging.warn("WebSearch#execute search error for query #{query}: #{e.message}") if defined?(Legion::Logging)
             "Search error: #{e.message}"
           rescue StandardError => e
+            Legion::Logging.warn("WebSearch#execute failed for query #{query}: #{e.message}") if defined?(Legion::Logging)
             "Error: #{e.message}"
           end
         end

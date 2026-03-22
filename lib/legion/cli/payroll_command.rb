@@ -38,6 +38,7 @@ module Legion
           end
         end
       rescue LoadError => e
+        Legion::Logging.warn("PayrollCommand#summary lex-metering not available: #{e.message}") if defined?(Legion::Logging)
         say "Error: lex-metering not available (#{e.message})", :red
       end
       default_task :summary
@@ -58,6 +59,7 @@ module Legion
           result.each { |k, v| say "  #{k}: #{v}" }
         end
       rescue LoadError => e
+        Legion::Logging.warn("PayrollCommand#report lex-metering not available: #{e.message}") if defined?(Legion::Logging)
         say "Error: lex-metering not available (#{e.message})", :red
       end
 
@@ -79,6 +81,7 @@ module Legion
           say "  Trend:                      #{result[:trend]}"
         end
       rescue LoadError => e
+        Legion::Logging.warn("PayrollCommand#forecast lex-metering not available: #{e.message}") if defined?(Legion::Logging)
         say "Error: lex-metering not available (#{e.message})", :red
       end
 

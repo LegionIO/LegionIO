@@ -39,7 +39,8 @@ module Legion
           return nil unless response.is_a?(Net::HTTPSuccess)
 
           Legion::JSON.load(response.body)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("Dashboard::DataFetcher#fetch failed for #{path}: #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

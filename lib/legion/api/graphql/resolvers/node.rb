@@ -17,7 +17,8 @@ module Legion
               uptime:  uptime,
               ready:   ready
             }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Node#resolve failed: #{e.message}" if defined?(Legion::Logging)
             { name: nil, version: nil, uptime: nil, ready: false }
           end
 
@@ -27,7 +28,8 @@ module Legion
                               Legion::Process.started_at
 
             (Time.now.utc - Legion::Process.started_at).to_i
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug "GraphQL::Node#calculate_uptime failed: #{e.message}" if defined?(Legion::Logging)
             nil
           end
 

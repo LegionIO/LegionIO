@@ -29,6 +29,7 @@ module Legion
             break if input == 'q'
           end
         rescue Interrupt
+          Legion::Logging.debug('DashboardCommand#start interrupted by user') if defined?(Legion::Logging)
           break
         end
         puts 'Dashboard stopped.'

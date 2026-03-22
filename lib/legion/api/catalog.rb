@@ -45,7 +45,8 @@ module Legion
           read_paths:  declared[:read_paths],
           write_paths: declared[:write_paths]
         }
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "API#build_catalog_permissions failed for #{name}: #{e.message}" if defined?(Legion::Logging)
         { sandbox: Legion::Extensions::Permissions.sandbox_path(name), read_paths: [], write_paths: [] }
       end
 
@@ -61,7 +62,8 @@ module Legion
             description: runner.values[:description]
           }]
         end
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "API#build_catalog_runners failed for #{name}: #{e.message}" if defined?(Legion::Logging)
         {}
       end
 
@@ -74,7 +76,8 @@ module Legion
         matched.map do |_hash, pattern|
           { intent: pattern[:intent_text], tool_chain: pattern[:tool_chain], confidence: pattern[:confidence] }
         end
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "API#build_catalog_known_intents failed for #{name}: #{e.message}" if defined?(Legion::Logging)
         []
       end
     end

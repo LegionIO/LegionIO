@@ -28,7 +28,8 @@ module Legion
         key = lock_key(name)
         result = with_redis { |conn| conn.set(key, token, nx: true, px: ttl) }
         result ? token : nil
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#acquire failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 
@@ -36,7 +37,8 @@ module Legion
         key = lock_key(name)
         result = with_redis { |conn| conn.eval(RELEASE_SCRIPT, keys: [key], argv: [token]) }
         result == 1
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#release failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
@@ -53,13 +55,15 @@ module Legion
         key = lock_key(name)
         result = with_redis { |conn| conn.eval(EXTEND_SCRIPT, keys: [key], argv: [token, ttl.to_s]) }
         result == 1
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#extend_lock failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
       def locked?(name)
         with_redis { |conn| conn.exists?(lock_key(name)) }
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#locked? failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 

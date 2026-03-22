@@ -366,7 +366,8 @@ module Legion
           return nil if date_str.nil? || date_str.empty?
 
           Date.parse(date_str)
-        rescue ArgumentError
+        rescue ArgumentError => e
+          Legion::Logging.debug("MarketplaceCommand#parse_sunset_date failed to parse '#{date_str}': #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

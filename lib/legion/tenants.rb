@@ -20,7 +20,8 @@ module Legion
 
       def find(tenant_id)
         Legion::Data.connection[:tenants].where(tenant_id: tenant_id).first
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug("Tenants#find failed: #{e.message}") if defined?(Legion::Logging)
         nil
       end
 

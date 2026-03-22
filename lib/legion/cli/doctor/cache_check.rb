@@ -31,7 +31,8 @@ module Legion
           host = cache[:host] || 'localhost'
           port = cache_port(backend, cache)
           [backend, host.to_s, port]
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("CacheCheck#read_cache_config failed: #{e.message}") if defined?(Legion::Logging)
           [nil, nil, nil]
         end
 

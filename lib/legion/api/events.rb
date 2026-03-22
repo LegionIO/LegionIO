@@ -58,7 +58,8 @@ module Legion
                     event = queue.pop
                     data = Legion::JSON.dump(event.transform_keys(&:to_s))
                     out << "event: #{event[:event]}\ndata: #{data}\n\n"
-                  rescue IOError, Errno::EPIPE
+                  rescue IOError, Errno::EPIPE => e
+                    Legion::Logging.debug "Events SSE stream broken for #{event[:event]}: #{e.message}" if defined?(Legion::Logging)
                     break
                   end
                 ensure

@@ -272,7 +272,8 @@ module Legion
           source = event[:lex] || 'core'
           routing_key = "legion.#{source}.#{level}"
           exchange.publish(Legion::JSON.dump(event), routing_key: routing_key)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Service#register_logging_hooks publish failed for #{level}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
       end
@@ -284,7 +285,8 @@ module Legion
     def setup_alerts
       enabled = begin
         Legion::Settings[:alerts][:enabled]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Service#setup_alerts failed to read alerts.enabled: #{e.message}" if defined?(Legion::Logging)
         false
       end
       return unless enabled
@@ -306,7 +308,8 @@ module Legion
     def setup_telemetry
       return unless begin
         Legion::Settings.dig(:telemetry, :enabled)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Service#setup_telemetry failed to read telemetry.enabled: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
@@ -337,8 +340,8 @@ module Legion
     def setup_safety_metrics
       require_relative 'telemetry/safety_metrics'
       Legion::Telemetry::SafetyMetrics.start
-    rescue LoadError
-      nil
+    rescue LoadError => e
+      Legion::Logging.debug "Service#setup_safety_metrics: safety_metrics not available: #{e.message}" if defined?(Legion::Logging)
     rescue StandardError => e
       Legion::Logging.debug "[safety_metrics] setup skipped: #{e.message}" if defined?(Legion::Logging)
     end
@@ -483,7 +486,8 @@ module Legion
       else
         $stdout.puts "[Legion] #{message}"
       end
-    rescue StandardError
+    rescue StandardError => e
+      Legion::Logging.debug "Service#log_privacy_mode_status failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
   end

@@ -99,7 +99,8 @@ module Legion
 
           require 'legion/cli/chat/markdown_renderer'
           Chat::MarkdownRenderer.render(text, color: out.color_enabled)
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("PlanCommand#render_response markdown_renderer not available: #{e.message}") if defined?(Legion::Logging)
           text
         end
 

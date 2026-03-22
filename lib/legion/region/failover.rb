@@ -27,7 +27,8 @@ module Legion
           'SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) AS lag'
         ).first
         row[:lag]&.to_f
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Region::Failover#replication_lag failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 

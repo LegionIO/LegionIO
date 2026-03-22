@@ -27,7 +27,8 @@ module Legion
               auto_fixable: true
             )
           end
-        rescue Errno::ENOENT
+        rescue Errno::ENOENT => e
+          Legion::Logging.warn("BundleCheck#run bundler not found: #{e.message}") if defined?(Legion::Logging)
           Result.new(
             name:         name,
             status:       :fail,

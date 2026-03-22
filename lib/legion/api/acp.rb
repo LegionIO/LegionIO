@@ -7,12 +7,14 @@ module Legion
         def build_agent_card
           name = begin
             Legion::Settings[:client][:name]
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug "Acp#build_agent_card failed to read client name: #{e.message}" if defined?(Legion::Logging)
             'legion'
           end
           port = begin
             settings.port || 4567
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug "Acp#build_agent_card failed to read port: #{e.message}" if defined?(Legion::Logging)
             4567
           end
           {
@@ -34,7 +36,8 @@ module Legion
           else
             []
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Acp#discover_capabilities failed: #{e.message}" if defined?(Legion::Logging)
           []
         end
 
@@ -42,7 +45,8 @@ module Legion
           return nil unless defined?(Legion::Data)
 
           Legion::Data::Model::Task[id.to_i]&.values
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Acp#find_task failed for id=#{id}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
 

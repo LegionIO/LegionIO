@@ -47,7 +47,8 @@ module Legion
           relevant = score >= threshold
           Legion::Logging.warn "[Guardrails] RAGRelevancy rejected answer: score=#{score} threshold=#{threshold}" if !relevant && defined?(Legion::Logging)
           { relevant: relevant, score: score, threshold: threshold }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Guardrails::RAGRelevancy#check failed: #{e.message}" if defined?(Legion::Logging)
           { relevant: true, reason: 'check failed' }
         end
       end

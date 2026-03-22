@@ -9,7 +9,8 @@ module Legion
           return false unless Legion::Data.respond_to?(:connection) && Legion::Data.connection
 
           Legion::Data.connection.table_exists?(:extensions_registry)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Registry::Persistence#data_available? check failed: #{e.message}" if defined?(Legion::Logging)
           false
         end
 

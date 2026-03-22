@@ -24,7 +24,8 @@ module Legion
         return [] unless defined?(Legion::MCP) && Legion::MCP.respond_to?(:tools)
 
         Legion::MCP.tools.map { |t| { name: t[:name], description: t[:description] } }
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "Catalog#collect_mcp_tools failed: #{e.message}" if defined?(Legion::Logging)
         []
       end
 
@@ -42,6 +43,7 @@ module Legion
         end
         { status: response.code.to_i, body: response.body }
       rescue StandardError => e
+        Legion::Logging.warn "Catalog#post_json failed for #{url}: #{e.message}" if defined?(Legion::Logging)
         { error: e.message }
       end
     end

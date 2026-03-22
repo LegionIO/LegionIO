@@ -33,6 +33,7 @@ module Legion
               string_replace(expanded, old_text, new_text)
             end
           rescue StandardError => e
+            Legion::Logging.warn("EditFile#execute failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             "Error editing #{path}: #{e.message}"
           end
 

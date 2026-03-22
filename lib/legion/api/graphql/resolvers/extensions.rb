@@ -23,7 +23,8 @@ module Legion
             dataset = Legion::Data::Model::Extension.order(:id)
             dataset = dataset.where(status: status) if status
             dataset.all.map { |e| extension_hash(e.values) }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Extensions#resolve_from_data failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
 
@@ -34,7 +35,8 @@ module Legion
             entries = entries.map { |e| e.is_a?(Hash) ? e : e.to_h }
             entries = entries.select { |e| e[:status].to_s == status } if status
             entries.map { |e| extension_hash(e) }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Extensions#resolve_from_registry failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
 

@@ -20,7 +20,8 @@ module Legion
           return entra if entra.is_a?(Hash)
 
           {}
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "AuthHuman#resolve_entra_settings failed: #{e.message}" if defined?(Legion::Logging)
           {}
         end
 
@@ -37,7 +38,8 @@ module Legion
           return nil unless response.is_a?(Net::HTTPSuccess)
 
           Legion::JSON.load(response.body)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "AuthHuman#exchange_code failed: #{e.message}" if defined?(Legion::Logging)
           nil
         end
 

@@ -38,7 +38,8 @@ module Legion
 
             pid = File.read(path).strip.to_i
             !process_running?(pid)
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn("PidCheck#stale_pid_files error checking #{path}: #{e.message}") if defined?(Legion::Logging)
             false
           end
         end

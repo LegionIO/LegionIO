@@ -12,7 +12,8 @@ module Legion
             return nil if date_str.nil? || date_str.empty?
 
             Date.parse(date_str.to_s)
-          rescue ArgumentError
+          rescue ArgumentError => e
+            Legion::Logging.debug "Marketplace#parse_sunset_date invalid date '#{date_str}': #{e.message}" if defined?(Legion::Logging)
             nil
           end
         end
@@ -54,11 +55,12 @@ module Legion
           end
         end
 
-        def self.register_review_actions(app) # rubocop:disable Metrics/AbcSize
+        def self.register_review_actions(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
           app.post '/api/marketplace/:name/submit' do
             begin
               Legion::Registry.submit_for_review(params[:name])
             rescue ArgumentError => e
+              Legion::Logging.warn "API POST /api/marketplace/#{params[:name]}/submit: #{e.message}" if defined?(Legion::Logging)
               halt 404, { 'Content-Type' => 'application/json' },
                    Legion::JSON.dump({ error: { code: 'not_found', message: e.message } })
             end
@@ -70,6 +72,7 @@ module Legion
             begin
               Legion::Registry.approve(params[:name], notes: body[:notes])
             rescue ArgumentError => e
+              Legion::Logging.warn "API POST /api/marketplace/#{params[:name]}/approve: #{e.message}" if defined?(Legion::Logging)
               halt 404, { 'Content-Type' => 'application/json' },
                    Legion::JSON.dump({ error: { code: 'not_found', message: e.message } })
             end
@@ -82,6 +85,7 @@ module Legion
             begin
               Legion::Registry.reject(params[:name], reason: body[:reason])
             rescue ArgumentError => e
+              Legion::Logging.warn "API POST /api/marketplace/#{params[:name]}/reject: #{e.message}" if defined?(Legion::Logging)
               halt 404, { 'Content-Type' => 'application/json' },
                    Legion::JSON.dump({ error: { code: 'not_found', message: e.message } })
             end
@@ -93,12 +97,14 @@ module Legion
             body = parse_request_body
             sunset = begin
               body[:sunset_date] ? Date.parse(body[:sunset_date].to_s) : nil
-            rescue ArgumentError
+            rescue ArgumentError => e
+              Legion::Logging.debug "Marketplace#deprecate invalid sunset_date '#{body[:sunset_date]}': #{e.message}" if defined?(Legion::Logging)
               nil
             end
             begin
               Legion::Registry.deprecate(params[:name], successor: body[:successor], sunset_date: sunset)
             rescue ArgumentError => e
+              Legion::Logging.warn "API POST /api/marketplace/#{params[:name]}/deprecate: #{e.message}" if defined?(Legion::Logging)
               halt 404, { 'Content-Type' => 'application/json' },
                    Legion::JSON.dump({ error: { code: 'not_found', message: e.message } })
             end

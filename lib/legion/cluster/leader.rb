@@ -45,7 +45,8 @@ module Legion
                      else
                        false
                      end
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.warn "Leader#attempt_election failed: #{e.message}" if defined?(Legion::Logging)
         @is_leader = false
       end
 

@@ -42,7 +42,8 @@ module Legion
         webhooks.each do |wh|
           patterns = begin
             Legion::JSON.load(wh[:event_types])
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("Webhooks#dispatch event_types parse failed: #{e.message}") if defined?(Legion::Logging)
             ['*']
           end
           next unless patterns.any? { |p| File.fnmatch?(p, event_name) }
@@ -99,7 +100,8 @@ module Legion
 
       def db_available?
         defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && Legion::Data.connection
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug("Webhooks#db_available? failed: #{e.message}") if defined?(Legion::Logging)
         false
       end
 
@@ -112,7 +114,8 @@ module Legion
           error:           error,
           delivered_at:    Time.now.utc
         )
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug("Webhooks#record_delivery failed: #{e.message}") if defined?(Legion::Logging)
         nil
       end
 
@@ -125,7 +128,8 @@ module Legion
           last_error: error,
           created_at: Time.now.utc
         )
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug("Webhooks#dead_letter failed: #{e.message}") if defined?(Legion::Logging)
         nil
       end
     end

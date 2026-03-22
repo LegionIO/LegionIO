@@ -54,8 +54,8 @@ module Legion
               end
               parts << "Extension tools available: #{ext_names.join(', ')}"
             end
-          rescue LoadError
-            # ExtensionToolLoader not available, skip
+          rescue LoadError => e
+            Legion::Logging.debug("Context#to_system_prompt ExtensionToolLoader not available: #{e.message}") if defined?(Legion::Logging)
           end
 
           extra_dirs.each do |dir|
@@ -99,7 +99,8 @@ module Legion
 
           output = `cd #{Shellwords.escape(dir)} && git status --porcelain 2>/dev/null`
           !output.strip.empty?
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("Context#detect_git_dirty failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
 

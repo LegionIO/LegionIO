@@ -27,12 +27,14 @@ module Legion
           def configure_from_settings
             mc = begin
               Legion::Settings.dig(:chat, :subagent, :max_concurrency)
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.warn("Subagent#configure_from_settings max_concurrency read failed: #{e.message}") if defined?(Legion::Logging)
               nil
             end
             to = begin
               Legion::Settings.dig(:chat, :subagent, :timeout)
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.warn("Subagent#configure_from_settings timeout read failed: #{e.message}") if defined?(Legion::Logging)
               nil
             end
             @max_concurrency = mc || MAX_CONCURRENCY
@@ -49,6 +51,7 @@ module Legion
               @mutex.synchronize { @running.delete_if { |a| a[:id] == agent_id } }
               on_complete&.call(agent_id, result)
             rescue StandardError => e
+              Legion::Logging.error("Subagent#spawn thread error for #{agent_id}: #{e.message}") if defined?(Legion::Logging)
               @mutex.synchronize { @running.delete_if { |a| a[:id] == agent_id } }
               on_complete&.call(agent_id, { error: e.message })
             end
@@ -97,6 +100,7 @@ module Legion
               error:     stderr.strip.empty? ? nil : stderr.strip
             }
           rescue StandardError => e
+            Legion::Logging.error("Subagent#run_headless failed: #{e.message}") if defined?(Legion::Logging)
             { exit_code: 1, output: nil, error: e.message }
           end
         end

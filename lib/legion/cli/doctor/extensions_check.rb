@@ -39,7 +39,8 @@ module Legion
           return [] unless exts.is_a?(Hash) || exts.is_a?(Array)
 
           exts.is_a?(Array) ? exts.map(&:to_s) : exts.keys.map(&:to_s)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("ExtensionsCheck#configured_extensions failed: #{e.message}") if defined?(Legion::Logging)
           []
         end
 

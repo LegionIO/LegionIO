@@ -106,7 +106,8 @@ module Legion
           return entra if entra.is_a?(Hash)
 
           {}
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "AuthWorker#resolve_entra_settings failed: #{e.message}" if defined?(Legion::Logging)
           {}
         end
 

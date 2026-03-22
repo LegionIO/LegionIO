@@ -65,7 +65,8 @@ module Legion
           gem_names.each_with_object({}) do |name, hash|
             spec = Gem::Specification.find_by_name(name)
             hash[name] = spec.version.to_s
-          rescue Gem::MissingSpecError
+          rescue Gem::MissingSpecError => e
+            Legion::Logging.debug("UpdateCommand#snapshot_versions gem #{name} not found: #{e.message}") if defined?(Legion::Logging)
             hash[name] = nil
           end
         end
@@ -141,7 +142,8 @@ module Legion
           puts "  #{missing.size} new extension(s) recommended based on your environment:"
           missing.each { |name| puts "    gem install #{name}" }
           puts "  Run 'legionio detect --install' to install them"
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("UpdateCommand#suggest_detect lex-detect not available: #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

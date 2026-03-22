@@ -13,7 +13,7 @@ module Legion
           param :directory, type: 'string', desc: 'Directory to search in (default: current dir)', required: false
           param :glob, type: 'string', desc: 'File glob filter (e.g., "*.rb")', required: false
 
-          def execute(pattern:, directory: nil, glob: nil)
+          def execute(pattern:, directory: nil, glob: nil) # rubocop:disable Metrics/CyclomaticComplexity
             dir = File.expand_path(directory || Dir.pwd)
             return "Error: directory not found: #{dir}" unless Dir.exist?(dir)
 
@@ -29,10 +29,12 @@ module Legion
                     relative = file.sub("#{dir}/", '')
                     results << "#{relative}:#{i + 1}: #{line.rstrip}"
                   end
-                rescue ArgumentError
+                rescue ArgumentError => e
+                  Legion::Logging.debug("SearchContent#execute encoding error in #{file}: #{e.message}") if defined?(Legion::Logging)
                   next
                 end
-              rescue StandardError
+              rescue StandardError => e
+                Legion::Logging.debug("SearchContent#execute skipping #{file}: #{e.message}") if defined?(Legion::Logging)
                 next
               end
               break if results.length >= 50
@@ -42,8 +44,10 @@ module Legion
 
             "#{results.length} matches:\n#{results.join("\n")}"
           rescue RegexpError => e
+            Legion::Logging.warn("SearchContent#execute invalid regex #{pattern}: #{e.message}") if defined?(Legion::Logging)
             "Error: invalid regex: #{e.message}"
           rescue StandardError => e
+            Legion::Logging.warn("SearchContent#execute failed: #{e.message}") if defined?(Legion::Logging)
             "Error searching: #{e.message}"
           end
         end

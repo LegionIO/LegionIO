@@ -197,7 +197,8 @@ module Legion
           return {} unless File.exist?(path)
 
           ::JSON.parse(File.read(path))
-        rescue ::JSON::ParserError
+        rescue ::JSON::ParserError => e
+          Legion::Logging.warn("SetupCommand#load_json_file invalid JSON in #{path}: #{e.message}") if defined?(Legion::Logging)
           {}
         end
 
@@ -219,7 +220,8 @@ module Legion
           configured = begin
             data = ::JSON.parse(File.read(path))
             data.dig('mcpServers', 'legion') ? true : false
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SetupCommand#check_claude_code failed: #{e.message}") if defined?(Legion::Logging)
             false
           end
           { name: 'Claude Code', path: path, configured: configured }
@@ -230,7 +232,8 @@ module Legion
           configured = begin
             data = ::JSON.parse(File.read(path))
             data.dig('mcpServers', 'legion') ? true : false
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SetupCommand#check_cursor failed: #{e.message}") if defined?(Legion::Logging)
             false
           end
           { name: 'Cursor', path: path, configured: configured }
@@ -241,7 +244,8 @@ module Legion
           configured = begin
             data = ::JSON.parse(File.read(path))
             data.dig('servers', 'legion') ? true : false
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SetupCommand#check_vscode failed: #{e.message}") if defined?(Legion::Logging)
             false
           end
           { name: 'VS Code', path: path, configured: configured }

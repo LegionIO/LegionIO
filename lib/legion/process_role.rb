@@ -19,7 +19,12 @@ module Legion
     end
 
     def self.current
-      settings = Legion::Settings[:process] rescue nil # rubocop:disable Style/RescueModifier
+      settings = begin
+        Legion::Settings[:process]
+      rescue StandardError => e
+        Legion::Logging.debug "ProcessRole#current failed to read process settings: #{e.message}" if defined?(Legion::Logging)
+        nil
+      end
       return :full unless settings.is_a?(Hash)
 
       role = settings[:role]

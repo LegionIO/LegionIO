@@ -103,6 +103,7 @@ module Legion
         response = send_negotiate_request(api_url, token)
         handle_negotiate_response(response)
       rescue StandardError => e
+        Legion::Logging.error("Auth#kerberos failed: #{e.message}") if defined?(Legion::Logging)
         say "Kerberos auth error: #{e.message}", :red
       end
 
@@ -141,7 +142,12 @@ module Legion
 
         def handle_negotiate_response(response)
           if response.code.to_i == 200
-            body = ::JSON.parse(response.body) rescue {} # rubocop:disable Style/RescueModifier
+            body = begin
+              ::JSON.parse(response.body)
+            rescue ::JSON::ParserError => e
+              Legion::Logging.debug("Auth#handle_negotiate_response JSON parse failed: #{e.message}") if defined?(Legion::Logging)
+              {}
+            end
             data = body.is_a?(Hash) ? (body['data'] || body) : {}
             token_val = data['token']
             if token_val

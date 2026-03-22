@@ -29,9 +29,11 @@ module Legion
             output << stderr unless stderr.empty?
             output << "\n[exit code: #{status.exitstatus}]"
             output
-          rescue ::Timeout::Error
+          rescue ::Timeout::Error => e
+            Legion::Logging.warn("RunCommand#execute timed out after #{timeout}s for command #{command}: #{e.message}") if defined?(Legion::Logging)
             "[command timed out after #{timeout}s]: #{command}"
           rescue StandardError => e
+            Legion::Logging.warn("RunCommand#execute failed for command #{command}: #{e.message}") if defined?(Legion::Logging)
             "Error executing command: #{e.message}"
           end
         end

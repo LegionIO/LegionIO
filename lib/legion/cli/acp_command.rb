@@ -29,7 +29,8 @@ module Legion
         def llm_available?
           require 'legion/llm'
           true
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug("AcpCommand#llm_available? legion-llm not available: #{e.message}") if defined?(Legion::Logging)
           false
         end
 
@@ -38,6 +39,7 @@ module Legion
           Connection.ensure_settings
           Connection.ensure_llm
         rescue StandardError => e
+          Legion::Logging.warn("AcpCommand#setup_llm failed: #{e.message}") if defined?(Legion::Logging)
           warn("[lex-acp] LLM setup failed: #{e.message} — running without prompt support")
         end
       end

@@ -36,7 +36,8 @@ module Legion
           return nil unless Legion::Gaia.channel_registry
 
           Legion::Gaia.channel_registry.adapter_for(:teams)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn "Gaia#teams_adapter failed: #{e.message}" if defined?(Legion::Logging)
           nil
         end
       end

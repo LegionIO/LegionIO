@@ -93,6 +93,7 @@ module Legion
           out.header('Starting LLM subsystem...') unless options[:json]
           Legion::LLM.start
         rescue StandardError => e
+          Legion::Logging.error("LlmCommand#boot_llm failed: #{e.message}") if defined?(Legion::Logging)
           out.error("LLM start failed: #{e.message}") unless options[:json]
         end
 
@@ -146,7 +147,8 @@ module Legion
 
             cfg[:api_key] ? :credentials_present : false
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LlmCommand#check_provider_credentials failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
 
@@ -159,7 +161,8 @@ module Legion
             fleet_tier: Legion::LLM::Router.tier_available?(:fleet),
             cloud_tier: Legion::LLM::Router.tier_available?(:cloud)
           }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LlmCommand#collect_routing failed: #{e.message}") if defined?(Legion::Logging)
           { enabled: false }
         end
 
@@ -173,7 +176,8 @@ module Legion
             avail_memory_mb: Legion::LLM::Discovery::System.available_memory_mb,
             memory_pressure: Legion::LLM::Discovery::System.memory_pressure?
           }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.warn("LlmCommand#collect_system failed: #{e.message}") if defined?(Legion::Logging)
           {}
         end
 
@@ -190,8 +194,8 @@ module Legion
                 Legion::LLM::Discovery::Ollama.refresh! if Legion::LLM::Discovery::Ollama.stale?
                 discovered = Legion::LLM::Discovery::Ollama.model_names
                 models = discovered unless discovered.empty?
-              rescue StandardError
-                # fall back to default_model
+              rescue StandardError => e
+                Legion::Logging.debug("LlmCommand#collect_models ollama discovery failed: #{e.message}") if defined?(Legion::Logging)
               end
             end
             result[name] = models

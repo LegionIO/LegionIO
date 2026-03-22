@@ -29,7 +29,8 @@ module Legion
             dataset = dataset.where(risk_tier: risk_tier)    if risk_tier
             dataset = dataset.limit(limit)                   if limit
             dataset.all.map { |w| worker_hash(w.values) }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Workers#resolve_from_data failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
 
@@ -54,7 +55,8 @@ module Legion
 
             worker = Legion::Data::Model::DigitalWorker.first(id: id.to_i)
             worker ? worker_hash(worker.values) : nil
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "GraphQL::Workers#find_from_data failed for id=#{id}: #{e.message}" if defined?(Legion::Logging)
             nil
           end
 

@@ -101,7 +101,8 @@ module Legion
         http.read_timeout = 1
         response = http.get(uri.path)
         response.is_a?(Net::HTTPSuccess)
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug("ConfigScaffold#ollama_running? ollama not reachable: #{e.message}") if defined?(Legion::Logging)
         false
       end
 

@@ -19,6 +19,7 @@ module Legion
 
             results.map { |r| "- #{r[:text]}" }.join("\n")
           rescue StandardError => e
+            Legion::Logging.warn("SearchMemory#execute failed: #{e.message}") if defined?(Legion::Logging)
             "Error searching memory: #{e.message}"
           end
         end

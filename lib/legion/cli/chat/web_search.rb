@@ -84,7 +84,8 @@ module Legion
           return nil unless match
 
           URI.decode_www_form_component(match[1])
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("WebSearch#extract_real_url failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -96,7 +97,8 @@ module Legion
         def fetch_top_result(url)
           require 'legion/cli/chat/web_fetch'
           WebFetch.fetch(url)
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("WebSearch#fetch_top_result failed for #{url}: #{e.message}") if defined?(Legion::Logging)
           nil
         end
       end

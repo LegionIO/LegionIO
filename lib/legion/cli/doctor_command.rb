@@ -75,6 +75,7 @@ module Legion
         check_classes.map do |check_class|
           check_class.new.run
         rescue StandardError => e
+          Legion::Logging.error("DoctorCommand#run_all_checks unexpected error in #{check_class}: #{e.message}") if defined?(Legion::Logging)
           Doctor::Result.new(
             name:    check_class.new.name,
             status:  :fail,

@@ -117,7 +117,8 @@ module Legion
       def load_rules
         custom = begin
           Legion::Settings[:alerts][:rules]
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Alerts#load_rules failed to read settings: #{e.message}" if defined?(Legion::Logging)
           nil
         end
         custom && !custom.empty? ? custom : DEFAULT_RULES

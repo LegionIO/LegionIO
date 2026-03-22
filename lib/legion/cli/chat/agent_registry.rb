@@ -70,7 +70,8 @@ module Legion
               require 'yaml'
               YAML.safe_load(content, permitted_classes: [Symbol])
             end
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("AgentRegistry#parse_file failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 

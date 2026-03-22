@@ -31,7 +31,8 @@ module Legion
                 end
               }
             end
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "OrgChart#build_org_chart failed: #{e.message}" if defined?(Legion::Logging)
             []
           end
         end

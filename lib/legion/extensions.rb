@@ -187,7 +187,8 @@ module Legion
             end
             worker.update(updated_at: Time.now) if worker.updated_at
           end
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Extensions#load_extension failed to register digital worker for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
         true
@@ -284,7 +285,8 @@ module Legion
         return [] unless raw
 
         raw.split(',').map(&:strip)
-      rescue Gem::MissingSpecError
+      rescue Gem::MissingSpecError => e
+        Legion::Logging.debug "Extensions#read_gemspec_capabilities could not find spec for #{gem_name}: #{e.message}" if defined?(Legion::Logging)
         []
       end
 
@@ -450,14 +452,16 @@ module Legion
 
         configured_prefixes = begin
           Array(::Legion::Settings.dig(:extensions, :reserved_prefixes))
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Extensions#check_reserved_words failed to read reserved_prefixes: #{e.message}" if defined?(Legion::Logging)
           []
         end
         reserved_prefixes = configured_prefixes.empty? ? %w[core ai agentic gaia] : configured_prefixes
 
         configured_words = begin
           Array(::Legion::Settings.dig(:extensions, :reserved_words))
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug "Extensions#check_reserved_words failed to read reserved_words: #{e.message}" if defined?(Legion::Logging)
           []
         end
         reserved_words = configured_words.empty? ? %w[transport cache crypt data settings json logging llm rbac legion] : configured_words
@@ -492,7 +496,8 @@ module Legion
           definitions = Legion::Settings::AgentLoader.load_agents(dir)
           definitions.each { |d| d[:_runner_module] = generate_yaml_runner(d) }
           definitions
-        rescue LoadError
+        rescue LoadError => e
+          Legion::Logging.debug "Extensions#load_yaml_agents failed to load agent loader: #{e.message}" if defined?(Legion::Logging)
           []
         end
       end
@@ -505,7 +510,8 @@ module Legion
 
         default = File.expand_path('~/.legionio/agents')
         Dir.exist?(default) ? default : nil
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Extensions#default_agents_directory failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
 

@@ -36,7 +36,8 @@ module Legion
             end
 
             { nodes: nodes, edges: edges }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.warn "Workflow#build_relationship_graph failed: #{e.message}" if defined?(Legion::Logging)
             { nodes: [], edges: [] }
           end
         end

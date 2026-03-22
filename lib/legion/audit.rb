@@ -81,7 +81,8 @@ module Legion
 
       def node_name
         Legion::Settings[:client][:hostname]
-      rescue StandardError
+      rescue StandardError => e
+        Legion::Logging.debug "Audit#node_name failed to read hostname: #{e.message}" if defined?(Legion::Logging)
         'unknown'
       end
     end

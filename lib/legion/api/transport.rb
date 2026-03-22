@@ -14,17 +14,20 @@ module Legion
           app.get '/api/transport' do
             connected = begin
               Legion::Settings[:transport][:connected]
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.debug "Transport#status failed to read connected setting: #{e.message}" if defined?(Legion::Logging)
               false
             end
             session_open = begin
               Legion::Transport::Connection.session_open?
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.debug "Transport#status failed to check session_open: #{e.message}" if defined?(Legion::Logging)
               false
             end
             channel_open = begin
               Legion::Transport::Connection.channel_open?
-            rescue StandardError
+            rescue StandardError => e
+              Legion::Logging.debug "Transport#status failed to check channel_open: #{e.message}" if defined?(Legion::Logging)
               false
             end
             connector = defined?(Legion::Transport::TYPE) ? Legion::Transport::TYPE.to_s : 'unknown'
