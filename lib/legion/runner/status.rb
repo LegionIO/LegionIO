@@ -3,14 +3,14 @@
 module Legion
   module Runner
     module Status
-      def self.update(task_id:, status: 'task.completed', **opts)
-        Legion::Logging.debug "Legion::Runner::Status.update called, #{task_id}, status: #{status}, #{opts}"
+      def self.update(task_id:, status: 'task.completed', **)
+        Legion::Logging.debug "[Status] transition task_id=#{task_id} -> #{status}" if defined?(Legion::Logging)
         return if status.nil?
 
         if Legion::Settings[:data][:connected]
-          update_db(task_id: task_id, status: status, **opts)
+          update_db(task_id: task_id, status: status, **)
         else
-          update_rmq(task_id: task_id, status: status, **opts)
+          update_rmq(task_id: task_id, status: status, **)
         end
       end
 
@@ -21,7 +21,7 @@ module Legion
         Legion::Transport::Messages::TaskUpdate.new(task_id: task_id, status: status, **).publish
       rescue StandardError => e
         retries += 1
-        Legion::Logging.fatal "#{e.message} (attempt #{retries}/3)"
+        Legion::Logging.warn "[Status] update_rmq failed (attempt #{retries}/3): #{e.message}"
         Legion::Logging.fatal e.backtrace
         retry if retries < 3
       end
@@ -32,14 +32,14 @@ module Legion
         task = Legion::Data::Model::Task[task_id]
         task.update(status: status)
       rescue StandardError => e
-        Legion::Logging.warn e.message
-        Legion::Logging.warn 'Legion::Runner.update_status_db failed, defaulting to rabbitmq'
+        Legion::Logging.warn "[Status] update_db failed for task_id=#{task_id}: #{e.message}"
+        Legion::Logging.warn '[Status] falling back to RabbitMQ update'
         Legion::Logging.warn e.backtrace
         update_rmq(task_id: task_id, status: status, **)
       end
 
       def self.generate_task_id(runner_class:, function:, status: 'task.queued', **opts)
-        Legion::Logging.debug "Legion::Runner::Status.generate_task_id called, #{runner_class}, #{function}, status: #{status}, #{opts}"
+        Legion::Logging.debug "[Status] generate_task_id: #{runner_class}##{function} status=#{status}" if defined?(Legion::Logging)
         return nil unless Legion::Settings[:data][:connected]
 
         runner = Legion::Data::Model::Runner.where(namespace: runner_class.to_s.downcase).first

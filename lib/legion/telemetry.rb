@@ -27,12 +27,13 @@ module Legion
         return
       end
 
+      Legion::Logging.debug "[Telemetry] span: #{name}" if defined?(Legion::Logging)
       tracer = OpenTelemetry.tracer_provider.tracer('legion', Legion::VERSION)
       tracer.in_span(name, kind: kind, attributes: sanitize_attributes(attributes), &)
     rescue StandardError => e
       raise if block_given? && !otel_init_error?(e)
 
-      Legion::Logging.debug "[telemetry] span error: #{e.message}" if defined?(Legion::Logging)
+      Legion::Logging.debug "[Telemetry] span error for #{name}: #{e.message}" if defined?(Legion::Logging)
       yield(nil) if block_given?
     end
 

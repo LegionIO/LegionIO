@@ -5,6 +5,7 @@ module Legion
     module Builder
       class << self
         def build(chain_id: nil, worker_id: nil, limit: 100) # rubocop:disable Lint/UnusedMethodArgument
+          Legion::Logging.debug "[Graph::Builder] build chain_id=#{chain_id} limit=#{limit}" if defined?(Legion::Logging)
           return { nodes: {}, edges: [] } unless db_available?
 
           ds = Legion::Data.connection[:relationships].limit(limit)
@@ -27,6 +28,7 @@ module Legion
             }
           end
 
+          Legion::Logging.debug "[Graph::Builder] built nodes=#{nodes.size} edges=#{edges.size}" if defined?(Legion::Logging)
           { nodes: nodes, edges: edges }
         end
 

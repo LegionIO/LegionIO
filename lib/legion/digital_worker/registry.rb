@@ -21,25 +21,32 @@ module Legion
       end
 
       def self.validate_execution!(worker_id:, required_consent: nil)
+        Legion::Logging.debug "[Registry] validate_execution: worker_id=#{worker_id}" if defined?(Legion::Logging)
         worker = Legion::Data::Model::DigitalWorker.first(worker_id: worker_id)
 
         unless worker
+          Legion::Logging.warn "[Registry] worker not found: #{worker_id}" if defined?(Legion::Logging)
           emit_blocked(worker_id: worker_id, reason: 'unregistered')
           raise WorkerNotFound, "no registered worker with id #{worker_id}"
         end
 
         unless worker.active?
+          Legion::Logging.warn "[Registry] worker not active: #{worker_id} state=#{worker.lifecycle_state}" if defined?(Legion::Logging)
           emit_blocked(worker_id: worker_id, reason: "lifecycle_state=#{worker.lifecycle_state}")
           raise WorkerNotActive, "worker #{worker_id} is #{worker.lifecycle_state}, not active"
         end
 
         if required_consent && !consent_sufficient?(worker.consent_tier, required_consent)
+          if defined?(Legion::Logging)
+            Legion::Logging.warn "[Registry] insufficient consent: #{worker_id} tier=#{worker.consent_tier} required=#{required_consent}"
+          end
           emit_blocked(worker_id: worker_id, reason: "consent=#{worker.consent_tier} < #{required_consent}")
           raise InsufficientConsent,
                 "worker #{worker_id} consent tier #{worker.consent_tier} insufficient (needs #{required_consent})"
         end
 
         @local_workers_mutex.synchronize { @local_workers.add(worker_id) }
+        Legion::Logging.info "[Registry] registered worker: #{worker_id}" if defined?(Legion::Logging)
         worker
       end
 

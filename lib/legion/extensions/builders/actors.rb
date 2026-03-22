@@ -22,9 +22,10 @@ module Legion
             actor_name = file.split('/').last.sub('.rb', '')
             actor_class = "#{lex_class}::Actor::#{actor_name.split('_').collect(&:capitalize).join}"
             unless Kernel.const_defined?(actor_class)
-              Legion::Logging.warn "Actor constant #{actor_class} not defined, skipping"
+              Legion::Logging.warn "[Actors] constant #{actor_class} not defined, skipping" if defined?(Legion::Logging)
               next
             end
+            Legion::Logging.info "[Actors] built actor: #{actor_class}" if defined?(Legion::Logging)
             @actors[actor_name.to_sym] = {
               extension:      lex_class.to_s.downcase,
               extension_name: extension_name,

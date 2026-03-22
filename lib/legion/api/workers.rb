@@ -25,6 +25,7 @@ module Legion
           end
 
           app.post '/api/workers' do
+            Legion::Logging.debug "API: POST /api/workers params=#{params.keys}"
             require_data!
             body = parse_request_body
 
@@ -44,14 +45,15 @@ module Legion
               team:           body[:team],
               manager_msid:   body[:manager_msid]
             )
+            Legion::Logging.info "API: created worker #{worker.worker_id} (#{body[:name]})"
             json_response(worker.values, status_code: 201)
           rescue StandardError => e
-            Legion::Logging.error "API worker create error: #{e.message}"
+            Legion::Logging.error "API POST /api/workers: #{e.class} — #{e.message}"
             json_error('creation_error', e.message, status_code: 500)
           end
         end
 
-        def self.register_member(app) # rubocop:disable Metrics/AbcSize
+        def self.register_member(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
           app.get '/api/workers/:id' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
@@ -60,6 +62,7 @@ module Legion
           end
 
           app.patch '/api/workers/:id/lifecycle' do
+            Legion::Logging.debug "API: PATCH /api/workers/#{params[:id]}/lifecycle params=#{params.keys}"
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
             halt 404, json_error('not_found', "Worker #{params[:id]} not found", status_code: 404) if worker.nil?
@@ -81,15 +84,19 @@ module Legion
               governance_override: governance_override,
               authority_verified:  authority_verified
             )
+            Legion::Logging.info "API: worker #{params[:id]} lifecycle transitioned to #{to_state} by #{by}"
             json_response(updated.values)
           rescue Legion::DigitalWorker::Lifecycle::GovernanceRequired => e
+            Legion::Logging.warn "API PATCH /api/workers/#{params[:id]}/lifecycle returned 403: #{e.message}"
             json_error('governance_required', e.message, status_code: 403)
           rescue Legion::DigitalWorker::Lifecycle::AuthorityRequired => e
+            Legion::Logging.warn "API PATCH /api/workers/#{params[:id]}/lifecycle returned 403: #{e.message}"
             json_error('authority_required', e.message, status_code: 403)
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            Legion::Logging.warn "API PATCH /api/workers/#{params[:id]}/lifecycle returned 422: #{e.message}"
             json_error('invalid_transition', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API worker lifecycle error: #{e.message}"
+            Legion::Logging.error "API PATCH /api/workers/#{params[:id]}/lifecycle: #{e.class} — #{e.message}"
             json_error('transition_error', e.message, status_code: 500)
           end
 
@@ -102,11 +109,13 @@ module Legion
             reason = params[:reason] || 'retired via API'
 
             updated = Legion::DigitalWorker::Lifecycle.transition!(worker, to_state: 'retired', by: by, reason: reason)
+            Legion::Logging.info "API: retired worker #{params[:id]} by #{by}"
             json_response(updated.values)
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            Legion::Logging.warn "API DELETE /api/workers/#{params[:id]} returned 422: #{e.message}"
             json_error('invalid_transition', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API worker delete error: #{e.message}"
+            Legion::Logging.error "API DELETE /api/workers/#{params[:id]}: #{e.class} — #{e.message}"
             json_error('transition_error', e.message, status_code: 500)
           end
         end
@@ -213,7 +222,7 @@ module Legion
           end
         end
 
-        def self.register_approvals(app)
+        def self.register_approvals(app) # rubocop:disable Metrics/AbcSize
           require 'legion/digital_worker/registration'
 
           app.get '/api/workers/approvals' do
@@ -223,38 +232,49 @@ module Legion
           end
 
           app.post '/api/workers/:id/approve' do
+            Legion::Logging.debug "API: POST /api/workers/#{params[:id]}/approve params=#{params.keys}"
             require_data!
             body     = parse_request_body
             approver = body[:approver] || current_owner_msid || 'api'
             notes    = body[:notes]
 
             worker = Legion::DigitalWorker::Registration.approve(params[:id], approver: approver, notes: notes)
+            Legion::Logging.info "API: approved worker #{params[:id]} by #{approver}"
             json_response(worker.values)
           rescue ArgumentError => e
+            Legion::Logging.warn "API POST /api/workers/#{params[:id]}/approve returned 422: #{e.message}"
             json_error('invalid_request', e.message, status_code: 422)
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            Legion::Logging.warn "API POST /api/workers/#{params[:id]}/approve returned 422: #{e.message}"
             json_error('invalid_transition', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API worker approve error: #{e.message}"
+            Legion::Logging.error "API POST /api/workers/#{params[:id]}/approve: #{e.class} — #{e.message}"
             json_error('approve_error', e.message, status_code: 500)
           end
 
           app.post '/api/workers/:id/reject' do
+            Legion::Logging.debug "API: POST /api/workers/#{params[:id]}/reject params=#{params.keys}"
             require_data!
             body     = parse_request_body
             approver = body[:approver] || current_owner_msid || 'api'
             reason   = body[:reason]
 
-            halt 422, json_error('missing_field', 'reason is required', status_code: 422) unless reason
+            unless reason
+              Legion::Logging.warn "API POST /api/workers/#{params[:id]}/reject returned 422: reason is required"
+              halt 422, json_error('missing_field', 'reason is required', status_code: 422)
+            end
 
             worker = Legion::DigitalWorker::Registration.reject(params[:id], approver: approver, reason: reason)
+            Legion::Logging.info "API: rejected worker #{params[:id]} by #{approver}"
             json_response(worker.values)
           rescue ArgumentError => e
+            Legion::Logging.warn "API POST /api/workers/#{params[:id]}/reject returned 422: #{e.message}"
             json_error('invalid_request', e.message, status_code: 422)
           rescue Legion::DigitalWorker::Lifecycle::InvalidTransition => e
+            Legion::Logging.warn "API POST /api/workers/#{params[:id]}/reject returned 422: #{e.message}"
             json_error('invalid_transition', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API worker reject error: #{e.message}"
+            Legion::Logging.error "API POST /api/workers/#{params[:id]}/reject: #{e.class} — #{e.message}"
             json_error('reject_error', e.message, status_code: 500)
           end
         end

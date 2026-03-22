@@ -33,7 +33,7 @@ module Legion
             result = client.list_prompts
             json_response(result)
           rescue StandardError => e
-            Legion::Logging.error "API prompts list error: #{e.message}"
+            Legion::Logging.error "API GET /api/prompts: #{e.class} — #{e.message}"
             json_error('execution_error', e.message, status_code: 500)
           end
         end
@@ -44,17 +44,21 @@ module Legion
             client = prompt_client
             result = client.get_prompt(name: name)
 
-            halt 404, json_error('not_found', "prompt '#{name}' not found", status_code: 404) if result[:error]
+            if result[:error]
+              Legion::Logging.warn "API GET /api/prompts/#{name} returned 404: prompt not found"
+              halt 404, json_error('not_found', "prompt '#{name}' not found", status_code: 404)
+            end
 
             json_response(result)
           rescue StandardError => e
-            Legion::Logging.error "API prompts show error: #{e.message}"
+            Legion::Logging.error "API GET /api/prompts/#{params[:name]}: #{e.class} — #{e.message}"
             json_error('execution_error', e.message, status_code: 500)
           end
         end
 
         def self.register_run(app)
           app.post '/api/prompts/:name/run' do
+            Legion::Logging.debug "API: POST /api/prompts/#{params[:name]}/run params=#{params.keys}"
             require_llm!
 
             name      = params[:name]
@@ -83,6 +87,7 @@ module Legion
               output_tokens: response.respond_to?(:output_tokens) ? response.output_tokens : nil
             }
 
+            Legion::Logging.info "API: ran prompt #{name} version=#{prompt_version} model=#{model_used}"
             json_response({
                             name:            name,
                             version:         prompt_version,
@@ -93,7 +98,7 @@ module Legion
                             provider:        provider
                           })
           rescue StandardError => e
-            Legion::Logging.error "API prompts run error: #{e.message}"
+            Legion::Logging.error "API POST /api/prompts/#{params[:name]}/run: #{e.class} — #{e.message}"
             json_error('execution_error', e.message, status_code: 500)
           end
         end

@@ -70,8 +70,12 @@ module Legion
 
       def wrap(error)
         pattern = PATTERNS.find { |p| error.message.match?(p[:match]) }
-        return error unless pattern
+        unless pattern
+          Legion::Logging.error("[CLI] unhandled error: #{error.class} — #{error.message}") if logging_available?
+          return error
+        end
 
+        Legion::Logging.warn("[CLI] matched error pattern :#{pattern[:code]} — #{error.message}") if logging_available?
         Error.actionable(
           code:        pattern[:code],
           message:     "#{pattern[:message]}: #{error.message}",
@@ -86,6 +90,10 @@ module Legion
         error.suggestions.each do |suggestion|
           puts "  #{formatter.colorize('>', :label)} #{suggestion}"
         end
+      end
+
+      def logging_available?
+        defined?(Legion::Logging)
       end
     end
   end

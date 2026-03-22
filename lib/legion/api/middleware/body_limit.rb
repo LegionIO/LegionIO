@@ -16,6 +16,9 @@ module Legion
         def call(env)
           content_length = env['CONTENT_LENGTH'].to_i
           if content_length > @max_size
+            if defined?(Legion::Logging)
+              Legion::Logging.warn "API body limit exceeded: #{content_length} bytes > #{@max_size} for #{env['REQUEST_METHOD']} #{env['PATH_INFO']}"
+            end
             body = Legion::JSON.dump({
                                        error: { code:    'payload_too_large',
                                                 message: "request body exceeds #{@max_size} bytes" },

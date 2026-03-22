@@ -33,8 +33,10 @@ module Legion
 
         def self.handle_lex_request(context, request)
           splat_path = request.path_info.sub(%r{^/api/lex/}, '')
+          Legion::Logging.debug "API: POST /api/lex/#{splat_path}"
           route_entry = Legion::API.find_route_by_path(splat_path)
           if route_entry.nil?
+            Legion::Logging.warn "API POST /api/lex/#{splat_path} returned 404: no route registered"
             context.halt 404, context.json_error('route_not_found',
                                                  "no route registered for '#{splat_path}'", status_code: 404)
           end
@@ -47,10 +49,11 @@ module Legion
             source:        'lex_route',
             generate_task: true
           )
+          Legion::Logging.info "API: LEX route #{splat_path} dispatched to #{route_entry[:runner_class]}, task #{result[:task_id]}"
           context.json_response({ task_id: result[:task_id], status: result[:status],
                                    result: result[:result] }.compact)
         rescue StandardError => e
-          Legion::Logging.error "LEX route error: #{e.message}"
+          Legion::Logging.error "API POST /api/lex/#{request.path_info.sub(%r{^/api/lex/}, '')}: #{e.class} — #{e.message}"
           Legion::Logging.error e.backtrace&.first(5)
           context.json_error('internal_error', e.message, status_code: 500)
         end

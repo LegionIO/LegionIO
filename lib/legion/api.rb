@@ -80,6 +80,7 @@ module Legion
     # Global error handlers
     not_found do
       content_type :json
+      Legion::Logging.warn "API #{request.request_method} #{request.path_info} returned 404: no route matches"
       Legion::JSON.dump({
                           error: { code: 'not_found', message: "no route matches #{request.request_method} #{request.path_info}" },
                           meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
@@ -89,7 +90,7 @@ module Legion
     error do
       content_type :json
       err = env['sinatra.error']
-      Legion::Logging.error "Unhandled API error: #{err.message}"
+      Legion::Logging.error "API #{request.request_method} #{request.path_info} returned 500: #{err.class} — #{err.message}"
       Legion::Logging.error err.backtrace&.first(10)
       Legion::JSON.dump({
                           error: { code: 'internal_error', message: err.message },

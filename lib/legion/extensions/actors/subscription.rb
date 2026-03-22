@@ -100,7 +100,8 @@ module Legion
           function
         end
 
-        def subscribe
+        def subscribe # rubocop:disable Metrics/AbcSize
+          Legion::Logging.info "[Subscription] starting: #{lex_name}/#{runner_name}" if defined?(Legion::Logging)
           sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
           on_cancellation = block { cancel }
@@ -112,10 +113,11 @@ module Legion
 
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
+            Legion::Logging.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(Legion::Logging)
 
             affinity_result = check_region_affinity(message)
             if affinity_result == :reject
-              Legion::Logging.warn "Rejecting message: region affinity mismatch (region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+              Legion::Logging.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
               @queue.reject(delivery_info.delivery_tag) if manual_ack
               next
             end
@@ -135,12 +137,12 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            Legion::Logging.error e.message
+            Legion::Logging.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
             Legion::Logging.error e.backtrace
-            Legion::Logging.error message
-            Legion::Logging.error function
+            Legion::Logging.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
+          Legion::Logging.info "[Subscription] stopped: #{lex_name}/#{runner_name}" if defined?(Legion::Logging)
         end
 
         private

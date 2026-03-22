@@ -52,6 +52,7 @@ module Legion
       end
 
       def deliver(webhook, event_name, payload, attempt: 1)
+        Legion::Logging.info "[Webhooks] delivery attempt #{attempt} for event=#{event_name} url=#{webhook[:url]}" if defined?(Legion::Logging)
         body = Legion::JSON.dump({ event: event_name, payload: payload, timestamp: Time.now.utc.iso8601 })
         signature = compute_signature(webhook[:secret], body)
 
@@ -70,11 +71,19 @@ module Legion
         response = http.request(request)
         success = response.code.to_i < 400
 
+        if success
+          Legion::Logging.info "[Webhooks] delivered event=#{event_name} status=#{response.code}" if defined?(Legion::Logging)
+        elsif defined?(Legion::Logging)
+          Legion::Logging.error "[Webhooks] delivery failed event=#{event_name} status=#{response.code} url=#{webhook[:url]}"
+        end
+
         record_delivery(webhook[:id], event_name, response.code.to_i, success)
         { delivered: success, status: response.code.to_i }
       rescue StandardError => e
+        Legion::Logging.error "[Webhooks] delivery error event=#{event_name}: #{e.message}" if defined?(Legion::Logging)
         record_delivery(webhook[:id], event_name, nil, false, error: e.message)
         if attempt < (webhook[:max_retries] || 5)
+          Legion::Logging.warn "[Webhooks] will retry event=#{event_name} attempt=#{attempt}" if defined?(Legion::Logging)
           { delivered: false, error: e.message, will_retry: true }
         else
           dead_letter(webhook[:id], event_name, payload, attempt, e.message)

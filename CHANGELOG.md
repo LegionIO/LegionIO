@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.120] - 2026-03-22
+
+### Added
+- Comprehensive logging throughout the framework: 55 files, 443 lines of `.info`, `.warn`, `.error`, `.debug` calls
+- API routes: every non-2xx response logs at warn (4xx) or error (5xx), every mutation logs at info, debug for request entry
+- Core framework: ingress, runner, extensions, actors, service lifecycle, readiness, events all log state transitions
+- Extension system: autobuild, actor hooking, transport setup, builder phases all log at debug/info
+- Digital worker lifecycle, capacity model, catalog, guardrails, webhooks, alerts, audit, telemetry all instrumented
+- CLI error handler logs matched patterns (warn) and unhandled errors (error)
+
 ## [1.4.119] - 2026-03-22
 
 ### Added

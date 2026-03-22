@@ -14,15 +14,19 @@ module Legion
           end
 
           app.post '/api/channels/teams/webhook' do
+            Legion::Logging.debug "API: POST /api/channels/teams/webhook params=#{params.keys}"
             body = request.body.read
             activity = Legion::JSON.load(body)
 
             adapter = Routes::Gaia.teams_adapter
-            halt 503, json_response({ error: 'teams adapter not available' }, status_code: 503) unless adapter
+            unless adapter
+              Legion::Logging.warn 'API POST /api/channels/teams/webhook returned 503: teams adapter not available'
+              halt 503, json_response({ error: 'teams adapter not available' }, status_code: 503)
+            end
 
             input_frame = adapter.translate_inbound(activity)
             Legion::Gaia.sensory_buffer&.push(input_frame) if defined?(Legion::Gaia)
-
+            Legion::Logging.info "API: accepted Teams webhook frame_id=#{input_frame&.id}"
             json_response({ status: 'accepted', frame_id: input_frame&.id })
           end
         end

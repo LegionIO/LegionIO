@@ -9,6 +9,7 @@ module Legion
   module Runner
     def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+      Legion::Logging.info "[Runner] start: #{runner_class}##{function} task_id=#{task_id}" if defined?(Legion::Logging)
       runner_class = Kernel.const_get(runner_class) if runner_class.is_a? String
 
       if task_id.nil? && generate_task
@@ -33,6 +34,7 @@ module Legion
       status = 'task.exception'
       result = { error: {} }
     rescue StandardError => e
+      Legion::Logging.error "[Runner] exception in #{runner_class}##{function}: #{e.message}" if defined?(Legion::Logging)
       runner_class.handle_exception(e,
                                     **opts,
                                     runner_class:  runner_class,
@@ -46,6 +48,8 @@ module Legion
       raise e unless catch_exceptions
     ensure
       status = 'task.completed' if status.nil?
+      duration_ms = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+      Legion::Logging.info "[Runner] complete: #{runner_class}##{function} status=#{status} duration_ms=#{duration_ms}" if defined?(Legion::Logging)
       Legion::Events.emit("task.#{status == 'task.completed' ? 'completed' : 'failed'}",
                           task_id: task_id, runner_class: runner_class.to_s, function: function, status: status)
       Legion::Runner::Status.update(task_id: task_id, status: status) unless task_id.nil?
@@ -58,7 +62,6 @@ module Legion
       end
       if defined?(Legion::Audit)
         begin
-          duration_ms = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at) * 1000).round
           error_message = status == 'task.exception' ? result&.dig(:error, :message) : nil
           Legion::Audit.record(
             event_type:     'runner_execution',

@@ -42,10 +42,13 @@ module Legion
       def start_session(user_id: nil)
         ctx = SessionContext.new(user_id: user_id)
         Thread.current[:legion_session_context] = ctx
+        Legion::Logging.debug "[Context] session started: #{ctx.session_id}" if defined?(Legion::Logging)
         ctx
       end
 
       def end_session
+        ctx = Thread.current[:legion_session_context]
+        Legion::Logging.debug "[Context] session cleared: #{ctx&.session_id}" if defined?(Legion::Logging)
         Thread.current[:legion_session_context] = nil
       end
     end

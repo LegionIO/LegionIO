@@ -12,18 +12,24 @@ module Legion
 
       def mark_ready(component)
         status[component.to_sym] = true
-        Legion::Logging.debug("#{component} is ready")
+        Legion::Logging.info "[Readiness] #{component} is ready" if defined?(Legion::Logging)
       end
 
       def mark_not_ready(component)
         status[component.to_sym] = false
-        Legion::Logging.debug("#{component} is not ready")
+        Legion::Logging.debug "[Readiness] #{component} is not ready" if defined?(Legion::Logging)
       end
 
       def ready?(component = nil)
-        return status[component.to_sym] == true if component
+        if component
+          result = status[component.to_sym] == true
+          Legion::Logging.warn "[Readiness] #{component} is not ready" if !result && defined?(Legion::Logging)
+          return result
+        end
 
-        COMPONENTS.all? { |c| status[c] == true }
+        not_ready = COMPONENTS.reject { |c| status[c] == true }
+        not_ready.each { |c| Legion::Logging.warn "[Readiness] #{c} is not ready" } if !not_ready.empty? && defined?(Legion::Logging)
+        not_ready.empty?
       end
 
       def wait_until_not_ready(*components, timeout: DRAIN_TIMEOUT)

@@ -40,6 +40,8 @@ module Legion
         fired = []
         @rules.each do |rule|
           next unless event_matches?(event_name, rule.event_pattern)
+
+          Legion::Logging.debug "[Alerts] evaluating rule=#{rule.name} for event=#{event_name}" if defined?(Legion::Logging)
           next unless condition_met?(rule, event_name)
           next if in_cooldown?(rule)
 
@@ -81,12 +83,14 @@ module Legion
         alert = { rule: rule.name, event: event_name, severity: rule.severity,
                   payload: payload, fired_at: Time.now.utc }
 
+        Legion::Logging.info "[Alerts] alert fired: rule=#{rule.name} event=#{event_name} severity=#{rule.severity}" if defined?(Legion::Logging)
+
         (rule.channels || []).each do |channel|
           case channel.to_sym
           when :events
             Legion::Events.emit('alert.fired', alert) if defined?(Legion::Events)
           when :log
-            Legion::Logging.warn "[alert] #{rule.name}: #{event_name} (#{rule.severity})" if defined?(Legion::Logging)
+            Legion::Logging.warn "[Alerts] #{rule.name}: #{event_name} (#{rule.severity})" if defined?(Legion::Logging)
           when :webhook
             Legion::Webhooks.dispatch('alert.fired', alert) if defined?(Legion::Webhooks)
           end

@@ -18,7 +18,7 @@ module Legion
       def aggregate
         active = @workers.select { |w| active_worker?(w) }
         tps = @config[:tasks_per_second]
-        {
+        result = {
           total_workers:            @workers.size,
           active_workers:           active.size,
           max_throughput_tps:       active.size * tps,
@@ -26,13 +26,18 @@ module Legion
           utilization_target:       @config[:utilization_target],
           availability_hours:       @config[:availability_hours]
         }
+        if defined?(Legion::Logging)
+          Legion::Logging.debug "[Capacity] aggregate: total=#{result[:total_workers]} " \
+                                "active=#{result[:active_workers]} effective_tps=#{result[:effective_throughput_tps]}"
+        end
+        result
       end
 
       def forecast(days: 30, growth_rate: 0.0)
         current = aggregate
         projected = (current[:active_workers] * (1 + (growth_rate * days / 30.0))).ceil
         tps = @config[:tasks_per_second]
-        {
+        result = {
           period_days:             days,
           growth_rate:             growth_rate,
           current_workers:         current[:active_workers],
@@ -40,6 +45,10 @@ module Legion
           projected_max_tps:       projected * tps,
           projected_effective_tps: (projected * tps * @config[:utilization_target]).round
         }
+        if defined?(Legion::Logging)
+          Legion::Logging.debug "[Capacity] forecast: days=#{days} projected_workers=#{projected} projected_effective_tps=#{result[:projected_effective_tps]}"
+        end
+        result
       end
 
       def per_worker_stats

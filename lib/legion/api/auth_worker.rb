@@ -8,18 +8,23 @@ module Legion
           register_worker_token_exchange(app)
         end
 
-        def self.register_worker_token_exchange(app) # rubocop:disable Metrics/MethodLength
+        def self.register_worker_token_exchange(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
           app.post '/api/auth/worker-token' do
+            Legion::Logging.debug "API: POST /api/auth/worker-token params=#{params.keys}"
             body = parse_request_body
             grant_type = body[:grant_type]
             entra_token = body[:entra_token]
 
             unless grant_type == 'client_credentials'
+              Legion::Logging.warn "API POST /api/auth/worker-token returned 400: unsupported grant_type=#{grant_type}"
               halt 400, json_error('unsupported_grant_type', 'grant_type must be client_credentials',
                                    status_code: 400)
             end
 
-            halt 400, json_error('missing_entra_token', 'entra_token is required', status_code: 400) unless entra_token
+            unless entra_token
+              Legion::Logging.warn 'API POST /api/auth/worker-token returned 400: entra_token is required'
+              halt 400, json_error('missing_entra_token', 'entra_token is required', status_code: 400)
+            end
 
             unless defined?(Legion::Crypt::JWT) && Legion::Crypt::JWT.respond_to?(:verify_with_jwks)
               halt 501, json_error('jwks_validation_not_available',
@@ -29,6 +34,7 @@ module Legion
             entra_settings = Routes::AuthWorker.resolve_entra_settings
             tenant_id = entra_settings[:tenant_id]
             unless tenant_id
+              Legion::Logging.error 'API POST /api/auth/worker-token returned 500: Entra tenant_id is not configured'
               halt 500, json_error('entra_tenant_not_configured',
                                    'Entra tenant_id is not configured', status_code: 500)
             end
@@ -41,25 +47,33 @@ module Legion
                 entra_token, jwks_url: jwks_url, issuers: [issuer]
               )
             rescue Legion::Crypt::JWT::ExpiredTokenError
+              Legion::Logging.warn 'API POST /api/auth/worker-token returned 401: Entra token has expired'
               halt 401, json_error('token_expired', 'Entra token has expired', status_code: 401)
             rescue Legion::Crypt::JWT::InvalidTokenError => e
+              Legion::Logging.warn "API POST /api/auth/worker-token returned 401: #{e.message}"
               halt 401, json_error('invalid_token', e.message, status_code: 401)
             rescue Legion::Crypt::JWT::Error => e
+              Legion::Logging.error "API POST /api/auth/worker-token returned 502: #{e.message}"
               halt 502, json_error('identity_provider_unavailable', e.message, status_code: 502)
             end
 
             app_id = claims[:appid] || claims[:azp] || claims['appid'] || claims['azp']
-            halt 401, json_error('invalid_token', 'missing appid claim', status_code: 401) unless app_id
+            unless app_id
+              Legion::Logging.warn 'API POST /api/auth/worker-token returned 401: missing appid claim'
+              halt 401, json_error('invalid_token', 'missing appid claim', status_code: 401)
+            end
 
             halt 503, json_error('data_unavailable', 'legion-data not connected', status_code: 503) unless defined?(Legion::Data::Model::DigitalWorker)
 
             worker = Legion::Data::Model::DigitalWorker.first(entra_app_id: app_id)
             unless worker
+              Legion::Logging.warn "API POST /api/auth/worker-token returned 404: no worker for entra_app_id=#{app_id}"
               halt 404, json_error('worker_not_found',
                                    "no worker registered for entra_app_id #{app_id}", status_code: 404)
             end
 
             unless worker.lifecycle_state == 'active'
+              Legion::Logging.warn "API POST /api/auth/worker-token returned 403: worker #{worker.worker_id} is in #{worker.lifecycle_state} state"
               halt 403, json_error('worker_not_active',
                                    "worker is in #{worker.lifecycle_state} state", status_code: 403)
             end
@@ -69,6 +83,7 @@ module Legion
               worker_id: worker.worker_id, owner_msid: worker.owner_msid, ttl: ttl
             )
 
+            Legion::Logging.info "API: issued worker token for worker_id=#{worker.worker_id}"
             json_response({
                             access_token: token,
                             token_type:   'Bearer',

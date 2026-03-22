@@ -41,7 +41,7 @@ module Legion
           end
         end
 
-        def self.register_function_routes(app)
+        def self.register_function_routes(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/extensions/:id/runners/:runner_id/functions' do
             require_data!
             find_or_halt(Legion::Data::Model::Extension, params[:id])
@@ -60,6 +60,8 @@ module Legion
 
           app.post '/api/extensions/:id/runners/:runner_id/functions/:function_id/invoke' do
             require_data!
+            path = "/api/extensions/#{params[:id]}/runners/#{params[:runner_id]}/functions/#{params[:function_id]}/invoke"
+            Legion::Logging.debug "API: POST #{path} params=#{params.keys}"
             find_or_halt(Legion::Data::Model::Extension, params[:id])
             runner = find_or_halt(Legion::Data::Model::Runner, params[:runner_id])
             func = find_or_halt(Legion::Data::Model::Function, params[:function_id])
@@ -71,11 +73,13 @@ module Legion
               check_subtask: body.fetch(:check_subtask, true),
               generate_task: body.fetch(:generate_task, true)
             )
+            Legion::Logging.info "API: invoked function #{func.values[:name]} via runner #{runner.values[:namespace]}, task #{result[:task_id]}"
             json_response(result, status_code: 201)
           rescue NameError => e
+            Legion::Logging.warn "API POST /api/extensions invoke returned 422: #{e.message}"
             json_error('invalid_runner', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API invoke error: #{e.message}"
+            Legion::Logging.error "API POST /api/extensions invoke: #{e.class} — #{e.message}"
             json_error('execution_error', e.message, status_code: 500)
           end
         end

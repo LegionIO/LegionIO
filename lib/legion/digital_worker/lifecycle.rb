@@ -54,7 +54,11 @@ module Legion
         from_state = worker.lifecycle_state
         allowed    = TRANSITIONS.fetch(from_state, [])
 
-        raise InvalidTransition, "cannot transition from #{from_state} to #{to_state}" unless allowed.include?(to_state)
+        unless allowed.include?(to_state)
+          Legion::Logging.warn "[Lifecycle] invalid transition #{from_state} -> #{to_state} for #{worker.worker_id}" if defined?(Legion::Logging)
+          raise InvalidTransition, "cannot transition from #{from_state} to #{to_state}"
+        end
+        Legion::Logging.info "[Lifecycle] transition #{from_state} -> #{to_state} worker=#{worker.worker_id} by=#{by}" if defined?(Legion::Logging)
 
         if defined?(Legion::Extensions::Governance::Runners::Governance)
           review = Legion::Extensions::Governance::Runners::Governance.review_transition(

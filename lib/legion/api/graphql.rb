@@ -11,6 +11,7 @@ module Legion
         def self.registered(app)
           app.post '/api/graphql' do
             content_type :json
+            Legion::Logging.debug "API: POST /api/graphql params=#{params.keys}" if defined?(Legion::Logging)
 
             body_str = request.body.read
             payload  = body_str.empty? ? {} : Legion::JSON.load(body_str)
@@ -21,6 +22,7 @@ module Legion
             operation_name = payload[:operationName]
 
             if query.nil? || query.strip.empty?
+              Legion::Logging.warn 'API POST /api/graphql returned 400: query is required' if defined?(Legion::Logging)
               status 400
               next Legion::JSON.dump({
                                        errors: [{ message: 'query is required' }]
@@ -37,7 +39,7 @@ module Legion
             status 200
             Legion::JSON.dump(result.to_h)
           rescue StandardError => e
-            Legion::Logging.error "GraphQL execution error: #{e.message}" if defined?(Legion::Logging)
+            Legion::Logging.error "API POST /api/graphql: #{e.class} — #{e.message}" if defined?(Legion::Logging)
             status 500
             Legion::JSON.dump({ errors: [{ message: e.message }] })
           end

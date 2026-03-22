@@ -37,6 +37,7 @@ module Legion
               env['legion.owner_msid']  = claims[:sub] || claims[:owner_msid]
               return @app.call(env)
             end
+            Legion::Logging.warn "API auth failure: invalid or expired JWT token for #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" if defined?(Legion::Logging)
             return unauthorized('invalid or expired token')
           end
 
@@ -51,9 +52,11 @@ module Legion
               env['legion.owner_msid']  = key_meta[:owner_msid]
               return @app.call(env)
             end
+            Legion::Logging.warn "API auth failure: invalid API key for #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" if defined?(Legion::Logging)
             return unauthorized('invalid API key')
           end
 
+          Legion::Logging.warn "API auth failure: missing Authorization header for #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" if defined?(Legion::Logging)
           unauthorized('missing Authorization header')
         end
 

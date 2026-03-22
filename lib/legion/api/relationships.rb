@@ -11,10 +11,12 @@ module Legion
           end
 
           app.post '/api/relationships' do
+            Legion::Logging.debug "API: POST /api/relationships params=#{params.keys}"
             require_data!
             body = parse_request_body
             id = Legion::Data::Model::Relationship.insert(body)
             record = Legion::Data::Model::Relationship[id]
+            Legion::Logging.info "API: created relationship #{id}"
             json_response(record.values, status_code: 201)
           end
 
@@ -25,11 +27,13 @@ module Legion
           end
 
           app.put '/api/relationships/:id' do
+            Legion::Logging.debug "API: PUT /api/relationships/#{params[:id]} params=#{params.keys}"
             require_data!
             record = find_or_halt(Legion::Data::Model::Relationship, params[:id])
             body = parse_request_body
             record.update(body)
             record.refresh
+            Legion::Logging.info "API: updated relationship #{params[:id]}"
             json_response(record.values)
           end
 
@@ -37,6 +41,7 @@ module Legion
             require_data!
             record = find_or_halt(Legion::Data::Model::Relationship, params[:id])
             record.delete
+            Legion::Logging.info "API: deleted relationship #{params[:id]}"
             json_response({ deleted: true })
           end
         end

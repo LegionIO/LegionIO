@@ -16,7 +16,10 @@ module Legion
           app.get '/api/settings/:key' do
             key = params[:key].to_sym
             settings_hash = Legion::Settings.loader.to_hash
-            halt 404, json_error('not_found', "setting '#{key}' not found", status_code: 404) unless settings_hash.key?(key)
+            unless settings_hash.key?(key)
+              Legion::Logging.warn "API GET /api/settings/#{key} returned 404: setting not found"
+              halt 404, json_error('not_found', "setting '#{key}' not found", status_code: 404)
+            end
 
             value = Legion::Settings[key]
             value = redact_hash(value) if value.is_a?(Hash)
@@ -24,14 +27,22 @@ module Legion
           end
 
           app.put '/api/settings/:key' do
+            Legion::Logging.debug "API: PUT /api/settings/#{params[:key]} params=#{params.keys}"
             key = params[:key].to_sym
 
-            halt 403, json_error('forbidden', "setting '#{key}' is read-only via API", status_code: 403) if READONLY_SECTIONS.include?(key)
+            if READONLY_SECTIONS.include?(key)
+              Legion::Logging.warn "API PUT /api/settings/#{key} returned 403: read-only section"
+              halt 403, json_error('forbidden', "setting '#{key}' is read-only via API", status_code: 403)
+            end
 
             body = parse_request_body
-            halt 422, json_error('missing_field', 'value is required', status_code: 422) unless body.key?(:value)
+            unless body.key?(:value)
+              Legion::Logging.warn "API PUT /api/settings/#{key} returned 422: value is required"
+              halt 422, json_error('missing_field', 'value is required', status_code: 422)
+            end
 
             Legion::Settings.loader[key] = body[:value]
+            Legion::Logging.info "API: updated setting #{key}"
             json_response({ key: key, value: body[:value] })
           end
         end

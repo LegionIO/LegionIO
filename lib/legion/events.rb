@@ -21,6 +21,7 @@ module Legion
       end
 
       def emit(event_name, **payload)
+        Legion::Logging.debug "[Events] emit: #{event_name}" if defined?(Legion::Logging)
         event = {
           event:     event_name.to_s,
           timestamp: Time.now,
@@ -30,7 +31,7 @@ module Legion
         listeners[event_name.to_s].each do |listener|
           listener.call(event)
         rescue StandardError => e
-          Legion::Logging.error "Event listener error on #{event_name}: #{e.message}"
+          Legion::Logging.warn "[Events] listener error on #{event_name}: #{e.message}"
           Legion::Logging.error e.backtrace&.first(5)
         end
 
@@ -38,7 +39,7 @@ module Legion
         listeners['*'].each do |listener|
           listener.call(event)
         rescue StandardError => e
-          Legion::Logging.error "Wildcard event listener error: #{e.message}"
+          Legion::Logging.warn "[Events] wildcard listener error on #{event_name}: #{e.message}"
         end
 
         event

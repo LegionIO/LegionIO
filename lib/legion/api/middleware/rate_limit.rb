@@ -150,6 +150,7 @@ module Legion
 
         def rate_limit_response(result)
           retry_after = [result[:reset] - Time.now.to_i, 1].max
+          Legion::Logging.warn "API rate limit exceeded: limit=#{result[:limit]} retry_after=#{retry_after}s" if defined?(Legion::Logging)
           body = Legion::JSON.dump({
                                      error: { code:    'rate_limit_exceeded',
                                               message: "Rate limit exceeded. Try again after #{retry_after} seconds." },

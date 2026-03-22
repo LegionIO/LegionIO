@@ -19,15 +19,23 @@ module Legion
           end
 
           app.post '/api/schedules' do
+            Legion::Logging.debug "API: POST /api/schedules params=#{params.keys}"
             require_scheduler!
             body = parse_request_body
 
-            halt 422, json_error('missing_field', 'function_id is required', status_code: 422) unless body[:function_id]
-            halt 422, json_error('missing_field', 'cron or interval is required', status_code: 422) unless body[:cron] || body[:interval]
+            unless body[:function_id]
+              Legion::Logging.warn 'API POST /api/schedules returned 422: function_id is required'
+              halt 422, json_error('missing_field', 'function_id is required', status_code: 422)
+            end
+            unless body[:cron] || body[:interval]
+              Legion::Logging.warn 'API POST /api/schedules returned 422: cron or interval is required'
+              halt 422, json_error('missing_field', 'cron or interval is required', status_code: 422)
+            end
 
             attrs = build_schedule_attrs(body)
             id = Legion::Extensions::Scheduler::Data::Model::Schedule.insert(attrs)
             schedule = Legion::Extensions::Scheduler::Data::Model::Schedule[id]
+            Legion::Logging.info "API: created schedule #{id}"
             json_response(schedule.values, status_code: 201)
           end
         end
@@ -47,6 +55,7 @@ module Legion
             updates = build_schedule_updates(body)
             schedule.update(updates) unless updates.empty?
             schedule.refresh
+            Legion::Logging.info "API: updated schedule #{params[:id]}"
             json_response(schedule.values)
           end
 
@@ -54,6 +63,7 @@ module Legion
             require_scheduler!
             schedule = find_or_halt(Legion::Extensions::Scheduler::Data::Model::Schedule, params[:id])
             schedule.delete
+            Legion::Logging.info "API: deleted schedule #{params[:id]}"
             json_response({ deleted: true })
           end
         end

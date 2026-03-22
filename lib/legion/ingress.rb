@@ -39,17 +39,23 @@ module Legion
 
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
-      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists
+      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        Legion::Logging.info "[Ingress] run: source=#{source} runner_class=#{runner_class} function=#{function}" if defined?(Legion::Logging)
         check_subtask = opts.fetch(:check_subtask, true)
         generate_task = opts.fetch(:generate_task, true)
         message = normalize(payload: payload, runner_class: runner_class,
                             function: function, source: source,
                             **opts.except(:check_subtask, :generate_task, :principal))
 
+        Legion::Logging.debug "[Ingress] payload keys: #{message.keys}" if defined?(Legion::Logging)
+
         rc = message.delete(:runner_class)
         fn = message.delete(:function)
 
-        raise 'runner_class is required' if rc.nil?
+        if rc.nil?
+          Legion::Logging.warn '[Ingress] runner_class is missing' if defined?(Legion::Logging)
+          raise 'runner_class is required'
+        end
         raise 'function is required' if fn.nil?
 
         rc_str = rc.to_s
@@ -89,16 +95,22 @@ module Legion
           runner_block.call
         end
       rescue PayloadTooLarge => e
+        Legion::Logging.error "[Ingress] payload_too_large: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'payload_too_large', message: e.message } }
       rescue InvalidRunnerClass => e
+        Legion::Logging.error "[Ingress] invalid_runner_class: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'invalid_runner_class', message: e.message } }
       rescue InvalidFunction => e
+        Legion::Logging.error "[Ingress] invalid_function: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'invalid_function', message: e.message } }
       rescue Legion::DigitalWorker::Registry::WorkerNotFound => e
+        Legion::Logging.error "[Ingress] worker_not_found: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'worker_not_found', message: e.message } }
       rescue Legion::DigitalWorker::Registry::WorkerNotActive => e
+        Legion::Logging.error "[Ingress] worker_not_active: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'worker_not_active', message: e.message } }
       rescue Legion::DigitalWorker::Registry::InsufficientConsent => e
+        Legion::Logging.error "[Ingress] insufficient_consent: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'insufficient_consent', message: e.message } }
       end
 

@@ -19,23 +19,32 @@ module Legion
           end
 
           app.post '/api/tasks' do
+            Legion::Logging.debug "API: POST /api/tasks params=#{params.keys}"
             body = parse_request_body
             runner_class = body.delete(:runner_class)
             function = body.delete(:function)
 
-            halt 422, json_error('missing_field', 'runner_class is required', status_code: 422) if runner_class.nil?
-            halt 422, json_error('missing_field', 'function is required', status_code: 422) if function.nil?
+            if runner_class.nil?
+              Legion::Logging.warn 'API POST /api/tasks returned 422: runner_class is required'
+              halt 422, json_error('missing_field', 'runner_class is required', status_code: 422)
+            end
+            if function.nil?
+              Legion::Logging.warn 'API POST /api/tasks returned 422: function is required'
+              halt 422, json_error('missing_field', 'function is required', status_code: 422)
+            end
 
             result = Legion::Ingress.run(
               payload: body, runner_class: runner_class, function: function.to_sym,
               source: 'api', check_subtask: body.fetch(:check_subtask, true),
               generate_task: body.fetch(:generate_task, true)
             )
+            Legion::Logging.info "API: created task #{result[:task_id]} via #{runner_class}##{function}"
             json_response(result, status_code: 201)
           rescue NameError => e
+            Legion::Logging.warn "API POST /api/tasks returned 422: #{e.message}"
             json_error('invalid_runner', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API task create error: #{e.message}"
+            Legion::Logging.error "API POST /api/tasks: #{e.class} — #{e.message}"
             json_error('execution_error', e.message, status_code: 500)
           end
         end
@@ -69,6 +78,7 @@ module Legion
             require_data!
             task = find_or_halt(Legion::Data::Model::Task, params[:id])
             task.delete
+            Legion::Logging.info "API: deleted task #{params[:id]}"
             json_response({ deleted: true })
           end
 

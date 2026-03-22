@@ -23,6 +23,10 @@ module Legion
                 Legion::Cache.respond_to?(:connected?) &&
                 Legion::Cache.connected?
             end
+
+            define_method(:gateway_available?) do
+              defined?(Legion::Extensions::LLM::Gateway::Runners::Inference)
+            end
           end
 
           register_chat(app)
@@ -30,6 +34,7 @@ module Legion
 
         def self.register_chat(app) # rubocop:disable Metrics/MethodLength
           app.post '/api/llm/chat' do # rubocop:disable Metrics/BlockLength
+            Legion::Logging.debug "API: POST /api/llm/chat params=#{params.keys}"
             require_llm!
 
             body = parse_request_body
@@ -58,6 +63,51 @@ module Legion
             model      = body[:model]
             provider   = body[:provider]
 
+            # Route through full Legion pipeline when gateway is available:
+            #   Ingress -> RBAC -> Events -> Task -> Gateway (metering + fleet) -> LLM
+            if gateway_available?
+              ingress_result = Legion::Ingress.run(
+                payload:      { message: message, model: model, provider: provider,
+                                request_id: request_id },
+                runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+                function:     'chat',
+                source:       'api'
+              )
+
+              unless ingress_result[:success]
+                Legion::Logging.error "[api/llm/chat] ingress failed: #{ingress_result}"
+                return json_response({ error: ingress_result[:error] || ingress_result[:status] },
+                                     status_code: 502)
+              end
+
+              result = ingress_result[:result]
+
+              if result.nil?
+                Legion::Logging.warn "[api/llm/chat] runner returned nil (status=#{ingress_result[:status]})"
+                return json_response({ error: { code:    'empty_result',
+                                                message: 'Gateway runner returned no result' } },
+                                     status_code: 502)
+              end
+
+              response_content = if result.respond_to?(:content)
+                                   result.content
+                                 elsif result.is_a?(Hash) && result[:error]
+                                   return json_response({ error: result[:error] }, status_code: 502)
+                                 elsif result.is_a?(Hash)
+                                   result[:response] || result[:content] || result.to_s
+                                 else
+                                   result.to_s
+                                 end
+
+              meta = { routed_via: 'gateway' }
+              meta[:model] = result.model.to_s if result.respond_to?(:model)
+              meta[:tokens_in] = result.input_tokens if result.respond_to?(:input_tokens)
+              meta[:tokens_out] = result.output_tokens if result.respond_to?(:output_tokens)
+
+              return json_response({ response: response_content, meta: meta }, status_code: 201)
+            end
+
+            # Fallback: direct LLM call (no metering, no task tracking)
             if cache_available? && env['HTTP_X_LEGION_SYNC'] != 'true'
               llm = Legion::LLM
               rc  = Legion::LLM::ResponseCache
@@ -76,14 +126,17 @@ module Legion
                   }
                 )
               rescue StandardError => e
+                Legion::Logging.error "API POST /api/llm/chat async: #{e.class} — #{e.message}"
                 rc.fail_request(request_id, code: 'llm_error', message: e.message)
               end
 
+              Legion::Logging.info "API: LLM chat request #{request_id} queued async"
               json_response({ request_id: request_id, poll_key: "llm:#{request_id}:status" },
                             status_code: 202)
             else
               session  = Legion::LLM.chat_direct(model: model, provider: provider)
               response = session.ask(message)
+              Legion::Logging.info "API: LLM chat request #{request_id} completed sync model=#{session.model}"
               json_response(
                 {
                   response: response.content,

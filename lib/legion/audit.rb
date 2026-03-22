@@ -20,7 +20,7 @@ module Legion
           created_at:     Time.now.utc.iso8601
         ).publish
       rescue StandardError => e
-        Legion::Logging.debug "Audit publish failed: #{e.message}" if defined?(Legion::Logging)
+        Legion::Logging.error "[Audit] publish failed event_type=#{event_type} resource=#{resource}: #{e.message}" if defined?(Legion::Logging)
       end
 
       def recent_for(principal_id:, window: 3600, event_type: nil, status: nil)

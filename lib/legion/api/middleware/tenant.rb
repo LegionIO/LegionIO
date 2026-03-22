@@ -15,7 +15,10 @@ module Legion
           return @app.call(env) if skip_path?(env['PATH_INFO'])
 
           tenant_id = extract_tenant(env)
-          Legion::TenantContext.set(tenant_id) if tenant_id
+          if tenant_id
+            Legion::Logging.debug "API tenant: resolved tenant_id=#{tenant_id} for #{env['REQUEST_METHOD']} #{env['PATH_INFO']}" if defined?(Legion::Logging)
+            Legion::TenantContext.set(tenant_id)
+          end
           @app.call(env)
         ensure
           Legion::TenantContext.clear

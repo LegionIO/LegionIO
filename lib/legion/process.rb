@@ -76,6 +76,7 @@ module Legion
       if pidfile?
         begin
           File.open(pidfile, ::File::CREAT | ::File::EXCL | ::File::WRONLY) { |f| f.write(::Process.pid.to_s) }
+          Legion::Logging.info "[Process] PID #{::Process.pid} written to #{pidfile}" if defined?(Legion::Logging)
           at_exit { FileUtils.rm_f(pidfile) }
         rescue Errno::EEXIST
           check_pid
@@ -113,15 +114,18 @@ module Legion
 
     def trap_signals
       trap('SIGTERM') do
+        Legion::Logging.info '[Process] received SIGTERM, shutting down' if defined?(Legion::Logging)
         @quit = true
       end
 
       trap('SIGHUP') do
+        Legion::Logging.info '[Process] received SIGHUP, triggering reload' if defined?(Legion::Logging)
         info 'sighup: triggering reload'
         Thread.new { Legion.reload }
       end
 
       trap('SIGINT') do
+        Legion::Logging.info '[Process] received SIGINT, shutting down' if defined?(Legion::Logging)
         @quit = true
       end
     end

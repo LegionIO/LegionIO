@@ -11,6 +11,9 @@ module Legion
             workers = Routes::Capacity.fetch_worker_list
             model = Legion::Capacity::Model.new(workers: workers)
             json_response(model.aggregate)
+          rescue StandardError => e
+            Legion::Logging.error "API GET /api/capacity: #{e.class} — #{e.message}"
+            json_error('capacity_error', e.message, status_code: 500)
           end
 
           app.get '/api/capacity/forecast' do
@@ -21,12 +24,18 @@ module Legion
               growth_rate: (params[:growth_rate] || 0).to_f
             )
             json_response(forecast)
+          rescue StandardError => e
+            Legion::Logging.error "API GET /api/capacity/forecast: #{e.class} — #{e.message}"
+            json_error('capacity_error', e.message, status_code: 500)
           end
 
           app.get '/api/capacity/workers' do
             workers = Routes::Capacity.fetch_worker_list
             model = Legion::Capacity::Model.new(workers: workers)
             json_response(model.per_worker_stats)
+          rescue StandardError => e
+            Legion::Logging.error "API GET /api/capacity/workers: #{e.class} — #{e.message}"
+            json_error('capacity_error', e.message, status_code: 500)
           end
         end
 

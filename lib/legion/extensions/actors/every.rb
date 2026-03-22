@@ -12,7 +12,13 @@ module Legion
 
         def initialize(**_opts)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            skip_or_run { use_runner? ? runner : manual }
+            Legion::Logging.debug "[Every] tick: #{self.class}" if defined?(Legion::Logging)
+            begin
+              skip_or_run { use_runner? ? runner : manual }
+            rescue StandardError => e
+              Legion::Logging.error "[Every] tick failed for #{self.class}: #{e.message}" if defined?(Legion::Logging)
+              Legion::Logging.error e.backtrace if defined?(Legion::Logging)
+            end
           end
 
           @timer.execute

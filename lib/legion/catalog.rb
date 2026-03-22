@@ -8,6 +8,7 @@ module Legion
     class << self
       def register_tools(catalog_url:, api_key:)
         tools = collect_mcp_tools
+        Legion::Logging.info "[Catalog] registering #{tools.size} tools to #{catalog_url}" if defined?(Legion::Logging)
         post_json("#{catalog_url}/api/tools", { tools: tools }, api_key)
       end
 
@@ -15,6 +16,7 @@ module Legion
         entries = workers.map do |w|
           { id: w[:worker_id], status: w[:status], capabilities: w[:capabilities] || [] }
         end
+        Legion::Logging.info "[Catalog] registering #{entries.size} workers to #{catalog_url}" if defined?(Legion::Logging)
         post_json("#{catalog_url}/api/workers", { workers: entries }, api_key)
       end
 

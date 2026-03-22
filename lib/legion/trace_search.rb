@@ -42,11 +42,13 @@ module Legion
 
     class << self
       def search(query, limit: 50)
+        Legion::Logging.info "[TraceSearch] query: #{query.inspect} limit=#{limit}" if defined?(Legion::Logging)
         parsed = generate_filter(query)
         return { results: [], error: 'no filter generated' } unless parsed
 
         execute_filter(parsed, limit)
       rescue StandardError => e
+        Legion::Logging.error "[TraceSearch] search failed: #{e.message}" if defined?(Legion::Logging)
         { results: [], error: e.message }
       end
 
@@ -60,6 +62,7 @@ module Legion
           ],
           schema:   FILTER_SCHEMA
         )
+        Legion::Logging.error "[TraceSearch] LLM filter generation failed for query: #{query.inspect}" if !result[:valid] && defined?(Legion::Logging)
         result[:data] if result[:valid]
       end
 

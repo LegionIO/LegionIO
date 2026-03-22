@@ -43,6 +43,7 @@ module Legion
       include Legion::Extensions::Builder::Routes
 
       def autobuild
+        Legion::Logging.debug "[Core] autobuild start: #{name}" if defined?(Legion::Logging)
         @actors = {}
         @meta_actors = {}
         @runners = {}
@@ -53,7 +54,10 @@ module Legion
         @messages = {}
         build_settings
         build_transport
-        build_data if Legion::Settings[:data][:connected] && data_required?
+        if Legion::Settings[:data][:connected] && data_required?
+          Legion::Logging.debug "[Core] building data for #{name}" if defined?(Legion::Logging)
+          build_data
+        end
         build_helpers
         build_runners
         build_actors
@@ -61,6 +65,7 @@ module Legion
         build_routes
         register_hooks
         register_routes
+        Legion::Logging.debug "[Core] autobuild complete: #{name}" if defined?(Legion::Logging)
       end
 
       def data_required?
@@ -92,8 +97,10 @@ module Legion
       end
 
       def build_data
+        Legion::Logging.debug "[Core] build_data: #{name}" if defined?(Legion::Logging)
         auto_generate_data
         lex_class::Data.build
+        Legion::Logging.info "[Core] data built: #{name}" if defined?(Legion::Logging)
       end
 
       def build_transport
@@ -196,6 +203,7 @@ module Legion
           lex_class.const_set(:Data, Module.new { extend Legion::Extensions::Data })
         end
       rescue StandardError => e
+        Legion::Logging.error "[Core] auto_generate_data failed for #{name}: #{e.message}" if defined?(Legion::Logging)
         log.error e.message
         log.error e.backtrace
       end

@@ -5,6 +5,7 @@ module Legion
     module Exporter
       class << self
         def to_mermaid(graph)
+          Legion::Logging.debug "[Graph::Exporter] to_mermaid nodes=#{graph[:nodes].size} edges=#{graph[:edges].size}" if defined?(Legion::Logging)
           lines = ['graph TD']
           node_ids = {}
           counter = 0
@@ -32,6 +33,7 @@ module Legion
         end
 
         def to_dot(graph)
+          Legion::Logging.debug "[Graph::Exporter] to_dot nodes=#{graph[:nodes].size} edges=#{graph[:edges].size}" if defined?(Legion::Logging)
           lines = ['digraph legion_tasks {', '  rankdir=LR;']
 
           graph[:nodes].each do |key, node|

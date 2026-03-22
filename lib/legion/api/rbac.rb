@@ -40,6 +40,7 @@ module Legion
 
         def self.register_check(app)
           app.post '/api/rbac/check' do
+            Legion::Logging.debug "API: POST /api/rbac/check params=#{params.keys}"
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
 
             body = parse_request_body
@@ -55,10 +56,13 @@ module Legion
               enforce:   false
             )
             json_response(result)
+          rescue StandardError => e
+            Legion::Logging.error "API POST /api/rbac/check: #{e.class} — #{e.message}"
+            json_error('rbac_error', e.message, status_code: 500)
           end
         end
 
-        def self.register_assignments(app)
+        def self.register_assignments(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/rbac/assignments' do
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
             return json_error('db_unavailable', 'legion-data not connected', status_code: 503) unless Legion::Rbac::Store.db_available?
@@ -71,6 +75,7 @@ module Legion
           end
 
           app.post '/api/rbac/assignments' do
+            Legion::Logging.debug "API: POST /api/rbac/assignments params=#{params.keys}"
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
             return json_error('db_unavailable', 'legion-data not connected', status_code: 503) unless Legion::Rbac::Store.db_available?
 
@@ -83,8 +88,10 @@ module Legion
               granted_by:     current_owner_msid || 'api',
               expires_at:     body[:expires_at] ? Time.parse(body[:expires_at]) : nil
             )
+            Legion::Logging.info "API: created RBAC assignment #{record.id} role=#{body[:role]} principal=#{body[:principal_id]}"
             json_response(record.values, status_code: 201)
           rescue Sequel::ValidationFailed => e
+            Legion::Logging.warn "API POST /api/rbac/assignments returned 422: #{e.message}"
             json_error('validation_error', e.message, status_code: 422)
           end
 
@@ -96,6 +103,7 @@ module Legion
             halt 404, json_error('not_found', 'Assignment not found', status_code: 404) unless record
 
             record.destroy
+            Legion::Logging.info "API: deleted RBAC assignment #{params[:id]}"
             json_response({ deleted: true })
           end
         end
@@ -111,6 +119,7 @@ module Legion
           end
 
           app.post '/api/rbac/grants' do
+            Legion::Logging.debug "API: POST /api/rbac/grants params=#{params.keys}"
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
             return json_error('db_unavailable', 'legion-data not connected', status_code: 503) unless Legion::Rbac::Store.db_available?
 
@@ -121,8 +130,10 @@ module Legion
               actions:        Array(body[:actions]).join(','),
               granted_by:     current_owner_msid || 'api'
             )
+            Legion::Logging.info "API: created RBAC grant #{record.id} team=#{body[:team]} pattern=#{body[:runner_pattern]}"
             json_response(record.values, status_code: 201)
           rescue Sequel::ValidationFailed => e
+            Legion::Logging.warn "API POST /api/rbac/grants returned 422: #{e.message}"
             json_error('validation_error', e.message, status_code: 422)
           end
 
@@ -134,6 +145,7 @@ module Legion
             halt 404, json_error('not_found', 'Grant not found', status_code: 404) unless record
 
             record.destroy
+            Legion::Logging.info "API: deleted RBAC grant #{params[:id]}"
             json_response({ deleted: true })
           end
         end
@@ -148,6 +160,7 @@ module Legion
           end
 
           app.post '/api/rbac/grants/cross-team' do
+            Legion::Logging.debug "API: POST /api/rbac/grants/cross-team params=#{params.keys}"
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
             return json_error('db_unavailable', 'legion-data not connected', status_code: 503) unless Legion::Rbac::Store.db_available?
 
@@ -160,8 +173,10 @@ module Legion
               granted_by:     current_owner_msid || 'api',
               expires_at:     body[:expires_at] ? Time.parse(body[:expires_at]) : nil
             )
+            Legion::Logging.info "API: created cross-team RBAC grant #{record.id} #{body[:source_team]}->#{body[:target_team]}"
             json_response(record.values, status_code: 201)
           rescue Sequel::ValidationFailed => e
+            Legion::Logging.warn "API POST /api/rbac/grants/cross-team returned 422: #{e.message}"
             json_error('validation_error', e.message, status_code: 422)
           end
 
@@ -173,6 +188,7 @@ module Legion
             halt 404, json_error('not_found', 'Grant not found', status_code: 404) unless record
 
             record.destroy
+            Legion::Logging.info "API: deleted cross-team RBAC grant #{params[:id]}"
             json_response({ deleted: true })
           end
         end

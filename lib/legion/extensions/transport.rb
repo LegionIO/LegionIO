@@ -9,6 +9,7 @@ module Legion
       attr_accessor :exchanges, :queues, :consumers, :messages
 
       def build
+        Legion::Logging.debug "[Transport] build start: #{lex_name}" if defined?(Legion::Logging)
         @queues = []
         @exchanges = []
         @messages = []
@@ -21,8 +22,9 @@ module Legion
         build_e_to_q(additional_e_to_q)
         auto_create_dlx_exchange
         auto_create_dlx_queue
+        Legion::Logging.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}" if defined?(Legion::Logging)
       rescue StandardError => e
-        Legion::Logging.error e.message
+        Legion::Logging.error "[Transport] build failed for #{lex_name}: #{e.message}"
         Legion::Logging.error e.backtrace
       end
 

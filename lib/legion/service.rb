@@ -112,9 +112,11 @@ module Legion
     end
 
     def setup_data
+      Legion::Logging.info 'Setting up Legion::Data'
       require 'legion/data'
       Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
       Legion::Data.setup
+      Legion::Logging.info 'Legion::Data connected'
     rescue LoadError
       Legion::Logging.info 'Legion::Data gem is not installed, please install it manually with gem install legion-data'
     rescue StandardError => e
@@ -226,9 +228,11 @@ module Legion
     end
 
     def setup_llm
+      Legion::Logging.info 'Setting up Legion::LLM'
       require 'legion/llm'
       Legion::Settings.merge_settings('llm', Legion::LLM::Settings.default)
       Legion::LLM.start
+      Legion::Logging.info 'Legion::LLM started'
     rescue LoadError
       Legion::Logging.info 'Legion::LLM gem is not installed, starting without LLM support'
     rescue StandardError => e
@@ -236,9 +240,11 @@ module Legion
     end
 
     def setup_gaia
+      Legion::Logging.info 'Setting up Legion::Gaia'
       require 'legion/gaia'
       Legion::Settings.merge_settings('gaia', Legion::Gaia::Settings.default)
       Legion::Gaia.boot
+      Legion::Logging.info 'Legion::Gaia booted'
     rescue LoadError
       Legion::Logging.info 'Legion::Gaia gem is not installed, starting without cognitive layer'
     rescue StandardError => e
@@ -246,9 +252,11 @@ module Legion
     end
 
     def setup_transport
+      Legion::Logging.info 'Setting up Legion::Transport'
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
       Legion::Transport::Connection.setup
+      Legion::Logging.info 'Legion::Transport connected'
     end
 
     def register_logging_hooks
@@ -336,8 +344,10 @@ module Legion
     end
 
     def setup_supervision
+      Legion::Logging.info 'Setting up Legion::Supervision'
       require 'legion/supervision'
       @supervision = Legion::Supervision.setup
+      Legion::Logging.info 'Legion::Supervision started'
     end
 
     def shutdown_api

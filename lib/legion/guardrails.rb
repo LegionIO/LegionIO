@@ -11,7 +11,11 @@ module Legion
           return { safe: true, reason: 'embedding failed' } unless input_vec
 
           min_dist = safe_embeddings.map { |se| cosine_distance(input_vec, se) }.min || 1.0
-          { safe: min_dist <= threshold, distance: min_dist.round(4), threshold: threshold }
+          safe = min_dist <= threshold
+          if !safe && defined?(Legion::Logging)
+            Legion::Logging.warn "[Guardrails] EmbeddingSimilarity rejected input: distance=#{min_dist.round(4)} threshold=#{threshold}"
+          end
+          { safe: safe, distance: min_dist.round(4), threshold: threshold }
         end
 
         def cosine_distance(vec_a, vec_b)
@@ -40,7 +44,9 @@ module Legion
             ]
           )
           score = result[:content].to_s.strip.to_i
-          { relevant: score >= threshold, score: score, threshold: threshold }
+          relevant = score >= threshold
+          Legion::Logging.warn "[Guardrails] RAGRelevancy rejected answer: score=#{score} threshold=#{threshold}" if !relevant && defined?(Legion::Logging)
+          { relevant: relevant, score: score, threshold: threshold }
         rescue StandardError
           { relevant: true, reason: 'check failed' }
         end
