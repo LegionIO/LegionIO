@@ -41,6 +41,7 @@ module Legion
     class << self
       def register(entry)
         store[entry.name] = entry
+        Persistence.persist(entry) if defined?(Persistence)
       end
 
       def unregister(name)
@@ -147,7 +148,10 @@ module Legion
       def update_entry(name, entry, **overrides)
         attrs = entry.to_h.merge(overrides)
         store[name.to_s] = Entry.new(**attrs)
+        Persistence.persist(store[name.to_s]) if defined?(Persistence)
       end
     end
   end
 end
+
+require_relative 'registry/persistence'
