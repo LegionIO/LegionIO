@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.115] - 2026-03-22
+
+### Changed
+- Extension parallel pool size now reads from `Legion::Settings[:extensions][:parallel_pool_size]` (default: 24) instead of hardcoded 4
+- Significantly faster boot with many extensions: all load concurrently instead of in batches of 4
+
 ## [1.4.114] - 2026-03-22
 
 ### Changed
