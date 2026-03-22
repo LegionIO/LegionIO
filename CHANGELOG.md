@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.116] - 2026-03-22
+
+### Added
+- `legion detect scan --format sarif|markdown|json` option for CI-friendly output formats
+
 ## [1.4.115] - 2026-03-22
 
 ### Changed

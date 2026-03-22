@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'thor'
 require 'legion/cli/output'
 
@@ -20,13 +21,17 @@ module Legion
       desc 'scan', 'Scan environment and recommend extensions (default)'
       option :install, type: :boolean, default: false, desc: 'Install missing extensions after scan'
       option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'
+      option :format, type: :string, enum: %w[sarif markdown json], desc: 'Output format (sarif, markdown, json)'
       def scan
         out = formatter
         require_detect_gem
 
         results = Legion::Extensions::Detect.scan
 
-        if options[:json]
+        if options[:format]
+          output = Legion::Extensions::Detect.format_results(format: options[:format], detections: results)
+          puts output.is_a?(String) ? output : ::JSON.pretty_generate(output)
+        elsif options[:json]
           out.json(detections: results)
         else
           display_detections(out, results)
