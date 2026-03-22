@@ -1,1 +1,39 @@
+# Default owner — all files
 * @Esity
+
+# Core library code
+# lib/ @Esity @future-core-team
+
+# CLI commands
+# lib/legion/cli/ @Esity
+
+# REST API
+# lib/legion/api/ @Esity
+
+# Extensions loader
+# lib/legion/extensions/ @Esity
+
+# Service orchestrator and boot sequence
+# lib/legion/service.rb @Esity @future-core-team
+
+# Digital Worker platform
+# lib/legion/digital_worker/ @Esity @future-platform-team
+
+# Chat and AI REPL
+# lib/legion/cli/chat/ @Esity @future-ai-team
+
+# Audit and compliance
+# lib/legion/audit/ @Esity @future-security-team
+# lib/legion/api/audit.rb @Esity @future-security-team
+
+# API middleware
+# lib/legion/api/middleware/ @Esity @future-platform-team
+
+# Specs
+# spec/ @Esity @future-contributors
+
+# Documentation
+# *.md @Esity @future-docs-team
+
+# CI/CD
+# .github/ @Esity
