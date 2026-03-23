@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.166] - 2026-03-23
+
+### Added
+- ViewTrends chat tool: tabular trend visualization with direction indicators (rising/falling/stable)
+- Shows cost, latency, volume, and failure rate trends over configurable time ranges
+- 6 specs covering trend formatting, direction labels, empty data, API errors, and connection handling
+- Chat tool registry now has 28 built-in tools
+
 ## [1.4.165] - 2026-03-23
 
 ### Added
