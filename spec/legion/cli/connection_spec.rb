@@ -407,7 +407,11 @@ RSpec.describe Legion::CLI::Connection do
   # resolve_config_dir (exercised through ensure_settings)
   # ---------------------------------------------------------------------------
   describe 'resolve_config_dir' do
-    before { stub_logging_and_settings }
+    before do
+      stub_logging_and_settings
+      allow(Legion::Settings::Loader).to receive(:default_directories)
+        .and_return([File.expand_path('~/.legionio/settings'), '/etc/legionio/settings'])
+    end
 
     context 'when config_dir is set to an existing directory' do
       it 'uses the custom directory' do
@@ -423,7 +427,7 @@ RSpec.describe Legion::CLI::Connection do
     end
 
     context 'when config_dir is set but does not exist' do
-      it 'falls through to fallback paths and still calls Settings.load' do
+      it 'falls through to Loader.default_directories' do
         described_class.config_dir = '/nonexistent/path/that/does/not/exist'
         described_class.ensure_settings
         expect(Legion::Settings).to have_received(:load).with(config_dir: anything)
@@ -433,41 +437,38 @@ RSpec.describe Legion::CLI::Connection do
     context 'when none of the standard paths exist' do
       before { allow(Dir).to receive(:exist?).and_return(false) }
 
-      it 'falls back to the gem lib directory and calls Settings.load with a string' do
-        captured_dir = nil
-        allow(Legion::Settings).to receive(:load) { |config_dir:| captured_dir = config_dir }
+      it 'passes nil config_dir to Settings.load' do
         described_class.ensure_settings
-        expect(captured_dir).to be_a(String)
-        expect(captured_dir).not_to be_empty
+        expect(Legion::Settings).to have_received(:load).with(config_dir: nil)
       end
     end
 
-    context 'when /etc/legionio exists' do
+    context 'when ~/.legionio/settings exists' do
+      let(:settings_dir) { File.expand_path('~/.legionio/settings') }
+
       before do
         allow(Dir).to receive(:exist?).and_call_original
-        allow(Dir).to receive(:exist?).with('/etc/legionio').and_return(true)
+        allow(Dir).to receive(:exist?).with(settings_dir).and_return(true)
       end
 
-      it 'uses /etc/legionio' do
+      it 'uses ~/.legionio/settings' do
         described_class.ensure_settings
-        expect(Legion::Settings).to have_received(:load).with(config_dir: '/etc/legionio')
+        expect(Legion::Settings).to have_received(:load).with(config_dir: settings_dir)
       end
     end
 
-    context 'when ~/legionio exists but /etc/legionio does not' do
-      let(:home_dir) { File.join(Dir.home, 'legionio') }
-      let(:settings_dir) { File.join(Dir.home, '.legionio', 'settings') }
+    context 'when /etc/legionio/settings exists but ~/.legionio/settings does not' do
+      let(:home_settings) { File.expand_path('~/.legionio/settings') }
 
       before do
         allow(Dir).to receive(:exist?).and_call_original
-        allow(Dir).to receive(:exist?).with('/etc/legionio').and_return(false)
-        allow(Dir).to receive(:exist?).with(settings_dir).and_return(false)
-        allow(Dir).to receive(:exist?).with(home_dir).and_return(true)
+        allow(Dir).to receive(:exist?).with(home_settings).and_return(false)
+        allow(Dir).to receive(:exist?).with('/etc/legionio/settings').and_return(true)
       end
 
-      it 'uses the home directory path' do
+      it 'uses /etc/legionio/settings' do
         described_class.ensure_settings
-        expect(Legion::Settings).to have_received(:load).with(config_dir: home_dir)
+        expect(Legion::Settings).to have_received(:load).with(config_dir: '/etc/legionio/settings')
       end
     end
   end

@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.185] - 2026-03-23
+
+### Fixed
+- Restrict settings search paths to canonical directories (`~/.legionio/settings`, `/etc/legionio/settings`) (#25)
+- Remove broken/dead paths from `Service#default_paths` (`~/legionio`, `$home/legionio`, `./settings`)
+- `CLI::Connection#resolve_config_dir` now delegates to `Loader.default_directories` instead of hardcoded list
+- Add `legion-settings` local path to Gemfile for development
+
+### Changed
+- `Service#setup_settings` loads all matching directories via `config_dirs:` instead of first-match-wins
+
 ## [1.4.184] - 2026-03-23
 
 ### Added

@@ -134,30 +134,13 @@ module Legion
       Legion::Logging.warn "Legion::Rbac failed to load: #{e.message}"
     end
 
-    # noinspection RubyArgCount
-    def default_paths
-      [
-        '/etc/legionio',
-        "#{Dir.home}/.legionio/settings",
-        "#{ENV.fetch('home', nil)}/legionio",
-        '~/legionio',
-        './settings'
-      ]
-    end
-
-    def setup_settings(default_dir = __dir__)
+    def setup_settings
       require 'legion/settings'
-      config_directory = default_dir
-      default_paths.each do |path|
-        next unless Dir.exist? path
-
-        Legion::Logging.info "Using #{path} for settings"
-        config_directory = path
-        break
-      end
-
-      Legion::Logging.info "Using directory #{config_directory} for settings"
-      Legion::Settings.load(config_dir: config_directory)
+      directories = Legion::Settings::Loader.default_directories
+      existing = directories.select { |d| Dir.exist?(d) }
+      Legion::Logging.info "Settings search directories: #{directories.inspect}"
+      existing.each { |d| Legion::Logging.info "Settings: will load from #{d}" }
+      Legion::Settings.load(config_dirs: existing)
       Legion::Readiness.mark_ready(:settings)
       Legion::Logging.info('Legion::Settings Loaded')
       self.class.log_privacy_mode_status

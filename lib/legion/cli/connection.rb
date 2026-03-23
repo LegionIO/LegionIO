@@ -130,19 +130,12 @@ module Legion
         def resolve_config_dir
           return @config_dir if @config_dir && Dir.exist?(@config_dir)
 
-          [
-            '/etc/legionio',
-            "#{Dir.home}/.legionio/settings",
-            "#{Dir.home}/legionio",
-            '~/legionio',
-            './settings'
-          ].each do |path|
-            expanded = File.expand_path(path)
-            return expanded if Dir.exist?(expanded)
+          require 'legion/settings/loader' unless defined?(Legion::Settings::Loader)
+          Legion::Settings::Loader.default_directories.each do |path|
+            return path if Dir.exist?(path)
           end
 
-          # Fall back to gem's lib dir (same as Service does)
-          File.expand_path('../../', __dir__)
+          nil
         end
       end
     end
