@@ -47,8 +47,8 @@ module Legion
             buffer = Legion::Gaia.sensory_buffer
             json_response({
                             depth:    buffer&.size || 0,
-                            empty:    buffer&.empty? || true,
-                            max_size: defined?(Legion::Gaia::SensoryBuffer::MAX_BUFFER_SIZE) ? Legion::Gaia::SensoryBuffer::MAX_BUFFER_SIZE : nil
+                            empty:    buffer.nil? || buffer.empty?,
+                            max_size: gaia_buffer_max_size
                           })
           end
         end
@@ -97,6 +97,14 @@ module Legion
         module GaiaHelpers
           def gaia_available?
             defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
+          end
+
+          def gaia_buffer_max_size
+            return nil unless defined?(Legion::Gaia::SensoryBuffer)
+
+            Legion::Gaia::SensoryBuffer::MAX_BUFFER_SIZE
+          rescue NameError
+            nil
           end
 
           def build_channel_info(channel_id, adapter)
