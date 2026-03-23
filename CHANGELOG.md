@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.141] - 2026-03-23
+
+### Added
+- IngestKnowledge chat tool: save facts, observations, concepts, procedures, and decisions to the Apollo knowledge graph from within chat sessions
+- IngestKnowledge spec with 9 examples covering success, content types, tags, API errors, and daemon unavailability
+- Extension tool loader spec with 13 examples covering discovery, permission tiers, and tool collection
+- Skill command spec with 14 examples covering list, show, create, and run
+- Swarm command spec with 16 examples covering list, show, start, and pipeline failures
+- Graph command, builder, and exporter specs with 37 examples covering mermaid/dot rendering, filters, and empty graphs
+- Cost command spec with 16 examples covering summary, worker, top, and export
+
 ## [1.4.140] - 2026-03-23
 
 ### Added
