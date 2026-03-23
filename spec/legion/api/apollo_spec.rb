@@ -279,6 +279,75 @@ RSpec.describe 'Apollo API routes' do
     end
   end
 
+  describe 'GET /api/apollo/graph' do
+    context 'when apollo is not loaded' do
+      it 'returns 503' do
+        get '/api/apollo/graph'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when apollo is loaded' do
+      before do
+        knowledge_mod = Module.new
+        stub_const('Legion::Extensions::Apollo::Runners::Knowledge', knowledge_mod)
+
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+          def self.connection = Object.new
+        end
+        stub_const('Legion::Data', data_mod)
+      end
+
+      it 'returns graph topology' do
+        allow_any_instance_of(test_app).to receive(:apollo_graph_topology)
+          .and_return({ domains: { 'general' => 10 }, agents: { 'claude' => 8 },
+                        relation_types: { 'similar_to' => 5 }, total_relations: 5,
+                        confirmed: 8, candidates: 2, disputed_entries: 0 })
+
+        get '/api/apollo/graph'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:domains]).to eq({ general: 10 })
+        expect(body[:data][:total_relations]).to eq(5)
+      end
+    end
+  end
+
+  describe 'GET /api/apollo/expertise' do
+    context 'when apollo is not loaded' do
+      it 'returns 503' do
+        get '/api/apollo/expertise'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when apollo is loaded' do
+      before do
+        knowledge_mod = Module.new
+        stub_const('Legion::Extensions::Apollo::Runners::Knowledge', knowledge_mod)
+
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+          def self.connection = Object.new
+        end
+        stub_const('Legion::Data', data_mod)
+      end
+
+      it 'returns expertise map' do
+        allow_any_instance_of(test_app).to receive(:apollo_expertise_map)
+          .and_return({ domains: { 'general' => [{ agent_id: 'claude', proficiency: 0.8, entry_count: 10 }] },
+                        total_agents: 1, total_domains: 1 })
+
+        get '/api/apollo/expertise'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:total_agents]).to eq(1)
+        expect(body[:data][:domains][:general].first[:agent_id]).to eq('claude')
+      end
+    end
+  end
+
   describe 'POST /api/apollo/maintenance' do
     context 'when apollo is not loaded' do
       it 'returns 503' do

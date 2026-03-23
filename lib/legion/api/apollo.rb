@@ -12,6 +12,8 @@ module Legion
           register_ingest_route(app)
           register_related_route(app)
           register_maintenance_route(app)
+          register_graph_route(app)
+          register_expertise_route(app)
         end
 
         def self.register_status_route(app)
@@ -96,6 +98,22 @@ module Legion
             json_response(result)
           end
         end
+
+        def self.register_graph_route(app)
+          app.get '/api/apollo/graph' do
+            halt 503, json_error('apollo_unavailable', 'apollo is not available', status_code: 503) unless apollo_loaded?
+
+            json_response(apollo_graph_topology)
+          end
+        end
+
+        def self.register_expertise_route(app)
+          app.get '/api/apollo/expertise' do
+            halt 503, json_error('apollo_unavailable', 'apollo is not available', status_code: 503) unless apollo_loaded?
+
+            json_response(apollo_expertise_map)
+          end
+        end
       end
 
       module ApolloHelpers
@@ -124,6 +142,55 @@ module Legion
           when :corroboration
             apollo_maintenance_runner.check_corroboration
           end
+        end
+
+        def apollo_graph_topology
+          conn = Legion::Data.connection
+          entries = conn[:apollo_entries]
+          relations = conn[:apollo_relations]
+
+          by_domain = entries.group_and_count(:knowledge_domain).all
+                             .to_h { |r| [r[:knowledge_domain] || 'general', r[:count]] }
+          by_agent = entries.group_and_count(:source_agent).all
+                            .to_h { |r| [r[:source_agent] || 'unknown', r[:count]] }
+          by_relation = relations.group_and_count(:relation_type).all
+                                 .to_h { |r| [r[:relation_type], r[:count]] }
+          disputed = entries.where(status: 'disputed').count
+          confirmed = entries.where(status: 'confirmed').count
+          candidates = entries.where(status: 'candidate').count
+
+          {
+            domains:          by_domain,
+            agents:           by_agent,
+            relation_types:   by_relation,
+            total_relations:  relations.count,
+            disputed_entries: disputed,
+            confirmed:        confirmed,
+            candidates:       candidates
+          }
+        rescue Sequel::Error => e
+          { error: e.message }
+        end
+
+        def apollo_expertise_map
+          conn = Legion::Data.connection
+          rows = conn[:apollo_expertise].order(Sequel.desc(:proficiency)).all
+
+          by_domain = {}
+          rows.each do |row|
+            domain = row[:domain] || 'general'
+            by_domain[domain] ||= []
+            by_domain[domain] << {
+              agent_id:    row[:agent_id],
+              proficiency: row[:proficiency]&.round(3),
+              entry_count: row[:entry_count]
+            }
+          end
+
+          { domains: by_domain, total_agents: rows.map { |r| r[:agent_id] }.uniq.size,
+            total_domains: by_domain.size }
+        rescue Sequel::Error => e
+          { error: e.message }
         end
 
         def apollo_stats

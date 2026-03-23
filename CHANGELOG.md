@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.180] - 2026-03-23
+
+### Added
+- GraphExplore chat tool: explore Apollo knowledge graph topology, agent expertise, and disputed entries
+- Apollo API endpoints: GET /api/apollo/graph (topology) and GET /api/apollo/expertise (expertise map)
+- 38th built-in chat tool registered in ToolRegistry
+
 ## [1.4.179] - 2026-03-23
 
 ### Added
