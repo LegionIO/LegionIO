@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.176] - 2026-03-23
+
+### Added
+- ShadowEvalStatus chat tool: view shadow evaluation results comparing primary vs cheaper models
+- Supports "summary" (cost savings, length ratios) and "history" (recent comparisons) actions
+- 34th built-in chat tool registered in ToolRegistry
+
 ## [1.4.175] - 2026-03-23
 
 ### Added
