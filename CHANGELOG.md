@@ -1,8 +1,10 @@
 # Legion Changelog
 
-## [Unreleased]
+## [1.4.142] - 2026-03-23
 
 ### Added
+- ConsolidateMemory chat tool: LLM-powered memory consolidation that deduplicates, merges related entries, and cleans up cluttered memory files with dry-run preview support
+- ConsolidateMemory spec with 10 examples covering consolidation, dry-run, global scope, LLM unavailable, and error handling
 - Task command spec with 13 examples covering list, show, logs, purge, and helper methods
 - Chain command spec with 6 examples covering list, create, delete, and confirmation flow
 - Generate command spec with 14 examples covering runner, actor, exchange, queue, message, and tool scaffolding

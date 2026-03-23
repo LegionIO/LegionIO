@@ -18,6 +18,7 @@ begin
   require 'legion/cli/chat/tools/search_traces'
   require 'legion/cli/chat/tools/query_knowledge'
   require 'legion/cli/chat/tools/ingest_knowledge'
+  require 'legion/cli/chat/tools/consolidate_memory'
 rescue LoadError => e
   Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
@@ -42,7 +43,8 @@ module Legion
                             Tools::SpawnAgent,
                             Tools::SearchTraces,
                             Tools::QueryKnowledge,
-                            Tools::IngestKnowledge
+                            Tools::IngestKnowledge,
+                            Tools::ConsolidateMemory
                           ].freeze
                         else
                           [].freeze
