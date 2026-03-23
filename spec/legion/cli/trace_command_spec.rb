@@ -96,4 +96,66 @@ RSpec.describe Legion::CLI::TraceCommand do
       expect(Legion::TraceSearch).to have_received(:search).with('expensive', limit: 10)
     end
   end
+
+  describe '#summarize' do
+    let(:summary_result) do
+      {
+        total_records:    100,
+        total_tokens_in:  5000,
+        total_tokens_out: 8000,
+        total_cost:       1.2345,
+        avg_latency_ms:   150.7,
+        max_latency_ms:   2500,
+        time_range:       { from: Time.utc(2026, 3, 1), to: Time.utc(2026, 3, 23) },
+        status_counts:    { 'success' => 90, 'failure' => 10 },
+        top_extensions:   [{ name: 'http', count: 60 }, { name: 'vault', count: 40 }],
+        top_workers:      [{ id: 'w-1', count: 70 }],
+        filter:           {}
+      }
+    end
+
+    before do
+      allow(Legion::TraceSearch).to receive(:summarize).and_return(summary_result)
+    end
+
+    it 'outputs Trace Summary header' do
+      expect { described_class.start(%w[summarize all tasks --no-color]) }.to output(/Trace Summary/).to_stdout
+    end
+
+    it 'shows total records' do
+      expect { described_class.start(%w[summarize all --no-color]) }.to output(/100/).to_stdout
+    end
+
+    it 'shows total cost' do
+      expect { described_class.start(%w[summarize all --no-color]) }.to output(/\$1\.2345/).to_stdout
+    end
+
+    it 'shows status breakdown' do
+      expect { described_class.start(%w[summarize all --no-color]) }.to output(/success: 90/).to_stdout
+    end
+
+    it 'shows top extensions' do
+      expect { described_class.start(%w[summarize all --no-color]) }.to output(/http: 60/).to_stdout
+    end
+
+    it 'shows top workers' do
+      expect { described_class.start(%w[summarize all --no-color]) }.to output(/w-1: 70/).to_stdout
+    end
+
+    context 'with --json flag' do
+      it 'outputs JSON' do
+        expect { described_class.start(%w[summarize all --json --no-color]) }.to output(/total_records/).to_stdout
+      end
+    end
+
+    context 'when summarize returns error' do
+      before do
+        allow(Legion::TraceSearch).to receive(:summarize).and_return({ error: 'data unavailable' })
+      end
+
+      it 'displays error message' do
+        expect { described_class.start(%w[summarize all --no-color]) }.to output(/data unavailable/).to_stdout
+      end
+    end
+  end
 end

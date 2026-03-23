@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.143] - 2026-03-23
+
+### Added
+- TraceSearch.summarize: aggregate statistics for trace queries (total cost, tokens, latency, status breakdown, top extensions/workers)
+- `legion trace summarize` CLI subcommand with formatted output and JSON mode
+- Trace command spec expanded with 8 summarize examples
+
 ## [1.4.142] - 2026-03-23
 
 ### Added

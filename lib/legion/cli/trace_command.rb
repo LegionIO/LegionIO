@@ -40,6 +40,30 @@ module Legion
         display_results(out, result)
       end
 
+      desc 'summarize QUERY', 'Show aggregate statistics for matching traces'
+      def summarize(*query_parts)
+        require 'legion/trace_search'
+        query = query_parts.join(' ')
+        out = formatter
+
+        out.header('Trace Summary')
+        puts "  Query: #{query}"
+        out.spacer
+
+        result = Legion::TraceSearch.summarize(query)
+        if result[:error]
+          out.error("Summary failed: #{result[:error]}")
+          return
+        end
+
+        if options[:json]
+          out.json(result)
+          return
+        end
+
+        display_summary(out, result)
+      end
+
       default_task :search
 
       no_commands do
@@ -66,6 +90,40 @@ module Legion
           result[:results].each_with_index do |row, idx|
             display_row(out, row, idx)
           end
+        end
+
+        def display_summary(out, result)
+          out.detail({
+                       'Total Records'    => result[:total_records].to_s,
+                       'Total Tokens In'  => result[:total_tokens_in].to_s,
+                       'Total Tokens Out' => result[:total_tokens_out].to_s,
+                       'Total Cost'       => format('$%.4f', result[:total_cost]),
+                       'Avg Latency'      => "#{result[:avg_latency_ms]}ms",
+                       'Max Latency'      => "#{result[:max_latency_ms]}ms"
+                     })
+
+          if result[:time_range][:from]
+            out.spacer
+            puts "  Time range: #{result[:time_range][:from]} to #{result[:time_range][:to]}"
+          end
+
+          if result[:status_counts].any?
+            out.spacer
+            out.header('Status Breakdown')
+            result[:status_counts].each { |status, count| puts "  #{status}: #{count}" }
+          end
+
+          if result[:top_extensions].any?
+            out.spacer
+            out.header('Top Extensions')
+            result[:top_extensions].each { |e| puts "  #{e[:name]}: #{e[:count]}" }
+          end
+
+          return unless result[:top_workers].any?
+
+          out.spacer
+          out.header('Top Workers')
+          result[:top_workers].each { |w| puts "  #{w[:id]}: #{w[:count]}" }
         end
 
         def display_row(out, row, idx)

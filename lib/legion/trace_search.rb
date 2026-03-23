@@ -113,6 +113,67 @@ module Legion
 
         parsed[:order].start_with?('-') ? dataset.order(Sequel.desc(col.to_sym)) : dataset.order(col.to_sym)
       end
+
+      def summarize(query)
+        parsed = generate_filter(query)
+        return { error: 'no filter generated' } unless parsed
+
+        compute_summary(parsed)
+      rescue StandardError => e
+        Legion::Logging.error("[TraceSearch] summarize failed: #{e.message}") if defined?(Legion::Logging)
+        { error: e.message }
+      end
+
+      def compute_summary(parsed)
+        return { error: 'data unavailable' } unless defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && Legion::Data.connection
+
+        ds = build_filtered_dataset(parsed)
+        row = aggregate_stats(ds)
+
+        format_summary(ds, row, parsed)
+      end
+
+      def build_filtered_dataset(parsed)
+        ds = Legion::Data.connection[:metering_records]
+        if parsed[:where].is_a?(Hash)
+          safe_where = parsed[:where].select { |k, _| ALLOWED_COLUMNS.include?(k.to_s) }
+          ds = ds.where(safe_where.transform_keys(&:to_sym))
+        end
+        apply_date_filters(ds, parsed)
+      end
+
+      def aggregate_stats(dataset)
+        dataset.select(
+          Sequel.function(:count, Sequel.lit('*')).as(:total_records),
+          Sequel.function(:sum, :tokens_in).as(:total_tokens_in),
+          Sequel.function(:sum, :tokens_out).as(:total_tokens_out),
+          Sequel.function(:sum, :cost_usd).as(:total_cost),
+          Sequel.function(:avg, :wall_clock_ms).as(:avg_latency_ms),
+          Sequel.function(:max, :wall_clock_ms).as(:max_latency_ms),
+          Sequel.function(:min, :created_at).as(:earliest),
+          Sequel.function(:max, :created_at).as(:latest)
+        ).first || {}
+      end
+
+      def format_summary(dataset, row, parsed)
+        {
+          total_records:    row[:total_records] || 0,
+          total_tokens_in:  row[:total_tokens_in] || 0,
+          total_tokens_out: row[:total_tokens_out] || 0,
+          total_cost:       (row[:total_cost] || 0).to_f.round(4),
+          avg_latency_ms:   (row[:avg_latency_ms] || 0).to_f.round(1),
+          max_latency_ms:   row[:max_latency_ms] || 0,
+          time_range:       { from: row[:earliest], to: row[:latest] },
+          status_counts:    dataset.group_and_count(:status).all.to_h { |r| [r[:status], r[:count]] },
+          top_extensions:   top_by(dataset, :extension).map { |r| { name: r[:extension], count: r[:count] } },
+          top_workers:      top_by(dataset, :worker_id).map { |r| { id: r[:worker_id], count: r[:count] } },
+          filter:           parsed
+        }
+      end
+
+      def top_by(dataset, column, limit: 5)
+        dataset.group_and_count(column).order(Sequel.desc(:count)).limit(limit).all
+      end
     end
   end
 end

@@ -141,4 +141,107 @@ RSpec.describe Legion::TraceSearch do
       expect(result).to eq(mock_dataset)
     end
   end
+
+  describe '.summarize' do
+    it 'returns error when LLM unavailable' do
+      result = described_class.summarize('test query')
+      expect(result[:error]).to eq('no filter generated')
+    end
+
+    context 'when LLM generates a filter' do
+      before do
+        allow(described_class).to receive(:generate_filter).and_return({ where: { status: 'failure' } })
+      end
+
+      it 'returns data unavailable error when data is not connected' do
+        result = described_class.summarize('failed tasks')
+        expect(result[:error]).to include('data unavailable')
+      end
+    end
+  end
+
+  describe '.compute_summary' do
+    it 'returns error when data unavailable' do
+      result = described_class.compute_summary({ where: { status: 'failure' } })
+      expect(result[:error]).to include('data unavailable')
+    end
+
+    context 'with mock database' do
+      let(:mock_ds) { double('Dataset') }
+      let(:mock_connection) { double('Connection') }
+
+      before do
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+        end
+        stub_const('Legion::Data', data_mod)
+        allow(Legion::Data).to receive(:connection).and_return(mock_connection)
+        allow(mock_connection).to receive(:[]).with(:metering_records).and_return(mock_ds)
+        allow(mock_ds).to receive(:where).and_return(mock_ds)
+        allow(mock_ds).to receive(:select).and_return(mock_ds)
+        allow(mock_ds).to receive(:group_and_count).and_return(mock_ds)
+        allow(mock_ds).to receive(:order).and_return(mock_ds)
+        allow(mock_ds).to receive(:limit).and_return(mock_ds)
+      end
+
+      it 'returns summary with expected keys' do
+        allow(mock_ds).to receive(:first).and_return({
+                                                       total_records:    100,
+                                                       total_tokens_in:  5000,
+                                                       total_tokens_out: 8000,
+                                                       total_cost:       1.2345,
+                                                       avg_latency_ms:   150.67,
+                                                       max_latency_ms:   2500,
+                                                       earliest:         Time.new(2026, 3, 1),
+                                                       latest:           Time.new(2026, 3, 23)
+                                                     })
+        allow(mock_ds).to receive(:all).and_return([])
+
+        result = described_class.compute_summary({ where: { status: 'success' } })
+        expect(result[:total_records]).to eq(100)
+        expect(result[:total_tokens_in]).to eq(5000)
+        expect(result[:total_cost]).to eq(1.2345)
+        expect(result[:avg_latency_ms]).to eq(150.7)
+        expect(result[:time_range][:from]).to be_a(Time)
+        expect(result[:status_counts]).to eq({})
+        expect(result[:top_extensions]).to eq([])
+        expect(result[:top_workers]).to eq([])
+      end
+
+      it 'handles nil aggregate values' do
+        allow(mock_ds).to receive(:first).and_return({})
+        allow(mock_ds).to receive(:all).and_return([])
+
+        result = described_class.compute_summary({})
+        expect(result[:total_records]).to eq(0)
+        expect(result[:total_cost]).to eq(0.0)
+        expect(result[:avg_latency_ms]).to eq(0.0)
+      end
+
+      it 'includes status breakdown' do
+        allow(mock_ds).to receive(:first).and_return({ total_records: 10 })
+        allow(mock_ds).to receive(:all).and_return(
+          [{ status: 'success', count: 8 }, { status: 'failure', count: 2 }],
+          [], # top_extensions
+          []  # top_workers
+        )
+
+        result = described_class.compute_summary({})
+        expect(result[:status_counts]).to eq({ 'success' => 8, 'failure' => 2 })
+      end
+
+      it 'includes top extensions and workers' do
+        allow(mock_ds).to receive(:first).and_return({ total_records: 50 })
+        allow(mock_ds).to receive(:all).and_return(
+          [{ status: 'success', count: 50 }],
+          [{ extension: 'http', count: 30 }, { extension: 'vault', count: 20 }],
+          [{ worker_id: 'w-1', count: 40 }, { worker_id: 'w-2', count: 10 }]
+        )
+
+        result = described_class.compute_summary({})
+        expect(result[:top_extensions]).to eq([{ name: 'http', count: 30 }, { name: 'vault', count: 20 }])
+        expect(result[:top_workers]).to eq([{ id: 'w-1', count: 40 }, { id: 'w-2', count: 10 }])
+      end
+    end
+  end
 end
