@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.178] - 2026-03-23
+
+### Added
+- ArbitrageStatus chat tool: view LLM cost arbitrage table, cheapest model per capability tier
+- Supports overview mode (full cost table + tier picks) and per-tier detail mode
+- 36th built-in chat tool registered in ToolRegistry
+
 ## [1.4.177] - 2026-03-23
 
 ### Added
