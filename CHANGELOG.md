@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.152] - 2026-03-23
+
+### Added
+- Daemon awareness in chat context: system prompt now includes running daemon version and port when healthy
+- daemon_hint method probes /api/health with 1-second timeout for non-blocking detection
+- 5 new context specs covering daemon hint and cognitive awareness with daemon running
+
 ## [1.4.151] - 2026-03-23
 
 ### Added

@@ -110,6 +110,7 @@ module Legion
 
         def self.cognitive_awareness(directory)
           hints = []
+          hints << daemon_hint
           hints << memory_hint(directory)
           hints << apollo_hint
           hints.compact!
@@ -144,6 +145,23 @@ module Legion
           return nil unless available
 
           '  Apollo knowledge graph: online (use query_knowledge/ingest_knowledge/relate_knowledge/knowledge_stats)'
+        rescue StandardError
+          nil
+        end
+
+        def self.daemon_hint
+          port = apollo_port
+          uri = URI("http://127.0.0.1:#{port}/api/health")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.open_timeout = 1
+          http.read_timeout = 1
+          response = http.get(uri.path)
+          data = ::JSON.parse(response.body, symbolize_names: true)
+          return nil unless data[:status] == 'ok'
+
+          parts = ["  Legion daemon: running on port #{port}"]
+          parts << " (v#{data[:version]})" if data[:version]
+          parts.join
         rescue StandardError
           nil
         end

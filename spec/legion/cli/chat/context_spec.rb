@@ -111,6 +111,10 @@ RSpec.describe Legion::CLI::Chat::Context do
   end
 
   describe '.cognitive_awareness' do
+    before do
+      allow(described_class).to receive(:daemon_hint).and_return(nil)
+    end
+
     it 'returns nil when no cognitive context is available' do
       allow(described_class).to receive(:memory_hint).and_return(nil)
       allow(described_class).to receive(:apollo_hint).and_return(nil)
@@ -129,6 +133,14 @@ RSpec.describe Legion::CLI::Chat::Context do
       allow(described_class).to receive(:apollo_hint).and_return('  Apollo knowledge graph: online')
       result = described_class.cognitive_awareness(tmpdir)
       expect(result).to include('Apollo knowledge graph: online')
+    end
+
+    it 'includes daemon hint when running' do
+      allow(described_class).to receive(:daemon_hint).and_return('  Legion daemon: running on port 4567 (v1.4.151)')
+      allow(described_class).to receive(:memory_hint).and_return(nil)
+      allow(described_class).to receive(:apollo_hint).and_return(nil)
+      result = described_class.cognitive_awareness(tmpdir)
+      expect(result).to include('Legion daemon: running on port 4567')
     end
   end
 
@@ -183,6 +195,52 @@ RSpec.describe Legion::CLI::Chat::Context do
     it 'returns nil on connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
       expect(described_class.apollo_hint).to be_nil
+    end
+  end
+
+  describe '.daemon_hint' do
+    let(:mock_http) { instance_double(Net::HTTP) }
+
+    before do
+      allow(Net::HTTP).to receive(:new).and_return(mock_http)
+      allow(mock_http).to receive(:open_timeout=)
+      allow(mock_http).to receive(:read_timeout=)
+    end
+
+    it 'returns running hint with version when daemon is healthy' do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(
+        JSON.generate({ status: 'ok', version: '1.4.151' })
+      )
+      allow(mock_http).to receive(:get).and_return(response)
+      result = described_class.daemon_hint
+      expect(result).to include('Legion daemon: running on port 4567')
+      expect(result).to include('v1.4.151')
+    end
+
+    it 'returns hint without version when not provided' do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(
+        JSON.generate({ status: 'ok' })
+      )
+      allow(mock_http).to receive(:get).and_return(response)
+      result = described_class.daemon_hint
+      expect(result).to include('Legion daemon: running')
+      expect(result).not_to include('(v')
+    end
+
+    it 'returns nil when status is not ok' do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(
+        JSON.generate({ status: 'degraded' })
+      )
+      allow(mock_http).to receive(:get).and_return(response)
+      expect(described_class.daemon_hint).to be_nil
+    end
+
+    it 'returns nil on connection refused' do
+      allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
+      expect(described_class.daemon_hint).to be_nil
     end
   end
 end
