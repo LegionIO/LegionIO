@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.114
+**Version**: 1.4.184
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -194,7 +194,7 @@ Legion (lib/legion.rb)
     │   ├── Session        # Multi-turn chat session with streaming
     │   ├── SessionStore   # Persistent session save/load/list/resume/fork
     │   ├── Permissions    # Tool permission model (interactive/auto_approve/read_only)
-    │   ├── ToolRegistry   # Chat tool discovery and registration (22 built-in + extension tools)
+    │   ├── ToolRegistry   # Chat tool discovery and registration (40 built-in + extension tools)
     │   ├── ExtensionTool    # permission_tier DSL module for LEX chat tools (:read/:write/:shell)
     │   ├── ExtensionToolLoader # Lazy discovery of tools/ directories from loaded extensions
     │   ├── Context        # Project awareness (git, language, instructions, extra dirs)
@@ -632,7 +632,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/chat/session.rb` | Chat session: multi-turn conversation, streaming, tool use |
 | `lib/legion/cli/chat/session_store.rb` | Session persistence: save, load, list, resume, fork |
 | `lib/legion/cli/chat/permissions.rb` | Tool permission model (interactive/auto_approve/read_only) |
-| `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration (22 tools) |
+| `lib/legion/cli/chat/tool_registry.rb` | Chat tool discovery and registration (40 tools) |
 | `lib/legion/cli/chat/extension_tool.rb` | permission_tier DSL module for extension chat tools |
 | `lib/legion/cli/chat/extension_tool_loader.rb` | Lazy discovery engine: scans loaded extensions for tools/ directories |
 | `lib/legion/cli/chat/context.rb` | Project awareness: git info, language detection, instructions, extra dirs |
@@ -645,10 +645,11 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/chat/agent_registry.rb` | Custom agent definitions from `.legion/agents/*.json` and `.yaml` |
 | `lib/legion/cli/chat/agent_delegator.rb` | `@name` at-mention parsing and dispatch via Subagent |
 | `lib/legion/cli/chat/chat_logger.rb` | Chat-specific logging |
+| `lib/legion/cli/chat/context_manager.rb` | Context window management: dedup, compression, summarization strategies |
 | `lib/legion/cli/chat/progress_bar.rb` | Progress bar rendering for long operations |
 | `lib/legion/cli/chat/status_indicator.rb` | Status indicator (spinner, checkmark, cross) |
 | `lib/legion/cli/chat/team.rb` | Multi-user team support for chat sessions |
-| `lib/legion/cli/chat/tools/` | Built-in tools: read_file, write_file, edit_file, search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent, search_traces, query_knowledge, ingest_knowledge, consolidate_memory, relate_knowledge, knowledge_maintenance, knowledge_stats, summarize_traces, list_extensions, manage_tasks, system_status, view_events |
+| `lib/legion/cli/chat/tools/` | 40 built-in tools: read_file, write_file, edit_file, search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent, search_traces, query_knowledge, ingest_knowledge, consolidate_memory, relate_knowledge, knowledge_maintenance, knowledge_stats, summarize_traces, list_extensions, manage_tasks, system_status, view_events, cost_summary, reflect, manage_schedules, worker_status, detect_anomalies, view_trends, trigger_dream, generate_insights, budget_status, provider_health, model_comparison, shadow_eval_status, entity_extract, arbitrage_status, escalation_status, graph_explore, scheduling_status, memory_status |
 | `lib/legion/chat/skills.rb` | Skill discovery: parses `.legion/skills/` and `~/.legionio/skills/` YAML frontmatter files |
 | `lib/legion/cli/graph_command.rb` | `legion graph` subcommands (show with --format mermaid\|dot, --chain, --output) |
 | `lib/legion/cli/trace_command.rb` | `legion trace search` — NL trace search via LLM |
@@ -727,7 +728,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 2514 examples, 0 failures
+bundle exec rspec       # 3194 examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 
