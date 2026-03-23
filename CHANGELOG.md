@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.161] - 2026-03-23
+
+### Added
+- WorkerStatus chat tool: list digital workers, show details, and health summary via daemon API
+- WorkerStatus spec with 7 examples covering list, filter, show, health, empty state, and connection errors
+- Chat tool registry now has 26 built-in tools
+
 ## [1.4.160] - 2026-03-23
 
 ### Added
