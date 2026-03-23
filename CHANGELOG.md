@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.168] - 2026-03-23
+
+### Added
+- GenerateInsights chat tool: combines anomaly detection, trends, Apollo stats, and worker health into actionable report
+- Automatic recommendations based on detected anomalies and trend patterns
+- 7 specs covering comprehensive report generation, anomaly details, recommendations, and error handling
+- Chat tool registry now has 30 built-in tools
+
 ## [1.4.167] - 2026-03-23
 
 ### Added
