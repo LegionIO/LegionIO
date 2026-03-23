@@ -58,6 +58,7 @@ module Legion
     autoload :Docs,        'legion/cli/docs_command'
     autoload :Failover,    'legion/cli/failover_command'
     autoload :Apollo,      'legion/cli/apollo_command'
+    autoload :TraceCommand, 'legion/cli/trace_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -309,6 +310,9 @@ module Legion
 
       desc 'failover SUBCOMMAND', 'Region failover management'
       subcommand 'failover', Legion::CLI::Failover
+
+      desc 'trace SUBCOMMAND', 'Natural language trace search via LLM'
+      subcommand 'trace', Legion::CLI::TraceCommand
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

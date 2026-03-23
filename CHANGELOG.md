@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.137] - 2026-03-23
+
+### Changed
+- Rewrite `legion trace search` with formatter support, JSON mode, truncation display, detailed output (cost, tokens, wall clock, worker)
+- Register trace subcommand in main CLI (`legion trace search QUERY`)
+
+### Added
+- Trace command spec with 13 examples covering all output paths
+
 ## [1.4.136] - 2026-03-23
 
 ### Added
