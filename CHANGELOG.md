@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.128] - 2026-03-22
+
+### Changed
+- `Extensions::Helpers::Cache` now delegates to `Legion::Cache::Helper` from legion-cache gem
+- Require legion-cache >= 1.3.11 and legion-crypt >= 1.4.9
+
 ## [1.4.127] - 2026-03-22
 
 ### Changed

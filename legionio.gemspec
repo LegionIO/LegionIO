@@ -52,8 +52,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'thor', '>= 1.3'
   spec.add_dependency 'tty-spinner', '~> 0.9'
 
-  spec.add_dependency 'legion-cache', '>= 1.3.9'
-  spec.add_dependency 'legion-crypt', '>= 1.4.8'
+  spec.add_dependency 'legion-cache', '>= 1.3.11'
+  spec.add_dependency 'legion-crypt', '>= 1.4.9'
   spec.add_dependency 'legion-json', '>= 1.2.0'
   spec.add_dependency 'legion-logging', '>= 1.3.2'
   spec.add_dependency 'legion-settings', '>= 1.3.14'
