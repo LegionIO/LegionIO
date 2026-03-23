@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.160] - 2026-03-23
+
+### Added
+- ManageSchedules chat tool: list, show, logs, and create scheduled tasks via daemon API
+- ManageSchedules spec with 10 examples covering all actions, validation, empty states, and connection errors
+- Chat tool registry now has 25 built-in tools
+
 ## [1.4.159] - 2026-03-23
 
 ### Added
