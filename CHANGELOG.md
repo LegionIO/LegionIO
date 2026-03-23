@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.170] - 2026-03-23
+
+### Added
+- Costs REST API: GET /api/costs/summary, /api/costs/workers, /api/costs/extensions
+- Aggregates metering_records cost_usd by time period, worker, and extension
+- 8 specs with in-memory SQLite for realistic query testing
+
 ## [1.4.169] - 2026-03-23
 
 ### Fixed
