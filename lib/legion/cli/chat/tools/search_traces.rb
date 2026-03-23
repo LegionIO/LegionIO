@@ -46,8 +46,15 @@ module Legion
           private
 
           def trace_store_available?
+            load_trace_gem unless defined?(Legion::Extensions::Agentic::Memory::Trace)
             defined?(Legion::Extensions::Agentic::Memory::Trace) &&
               Legion::Extensions::Agentic::Memory::Trace.respond_to?(:shared_store)
+          end
+
+          def load_trace_gem
+            require 'legion/extensions/agentic/memory/trace'
+          rescue LoadError
+            nil
           end
 
           def store

@@ -110,6 +110,13 @@ RSpec.describe Legion::CLI::Chat::Tools::SearchTraces do
       expect(result).to include('not available')
     end
 
+    it 'attempts to require the gem when constant is not defined' do
+      hide_const('Legion::Extensions::Agentic::Memory::Trace')
+      allow(tool).to receive(:load_trace_gem)
+      tool.execute(query: 'test')
+      expect(tool).to have_received(:load_trace_gem)
+    end
+
     it 'respects limit parameter' do
       result = tool.execute(query: 'Bob Alice Grid Sprint', limit: 1)
       expect(result).to include('Found 1 matching')
