@@ -128,9 +128,12 @@ module Legion
         private
 
         def resolve_config_dir
-          if @config_dir.is_a?(String) && !@config_dir.strip.empty?
-            expanded = File.expand_path(@config_dir)
-            return expanded if Dir.exist?(expanded)
+          if @config_dir.is_a?(String)
+            stripped = @config_dir.strip
+            unless stripped.empty?
+              expanded = File.expand_path(stripped)
+              return expanded if Dir.exist?(expanded)
+            end
           end
 
           require 'legion/settings/loader' unless defined?(Legion::Settings::Loader)
