@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.158] - 2026-03-23
+
+### Added
+- CostSummary chat tool: query cost/token usage from daemon (summary, top consumers, per-worker)
+- CostSummary spec with 7 examples covering summary, top, worker, missing worker_id, empty workers, daemon down, API errors
+- Chat tool registry now has 23 built-in tools
+
 ## [1.4.157] - 2026-03-23
 
 ### Added
