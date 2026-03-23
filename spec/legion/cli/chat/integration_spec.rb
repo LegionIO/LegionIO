@@ -16,7 +16,7 @@ RSpec.describe 'Legion Chat Integration' do
   it 'has all expected tools registered' do
     require 'legion/cli/chat/tool_registry'
     tools = Legion::CLI::Chat::ToolRegistry.builtin_tools
-    expect(tools.length).to eq(26)
+    expect(tools.length).to eq(27)
 
     tool_classes = tools.map(&:name)
     expect(tool_classes).to include(a_string_matching(/ReadFile/))
@@ -45,6 +45,7 @@ RSpec.describe 'Legion Chat Integration' do
     expect(tool_classes).to include(a_string_matching(/WorkerStatus/))
     expect(tool_classes).to include(a_string_matching(/WebSearch/))
     expect(tool_classes).to include(a_string_matching(/SpawnAgent/))
+    expect(tool_classes).to include(a_string_matching(/DetectAnomalies/))
   end
 
   it 'context detects current project as ruby' do

@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.164] - 2026-03-23
+
+### Added
+- DetectAnomalies chat tool: proactive anomaly detection via daemon API with configurable threshold
+- Reports cost spikes, latency increases, and failure rate changes with severity levels
+- 6 specs covering healthy system, anomaly detection, custom threshold, API errors, connection refused, and singular grammar
+- Chat tool registry now has 27 built-in tools
+
 ## [1.4.163] - 2026-03-23
 
 ### Added
