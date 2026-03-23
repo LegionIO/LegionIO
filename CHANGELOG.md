@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.177] - 2026-03-23
+
+### Added
+- EntityExtract chat tool: extract named entities (people, services, repos, concepts) from text via Apollo
+- Supports entity type filtering and configurable confidence thresholds
+- Groups results by type with confidence percentages
+- 35th built-in chat tool registered in ToolRegistry
+
 ## [1.4.176] - 2026-03-23
 
 ### Added

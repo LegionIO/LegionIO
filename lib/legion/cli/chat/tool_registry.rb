@@ -39,6 +39,7 @@ begin
   require 'legion/cli/chat/tools/provider_health'
   require 'legion/cli/chat/tools/model_comparison'
   require 'legion/cli/chat/tools/shadow_eval_status'
+  require 'legion/cli/chat/tools/entity_extract'
 rescue LoadError => e
   Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
@@ -84,7 +85,8 @@ module Legion
                             Tools::BudgetStatus,
                             Tools::ProviderHealth,
                             Tools::ModelComparison,
-                            Tools::ShadowEvalStatus
+                            Tools::ShadowEvalStatus,
+                            Tools::EntityExtract
                           ].freeze
                         else
                           [].freeze
