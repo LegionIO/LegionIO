@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.132] - 2026-03-23
+
+### Added
+- Apollo knowledge graph REST API: status, query, ingest, and related entries endpoints
+- Apollo API spec with 11 examples covering all routes and parameter passing
+
 ## [1.4.131] - 2026-03-23
 
 ### Changed
