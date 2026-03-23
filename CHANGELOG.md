@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.145] - 2026-03-23
+
+### Added
+- KnowledgeMaintenance chat tool: trigger Apollo knowledge graph decay cycles and corroboration checks from chat sessions
+- KnowledgeMaintenance spec with 8 examples covering decay, corroboration, invalid actions, API errors, and edge cases
+- Chat tool registry now has 16 built-in tools
+
 ## [1.4.144] - 2026-03-23
 
 ### Added
