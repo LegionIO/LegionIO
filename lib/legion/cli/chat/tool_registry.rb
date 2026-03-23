@@ -36,6 +36,7 @@ begin
   require 'legion/cli/chat/tools/trigger_dream'
   require 'legion/cli/chat/tools/generate_insights'
   require 'legion/cli/chat/tools/budget_status'
+  require 'legion/cli/chat/tools/provider_health'
 rescue LoadError => e
   Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
@@ -78,7 +79,8 @@ module Legion
                             Tools::ViewTrends,
                             Tools::TriggerDream,
                             Tools::GenerateInsights,
-                            Tools::BudgetStatus
+                            Tools::BudgetStatus,
+                            Tools::ProviderHealth
                           ].freeze
                         else
                           [].freeze

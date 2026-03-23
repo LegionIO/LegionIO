@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.173] - 2026-03-23
+
+### Added
+- ProviderHealth chat tool: displays LLM provider circuit breaker state, health status, and routing adjustments
+- Supports all-provider report and single-provider detail views
+- 33rd built-in chat tool registered in ToolRegistry
+
 ## [1.4.172] - 2026-03-23
 
 ### Added
