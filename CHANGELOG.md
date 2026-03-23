@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.175] - 2026-03-23
+
+### Added
+- ModelComparison chat tool: compare LLM model pricing side-by-side with cost projections
+- Supports filtering by model name, custom token count estimates, and price ratio analysis
+- Uses CostTracker pricing when available, falls back to built-in defaults
+- 33rd built-in chat tool registered in ToolRegistry
+
 ## [1.4.174] - 2026-03-23
 
 ### Added
