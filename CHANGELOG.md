@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.146] - 2026-03-23
+
+### Added
+- KnowledgeStats chat tool: inspect Apollo knowledge graph health with entry counts, status/type breakdowns, recent activity, and average confidence
+- KnowledgeStats spec with 5 examples covering formatted output, empty breakdowns, API errors, connection refused, and missing fields
+- Chat tool registry now has 17 built-in tools
+
 ## [1.4.145] - 2026-03-23
 
 ### Added
