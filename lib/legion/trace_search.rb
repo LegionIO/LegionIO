@@ -186,6 +186,68 @@ module Legion
       def top_by(dataset, column, limit: 5)
         dataset.group_and_count(column).order(Sequel.desc(:count)).limit(limit).all
       end
+
+      def detect_anomalies(threshold: 2.0)
+        return { error: 'data unavailable' } unless data_available?
+
+        now = Time.now.utc
+        recent = period_stats(now - 3600, now)
+        baseline = period_stats(now - 86_400, now - 3600)
+
+        build_anomaly_report(recent, baseline, threshold)
+      rescue StandardError => e
+        Legion::Logging.error("[TraceSearch] detect_anomalies failed: #{e.message}") if defined?(Legion::Logging)
+        { error: e.message }
+      end
+
+      private
+
+      def data_available?
+        defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && Legion::Data.connection
+      end
+
+      def period_stats(from, to)
+        ds = Legion::Data.connection[:metering_records].where { created_at >= from }.where { created_at <= to }
+        row = ds.select(
+          Sequel.function(:count, Sequel.lit('*')).as(:count),
+          Sequel.function(:avg, :cost_usd).as(:avg_cost),
+          Sequel.function(:avg, :wall_clock_ms).as(:avg_latency),
+          Sequel.function(:sum, :tokens_in).as(:tokens_in),
+          Sequel.function(:sum, :tokens_out).as(:tokens_out)
+        ).first || {}
+
+        failures = ds.where(status: 'failure').count
+        total = row[:count] || 0
+
+        row.merge(failure_rate: total.positive? ? failures.to_f / total : 0.0)
+      end
+
+      def build_anomaly_report(recent, baseline, threshold)
+        anomalies = []
+        anomalies.concat(check_metric(:avg_cost, recent, baseline, threshold, 'Average cost'))
+        anomalies.concat(check_metric(:avg_latency, recent, baseline, threshold, 'Average latency'))
+        anomalies.concat(check_metric(:failure_rate, recent, baseline, threshold, 'Failure rate'))
+
+        {
+          anomalies:       anomalies,
+          recent_count:    recent[:count] || 0,
+          baseline_count:  baseline[:count] || 0,
+          recent_period:   'last 1 hour',
+          baseline_period: 'previous 23 hours'
+        }
+      end
+
+      def check_metric(key, recent, baseline, threshold, label)
+        recent_val = (recent[key] || 0).to_f
+        baseline_val = (baseline[key] || 0).to_f
+        return [] if baseline_val.zero? || recent_val <= baseline_val
+
+        ratio = recent_val / baseline_val
+        return [] unless ratio >= threshold
+
+        [{ metric: label, recent: recent_val.round(4), baseline: baseline_val.round(4),
+           ratio: ratio.round(2), severity: ratio >= threshold * 2 ? 'critical' : 'warning' }]
+      end
     end
   end
 end

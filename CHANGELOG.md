@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.162] - 2026-03-23
+
+### Added
+- TraceSearch.detect_anomalies: compares last-hour metrics against 24h baseline to detect cost, latency, and failure rate spikes
+- Anomaly detection uses configurable threshold (default 2x) with severity levels (warning/critical)
+- 4 new TraceSearch specs covering anomaly report structure, cost spike detection, normal metrics, and zero baseline handling
+
 ## [1.4.161] - 2026-03-23
 
 ### Added

@@ -259,4 +259,74 @@ RSpec.describe Legion::TraceSearch do
       end
     end
   end
+
+  describe '.detect_anomalies' do
+    it 'returns error when data unavailable' do
+      result = described_class.detect_anomalies
+      expect(result[:error]).to include('data unavailable')
+    end
+
+    context 'with mock database' do
+      let(:mock_ds) { double('Dataset') }
+      let(:mock_connection) { double('Connection') }
+
+      before do
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+        end
+        stub_const('Legion::Data', data_mod)
+        allow(Legion::Data).to receive(:connection).and_return(mock_connection)
+        allow(mock_connection).to receive(:[]).with(:metering_records).and_return(mock_ds)
+        allow(mock_ds).to receive(:where).and_return(mock_ds)
+        allow(mock_ds).to receive(:select).and_return(mock_ds)
+        allow(mock_ds).to receive(:count).and_return(0)
+      end
+
+      it 'returns anomaly report with expected keys' do
+        allow(mock_ds).to receive(:first).and_return({
+                                                       count: 10, avg_cost: 0.01,
+                                                       avg_latency: 100.0,
+                                                       tokens_in: 500, tokens_out: 300
+                                                     })
+
+        result = described_class.detect_anomalies
+        expect(result).to have_key(:anomalies)
+        expect(result).to have_key(:recent_count)
+        expect(result).to have_key(:baseline_count)
+        expect(result[:recent_period]).to eq('last 1 hour')
+      end
+
+      it 'detects cost spike anomaly' do
+        # Recent period: high avg cost
+        recent_stats = { count: 10, avg_cost: 0.50, avg_latency: 100.0, tokens_in: 500, tokens_out: 300 }
+        # Baseline period: low avg cost
+        baseline_stats = { count: 100, avg_cost: 0.05, avg_latency: 100.0, tokens_in: 5000, tokens_out: 3000 }
+
+        allow(mock_ds).to receive(:first).and_return(recent_stats, baseline_stats)
+
+        result = described_class.detect_anomalies(threshold: 2.0)
+        cost_anomaly = result[:anomalies].find { |a| a[:metric] == 'Average cost' }
+        expect(cost_anomaly).not_to be_nil
+        expect(cost_anomaly[:ratio]).to eq(10.0)
+        expect(cost_anomaly[:severity]).to eq('critical')
+      end
+
+      it 'returns no anomalies when metrics are normal' do
+        stats = { count: 10, avg_cost: 0.05, avg_latency: 100.0, tokens_in: 500, tokens_out: 300 }
+        allow(mock_ds).to receive(:first).and_return(stats, stats)
+
+        result = described_class.detect_anomalies
+        expect(result[:anomalies]).to be_empty
+      end
+
+      it 'handles zero baseline gracefully' do
+        recent = { count: 5, avg_cost: 0.10, avg_latency: 200.0, tokens_in: 100, tokens_out: 50 }
+        baseline = { count: 0, avg_cost: 0.0, avg_latency: 0.0, tokens_in: 0, tokens_out: 0 }
+        allow(mock_ds).to receive(:first).and_return(recent, baseline)
+
+        result = described_class.detect_anomalies
+        expect(result[:anomalies]).to be_empty
+      end
+    end
+  end
 end
