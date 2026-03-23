@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.171] - 2026-03-23
+
+### Added
+- SearchTraces chat tool: natural language search across cognitive memory traces (people, conversations, meetings)
+- Person name variant matching, fuzzy search, keyword ranking, and structured field extraction
+- 11th built-in chat tool registered in ToolRegistry
+
 ## [1.4.170] - 2026-03-23
 
 ### Added
