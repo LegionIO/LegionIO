@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.134] - 2026-03-23
+
+### Added
+- Apollo stats endpoint: `GET /api/apollo/stats` returns entry counts by status, content type, 24h activity, and average confidence
+- Apollo stats in OpenAPI spec
+
 ## [1.4.133] - 2026-03-23
 
 ### Changed

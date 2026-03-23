@@ -1446,6 +1446,24 @@ module Legion
               }
             }
           },
+          '/api/apollo/stats'                => {
+            get: {
+              tags:        ['Apollo'],
+              summary:     'Knowledge graph statistics',
+              operationId: 'getApolloStats',
+              responses:   {
+                '200' => ok_response('Apollo stats', { type: 'object', properties: {
+                                       total_entries:   { type: 'integer' },
+                                       by_status:       { type: 'object', additionalProperties: { type: 'integer' } },
+                                       by_content_type: { type: 'object', additionalProperties: { type: 'integer' } },
+                                       recent_24h:      { type: 'integer' },
+                                       avg_confidence:  { type: 'number' }
+                                     } }),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
+          },
           '/api/apollo/query'                => {
             post: {
               tags:        ['Apollo'],

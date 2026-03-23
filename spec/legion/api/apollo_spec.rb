@@ -76,6 +76,38 @@ RSpec.describe 'Apollo API routes' do
     end
   end
 
+  describe 'GET /api/apollo/stats' do
+    context 'when apollo is not loaded' do
+      it 'returns 503' do
+        get '/api/apollo/stats'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when apollo is loaded' do
+      before do
+        knowledge_mod = Module.new
+        stub_const('Legion::Extensions::Apollo::Runners::Knowledge', knowledge_mod)
+
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+          def self.connection = Object.new
+        end
+        stub_const('Legion::Data', data_mod)
+      end
+
+      it 'returns stats with error when table is missing' do
+        allow_any_instance_of(test_app).to receive(:apollo_stats)
+          .and_return({ total_entries: 0, error: 'apollo_entries table not available' })
+
+        get '/api/apollo/stats'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:total_entries]).to eq(0)
+      end
+    end
+  end
+
   describe 'POST /api/apollo/query' do
     context 'when apollo is not loaded' do
       it 'returns 503' do

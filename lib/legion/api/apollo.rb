@@ -7,6 +7,7 @@ module Legion
         def self.registered(app)
           app.helpers ApolloHelpers
           register_status_route(app)
+          register_stats_route(app)
           register_query_route(app)
           register_ingest_route(app)
           register_related_route(app)
@@ -19,6 +20,14 @@ module Legion
             else
               json_response({ available: false }, status_code: 503)
             end
+          end
+        end
+
+        def self.register_stats_route(app)
+          app.get '/api/apollo/stats' do
+            halt 503, json_error('apollo_unavailable', 'apollo is not available', status_code: 503) unless apollo_loaded?
+
+            json_response(apollo_stats)
           end
         end
 
@@ -86,6 +95,19 @@ module Legion
 
         def apollo_runner
           @apollo_runner ||= Object.new.extend(Legion::Extensions::Apollo::Runners::Knowledge)
+        end
+
+        def apollo_stats
+          entries = Legion::Data.connection[:apollo_entries]
+          {
+            total_entries:   entries.count,
+            by_status:       entries.group_and_count(:status).all.to_h { |r| [r[:status], r[:count]] },
+            by_content_type: entries.group_and_count(:content_type).all.to_h { |r| [r[:content_type], r[:count]] },
+            recent_24h:      entries.where { created_at >= (Time.now.utc - 86_400) }.count,
+            avg_confidence:  entries.avg(:confidence)&.round(3) || 0.0
+          }
+        rescue Sequel::Error
+          { total_entries: 0, error: 'apollo_entries table not available' }
         end
       end
     end
