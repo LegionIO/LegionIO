@@ -2,7 +2,12 @@
 
 require 'ruby_llm'
 require 'json'
-require 'legion/cli/chat_command'
+
+begin
+  require 'legion/cli/chat_command'
+rescue LoadError
+  nil
+end
 
 module Legion
   module CLI
@@ -63,8 +68,10 @@ module Legion
 
           def collect_traces(person:, domain:, trace_type:, limit:)
             if person
-              tag = "peer:#{person}"
-              candidates = store.retrieve_by_domain(tag, min_strength: 0.01, limit: limit)
+              candidates = []
+              %W[peer:#{person} sender:#{person}].each do |tag|
+                candidates += store.retrieve_by_domain(tag, min_strength: 0.01, limit: limit)
+              end
               candidates += store.retrieve_by_domain('teams', min_strength: 0.01, limit: limit) if candidates.size < 5
               return candidates.uniq { |t| t[:trace_id] }
             end
