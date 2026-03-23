@@ -145,6 +145,111 @@ RSpec.describe 'LLM API routes' do
   end
 
   # ──────────────────────────────────────────────────────────
+  # 201 gateway path (lex-llm-gateway available)
+  # ──────────────────────────────────────────────────────────
+
+  describe 'POST /api/llm/chat — gateway path' do
+    before do
+      stub_llm_started
+      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
+
+      ingress_mod = Module.new
+      stub_const('Legion::Ingress', ingress_mod)
+    end
+
+    it 'returns 201 with response when gateway succeeds' do
+      fake_result = double('GatewayResult',
+                           content:       'gateway response',
+                           model:         'claude-sonnet-4-6',
+                           input_tokens:  10,
+                           output_tokens: 20)
+      allow(fake_result).to receive(:respond_to?).with(:content).and_return(true)
+      allow(fake_result).to receive(:respond_to?).with(:model).and_return(true)
+      allow(fake_result).to receive(:respond_to?).with(:input_tokens).and_return(true)
+      allow(fake_result).to receive(:respond_to?).with(:output_tokens).and_return(true)
+      allow(fake_result).to receive(:is_a?).with(Hash).and_return(false)
+
+      allow(Legion::Ingress).to receive(:run).and_return({
+                                                           success: true,
+                                                           result:  fake_result
+                                                         })
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'via gateway' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(201)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:response]).to eq('gateway response')
+      expect(body[:data][:meta][:routed_via]).to eq('gateway')
+      expect(body[:data][:meta][:tokens_in]).to eq(10)
+    end
+
+    it 'returns 502 when ingress fails' do
+      allow(Legion::Ingress).to receive(:run).and_return({
+                                                           success: false,
+                                                           error:   'runner not found'
+                                                         })
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'fail test' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(502)
+    end
+
+    it 'returns 502 when runner returns nil' do
+      allow(Legion::Ingress).to receive(:run).and_return({
+                                                           success: true,
+                                                           result:  nil,
+                                                           status:  'completed'
+                                                         })
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'nil result' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(502)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:error][:code]).to eq('empty_result')
+    end
+
+    it 'handles hash result with error' do
+      allow(Legion::Ingress).to receive(:run).and_return({
+                                                           success: true,
+                                                           result:  { error: 'model unavailable' }
+                                                         })
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'hash error' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(502)
+    end
+
+    it 'handles hash result with response key' do
+      allow(Legion::Ingress).to receive(:run).and_return({
+                                                           success: true,
+                                                           result:  { response: 'hash response text' }
+                                                         })
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'hash response' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(201)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:response]).to eq('hash response text')
+    end
+
+    it 'passes correct runner params to Ingress.run' do
+      allow(Legion::Ingress).to receive(:run).and_return({ success: true, result: { response: 'ok' } })
+
+      post '/api/llm/chat',
+           Legion::JSON.dump({ message: 'test msg', model: 'gpt-4o', provider: 'openai' }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(Legion::Ingress).to have_received(:run).with(
+        hash_including(
+          runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+          function:     'chat',
+          source:       'api'
+        )
+      )
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────
   # 202 async path (cache available)
   # ──────────────────────────────────────────────────────────
 
