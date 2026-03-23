@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.150] - 2026-03-23
+
+### Added
+- ManageTasks chat tool: list, show, logs, and trigger tasks through the Legion Ingress pipeline with metering data display
+- ManageTasks spec with 15 examples covering list/show/logs/trigger actions, validation, filters, payload forwarding, and error handling
+- Chat tool registry now has 20 built-in tools
+
 ## [1.4.149] - 2026-03-23
 
 ### Added
