@@ -1413,7 +1413,7 @@ module Legion
 
       def self.gaia_paths
         {
-          '/api/gaia/status' => {
+          '/api/gaia/status'   => {
             get: {
               tags:        ['Gaia'],
               summary:     'Get Gaia cognitive layer status',
@@ -1424,10 +1424,85 @@ module Legion
                 '503' => { description: 'Gaia not started' }
               }
             }
+          },
+          '/api/gaia/channels' => {
+            get: {
+              tags:        ['Gaia'],
+              summary:     'List registered communication channels',
+              operationId: 'getGaiaChannels',
+              responses:   {
+                '200' => ok_response('Channel list', gaia_channels_schema),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Gaia not started' }
+              }
+            }
+          },
+          '/api/gaia/buffer'   => {
+            get: {
+              tags:        ['Gaia'],
+              summary:     'Get sensory buffer status',
+              operationId: 'getGaiaBuffer',
+              responses:   {
+                '200' => ok_response('Buffer status', gaia_buffer_schema),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Gaia not started' }
+              }
+            }
+          },
+          '/api/gaia/sessions' => {
+            get: {
+              tags:        ['Gaia'],
+              summary:     'Get active session count',
+              operationId: 'getGaiaSessions',
+              responses:   {
+                '200' => ok_response('Session info', gaia_sessions_schema),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Gaia not started' }
+              }
+            }
           }
         }
       end
       private_class_method :gaia_paths
+
+      def self.gaia_channels_schema
+        {
+          type:       'object',
+          properties: {
+            channels: { type: 'array', items: {
+              type: 'object', properties: {
+                id: { type: 'string' }, type: { type: 'string' },
+                started: { type: 'boolean' }, capabilities: { type: 'array', items: { type: 'string' } }
+              }
+            } },
+            count:    { type: 'integer' }
+          }
+        }
+      end
+      private_class_method :gaia_channels_schema
+
+      def self.gaia_buffer_schema
+        {
+          type:       'object',
+          properties: {
+            depth:    { type: 'integer' },
+            empty:    { type: 'boolean' },
+            max_size: { type: 'integer', nullable: true }
+          }
+        }
+      end
+      private_class_method :gaia_buffer_schema
+
+      def self.gaia_sessions_schema
+        {
+          type:       'object',
+          properties: {
+            count:  { type: 'integer' },
+            active: { type: 'boolean' }
+          }
+        }
+      end
+      private_class_method :gaia_sessions_schema
 
       def self.apollo_paths
         {
