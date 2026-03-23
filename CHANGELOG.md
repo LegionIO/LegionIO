@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.138] - 2026-03-23
+
+### Added
+- QueryKnowledge chat tool: query Apollo knowledge graph from chat sessions for facts, concepts, and observations
+- QueryKnowledge spec with 11 examples covering results, errors, filters, and limit clamping
+
 ## [1.4.137] - 2026-03-23
 
 ### Changed
