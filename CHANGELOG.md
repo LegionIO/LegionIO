@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.154] - 2026-03-23
+
+### Changed
+- SearchMemory tool now also queries Apollo knowledge graph when available, combining file-based memory with semantic knowledge
+- Apollo results include type, content, and confidence score for richer context retrieval
+- Updated search_memory specs with 6 examples covering combined memory+apollo, apollo-only, memory-only, and error handling
+
 ## [1.4.153] - 2026-03-23
 
 ### Changed

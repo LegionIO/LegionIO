@@ -47,6 +47,7 @@ RSpec.describe 'Chat Memory and Agent Tools' do
 
     before do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:search).and_return([])
+      allow(tool).to receive(:search_apollo).and_return(nil)
     end
 
     it 'returns no-match message when empty' do
@@ -54,22 +55,46 @@ RSpec.describe 'Chat Memory and Agent Tools' do
       expect(result).to include('No matching memories')
     end
 
-    it 'returns formatted results' do
+    it 'returns formatted memory results' do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:search).and_return([
                                                                              { text: 'always use rspec', source: '/project/.legion/memory.md', line: 3 },
                                                                              { text: 'prefer snake_case', source: '/project/.legion/memory.md', line: 5 }
                                                                            ])
       result = tool.execute(query: 'use')
+      expect(result).to include('Memory matches (2)')
       expect(result).to include('always use rspec')
       expect(result).to include('prefer snake_case')
     end
 
-    it 'formats each result as a bullet point' do
+    it 'includes apollo knowledge when available' do
+      allow(tool).to receive(:search_apollo).and_return([
+                                                          { type: 'pattern', content: 'Use YJIT for performance', confidence: 0.95 }
+                                                        ])
+      result = tool.execute(query: 'performance')
+      expect(result).to include('Apollo knowledge (1)')
+      expect(result).to include('[pattern] Use YJIT for performance')
+      expect(result).to include('confidence: 0.95')
+    end
+
+    it 'combines memory and apollo results' do
+      allow(Legion::CLI::Chat::MemoryStore).to receive(:search).and_return([
+                                                                             { text: 'always use rspec', source: 'x', line: 1 }
+                                                                           ])
+      allow(tool).to receive(:search_apollo).and_return([
+                                                          { type: 'fact', content: 'RSpec is the standard test framework', confidence: 0.9 }
+                                                        ])
+      result = tool.execute(query: 'rspec')
+      expect(result).to include('Memory matches (1)')
+      expect(result).to include('Apollo knowledge (1)')
+    end
+
+    it 'returns only memory when apollo is unavailable' do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:search).and_return([
                                                                              { text: 'fact one', source: 'x', line: 1 }
                                                                            ])
       result = tool.execute(query: 'fact')
-      expect(result).to start_with('- fact one')
+      expect(result).to include('fact one')
+      expect(result).not_to include('Apollo')
     end
 
     it 'returns error message on failure' do
