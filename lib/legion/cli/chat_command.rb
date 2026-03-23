@@ -435,7 +435,9 @@ module Legion
           when '/sessions'
             handle_sessions(out)
           when '/compact'
-            handle_compact(out)
+            handle_compact(args.first, out)
+          when '/context'
+            handle_context_stats(out)
           when '/fetch'
             handle_fetch(args.first, out)
           when '/rewind'
@@ -537,7 +539,8 @@ module Legion
                        '/quit'                => 'Exit chat',
                        '/cost'                => 'Show session stats',
                        '/status'              => 'Detailed session status (model, tokens, context, permissions)',
-                       '/compact'             => 'Compress conversation history',
+                       '/compact [STRATEGY]'  => 'Compress history (auto, dedup, summarize)',
+                       '/context'             => 'Show context window stats',
                        '/clear'               => 'Clear conversation history',
                        '/new'                 => 'Start new conversation (same session)',
                        '/copy'                => 'Copy last response to clipboard',
@@ -567,26 +570,39 @@ module Legion
           puts out.dim('  Sessions auto-saved on exit.')
         end
 
-        def handle_compact(out)
-          messages = @session.chat.messages
-          if messages.length < 4
-            out.warn('Not enough conversation history to compact.')
+        def handle_compact(strategy_arg, out)
+          require 'legion/cli/chat/context_manager'
+          strategy = (strategy_arg || 'auto').to_sym
+          before = Chat::ContextManager.stats(@session)
+
+          result = Chat::ContextManager.compact(@session, strategy: strategy)
+          unless result[:compacted]
+            out.warn("Compact: #{result[:reason]}")
             return
           end
 
-          before_count = messages.length
-          summary = @session.send_message(
-            'Summarize our entire conversation so far in a concise paragraph. ' \
-            'Include key decisions, code changes, and any important context. ' \
-            'This summary will replace the full history to save tokens.'
-          )
+          after = Chat::ContextManager.stats(@session)
+          chat_log.info "compact strategy=#{strategy} before=#{before[:message_count]} after=#{after[:message_count]}"
 
-          @session.chat.reset_messages!
-          @session.chat.add_message(role: :assistant, content: summary.content)
-
-          out.success("Compacted #{before_count} messages into 1 summary message")
+          steps = result[:steps]&.map { |s| "#{s[:action]}(#{s[:removed] || s[:method]})" }&.join(', ')
+          detail = steps ? " [#{steps}]" : ''
+          out.success("Compacted #{before[:message_count]} -> #{after[:message_count]} messages#{detail}")
         rescue StandardError => e
           out.error("Compact failed: #{e.message}")
+        end
+
+        def handle_context_stats(out)
+          require 'legion/cli/chat/context_manager'
+          stats = Chat::ContextManager.stats(@session)
+          out.header('Context Window')
+          out.detail({
+                       'Messages'         => stats[:message_count].to_s,
+                       'Estimated tokens' => format('%<tokens>s', tokens: stats[:estimated_tokens].to_s.gsub(/(\d)(?=(\d{3})+$)/, '\1,')),
+                       'Characters'       => format('%<chars>s', chars: stats[:char_count].to_s.gsub(/(\d)(?=(\d{3})+$)/, '\1,')),
+                       'By role'          => stats[:by_role].map { |r, c| "#{r}: #{c}" }.join(', '),
+                       'Auto-compact at'  => "#{Chat::ContextManager::COMPACT_THRESHOLD} messages",
+                       'Should compact?'  => Chat::ContextManager.should_auto_compact?(@session) ? 'yes' : 'no'
+                     })
         end
 
         def handle_fetch(url, out)

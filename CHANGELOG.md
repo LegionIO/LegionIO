@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.183] - 2026-03-23
+
+### Added
+- ContextManager: conversation context window management with dedup, compression, and summarization strategies
+- `/compact [strategy]` now supports auto, dedup, and summarize strategies (was LLM-only)
+- `/context` slash command shows message count, estimated tokens, and auto-compact status
+- Integrates with Legion::LLM::Compressor for Jaccard deduplication and stopword compression
+
 ## [1.4.182] - 2026-03-23
 
 ### Changed
