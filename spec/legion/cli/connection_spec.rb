@@ -434,6 +434,17 @@ RSpec.describe Legion::CLI::Connection do
       end
     end
 
+    context 'when config_dir contains a tilde' do
+      it 'expands the tilde before checking existence' do
+        expanded = File.expand_path('~/.legionio/settings')
+        allow(Dir).to receive(:exist?).and_call_original
+        allow(Dir).to receive(:exist?).with(expanded).and_return(true)
+        described_class.config_dir = '~/.legionio/settings'
+        described_class.ensure_settings
+        expect(Legion::Settings).to have_received(:load).with(config_dir: expanded)
+      end
+    end
+
     context 'when none of the standard paths exist' do
       before { allow(Dir).to receive(:exist?).and_return(false) }
 

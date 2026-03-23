@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.4.186] - 2026-03-23
+
+### Fixed
+- `CLI::Connection#resolve_config_dir` expands tilde in user-provided `config_dir` before existence check (#25)
+- `.github/CODEOWNERS` combine duplicate `*` patterns so both teams are applied (#25)
+
+### Added
+- `Service#setup_settings` spec coverage for canonical directory filtering (#25)
+- `CLI::Connection` spec for tilde expansion in `config_dir` (#25)
+
 ## [1.4.185] - 2026-03-23
 
 ### Fixed
