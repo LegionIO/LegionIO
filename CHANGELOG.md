@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.129] - 2026-03-22
+
+### Added
+- SearchTraces chat tool for querying cognitive memory traces (Teams messages, conversations, meetings, people)
+- Keyword-ranked search with person, domain, and trace type filtering
+- Structured output formatting with age, strength, and domain tag metadata
+
 ## [1.4.128] - 2026-03-22
 
 ### Changed
