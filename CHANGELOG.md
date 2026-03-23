@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.167] - 2026-03-23
+
+### Added
+- TriggerDream chat tool: trigger dream cycles on daemon and view latest dream journal entries
+- Searches gem path, project, and user directories for dream journal markdown files
+- 6 specs covering trigger, journal, error handling, truncation, and connection refused
+- Chat tool registry now has 29 built-in tools
+
 ## [1.4.166] - 2026-03-23
 
 ### Added
