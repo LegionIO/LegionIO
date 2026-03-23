@@ -91,6 +91,27 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
       expect(data[:saved_at]).to be_a(String)
     end
 
+    it 'includes message count' do
+      described_class.save(session, 'test-session')
+      data = Legion::JSON.load(File.read(described_class.session_path('test-session')))
+      expect(data[:message_count]).to eq(2)
+    end
+
+    it 'generates summary from first user message' do
+      described_class.save(session, 'test-session')
+      data = Legion::JSON.load(File.read(described_class.session_path('test-session')))
+      expect(data[:summary]).to eq('hello')
+    end
+
+    it 'truncates long summaries' do
+      chat.reset_messages!
+      chat.add_message(role: :user, content: 'a' * 200)
+      described_class.save(session, 'long-summary')
+      data = Legion::JSON.load(File.read(described_class.session_path('long-summary')))
+      expect(data[:summary].length).to be <= 124
+      expect(data[:summary]).to end_with('...')
+    end
+
     it 'creates sessions directory if missing' do
       FileUtils.rm_rf(tmpdir)
       described_class.save(session, 'test-session')
@@ -143,6 +164,14 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
       expect(sessions.length).to eq(2)
       expect(sessions[0][:name]).to eq('newer')
       expect(sessions[1][:name]).to eq('older')
+    end
+
+    it 'includes summary and message count in listing' do
+      described_class.save(session, 'with-meta')
+      sessions = described_class.list
+      expect(sessions[0][:message_count]).to eq(2)
+      expect(sessions[0][:summary]).to eq('hello')
+      expect(sessions[0][:model]).to eq('test-model')
     end
   end
 

@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.156] - 2026-03-23
+
+### Changed
+- Session store now saves summary (first user message, truncated to 120 chars), message count, and model in session metadata
+- Session list includes summary, message_count, and model for at-a-glance session browsing
+- 4 new session_store specs covering message count, summary generation, long summary truncation, and list metadata
+
 ## [1.4.155] - 2026-03-23
 
 ### Changed

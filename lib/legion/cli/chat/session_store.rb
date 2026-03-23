@@ -13,12 +13,15 @@ module Legion
           def save(session, name)
             FileUtils.mkdir_p(SESSIONS_DIR)
 
+            messages = session.chat.messages.map(&:to_h)
             data = {
-              name:     name,
-              model:    session.model_id,
-              stats:    session.stats,
-              saved_at: Time.now.iso8601,
-              messages: session.chat.messages.map(&:to_h)
+              name:          name,
+              model:         session.model_id,
+              stats:         session.stats,
+              saved_at:      Time.now.iso8601,
+              message_count: messages.size,
+              summary:       generate_summary(messages),
+              messages:      messages
             }
 
             path = session_path(name)
@@ -47,7 +50,15 @@ module Legion
             sessions = Dir.glob(File.join(SESSIONS_DIR, '*.json')).map do |path|
               name = File.basename(path, '.json')
               stat = File.stat(path)
-              { name: name, size: stat.size, modified: stat.mtime }
+              meta = read_session_meta(path)
+              {
+                name:          name,
+                size:          stat.size,
+                modified:      stat.mtime,
+                message_count: meta[:message_count],
+                summary:       meta[:summary],
+                model:         meta[:model]
+              }
             end
             sessions.sort_by { |s| s[:modified] }.reverse
           end
@@ -68,6 +79,31 @@ module Legion
 
           def session_path(name)
             File.join(SESSIONS_DIR, "#{name}.json")
+          end
+
+          private
+
+          def generate_summary(messages)
+            user_messages = messages.select { |m| m[:role]&.to_s == 'user' }
+            return nil if user_messages.empty?
+
+            first_msg = user_messages.first[:content].to_s.strip
+            first_msg = "#{first_msg[0..120]}..." if first_msg.length > 120
+            first_msg
+          rescue StandardError
+            nil
+          end
+
+          def read_session_meta(path)
+            raw = File.read(path, encoding: 'utf-8')
+            data = Legion::JSON.load(raw)
+            {
+              message_count: data[:message_count] || data[:messages]&.size,
+              summary:       data[:summary],
+              model:         data[:model]
+            }
+          rescue StandardError
+            { message_count: nil, summary: nil, model: nil }
           end
         end
       end
