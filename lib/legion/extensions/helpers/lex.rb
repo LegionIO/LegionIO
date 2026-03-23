@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+require 'legion/json/helper'
+
 module Legion
   module Extensions
     module Helpers
       module Lex
         include Legion::Extensions::Helpers::Core
         include Legion::Extensions::Helpers::Logger
+        include Legion::JSON::Helper
 
         def function_example(function, example)
           function_set(function, :example, example)

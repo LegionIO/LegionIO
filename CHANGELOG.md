@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.130] - 2026-03-22
+
+### Changed
+- `Extensions::Helpers::Data` now delegates to `Legion::Data::Helper` from legion-data gem
+- `Extensions::Helpers::Transport` now delegates to `Legion::Transport::Helper` from legion-transport gem
+- `Extensions::Helpers::Lex` now includes `Legion::JSON::Helper` for `json_load`/`json_dump` convenience methods
+- Require legion-data >= 1.4.17, legion-json >= 1.2.1, legion-transport >= 1.3.9
+
 ## [1.4.129] - 2026-03-22
 
 ### Added
