@@ -69,9 +69,17 @@ module Legion
           def collect_traces(person:, domain:, trace_type:, limit:)
             if person
               candidates = []
-              %W[peer:#{person} sender:#{person}].each do |tag|
-                candidates += store.retrieve_by_domain(tag, min_strength: 0.01, limit: limit)
+              name_variants = person_name_variants(person)
+              name_variants.each do |name|
+                %W[peer:#{name} sender:#{name}].each do |tag|
+                  candidates += store.retrieve_by_domain(tag, min_strength: 0.01, limit: limit)
+                end
               end
+
+              if candidates.size < 5
+                candidates += fuzzy_person_search(person, limit: limit)
+              end
+
               candidates += store.retrieve_by_domain('teams', min_strength: 0.01, limit: limit) if candidates.size < 5
               return candidates.uniq { |t| t[:trace_id] }
             end
@@ -209,6 +217,39 @@ module Legion
             else
               "#{(seconds / 86_400).to_i}d ago"
             end
+          end
+
+          def person_name_variants(name)
+            parts = name.strip.split(/[\s,]+/).reject(&:empty?)
+            variants = [name]
+
+            if parts.length == 2
+              variants << "#{parts[1]}, #{parts[0]}"
+              variants << "#{parts[0]} #{parts[1]}"
+              variants << "#{parts[1]} #{parts[0]}"
+            elsif parts.length >= 3
+              variants << "#{parts.last}, #{parts[0...-1].join(' ')}"
+              variants << "#{parts[0...-1].join(' ')} #{parts.last}"
+            end
+
+            variants << parts.first if parts.first && parts.first.length > 2
+
+            variants.uniq
+          end
+
+          def fuzzy_person_search(person, limit: 60)
+            needle = person.downcase
+            parts = needle.split(/[\s,]+/).reject(&:empty?)
+
+            store.all_traces(min_strength: 0.01).select do |trace|
+              tags = trace[:domain_tags] || []
+              tags.any? do |tag|
+                next false unless tag.start_with?('peer:', 'sender:')
+
+                tag_name = tag.sub(/\A(peer|sender):/, '').downcase
+                parts.all? { |p| tag_name.include?(p) }
+              end
+            end.sort_by { |t| -t[:strength] }.first(limit)
           end
         end
       end
