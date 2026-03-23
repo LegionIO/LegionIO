@@ -128,7 +128,7 @@ module Legion
         private
 
         def resolve_config_dir
-          if @config_dir
+          if @config_dir.is_a?(String) && !@config_dir.strip.empty?
             expanded = File.expand_path(@config_dir)
             return expanded if Dir.exist?(expanded)
           end

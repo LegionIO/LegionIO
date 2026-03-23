@@ -4,7 +4,7 @@
 
 ### Fixed
 - `CLI::Connection#resolve_config_dir` expands tilde in user-provided `config_dir` before existence check (#25)
-- `.github/CODEOWNERS` combine duplicate `*` patterns so both teams are applied (#25)
+- `.github/CODEOWNERS` combined duplicate `*` patterns so both teams are applied (#25)
 
 ### Added
 - `Service#setup_settings` spec coverage for canonical directory filtering (#25)
