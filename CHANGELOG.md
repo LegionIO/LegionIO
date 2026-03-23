@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.148] - 2026-03-23
+
+### Added
+- Cognitive awareness in chat context: system prompt now includes memory entry counts and Apollo knowledge graph status when available
+- Context cognitive_awareness, memory_hint, and apollo_hint methods with 1-second timeout for non-blocking probes
+- 8 new context specs covering cognitive awareness, memory hints, and apollo availability detection
+
 ## [1.4.147] - 2026-03-23
 
 ### Added

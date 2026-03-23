@@ -2,6 +2,8 @@
 
 require 'legion/cli/chat_command'
 require 'shellwords'
+require 'net/http'
+require 'json'
 
 module Legion
   module CLI
@@ -58,6 +60,8 @@ module Legion
             Legion::Logging.debug("Context#to_system_prompt ExtensionToolLoader not available: #{e.message}") if defined?(Legion::Logging)
           end
 
+          parts << cognitive_awareness(directory)
+
           extra_dirs.each do |dir|
             expanded = File.expand_path(dir)
             next unless Dir.exist?(expanded)
@@ -102,6 +106,54 @@ module Legion
         rescue StandardError => e
           Legion::Logging.debug("Context#detect_git_dirty failed: #{e.message}") if defined?(Legion::Logging)
           false
+        end
+
+        def self.cognitive_awareness(directory)
+          hints = []
+          hints << memory_hint(directory)
+          hints << apollo_hint
+          hints.compact!
+          return nil if hints.empty?
+
+          "\nCognitive context:\n#{hints.join("\n")}"
+        rescue StandardError => e
+          Legion::Logging.debug("Context#cognitive_awareness failed: #{e.message}") if defined?(Legion::Logging)
+          nil
+        end
+
+        def self.memory_hint(directory)
+          require 'legion/cli/chat/memory_store'
+          project_entries = Chat::MemoryStore.list(base_dir: directory)
+          global_entries  = Chat::MemoryStore.list(scope: :global)
+          total = project_entries.size + global_entries.size
+          return nil if total.zero?
+
+          "  Memory: #{project_entries.size} project + #{global_entries.size} global entries (use save_memory/search_memory/consolidate_memory)"
+        rescue LoadError
+          nil
+        end
+
+        def self.apollo_hint
+          uri = URI("http://127.0.0.1:#{apollo_port}/api/apollo/status")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.open_timeout = 1
+          http.read_timeout = 1
+          response = http.get(uri.path)
+          data = ::JSON.parse(response.body, symbolize_names: true)
+          available = data.dig(:data, :available)
+          return nil unless available
+
+          '  Apollo knowledge graph: online (use query_knowledge/ingest_knowledge/relate_knowledge/knowledge_stats)'
+        rescue StandardError
+          nil
+        end
+
+        def self.apollo_port
+          return 4567 unless defined?(Legion::Settings)
+
+          Legion::Settings[:api]&.dig(:port) || 4567
+        rescue StandardError
+          4567
         end
 
         def self.detect_project_file(dir)

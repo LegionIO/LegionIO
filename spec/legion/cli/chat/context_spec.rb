@@ -109,4 +109,80 @@ RSpec.describe Legion::CLI::Chat::Context do
       expect(result).not_to include('Additional directory')
     end
   end
+
+  describe '.cognitive_awareness' do
+    it 'returns nil when no cognitive context is available' do
+      allow(described_class).to receive(:memory_hint).and_return(nil)
+      allow(described_class).to receive(:apollo_hint).and_return(nil)
+      expect(described_class.cognitive_awareness(tmpdir)).to be_nil
+    end
+
+    it 'includes memory hint when entries exist' do
+      allow(described_class).to receive(:memory_hint).and_return('  Memory: 3 project + 2 global entries')
+      allow(described_class).to receive(:apollo_hint).and_return(nil)
+      result = described_class.cognitive_awareness(tmpdir)
+      expect(result).to include('Memory: 3 project + 2 global')
+    end
+
+    it 'includes apollo hint when available' do
+      allow(described_class).to receive(:memory_hint).and_return(nil)
+      allow(described_class).to receive(:apollo_hint).and_return('  Apollo knowledge graph: online')
+      result = described_class.cognitive_awareness(tmpdir)
+      expect(result).to include('Apollo knowledge graph: online')
+    end
+  end
+
+  describe '.memory_hint' do
+    it 'returns hint with entry counts' do
+      allow(Legion::CLI::Chat::MemoryStore).to receive(:list)
+        .with(base_dir: tmpdir).and_return(%w[entry1 entry2])
+      allow(Legion::CLI::Chat::MemoryStore).to receive(:list)
+        .with(scope: :global).and_return(%w[global1])
+      result = described_class.memory_hint(tmpdir)
+      expect(result).to include('2 project')
+      expect(result).to include('1 global')
+    end
+
+    it 'returns nil when no entries exist' do
+      allow(Legion::CLI::Chat::MemoryStore).to receive(:list)
+        .with(base_dir: tmpdir).and_return([])
+      allow(Legion::CLI::Chat::MemoryStore).to receive(:list)
+        .with(scope: :global).and_return([])
+      expect(described_class.memory_hint(tmpdir)).to be_nil
+    end
+  end
+
+  describe '.apollo_hint' do
+    let(:mock_http) { instance_double(Net::HTTP) }
+
+    before do
+      allow(Net::HTTP).to receive(:new).and_return(mock_http)
+      allow(mock_http).to receive(:open_timeout=)
+      allow(mock_http).to receive(:read_timeout=)
+    end
+
+    it 'returns online hint when apollo is available' do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(
+        JSON.generate({ data: { available: true } })
+      )
+      allow(mock_http).to receive(:get).and_return(response)
+      result = described_class.apollo_hint
+      expect(result).to include('Apollo knowledge graph: online')
+    end
+
+    it 'returns nil when apollo is not available' do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(
+        JSON.generate({ data: { available: false } })
+      )
+      allow(mock_http).to receive(:get).and_return(response)
+      expect(described_class.apollo_hint).to be_nil
+    end
+
+    it 'returns nil on connection refused' do
+      allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
+      expect(described_class.apollo_hint).to be_nil
+    end
+  end
 end
