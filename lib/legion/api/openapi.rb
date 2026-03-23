@@ -130,6 +130,7 @@ module Legion
           { name: 'Teams',         description: 'Team-level worker and cost views' },
           { name: 'Coldstart',     description: 'Cold-start memory ingestion (requires lex-coldstart + lex-memory)' },
           { name: 'Gaia',          description: 'Gaia cognitive layer status' },
+          { name: 'Apollo',        description: 'Apollo knowledge graph (requires lex-apollo + legion-data)' },
           { name: 'OpenAPI',       description: 'OpenAPI spec endpoint' }
         ]
       end
@@ -152,6 +153,7 @@ module Legion
           .merge(team_paths)
           .merge(coldstart_paths)
           .merge(gaia_paths)
+          .merge(apollo_paths)
           .merge(openapi_paths)
       end
       private_class_method :paths
@@ -1426,6 +1428,102 @@ module Legion
         }
       end
       private_class_method :gaia_paths
+
+      def self.apollo_paths
+        {
+          '/api/apollo/status'               => {
+            get: {
+              tags:        ['Apollo'],
+              summary:     'Apollo knowledge graph availability',
+              operationId: 'getApolloStatus',
+              responses:   {
+                '200' => ok_response('Apollo available', { type: 'object', properties: {
+                                       available:      { type: 'boolean' },
+                                       data_connected: { type: 'boolean' }
+                                     } }),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
+          },
+          '/api/apollo/query'                => {
+            post: {
+              tags:        ['Apollo'],
+              summary:     'Query the knowledge graph',
+              operationId: 'apolloQuery',
+              requestBody: {
+                required: true,
+                content:  json_content({
+                                         type:       'object',
+                                         required:   ['query'],
+                                         properties: {
+                                           query:          { type: 'string', description: 'Semantic search query' },
+                                           limit:          { type: 'integer', default: 10 },
+                                           min_confidence: { type: 'number', default: 0.3 },
+                                           status:         { type: 'array', items: { type: 'string' } },
+                                           tags:           { type: 'array', items: { type: 'string' } },
+                                           domain:         { type: 'string' },
+                                           agent_id:       { type: 'string', default: 'api' }
+                                         }
+                                       })
+              },
+              responses:   {
+                '200' => ok_response('Query results', { type: 'object', additionalProperties: true }),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
+          },
+          '/api/apollo/ingest'               => {
+            post: {
+              tags:        ['Apollo'],
+              summary:     'Ingest knowledge into the graph',
+              operationId: 'apolloIngest',
+              requestBody: {
+                required: true,
+                content:  json_content({
+                                         type:       'object',
+                                         required:   ['content'],
+                                         properties: {
+                                           content:          { type: 'string' },
+                                           content_type:     { type: 'string', enum: %w[fact concept procedure association observation] },
+                                           tags:             { type: 'array', items: { type: 'string' } },
+                                           source_agent:     { type: 'string', default: 'api' },
+                                           source_provider:  { type: 'string' },
+                                           source_channel:   { type: 'string', default: 'rest_api' },
+                                           knowledge_domain: { type: 'string' },
+                                           context:          { type: 'object', additionalProperties: true }
+                                         }
+                                       })
+              },
+              responses:   {
+                '201' => ok_response('Ingested', { type: 'object', additionalProperties: true }),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
+          },
+          '/api/apollo/entries/{id}/related' => {
+            get: {
+              tags:        ['Apollo'],
+              summary:     'Get related knowledge entries',
+              operationId: 'getApolloRelated',
+              parameters:  [
+                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
+                { name: 'relation_types', in: 'query', schema: { type: 'string' },
+                  description: 'Comma-separated relation types' },
+                { name: 'depth', in: 'query', schema: { type: 'integer', default: 2 } }
+              ],
+              responses:   {
+                '200' => ok_response('Related entries', { type: 'object', additionalProperties: true }),
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
+          }
+        }
+      end
+      private_class_method :apollo_paths
 
       def self.openapi_paths
         {
