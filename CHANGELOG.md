@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [Unreleased]
+
+### Added
+- Task command spec with 13 examples covering list, show, logs, purge, and helper methods
+- Chain command spec with 6 examples covering list, create, delete, and confirmation flow
+- Generate command spec with 14 examples covering runner, actor, exchange, queue, message, and tool scaffolding
+- Audit command spec with 6 examples covering list filters, JSON output, and chain verification
+- RBAC command spec with 9 examples covering roles, show, assignments, assign, revoke, and access check
+
 ## [1.4.141] - 2026-03-23
 
 ### Added
