@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.159] - 2026-03-23
+
+### Added
+- Reflect chat tool: extracts key learnings from conversation text using LLM, ingests into Apollo knowledge graph and project memory
+- Reflect spec with 5 examples covering raw text ingest, LLM extraction, Apollo-down fallback, no entries, and domain passthrough
+- Chat tool registry now has 24 built-in tools
+
 ## [1.4.158] - 2026-03-23
 
 ### Added
