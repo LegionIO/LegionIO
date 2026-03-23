@@ -26,6 +26,7 @@ begin
   require 'legion/cli/chat/tools/list_extensions'
   require 'legion/cli/chat/tools/manage_tasks'
   require 'legion/cli/chat/tools/system_status'
+  require 'legion/cli/chat/tools/view_events'
 rescue LoadError => e
   Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
@@ -58,7 +59,8 @@ module Legion
                             Tools::SummarizeTraces,
                             Tools::ListExtensions,
                             Tools::ManageTasks,
-                            Tools::SystemStatus
+                            Tools::SystemStatus,
+                            Tools::ViewEvents
                           ].freeze
                         else
                           [].freeze

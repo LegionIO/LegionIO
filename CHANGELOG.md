@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.157] - 2026-03-23
+
+### Added
+- ViewEvents chat tool: view recent events from the Legion event bus ring buffer with count control
+- ViewEvents spec with 7 examples covering formatted output, empty events, count parameter, clamping, connection refused, API errors, and events without details
+- Chat tool registry now has 22 built-in tools
+
 ## [1.4.156] - 2026-03-23
 
 ### Changed
