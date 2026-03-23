@@ -3,55 +3,33 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '0 9 * * 1'
 
 jobs:
   ci:
     uses: LegionIO/.github/.github/workflows/ci.yml@main
+    with:
+      needs-rabbitmq: true
+
+  security:
+    uses: LegionIO/.github/.github/workflows/security-scan.yml@main
+    with:
+      brakeman-enabled: false
+
+  version-changelog:
+    uses: LegionIO/.github/.github/workflows/version-changelog.yml@main
+
+  dependency-review:
+    uses: LegionIO/.github/.github/workflows/dependency-review.yml@main
+
+  stale:
+    if: github.event_name == 'schedule'
+    uses: LegionIO/.github/.github/workflows/stale.yml@main
 
   release:
-    needs: ci
+    needs: [ci]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: LegionIO/.github/.github/workflows/release.yml@main
     secrets:
       rubygems-api-key: ${{ secrets.RUBYGEMS_API_KEY }}
-
-  trigger-homebrew:
-    needs: release
-    if: needs.release.outputs.released == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger unified Homebrew build
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_DISPATCH_TOKEN }}
-          LEGIONIO_VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          gh api repos/LegionIO/homebrew-tap/dispatches \
-            -f event_type=build-legion \
-            -f "client_payload[legionio_version]=$LEGIONIO_VERSION" \
-            -f "client_payload[ruby_version]=3.4.8" \
-            -f "client_payload[package_revision]=1"
-
-  docker-build:
-    name: Build Docker Image
-    needs: release
-    if: needs.release.outputs.released == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/legionio/legion:${{ needs.release.outputs.version }}
-            ghcr.io/legionio/legion:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

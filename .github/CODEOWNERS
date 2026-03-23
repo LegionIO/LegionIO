@@ -1,0 +1,13 @@
+# Auto-generated from team-config.yml
+# Team: core
+#
+# To apply: scripts/apply-codeowners.sh LegionIO
+
+* @LegionIO/maintainers
+* @LegionIO/core
+
+# Path-specific reviewers
+lib/legion/cli/chat/ @LegionIO/ai
+lib/legion/api/ @LegionIO/core
+lib/legion/extensions/ @LegionIO/extensions
+.github/ @LegionIO/infra
