@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.144] - 2026-03-23
+
+### Added
+- RelateKnowledge chat tool: find related entries in the Apollo knowledge graph with depth traversal, relation type filtering, and confidence scoring
+- RelateKnowledge spec with 7 examples covering formatted results, empty results, API errors, connection refused, depth clamping, and relation type passthrough
+- SearchTraces chat tool registered in tool registry (15 built-in tools)
+
 ## [1.4.143] - 2026-03-23
 
 ### Added
