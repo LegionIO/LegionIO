@@ -10,10 +10,9 @@ gem 'legion-llm', path: '../legion-llm' if File.exist?(File.expand_path('../legi
 gem 'legion-logging', path: '../legion-logging' if File.exist?(File.expand_path('../legion-logging', __dir__))
 gem 'legion-mcp', path: '../legion-mcp' if File.exist?(File.expand_path('../legion-mcp', __dir__))
 
-gem 'lex-llm-gateway', path: '../extensions-core/lex-llm-gateway'
-gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams'
-
-gem 'lex-agentic-memory', path: '../extensions-agentic/lex-agentic-memory'
+gem 'lex-agentic-memory', path: '../extensions-agentic/lex-agentic-memory' if File.exist?(File.expand_path('../extensions-agentic/lex-agentic-memory', __dir__))
+gem 'lex-llm-gateway', path: '../extensions-core/lex-llm-gateway' if File.exist?(File.expand_path('../extensions-core/lex-llm-gateway', __dir__))
+gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams' if File.exist?(File.expand_path('../extensions/lex-microsoft_teams', __dir__))
 
 gem 'pg'
 
