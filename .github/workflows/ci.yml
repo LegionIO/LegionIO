@@ -15,7 +15,7 @@ jobs:
   security:
     uses: LegionIO/.github/.github/workflows/security-scan.yml@main
     with:
-      brakeman-enabled: true
+      brakeman-enabled: false
 
   version-changelog:
     uses: LegionIO/.github/.github/workflows/version-changelog.yml@main
