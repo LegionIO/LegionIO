@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.172] - 2026-03-23
+
+### Added
+- BudgetStatus chat tool: shows session cost budget status, spending, remaining, and per-model breakdown
+- Works locally via in-memory CostTracker (no daemon required)
+- Supports "status" and "summary" actions
+- 32nd built-in chat tool registered in ToolRegistry
+
 ## [1.4.171] - 2026-03-23
 
 ### Added
