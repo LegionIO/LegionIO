@@ -4,25 +4,7 @@ module Legion
   module Extensions
     module Helpers
       module Logger
-        def log
-          return @log unless @log.nil?
-
-          logger_hash = if respond_to?(:segments)
-                          { lex_segments: Array(segments) }
-                        else
-                          { lex: lex_filename.is_a?(Array) ? lex_filename.first : lex_filename }
-                        end
-          if respond_to?(:settings) && settings.key?(:logger)
-            logger_hash[:level] = settings[:logger].key?(:level) ? settings[:logger][:level] : 'info'
-            logger_hash[:log_file] = settings[:logger][:log_file] if settings[:logger].key? :log_file
-            logger_hash[:trace] = settings[:logger][:trace] if settings[:logger].key? :trace
-            logger_hash[:extended] = settings[:logger][:extended] if settings[:logger].key? :extended
-          elsif respond_to?(:settings)
-            Legion::Logging.warn Legion::Settings[:extensions][lex_filename.to_sym]
-            Legion::Logging.warn "#{lex_name} has settings but no :logger key"
-          end
-          @log = Legion::Logging::Logger.new(**logger_hash)
-        end
+        include Legion::Logging::Helper
 
         def handle_exception(exception, task_id: nil, **opts)
           log.error exception.message + " for task_id: #{task_id} but was logged "

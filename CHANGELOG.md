@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.126] - 2026-03-22
+
+### Changed
+- `Extensions::Helpers::Logger` now delegates `log` to `Legion::Logging::Helper` from legion-logging gem
+- Require legion-logging >= 1.3.2 for the new Helper module
+
 ## [1.4.125] - 2026-03-22
 
 ### Changed
