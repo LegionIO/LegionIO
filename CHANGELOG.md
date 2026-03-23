@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.151] - 2026-03-23
+
+### Added
+- SystemStatus chat tool: check daemon health, component readiness, uptime, version, and extension count from chat
+- SystemStatus spec with 6 examples covering full status, daemon down, endpoints failing, uptime formatting, and empty components
+- Chat tool registry now has 21 built-in tools
+
 ## [1.4.150] - 2026-03-23
 
 ### Added

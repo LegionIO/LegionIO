@@ -7,8 +7,8 @@ require 'legion/cli/chat/extension_tool_loader'
 
 RSpec.describe Legion::CLI::Chat::ToolRegistry do
   describe '.builtin_tools' do
-    it 'returns 20 built-in tools' do
-      expect(described_class.builtin_tools.length).to eq(20)
+    it 'returns 21 built-in tools' do
+      expect(described_class.builtin_tools.length).to eq(21)
     end
   end
 
@@ -28,7 +28,7 @@ RSpec.describe Legion::CLI::Chat::ToolRegistry do
 
       tools = described_class.all_tools
       expect(tools).to include(fake_tool)
-      expect(tools.length).to eq(21)
+      expect(tools.length).to eq(22)
     end
   end
 end
