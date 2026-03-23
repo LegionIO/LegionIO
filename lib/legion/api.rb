@@ -43,6 +43,7 @@ require_relative 'api/acp'
 require_relative 'api/prompts'
 require_relative 'api/marketplace'
 require_relative 'api/apollo'
+require_relative 'api/traces'
 require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
@@ -131,6 +132,7 @@ module Legion
     register Routes::Prompts
     register Routes::Marketplace
     register Routes::Apollo
+    register Routes::Traces
     register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger

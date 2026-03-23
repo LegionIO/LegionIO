@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.163] - 2026-03-23
+
+### Added
+- Traces REST API: POST /api/traces/search, POST /api/traces/summary, GET /api/traces/anomalies
+- require_trace_search! API helper guards routes when LLM subsystem is unavailable
+- SearchTraces chat tool for natural language memory trace search via lex-agentic-memory
+- 10 new API specs covering all trace endpoints with availability guards and parameter handling
+
 ## [1.4.162] - 2026-03-23
 
 ### Added

@@ -52,6 +52,12 @@ module Legion
         halt 503, json_error('scheduler_unavailable', 'lex-scheduler is not loaded', status_code: 503)
       end
 
+      def require_trace_search!
+        return if defined?(Legion::TraceSearch) && defined?(Legion::LLM)
+
+        halt 503, json_error('trace_search_unavailable', 'TraceSearch requires LLM subsystem', status_code: 503)
+      end
+
       def parse_request_body
         body = request.body.read
         return {} if body.nil? || body.empty?
