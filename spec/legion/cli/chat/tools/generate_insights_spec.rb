@@ -63,20 +63,26 @@ RSpec.describe Legion::CLI::Chat::Tools::GenerateInsights do
 
   def stub_all_endpoints(overrides = {})
     defaults = {
-      health:    { data: { status: 'ok', version: '1.4.167' } },
-      anomalies: { data: { anomalies: [], recent_count: 50, baseline_count: 500 } },
-      trend:     { data: { buckets: [
+      health:     { data: { status: 'ok', version: '1.4.167' } },
+      anomalies:  { data: { anomalies: [], recent_count: 50, baseline_count: 500 } },
+      trend:      { data: { buckets: [
         { time: '2026-03-22T00:00:00Z', count: 100, avg_cost: 0.05, avg_latency: 100.0, failure_rate: 0.01 },
         { time: '2026-03-23T00:00:00Z', count: 120, avg_cost: 0.06, avg_latency: 110.0, failure_rate: 0.02 }
       ], hours: 24, bucket_count: 6 } },
-      apollo:    { data: { total_entries: 500, recent_24h: 20, avg_confidence: 0.85 } },
-      workers:   { data: [{ lifecycle_state: 'active' }, { lifecycle_state: 'paused' }] }
+      apollo:     { data: { total_entries: 500, recent_24h: 20, avg_confidence: 0.85 } },
+      graph:      { data: { domains: { 'general' => 10 }, total_relations: 5, disputed_entries: 0 } },
+      workers:    { data: [{ lifecycle_state: 'active' }, { lifecycle_state: 'paused' }] },
+      scheduling: { peak_hours: false, batch: { queue_size: 0 } },
+      llm:        { escalations: 3, shadow_evals: 15 }
     }.merge(overrides)
 
     allow(tool).to receive(:safe_fetch).with('/api/health').and_return(defaults[:health])
     allow(tool).to receive(:safe_fetch).with('/api/traces/anomalies').and_return(defaults[:anomalies])
     allow(tool).to receive(:safe_fetch).with('/api/traces/trend?hours=24&buckets=6').and_return(defaults[:trend])
     allow(tool).to receive(:safe_fetch).with('/api/apollo/stats').and_return(defaults[:apollo])
+    allow(tool).to receive(:safe_fetch).with('/api/apollo/graph').and_return(defaults[:graph])
     allow(tool).to receive(:safe_fetch).with('/api/workers').and_return(defaults[:workers])
+    allow(tool).to receive(:scheduling_status).and_return(defaults[:scheduling])
+    allow(tool).to receive(:llm_status).and_return(defaults[:llm])
   end
 end

@@ -38,11 +38,14 @@ module Legion
 
           def gather_sections
             {
-              health:    safe_fetch('/api/health'),
-              anomalies: safe_fetch('/api/traces/anomalies'),
-              trend:     safe_fetch('/api/traces/trend?hours=24&buckets=6'),
-              apollo:    safe_fetch('/api/apollo/stats'),
-              workers:   safe_fetch('/api/workers')
+              health:     safe_fetch('/api/health'),
+              anomalies:  safe_fetch('/api/traces/anomalies'),
+              trend:      safe_fetch('/api/traces/trend?hours=24&buckets=6'),
+              apollo:     safe_fetch('/api/apollo/stats'),
+              graph:      safe_fetch('/api/apollo/graph'),
+              workers:    safe_fetch('/api/workers'),
+              scheduling: scheduling_status,
+              llm:        llm_status
             }
           end
 
@@ -58,7 +61,10 @@ module Legion
             lines << format_anomaly_section(sections[:anomalies])
             lines << format_trend_section(sections[:trend])
             lines << format_apollo_section(sections[:apollo])
+            lines << format_graph_section(sections[:graph])
             lines << format_worker_section(sections[:workers])
+            lines << format_scheduling_section(sections[:scheduling])
+            lines << format_llm_section(sections[:llm])
             lines << recommendations(sections)
             lines.compact.join("\n\n")
           end
@@ -117,6 +123,66 @@ module Legion
 
             active = workers.count { |w| w[:lifecycle_state] == 'active' }
             "Workers: #{active}/#{workers.size} active"
+          end
+
+          def format_graph_section(data)
+            return nil unless data
+
+            d = data[:data] || data
+            return nil if d[:error]
+
+            disputed = d[:disputed_entries] || 0
+            domains = (d[:domains] || {}).size
+            relations = d[:total_relations] || 0
+
+            "Graph: #{domains} domains | #{relations} relations | #{disputed} disputed"
+          end
+
+          def format_scheduling_section(data)
+            return nil unless data
+
+            peak = data[:peak_hours] ? 'PEAK' : 'off-peak'
+            batch_size = data.dig(:batch, :queue_size) || 0
+
+            "Scheduling: #{peak} | Batch queue: #{batch_size}"
+          end
+
+          def format_llm_section(data)
+            return nil unless data
+
+            parts = []
+            parts << "Escalations: #{data[:escalations]}" if data[:escalations]
+            parts << "Shadow evals: #{data[:shadow_evals]}" if data[:shadow_evals]
+            return nil if parts.empty?
+
+            "LLM: #{parts.join(' | ')}"
+          end
+
+          def scheduling_status
+            result = {}
+            if defined?(Legion::LLM::Scheduling)
+              s = Legion::LLM::Scheduling.status
+              result.merge!(s)
+            end
+            result[:batch] = Legion::LLM::Batch.status if defined?(Legion::LLM::Batch)
+            result.empty? ? nil : result
+          rescue StandardError
+            nil
+          end
+
+          def llm_status
+            result = {}
+            if defined?(Legion::LLM::EscalationTracker)
+              s = Legion::LLM::EscalationTracker.summary
+              result[:escalations] = s[:total_escalations]
+            end
+            if defined?(Legion::LLM::ShadowEval)
+              s = Legion::LLM::ShadowEval.summary
+              result[:shadow_evals] = s[:total_evaluations]
+            end
+            result.empty? ? nil : result
+          rescue StandardError
+            nil
           end
 
           def recommendations(sections)

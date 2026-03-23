@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.182] - 2026-03-23
+
+### Changed
+- GenerateInsights now includes Apollo graph topology, LLM scheduling status, escalation count, and shadow eval count
+- Insights report provides a more comprehensive system overview
+
 ## [1.4.181] - 2026-03-23
 
 ### Added
