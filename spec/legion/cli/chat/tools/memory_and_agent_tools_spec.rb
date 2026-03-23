@@ -15,6 +15,7 @@ RSpec.describe 'Chat Memory and Agent Tools' do
 
     before do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:add).and_return('/tmp/.legion/memory.md')
+      allow(tool).to receive(:ingest_to_apollo).and_return(nil)
     end
 
     it 'saves to project memory by default' do
@@ -32,6 +33,18 @@ RSpec.describe 'Chat Memory and Agent Tools' do
     it 'includes the file path in response' do
       result = tool.execute(text: 'test')
       expect(result).to include('/tmp/.legion/memory.md')
+    end
+
+    it 'includes apollo confirmation when available' do
+      allow(tool).to receive(:ingest_to_apollo).and_return('Also ingested into Apollo knowledge graph.')
+      result = tool.execute(text: 'important fact')
+      expect(result).to include('project memory')
+      expect(result).to include('Apollo knowledge graph')
+    end
+
+    it 'omits apollo when unavailable' do
+      result = tool.execute(text: 'test')
+      expect(result).not_to include('Apollo')
     end
 
     it 'returns error message on failure' do

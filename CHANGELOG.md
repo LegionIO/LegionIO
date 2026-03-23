@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.155] - 2026-03-23
+
+### Changed
+- SaveMemory tool now auto-ingests entries into Apollo knowledge graph when daemon is running
+- Apollo ingest includes type (memory), source (chat:project/global), and tags for categorization
+- Updated save_memory specs with 6 examples covering apollo integration, confirmation, and fallback
+
 ## [1.4.154] - 2026-03-23
 
 ### Changed
