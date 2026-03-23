@@ -76,9 +76,7 @@ module Legion
                 end
               end
 
-              if candidates.size < 5
-                candidates += fuzzy_person_search(person, limit: limit)
-              end
+              candidates += fuzzy_person_search(person, limit: limit) if candidates.size < 5
 
               candidates += store.retrieve_by_domain('teams', min_strength: 0.01, limit: limit) if candidates.size < 5
               return candidates.uniq { |t| t[:trace_id] }
@@ -241,7 +239,7 @@ module Legion
             needle = person.downcase
             parts = needle.split(/[\s,]+/).reject(&:empty?)
 
-            store.all_traces(min_strength: 0.01).select do |trace|
+            matches = store.all_traces(min_strength: 0.01).select do |trace|
               tags = trace[:domain_tags] || []
               tags.any? do |tag|
                 next false unless tag.start_with?('peer:', 'sender:')
@@ -249,7 +247,8 @@ module Legion
                 tag_name = tag.sub(/\A(peer|sender):/, '').downcase
                 parts.all? { |p| tag_name.include?(p) }
               end
-            end.sort_by { |t| -t[:strength] }.first(limit)
+            end
+            matches.sort_by { |t| -t[:strength] }.first(limit)
           end
         end
       end

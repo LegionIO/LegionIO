@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.131] - 2026-03-23
+
+### Changed
+- Add logging to Every actor tick cycle and Subscription actor message processing
+- Add logging to actor builder discovery
+- Register SearchTraces tool with LLM ToolRegistry via API llm routes
+- Comment out bootsnap setup in legionio executable for local development
+
 ## [1.4.130] - 2026-03-22
 
 ### Changed

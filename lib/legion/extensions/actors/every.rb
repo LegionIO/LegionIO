@@ -12,19 +12,19 @@ module Legion
 
         def initialize(**_opts)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            Legion::Logging.debug "[Every] tick: #{self.class}" if defined?(Legion::Logging)
+            log.debug "[Every] tick: #{self.class}" if defined?(log)
             begin
               skip_or_run { use_runner? ? runner : manual }
             rescue StandardError => e
-              Legion::Logging.error "[Every] tick failed for #{self.class}: #{e.message}" if defined?(Legion::Logging)
-              Legion::Logging.error e.backtrace if defined?(Legion::Logging)
+              log.error "[Every] tick failed for #{self.class}: #{e.message}" if defined?(log)
+              log.error e.backtrace if defined?(log)
             end
           end
 
           @timer.execute
         rescue StandardError => e
-          Legion::Logging.error e.message
-          Legion::Logging.error e.backtrace
+          log.error e.message
+          log.error e.backtrace
         end
 
         def time
@@ -40,17 +40,17 @@ module Legion
         end
 
         def action(**_opts)
-          Legion::Logging.warn 'An extension is using the default block from Legion::Extensions::Runners::Every'
+          log.warn 'An extension is using the default block from Legion::Extensions::Runners::Every'
         end
 
         def cancel
-          Legion::Logging.debug 'Cancelling Legion Timer'
+          log.debug 'Cancelling Legion Timer'
           return true unless @timer.respond_to?(:shutdown)
 
           @timer.shutdown
         rescue StandardError => e
-          Legion::Logging.error e.message
-          Legion::Logging.error e.backtrace
+          log.error e.message
+          log.error e.backtrace
         end
       end
     end

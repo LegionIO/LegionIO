@@ -2,6 +2,15 @@
 
 require 'securerandom'
 
+begin
+  require 'legion/cli/chat/tools/search_traces'
+  if defined?(Legion::LLM::ToolRegistry) && defined?(Legion::CLI::Chat::Tools::SearchTraces)
+    Legion::LLM::ToolRegistry.register(Legion::CLI::Chat::Tools::SearchTraces)
+  end
+rescue LoadError => e
+  Legion::Logging.debug("SearchTraces not available for API: #{e.message}") if defined?(Legion::Logging)
+end
+
 module Legion
   class API < Sinatra::Base
     module Routes

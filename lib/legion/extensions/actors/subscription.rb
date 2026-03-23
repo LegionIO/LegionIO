@@ -101,7 +101,7 @@ module Legion
         end
 
         def subscribe # rubocop:disable Metrics/AbcSize
-          Legion::Logging.info "[Subscription] starting: #{lex_name}/#{runner_name}" if defined?(Legion::Logging)
+          log.info "[Subscription] starting: #{lex_name}/#{runner_name}"
           sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
           on_cancellation = block { cancel }
@@ -113,18 +113,18 @@ module Legion
 
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
-            Legion::Logging.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(Legion::Logging)
+            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
 
             affinity_result = check_region_affinity(message)
             if affinity_result == :reject
-              Legion::Logging.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
+              log.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
               @queue.reject(delivery_info.delivery_tag) if manual_ack
               next
             end
 
             if affinity_result == :remote
-              Legion::Logging.debug 'Processing remote-region message ' \
-                                    "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+              log.debug 'Processing remote-region message ' \
+                        "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
               record_cross_region_metric(message)
             end
 
@@ -137,12 +137,12 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            Legion::Logging.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
-            Legion::Logging.error e.backtrace
-            Legion::Logging.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
+            log.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
+            log.error e.backtrace
+            log.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
-          Legion::Logging.info "[Subscription] stopped: #{lex_name}/#{runner_name}" if defined?(Legion::Logging)
+          log.info "[Subscription] stopped: #{lex_name}/#{runner_name}" if defined?(log)
         end
 
         private
@@ -156,7 +156,7 @@ module Legion
             affinity:    message[:region_affinity]
           )
         rescue StandardError => e
-          Legion::Logging.debug "Subscription#record_cross_region_metric failed: #{e.message}" if defined?(Legion::Logging)
+          log.debug "Subscription#record_cross_region_metric failed: #{e.message}" if defined?(log)
           nil
         end
 
