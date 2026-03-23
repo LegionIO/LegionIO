@@ -57,6 +57,7 @@ module Legion
     autoload :Interactive, 'legion/cli/interactive'
     autoload :Docs,        'legion/cli/docs_command'
     autoload :Failover,    'legion/cli/failover_command'
+    autoload :Apollo,      'legion/cli/apollo_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -224,6 +225,9 @@ module Legion
 
       desc 'gaia SUBCOMMAND', 'GAIA cognitive coordination'
       subcommand 'gaia', Legion::CLI::Gaia
+
+      desc 'apollo SUBCOMMAND', 'Apollo knowledge graph'
+      subcommand 'apollo', Legion::CLI::Apollo
 
       desc 'schedule SUBCOMMAND', 'Manage schedules'
       subcommand 'schedule', Legion::CLI::Schedule

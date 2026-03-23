@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.136] - 2026-03-23
+
+### Added
+- Apollo CLI command: `legion apollo status`, `stats`, `query`, `ingest`, `maintain` subcommands
+- SearchTraces chat tool for natural language trace search within chat sessions
+
 ## [1.4.135] - 2026-03-23
 
 ### Added
