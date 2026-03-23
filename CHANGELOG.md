@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.139] - 2026-03-23
+
+### Added
+- Gaia API: `GET /api/gaia/channels`, `GET /api/gaia/buffer`, `GET /api/gaia/sessions` endpoints
+- Gaia CLI: `legion gaia channels`, `legion gaia buffer`, `legion gaia sessions` subcommands
+- Gaia spec coverage expanded from 12 to 25 examples
+
 ## [1.4.138] - 2026-03-23
 
 ### Added

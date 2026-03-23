@@ -34,7 +34,7 @@ RSpec.describe Legion::CLI::Gaia do
     allow(mock_http).to receive(:read_timeout=)
   end
 
-  describe '#status — daemon running' do
+  describe '#status -- daemon running' do
     before do
       allow(mock_http).to receive(:get).and_return(success_response)
     end
@@ -56,7 +56,7 @@ RSpec.describe Legion::CLI::Gaia do
     end
   end
 
-  describe '#status — daemon not running' do
+  describe '#status -- daemon not running' do
     before do
       allow(mock_http).to receive(:get).and_raise(Errno::ECONNREFUSED)
     end
@@ -70,7 +70,7 @@ RSpec.describe Legion::CLI::Gaia do
     end
   end
 
-  describe '#status — JSON mode with daemon running' do
+  describe '#status -- JSON mode with daemon running' do
     before do
       allow(mock_http).to receive(:get).and_return(success_response)
     end
@@ -94,7 +94,7 @@ RSpec.describe Legion::CLI::Gaia do
     end
   end
 
-  describe '#status — JSON mode with daemon not running' do
+  describe '#status -- JSON mode with daemon not running' do
     before do
       allow(mock_http).to receive(:get).and_raise(Errno::ECONNREFUSED)
     end
@@ -109,6 +109,114 @@ RSpec.describe Legion::CLI::Gaia do
       output = capture_stdout { described_class.start(['status', '--json']) }
       parsed = JSON.parse(output, symbolize_names: true)
       expect(parsed[:error]).to eq('daemon not running')
+    end
+  end
+
+  describe '#channels' do
+    let(:channels_data) do
+      {
+        channels: [
+          { id: :cli, type: 'CliAdapter', started: true, capabilities: %w[text markdown] },
+          { id: :teams, type: 'TeamsAdapter', started: false, capabilities: %w[text] }
+        ],
+        count:    2
+      }
+    end
+
+    let(:channels_response) do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(JSON.generate({ data: channels_data }))
+      response
+    end
+
+    before { allow(mock_http).to receive(:get).and_return(channels_response) }
+
+    it 'outputs channel header with count' do
+      expect { described_class.start(%w[channels --no-color]) }.to output(/GAIA Channels \(2\)/).to_stdout
+    end
+
+    it 'shows channel type' do
+      expect { described_class.start(%w[channels --no-color]) }.to output(/CliAdapter/).to_stdout
+    end
+
+    it 'shows channel status' do
+      expect { described_class.start(%w[channels --no-color]) }.to output(/active/).to_stdout
+    end
+
+    it 'shows capabilities' do
+      expect { described_class.start(%w[channels --no-color]) }.to output(/text, markdown/).to_stdout
+    end
+
+    context 'when daemon not running' do
+      before { allow(mock_http).to receive(:get).and_raise(Errno::ECONNREFUSED) }
+
+      it 'shows not running' do
+        expect { described_class.start(%w[channels --no-color]) }.to output(/not running/).to_stdout
+      end
+    end
+  end
+
+  describe '#buffer' do
+    let(:buffer_data) { { depth: 5, empty: false, max_size: 1000 } }
+
+    let(:buffer_response) do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(JSON.generate({ data: buffer_data }))
+      response
+    end
+
+    before { allow(mock_http).to receive(:get).and_return(buffer_response) }
+
+    it 'outputs buffer header' do
+      expect { described_class.start(%w[buffer --no-color]) }.to output(/Sensory Buffer/).to_stdout
+    end
+
+    it 'shows depth' do
+      expect { described_class.start(%w[buffer --no-color]) }.to output(/5/).to_stdout
+    end
+
+    it 'shows max size' do
+      expect { described_class.start(%w[buffer --no-color]) }.to output(/1000/).to_stdout
+    end
+
+    context 'with --json' do
+      it 'outputs JSON' do
+        output = capture_stdout { described_class.start(%w[buffer --json]) }
+        parsed = JSON.parse(output, symbolize_names: true)
+        expect(parsed[:depth]).to eq(5)
+      end
+    end
+  end
+
+  describe '#sessions' do
+    let(:sessions_data) { { count: 3, active: true } }
+
+    let(:sessions_response) do
+      response = instance_double(Net::HTTPOK)
+      allow(response).to receive(:body).and_return(JSON.generate({ data: sessions_data }))
+      response
+    end
+
+    before { allow(mock_http).to receive(:get).and_return(sessions_response) }
+
+    it 'outputs sessions header' do
+      expect { described_class.start(%w[sessions --no-color]) }.to output(/GAIA Sessions/).to_stdout
+    end
+
+    it 'shows session count' do
+      expect { described_class.start(%w[sessions --no-color]) }.to output(/3/).to_stdout
+    end
+
+    it 'shows system active status' do
+      expect { described_class.start(%w[sessions --no-color]) }.to output(/true/).to_stdout
+    end
+
+    context 'with --json' do
+      it 'outputs JSON with count' do
+        output = capture_stdout { described_class.start(%w[sessions --json]) }
+        parsed = JSON.parse(output, symbolize_names: true)
+        expect(parsed[:count]).to eq(3)
+      end
     end
   end
 

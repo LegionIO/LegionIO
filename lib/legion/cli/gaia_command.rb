@@ -14,13 +14,13 @@ module Legion
       class_option :no_color,   type: :boolean, default: false, desc: 'Disable color output'
       class_option :verbose,    type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
       class_option :config_dir, type: :string,  desc: 'Config directory path'
+      class_option :port,       type: :numeric, default: 4567, desc: 'API port'
+      class_option :host,       type: :string,  default: '127.0.0.1', desc: 'API host'
 
       desc 'status', 'Show GAIA cognitive coordination status'
-      option :port, type: :numeric, default: 4567, desc: 'API port'
-      option :host, type: :string,  default: '127.0.0.1', desc: 'API host'
       def status
         out  = formatter
-        data = probe_api
+        data = api_get('/api/gaia/status')
 
         if data.nil?
           show_not_running(out)
@@ -32,6 +32,79 @@ module Legion
       end
       default_task :status
 
+      desc 'channels', 'List registered GAIA communication channels'
+      def channels
+        out  = formatter
+        data = api_get('/api/gaia/channels')
+
+        if data.nil?
+          show_not_running(out)
+          return
+        end
+
+        if options[:json]
+          out.json(data)
+          return
+        end
+
+        channels_list = data[:channels] || []
+        out.header("GAIA Channels (#{channels_list.size})")
+        if channels_list.empty?
+          puts '  No channels registered.'
+        else
+          channels_list.each do |ch|
+            status_str = ch[:started] ? 'active' : 'stopped'
+            caps = ch[:capabilities]&.any? ? " [#{ch[:capabilities].join(', ')}]" : ''
+            puts "  #{ch[:id]} (#{ch[:type] || 'unknown'}) - #{status_str}#{caps}"
+          end
+        end
+      end
+
+      desc 'buffer', 'Show sensory buffer status'
+      def buffer
+        out  = formatter
+        data = api_get('/api/gaia/buffer')
+
+        if data.nil?
+          show_not_running(out)
+          return
+        end
+
+        if options[:json]
+          out.json(data)
+          return
+        end
+
+        out.header('GAIA Sensory Buffer')
+        out.detail({
+                     'Depth'    => (data[:depth] || 0).to_s,
+                     'Empty'    => (data[:empty] || true).to_s,
+                     'Max Size' => (data[:max_size] || 'unknown').to_s
+                   })
+      end
+
+      desc 'sessions', 'Show active session count'
+      def sessions
+        out  = formatter
+        data = api_get('/api/gaia/sessions')
+
+        if data.nil?
+          show_not_running(out)
+          return
+        end
+
+        if options[:json]
+          out.json(data)
+          return
+        end
+
+        out.header('GAIA Sessions')
+        out.detail({
+                     'Active Sessions' => (data[:count] || 0).to_s,
+                     'System Active'   => (data[:active] || false).to_s
+                   })
+      end
+
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
@@ -42,10 +115,10 @@ module Legion
 
         private
 
-        def probe_api
+        def api_get(path)
           host = options[:host] || '127.0.0.1'
           port = options[:port] || api_port
-          uri  = URI("http://#{host}:#{port}/api/gaia/status")
+          uri  = URI("http://#{host}:#{port}#{path}")
           http = Net::HTTP.new(uri.host, uri.port)
           http.open_timeout = 3
           http.read_timeout = 5
@@ -53,7 +126,7 @@ module Legion
           parsed   = ::JSON.parse(response.body, symbolize_names: true)
           parsed[:data] || parsed
         rescue StandardError => e
-          Legion::Logging.warn("GaiaCommand#probe_api failed: #{e.message}") if defined?(Legion::Logging)
+          Legion::Logging.warn("GaiaCommand#api_get failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 
@@ -88,10 +161,10 @@ module Legion
           }
           out.detail(details)
 
-          channels = data[:active_channels] || []
+          channels_list = data[:active_channels] || []
           out.spacer
-          out.header("Active Channels (#{channels.size})")
-          channels.each { |ch| puts "  #{ch}" }
+          out.header("Active Channels (#{channels_list.size})")
+          channels_list.each { |ch| puts "  #{ch}" }
 
           phases = data[:phase_list] || []
           return if phases.empty?
