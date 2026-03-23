@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.165] - 2026-03-23
+
+### Added
+- TraceSearch.trend: time-bucketed metrics trend analysis over configurable time ranges
+- GET /api/traces/trend endpoint with hours and buckets parameters
+- 7 new specs covering trend data structure, bucket contents, defaults, and API endpoint
+
 ## [1.4.164] - 2026-03-23
 
 ### Added

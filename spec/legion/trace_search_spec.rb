@@ -329,4 +329,56 @@ RSpec.describe Legion::TraceSearch do
       end
     end
   end
+
+  describe '.trend' do
+    it 'returns error when data unavailable' do
+      result = described_class.trend
+      expect(result[:error]).to include('data unavailable')
+    end
+
+    context 'with mock database' do
+      let(:mock_ds) { double('Dataset') }
+      let(:mock_connection) { double('Connection') }
+
+      before do
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+        end
+        stub_const('Legion::Data', data_mod)
+        allow(Legion::Data).to receive(:connection).and_return(mock_connection)
+        allow(mock_connection).to receive(:[]).with(:metering_records).and_return(mock_ds)
+        allow(mock_ds).to receive(:where).and_return(mock_ds)
+        allow(mock_ds).to receive(:select).and_return(mock_ds)
+        allow(mock_ds).to receive(:count).and_return(0)
+        allow(mock_ds).to receive(:first).and_return({
+                                                       count: 5, avg_cost: 0.01,
+                                                       avg_latency: 50.0,
+                                                       tokens_in: 100, tokens_out: 80
+                                                     })
+      end
+
+      it 'returns trend data with expected keys' do
+        result = described_class.trend(hours: 6, buckets: 3)
+        expect(result[:buckets]).to be_an(Array)
+        expect(result[:buckets].size).to eq(3)
+        expect(result[:hours]).to eq(6)
+        expect(result[:bucket_count]).to eq(3)
+        expect(result[:bucket_minutes]).to eq(120)
+      end
+
+      it 'includes time and stats in each bucket' do
+        result = described_class.trend(hours: 2, buckets: 2)
+        bucket = result[:buckets].first
+        expect(bucket[:time]).to be_a(String)
+        expect(bucket[:count]).to eq(5)
+        expect(bucket[:avg_cost]).to eq(0.01)
+      end
+
+      it 'defaults to 24 hours with 12 buckets' do
+        result = described_class.trend
+        expect(result[:buckets].size).to eq(12)
+        expect(result[:hours]).to eq(24)
+      end
+    end
+  end
 end

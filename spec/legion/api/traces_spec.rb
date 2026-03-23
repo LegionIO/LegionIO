@@ -172,4 +172,42 @@ RSpec.describe 'Traces API routes' do
       end
     end
   end
+
+  describe 'GET /api/traces/trend' do
+    context 'when LLM is not available' do
+      before { hide_const('Legion::LLM') }
+
+      it 'returns 503' do
+        get '/api/traces/trend'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when TraceSearch is available' do
+      before do
+        stub_const('Legion::LLM', Module.new)
+        trace_mod = Module.new do
+          def self.trend(**)
+            { buckets: [{ time: '2026-03-23T00:00:00Z', count: 10 }], hours: 24, bucket_count: 12 }
+          end
+        end
+        stub_const('Legion::TraceSearch', trace_mod)
+      end
+
+      it 'returns trend data' do
+        get '/api/traces/trend'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:buckets]).to be_an(Array)
+      end
+
+      it 'accepts custom hours and buckets' do
+        allow(Legion::TraceSearch).to receive(:trend).with(hours: 6, buckets: 6).and_return(
+          { buckets: [], hours: 6, bucket_count: 6 }
+        )
+        get '/api/traces/trend', hours: '6', buckets: '6'
+        expect(last_response.status).to eq(200)
+      end
+    end
+  end
 end

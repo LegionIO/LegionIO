@@ -200,6 +200,26 @@ module Legion
         { error: e.message }
       end
 
+      def trend(hours: 24, buckets: 12)
+        return { error: 'data unavailable' } unless data_available?
+
+        now = Time.now.utc
+        bucket_seconds = (hours * 3600.0 / buckets).to_i
+        start_time = now - (hours * 3600)
+
+        data = buckets.times.map do |i|
+          bucket_start = start_time + (i * bucket_seconds)
+          bucket_end = bucket_start + bucket_seconds
+          stats = period_stats(bucket_start, bucket_end)
+          { time: bucket_start.iso8601, **stats }
+        end
+
+        { buckets: data, hours: hours, bucket_count: buckets, bucket_minutes: bucket_seconds / 60 }
+      rescue StandardError => e
+        Legion::Logging.error("[TraceSearch] trend failed: #{e.message}") if defined?(Legion::Logging)
+        { error: e.message }
+      end
+
       private
 
       def data_available?

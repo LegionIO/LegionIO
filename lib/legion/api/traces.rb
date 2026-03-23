@@ -8,6 +8,7 @@ module Legion
           register_search(app)
           register_summary(app)
           register_anomalies(app)
+          register_trend(app)
         end
 
         def self.register_search(app)
@@ -41,8 +42,18 @@ module Legion
           end
         end
 
+        def self.register_trend(app)
+          app.get '/api/traces/trend' do
+            require_trace_search!
+            hours = (params[:hours] || 24).to_i.clamp(1, 168)
+            buckets = (params[:buckets] || 12).to_i.clamp(2, 48)
+            result = Legion::TraceSearch.trend(hours: hours, buckets: buckets)
+            json_response(result)
+          end
+        end
+
         class << self
-          private :register_search, :register_summary, :register_anomalies
+          private :register_search, :register_summary, :register_anomalies, :register_trend
         end
       end
     end
