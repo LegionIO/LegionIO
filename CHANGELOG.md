@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.174] - 2026-03-23
+
+### Added
+- REST API endpoints for LLM provider health: GET /api/llm/providers and GET /api/llm/providers/:name
+- Returns circuit breaker state, health status, routing adjustments, and circuit summary
+- 4 new specs covering gateway unavailable, health report, and single provider detail
+
 ## [1.4.173] - 2026-03-23
 
 ### Added

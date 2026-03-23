@@ -39,6 +39,7 @@ module Legion
           end
 
           register_chat(app)
+          register_providers(app)
         end
 
         def self.register_chat(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -161,8 +162,34 @@ module Legion
           end
         end
 
+        def self.register_providers(app)
+          app.get '/api/llm/providers' do
+            require_llm!
+            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
+              halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
+            end
+
+            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
+            json_response({
+                            providers: stats.health_report,
+                            summary:   stats.circuit_summary
+                          })
+          end
+
+          app.get '/api/llm/providers/:name' do
+            require_llm!
+            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
+              halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
+            end
+
+            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
+            detail = stats.provider_detail(provider: params[:name])
+            json_response(detail)
+          end
+        end
+
         class << self
-          private :register_chat
+          private :register_chat, :register_providers
         end
       end
     end

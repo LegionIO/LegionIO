@@ -11,13 +11,13 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
     stub_const('Legion::LLM::CostTracker', Module.new do
       def self.summary
         {
-          total_cost_usd: 0.025,
-          total_requests: 5,
-          total_input_tokens: 10_000,
+          total_cost_usd:      0.025,
+          total_requests:      5,
+          total_input_tokens:  10_000,
           total_output_tokens: 3000,
-          by_model: {
+          by_model:            {
             'claude-sonnet-4-6' => { cost_usd: 0.02, requests: 3 },
-            'gpt-4o-mini' => { cost_usd: 0.005, requests: 2 }
+            'gpt-4o-mini'       => { cost_usd: 0.005, requests: 2 }
           }
         }
       end
@@ -25,11 +25,11 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
     stub_const('Legion::LLM::Hooks::BudgetGuard', Module.new do
       def self.status
         {
-          enforcing: true,
-          budget_usd: 1.0,
-          spent_usd: 0.025,
+          enforcing:     true,
+          budget_usd:    1.0,
+          spent_usd:     0.025,
           remaining_usd: 0.975,
-          ratio: 0.025
+          ratio:         0.025
         }
       end
     end)

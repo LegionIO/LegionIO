@@ -383,4 +383,85 @@ RSpec.describe 'LLM API routes' do
       expect(body[:meta][:node]).to eq('test-node')
     end
   end
+
+  # ──────────────────────────────────────────────────────────
+  # GET /api/llm/providers — provider health
+  # ──────────────────────────────────────────────────────────
+
+  describe 'GET /api/llm/providers' do
+    context 'when LLM not started' do
+      it 'returns 503' do
+        get '/api/llm/providers'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when gateway not loaded' do
+      before { stub_llm_started }
+
+      it 'returns 503 with gateway_unavailable' do
+        get '/api/llm/providers'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when gateway loaded' do
+      let(:stats_mod) do
+        Module.new do
+          def self.health_report
+            [
+              { provider: 'anthropic', circuit: 'closed', adjustment: 0, healthy: true },
+              { provider: 'openai', circuit: 'open', adjustment: -50, healthy: false }
+            ]
+          end
+
+          def self.circuit_summary
+            { total: 2, closed: 1, open: 1, half_open: 0 }
+          end
+        end
+      end
+
+      before do
+        stub_llm_started
+        stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
+        stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+      end
+
+      it 'returns 200 with providers and summary' do
+        get '/api/llm/providers'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:providers].length).to eq(2)
+        expect(body[:data][:summary][:total]).to eq(2)
+      end
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────
+  # GET /api/llm/providers/:name — single provider detail
+  # ──────────────────────────────────────────────────────────
+
+  describe 'GET /api/llm/providers/:name' do
+    let(:stats_mod) do
+      Module.new do
+        def self.provider_detail(provider:)
+          { provider: provider.to_s, circuit: 'closed', adjustment: 0, healthy: true }
+        end
+      end
+    end
+
+    before do
+      stub_llm_started
+      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+    end
+
+    it 'returns 200 with provider detail' do
+      get '/api/llm/providers/anthropic'
+      expect(last_response.status).to eq(200)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:provider]).to eq('anthropic')
+      expect(body[:data][:healthy]).to be true
+    end
+  end
 end
