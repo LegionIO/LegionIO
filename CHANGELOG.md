@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.140] - 2026-03-23
+
+### Added
+- SearchTraces chat tool: search cognitive memory traces for Teams messages, conversations, meetings, and people with keyword ranking, person name variants, and fuzzy matching
+- SearchTraces spec with 15 examples covering keyword search, person/domain/type filters, payload parsing, age formatting, and limit clamping
+- TraceSearch spec expanded from 8 to 20 examples: `.search` entry point, `.apply_date_filters`, `.apply_ordering` (ascending/descending), `.safe_parse_time` edge cases, `FILTER_SCHEMA` properties
+
 ## [1.4.139] - 2026-03-23
 
 ### Added
