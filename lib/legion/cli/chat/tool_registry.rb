@@ -43,6 +43,7 @@ begin
   require 'legion/cli/chat/tools/arbitrage_status'
   require 'legion/cli/chat/tools/escalation_status'
   require 'legion/cli/chat/tools/graph_explore'
+  require 'legion/cli/chat/tools/scheduling_status'
 rescue LoadError => e
   Legion::Logging.debug("ToolRegistry ruby_llm not available, chat tools will not be registered: #{e.message}") if defined?(Legion::Logging)
 end
@@ -92,7 +93,8 @@ module Legion
                             Tools::EntityExtract,
                             Tools::ArbitrageStatus,
                             Tools::EscalationStatus,
-                            Tools::GraphExplore
+                            Tools::GraphExplore,
+                            Tools::SchedulingStatus
                           ].freeze
                         else
                           [].freeze

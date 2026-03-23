@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.181] - 2026-03-23
+
+### Added
+- SchedulingStatus chat tool: view LLM peak/off-peak scheduling and batch queue state
+- Supports "overview", "scheduling" (detail), and "batch" (queue detail) actions
+- 39th built-in chat tool registered in ToolRegistry
+
 ## [1.4.180] - 2026-03-23
 
 ### Added
