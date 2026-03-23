@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.153] - 2026-03-23
+
+### Changed
+- TraceSearch schema context now injects current date/time dynamically for accurate time-relative queries
+- Added guidance for "today", "last hour", "this week", "yesterday" relative time references in LLM prompt
+- 2 new trace_search specs covering schema_context current date injection and relative time guidance
+
 ## [1.4.152] - 2026-03-23
 
 ### Added

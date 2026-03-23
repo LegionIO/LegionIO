@@ -2,8 +2,9 @@
 
 module Legion
   module TraceSearch
-    SCHEMA_CONTEXT = <<~PROMPT
+    SCHEMA_TEMPLATE = <<~PROMPT
       You translate natural language queries into JSON filter objects for the metering_records table.
+      Current date/time: %<current_time>s
 
       Columns: id (integer), worker_id (string), event_type (string), extension (string),
       runner_function (string), status (string: success/failure), tokens_in (integer),
@@ -16,10 +17,16 @@ module Legion
       - "date_from": ISO date string for created_at >= filter
       - "date_to": ISO date string for created_at <= filter
 
+      For relative time references, compute ISO dates from the current date/time above:
+      - "today" => date_from is today's date at 00:00
+      - "last hour" => date_from is 1 hour ago
+      - "this week" => date_from is Monday of this week
+      - "yesterday" => date_from/date_to bracket yesterday
+
       Examples:
       - "failed tasks" => {"where": {"status": "failure"}}
       - "most expensive calls" => {"order": "-cost_usd", "limit": 20}
-      - "tasks by worker-1 today" => {"where": {"worker_id": "worker-1"}, "date_from": "2026-03-16"}
+      - "tasks by worker-1 today" => {"where": {"worker_id": "worker-1"}, "date_from": "%<today>s"}
 
       Return ONLY the JSON object, no explanation.
     PROMPT
@@ -57,13 +64,18 @@ module Legion
 
         result = Legion::LLM.structured(
           messages: [
-            { role: 'system', content: SCHEMA_CONTEXT },
+            { role: 'system', content: schema_context },
             { role: 'user',   content: query }
           ],
           schema:   FILTER_SCHEMA
         )
         Legion::Logging.error "[TraceSearch] LLM filter generation failed for query: #{query.inspect}" if !result[:valid] && defined?(Legion::Logging)
         result[:data] if result[:valid]
+      end
+
+      def schema_context
+        now = Time.now
+        format(SCHEMA_TEMPLATE, current_time: now.iso8601, today: now.strftime('%Y-%m-%d'))
       end
 
       def execute_filter(parsed, default_limit)

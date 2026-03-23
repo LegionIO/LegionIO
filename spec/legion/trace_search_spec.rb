@@ -47,6 +47,21 @@ RSpec.describe Legion::TraceSearch do
     end
   end
 
+  describe '.schema_context' do
+    it 'includes current date and time' do
+      ctx = described_class.schema_context
+      expect(ctx).to include(Time.now.strftime('%Y-%m-%d'))
+      expect(ctx).to include('Current date/time:')
+    end
+
+    it 'includes relative time guidance' do
+      ctx = described_class.schema_context
+      expect(ctx).to include('today')
+      expect(ctx).to include('last hour')
+      expect(ctx).to include('this week')
+    end
+  end
+
   describe 'FILTER_SCHEMA' do
     it 'defines expected properties' do
       props = described_class::FILTER_SCHEMA[:properties]
