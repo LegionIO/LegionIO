@@ -11,6 +11,7 @@ module Legion
           register_query_route(app)
           register_ingest_route(app)
           register_related_route(app)
+          register_maintenance_route(app)
         end
 
         def self.register_status_route(app)
@@ -80,6 +81,21 @@ module Legion
             json_response(result)
           end
         end
+
+        def self.register_maintenance_route(app)
+          app.post '/api/apollo/maintenance' do
+            halt 503, json_error('apollo_unavailable', 'apollo is not available', status_code: 503) unless apollo_loaded?
+
+            body = parse_request_body
+            action = body[:action]&.to_sym
+            halt 400, json_error('invalid_action', 'action must be decay_cycle or corroboration') unless %i[
+              decay_cycle corroboration
+            ].include?(action)
+
+            result = run_maintenance(action)
+            json_response(result)
+          end
+        end
       end
 
       module ApolloHelpers
@@ -95,6 +111,19 @@ module Legion
 
         def apollo_runner
           @apollo_runner ||= Object.new.extend(Legion::Extensions::Apollo::Runners::Knowledge)
+        end
+
+        def apollo_maintenance_runner
+          @apollo_maintenance_runner ||= Object.new.extend(Legion::Extensions::Apollo::Runners::Maintenance)
+        end
+
+        def run_maintenance(action)
+          case action
+          when :decay_cycle
+            apollo_maintenance_runner.run_decay_cycle
+          when :corroboration
+            apollo_maintenance_runner.check_corroboration
+          end
         end
 
         def apollo_stats

@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.135] - 2026-03-23
+
+### Added
+- Apollo maintenance endpoint: `POST /api/apollo/maintenance` triggers decay_cycle or corroboration check
+- Apollo maintenance in OpenAPI spec with action validation
+
 ## [1.4.134] - 2026-03-23
 
 ### Added

@@ -25,6 +25,8 @@ Metrics/ClassLength:
 
 Metrics/ModuleLength:
   Max: 1500
+  Exclude:
+    - 'lib/legion/api/openapi.rb'
 
 Metrics/BlockLength:
   Max: 40

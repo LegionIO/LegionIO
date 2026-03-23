@@ -278,4 +278,56 @@ RSpec.describe 'Apollo API routes' do
       end
     end
   end
+
+  describe 'POST /api/apollo/maintenance' do
+    context 'when apollo is not loaded' do
+      it 'returns 503' do
+        post '/api/apollo/maintenance', Legion::JSON.dump({ action: 'decay_cycle' }),
+             'CONTENT_TYPE' => 'application/json'
+        expect(last_response.status).to eq(503)
+      end
+    end
+
+    context 'when apollo is loaded' do
+      before do
+        knowledge_mod = Module.new
+        stub_const('Legion::Extensions::Apollo::Runners::Knowledge', knowledge_mod)
+        stub_const('Legion::Extensions::Apollo::Runners::Maintenance', Module.new)
+
+        data_mod = Module.new do
+          def self.respond_to?(method, *) = method == :connection || super
+          def self.connection = Object.new
+        end
+        stub_const('Legion::Data', data_mod)
+      end
+
+      it 'rejects invalid actions' do
+        post '/api/apollo/maintenance', Legion::JSON.dump({ action: 'drop_table' }),
+             'CONTENT_TYPE' => 'application/json'
+        expect(last_response.status).to eq(400)
+      end
+
+      it 'runs decay_cycle' do
+        allow_any_instance_of(test_app).to receive(:run_maintenance)
+          .with(:decay_cycle).and_return({ decayed: 5, archived: 1 })
+
+        post '/api/apollo/maintenance', Legion::JSON.dump({ action: 'decay_cycle' }),
+             'CONTENT_TYPE' => 'application/json'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:decayed]).to eq(5)
+      end
+
+      it 'runs corroboration' do
+        allow_any_instance_of(test_app).to receive(:run_maintenance)
+          .with(:corroboration).and_return({ success: true, promoted: 3 })
+
+        post '/api/apollo/maintenance', Legion::JSON.dump({ action: 'corroboration' }),
+             'CONTENT_TYPE' => 'application/json'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:promoted]).to eq(3)
+      end
+    end
+  end
 end

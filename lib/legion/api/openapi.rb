@@ -1538,6 +1538,29 @@ module Legion
                 '503' => { description: 'Apollo not available' }
               }
             }
+          },
+          '/api/apollo/maintenance'          => {
+            post: {
+              tags:        ['Apollo'],
+              summary:     'Trigger knowledge graph maintenance',
+              operationId: 'apolloMaintenance',
+              requestBody: {
+                required: true,
+                content:  json_content({
+                                         type:       'object',
+                                         required:   ['action'],
+                                         properties: {
+                                           action: { type: 'string', enum: %w[decay_cycle corroboration] }
+                                         }
+                                       })
+              },
+              responses:   {
+                '200' => ok_response('Maintenance result', { type: 'object', additionalProperties: true }),
+                '400' => { description: 'Invalid action' },
+                '401' => UNAUTH_RESPONSE,
+                '503' => { description: 'Apollo not available' }
+              }
+            }
           }
         }
       end
