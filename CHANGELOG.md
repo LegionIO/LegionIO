@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.147] - 2026-03-23
+
+### Added
+- SummarizeTraces chat tool: aggregate metering database analytics with token usage, cost, latency, status breakdown, and top extensions/workers via natural language queries
+- SummarizeTraces spec with 5 examples covering formatted output, error handling, empty data, and unavailable dependencies
+- Chat tool registry now has 18 built-in tools
+
 ## [1.4.146] - 2026-03-23
 
 ### Added
