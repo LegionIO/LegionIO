@@ -286,7 +286,7 @@ RSpec.describe Legion::TraceSearch do
         allow(mock_ds).to receive(:first).and_return({
                                                        count: 10, avg_cost: 0.01,
                                                        avg_latency: 100.0,
-                                                       tokens_in: 500, tokens_out: 300
+                                                       input_tokens: 500, output_tokens: 300
                                                      })
 
         result = described_class.detect_anomalies
@@ -298,9 +298,9 @@ RSpec.describe Legion::TraceSearch do
 
       it 'detects cost spike anomaly' do
         # Recent period: high avg cost
-        recent_stats = { count: 10, avg_cost: 0.50, avg_latency: 100.0, tokens_in: 500, tokens_out: 300 }
+        recent_stats = { count: 10, avg_cost: 0.50, avg_latency: 100.0, input_tokens: 500, output_tokens: 300 }
         # Baseline period: low avg cost
-        baseline_stats = { count: 100, avg_cost: 0.05, avg_latency: 100.0, tokens_in: 5000, tokens_out: 3000 }
+        baseline_stats = { count: 100, avg_cost: 0.05, avg_latency: 100.0, input_tokens: 5000, output_tokens: 3000 }
 
         allow(mock_ds).to receive(:first).and_return(recent_stats, baseline_stats)
 
@@ -312,7 +312,7 @@ RSpec.describe Legion::TraceSearch do
       end
 
       it 'returns no anomalies when metrics are normal' do
-        stats = { count: 10, avg_cost: 0.05, avg_latency: 100.0, tokens_in: 500, tokens_out: 300 }
+        stats = { count: 10, avg_cost: 0.05, avg_latency: 100.0, input_tokens: 500, output_tokens: 300 }
         allow(mock_ds).to receive(:first).and_return(stats, stats)
 
         result = described_class.detect_anomalies
@@ -320,8 +320,8 @@ RSpec.describe Legion::TraceSearch do
       end
 
       it 'handles zero baseline gracefully' do
-        recent = { count: 5, avg_cost: 0.10, avg_latency: 200.0, tokens_in: 100, tokens_out: 50 }
-        baseline = { count: 0, avg_cost: 0.0, avg_latency: 0.0, tokens_in: 0, tokens_out: 0 }
+        recent = { count: 5, avg_cost: 0.10, avg_latency: 200.0, input_tokens: 100, output_tokens: 50 }
+        baseline = { count: 0, avg_cost: 0.0, avg_latency: 0.0, input_tokens: 0, output_tokens: 0 }
         allow(mock_ds).to receive(:first).and_return(recent, baseline)
 
         result = described_class.detect_anomalies
@@ -353,7 +353,7 @@ RSpec.describe Legion::TraceSearch do
         allow(mock_ds).to receive(:first).and_return({
                                                        count: 5, avg_cost: 0.01,
                                                        avg_latency: 50.0,
-                                                       tokens_in: 100, tokens_out: 80
+                                                       input_tokens: 100, output_tokens: 80
                                                      })
       end
 

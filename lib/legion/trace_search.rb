@@ -7,15 +7,15 @@ module Legion
       Current date/time: %<current_time>s
 
       Columns: id (integer), worker_id (string), event_type (string), extension (string),
-      runner_function (string), status (string: success/failure), tokens_in (integer),
-      tokens_out (integer), cost_usd (float), wall_clock_ms (integer), created_at (datetime)
+      runner_function (string), status (string: success/failure), input_tokens (integer),
+      output_tokens (integer), cost_usd (float), wall_clock_ms (integer), recorded_at (datetime)
 
       Return ONLY a valid JSON object with these possible keys:
       - "where": hash of column => value filters (e.g. {"status": "failure"})
       - "order": column name to sort by (prefix with "-" for descending, e.g. "-cost_usd")
       - "limit": integer limit (default 50)
-      - "date_from": ISO date string for created_at >= filter
-      - "date_to": ISO date string for created_at <= filter
+      - "date_from": ISO date string for recorded_at >= filter
+      - "date_to": ISO date string for recorded_at <= filter
 
       For relative time references, compute ISO dates from the current date/time above:
       - "today" => date_from is today's date at 00:00
@@ -44,7 +44,7 @@ module Legion
 
     ALLOWED_COLUMNS = %w[
       id worker_id event_type extension runner_function status
-      tokens_in tokens_out cost_usd wall_clock_ms created_at
+      input_tokens output_tokens cost_usd wall_clock_ms recorded_at
     ].freeze
 
     class << self
@@ -100,11 +100,11 @@ module Legion
       def apply_date_filters(dataset, parsed)
         if parsed[:date_from]
           from = safe_parse_time(parsed[:date_from])
-          dataset = dataset.where { created_at >= from } if from
+          dataset = dataset.where { recorded_at >= from } if from
         end
         if parsed[:date_to]
           to = safe_parse_time(parsed[:date_to])
-          dataset = dataset.where { created_at <= to } if to
+          dataset = dataset.where { recorded_at <= to } if to
         end
         dataset
       end
@@ -157,13 +157,13 @@ module Legion
       def aggregate_stats(dataset)
         dataset.select(
           Sequel.function(:count, Sequel.lit('*')).as(:total_records),
-          Sequel.function(:sum, :tokens_in).as(:total_tokens_in),
-          Sequel.function(:sum, :tokens_out).as(:total_tokens_out),
+          Sequel.function(:sum, :input_tokens).as(:total_tokens_in),
+          Sequel.function(:sum, :output_tokens).as(:total_tokens_out),
           Sequel.function(:sum, :cost_usd).as(:total_cost),
           Sequel.function(:avg, :wall_clock_ms).as(:avg_latency_ms),
           Sequel.function(:max, :wall_clock_ms).as(:max_latency_ms),
-          Sequel.function(:min, :created_at).as(:earliest),
-          Sequel.function(:max, :created_at).as(:latest)
+          Sequel.function(:min, :recorded_at).as(:earliest),
+          Sequel.function(:max, :recorded_at).as(:latest)
         ).first || {}
       end
 
@@ -227,13 +227,13 @@ module Legion
       end
 
       def period_stats(from, to)
-        ds = Legion::Data.connection[:metering_records].where { created_at >= from }.where { created_at <= to }
+        ds = Legion::Data.connection[:metering_records].where { recorded_at >= from }.where { recorded_at <= to }
         row = ds.select(
           Sequel.function(:count, Sequel.lit('*')).as(:count),
           Sequel.function(:avg, :cost_usd).as(:avg_cost),
           Sequel.function(:avg, :wall_clock_ms).as(:avg_latency),
-          Sequel.function(:sum, :tokens_in).as(:tokens_in),
-          Sequel.function(:sum, :tokens_out).as(:tokens_out)
+          Sequel.function(:sum, :input_tokens).as(:input_tokens),
+          Sequel.function(:sum, :output_tokens).as(:output_tokens)
         ).first || {}
 
         failures = ds.where(status: 'failure').count

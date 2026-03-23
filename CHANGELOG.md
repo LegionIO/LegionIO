@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.169] - 2026-03-23
+
+### Fixed
+- TraceSearch column name mismatches: `created_at` to `recorded_at`, `tokens_in` to `input_tokens`, `tokens_out` to `output_tokens` to match metering_records schema
+- SCHEMA_TEMPLATE and ALLOWED_COLUMNS now reference correct database column names
+
 ## [1.4.168] - 2026-03-23
 
 ### Added
