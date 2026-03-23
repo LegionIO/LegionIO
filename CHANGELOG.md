@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.149] - 2026-03-23
+
+### Added
+- ListExtensions chat tool: discover loaded extensions and their runners/functions via REST API with active filtering and detail views
+- ListExtensions spec with 7 examples covering list, empty, active_only filter, detail with runners, no runners, connection refused, and API errors
+- Chat tool registry now has 19 built-in tools
+
 ## [1.4.148] - 2026-03-23
 
 ### Added
