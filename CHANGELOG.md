@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.179] - 2026-03-23
+
+### Added
+- EscalationStatus chat tool: show model escalation history and upgrade frequency
+- Supports "summary" (by reason, target model, recent entries) and "rate" (escalation frequency) actions
+- 37th built-in chat tool registered in ToolRegistry
+
 ## [1.4.178] - 2026-03-23
 
 ### Added
