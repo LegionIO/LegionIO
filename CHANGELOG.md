@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.127] - 2026-03-22
+
+### Changed
+- `Extensions::Helpers::Core` now delegates `settings` to `Legion::Settings::Helper` from legion-settings gem
+- Require legion-settings >= 1.3.14 for the new Helper module
+
 ## [1.4.126] - 2026-03-22
 
 ### Changed

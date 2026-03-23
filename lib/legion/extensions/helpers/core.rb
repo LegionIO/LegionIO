@@ -1,19 +1,14 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require 'legion/settings/helper'
+
 module Legion
   module Extensions
     module Helpers
       module Core
         include Legion::Extensions::Helpers::Base
-
-        def settings
-          if Legion::Settings[:extensions].key?(lex_filename.to_sym)
-            Legion::Settings[:extensions][lex_filename.to_sym]
-          else
-            { logger: { level: 'info', extended: false, internal: false } }
-          end
-        end
+        include Legion::Settings::Helper
 
         # looks local, then in crypt, then settings, then cache, then env
         def find_setting(name, **opts)
