@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.133] - 2026-03-23
+
+### Changed
+- TraceSearch: add safe date coercion via `Time.parse` with fallback for unparseable LLM-generated date strings
+- TraceSearch: add `total` and `truncated` fields to response when results exceed limit
+- Extract `apply_date_filters`, `safe_parse_time`, and `apply_ordering` helpers from `execute_filter`
+
 ## [1.4.132] - 2026-03-23
 
 ### Added

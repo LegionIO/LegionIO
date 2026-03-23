@@ -76,19 +76,42 @@ module Legion
           ds = ds.where(safe_where.transform_keys(&:to_sym))
         end
 
-        ds = ds.where { created_at >= parsed[:date_from] } if parsed[:date_from]
-        ds = ds.where { created_at <= parsed[:date_to] } if parsed[:date_to]
-
-        if parsed[:order].is_a?(String)
-          col = parsed[:order].delete_prefix('-')
-          if ALLOWED_COLUMNS.include?(col)
-            ds = parsed[:order].start_with?('-') ? ds.order(Sequel.desc(col.to_sym)) : ds.order(col.to_sym)
-          end
-        end
+        ds = apply_date_filters(ds, parsed)
+        ds = apply_ordering(ds, parsed)
 
         limit = [parsed[:limit] || default_limit, 200].min
+        total = ds.count
         results = ds.limit(limit).all
-        { results: results, count: results.size, filter: parsed }
+        { results: results, count: results.size, total: total, truncated: total > limit, filter: parsed }
+      end
+
+      def apply_date_filters(dataset, parsed)
+        if parsed[:date_from]
+          from = safe_parse_time(parsed[:date_from])
+          dataset = dataset.where { created_at >= from } if from
+        end
+        if parsed[:date_to]
+          to = safe_parse_time(parsed[:date_to])
+          dataset = dataset.where { created_at <= to } if to
+        end
+        dataset
+      end
+
+      def safe_parse_time(value)
+        return value if value.is_a?(Time)
+
+        Time.parse(value.to_s)
+      rescue ArgumentError
+        nil
+      end
+
+      def apply_ordering(dataset, parsed)
+        return dataset unless parsed[:order].is_a?(String)
+
+        col = parsed[:order].delete_prefix('-')
+        return dataset unless ALLOWED_COLUMNS.include?(col)
+
+        parsed[:order].start_with?('-') ? dataset.order(Sequel.desc(col.to_sym)) : dataset.order(col.to_sym)
       end
     end
   end
