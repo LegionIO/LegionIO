@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.4.184] - 2026-03-23
+
+### Added
+- MemoryStatus chat tool: shows persistent memory entries, Apollo knowledge store stats, and saved session overview
+- Supports "overview", "memories", "apollo", and "sessions" actions
+- 40th built-in chat tool registered in ToolRegistry
+
 ## [1.4.183] - 2026-03-23
 
 ### Added
