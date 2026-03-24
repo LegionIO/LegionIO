@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.5.2] - 2026-03-24
+
+### Fixed
+- `check_cache_local` in CLI now reads display values from `Legion::Settings[:cache_local]` instead of static code defaults
+
 ## [1.5.1] - 2026-03-24
 
 ### Added

@@ -180,7 +180,7 @@ module Legion
           raise 'Legion::Cache::Local not available' unless defined?(Legion::Cache::Local) && Legion::Cache::Local.respond_to?(:setup)
 
           Legion::Cache::Local.setup
-          cs = Legion::Cache::Settings.respond_to?(:local) ? Legion::Cache::Settings.local : {}
+          cs = Legion::Settings[:cache_local] || (Legion::Cache::Settings.respond_to?(:local) ? Legion::Cache::Settings.local : {})
           driver = cs[:driver] || 'dalli'
           servers = Array(cs[:servers] || cs[:server] || ['127.0.0.1'])
           "#{driver} -> #{servers.join(', ')}"
