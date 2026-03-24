@@ -27,5 +27,5 @@ jobs:
             -f "client_payload[ruby_version]=3.4.8" \
             -f "client_payload[package_revision]=1"
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_DISPATCH_TOKEN }}
           LEGIONIO_VERSION: ${{ steps.version.outputs.version }}
