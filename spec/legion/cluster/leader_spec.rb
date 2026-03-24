@@ -93,3 +93,52 @@ RSpec.describe Legion::Cluster::Leader do
     end
   end
 end
+
+require 'legion/service'
+
+RSpec.describe 'Cluster::Leader boot integration' do
+  let(:service) { Legion::Service.allocate }
+
+  before do
+    allow(Legion::Logging).to receive(:info)
+    allow(Legion::Logging).to receive(:warn)
+  end
+
+  context 'when cluster.leader_election is true' do
+    before do
+      allow(Legion::Settings).to receive(:[]).with(:cluster).and_return({ leader_election: true })
+    end
+
+    it 'starts leader election' do
+      leader = instance_double(Legion::Cluster::Leader)
+      allow(Legion::Cluster::Leader).to receive(:new).and_return(leader)
+      allow(leader).to receive(:start)
+
+      service.send(:setup_cluster)
+
+      expect(leader).to have_received(:start)
+    end
+  end
+
+  context 'when cluster.leader_election is false' do
+    before do
+      allow(Legion::Settings).to receive(:[]).with(:cluster).and_return({ leader_election: false })
+    end
+
+    it 'does not start leader election' do
+      expect(Legion::Cluster::Leader).not_to receive(:new)
+      service.send(:setup_cluster)
+    end
+  end
+
+  context 'when cluster settings are nil' do
+    before do
+      allow(Legion::Settings).to receive(:[]).with(:cluster).and_return(nil)
+    end
+
+    it 'does not start leader election' do
+      expect(Legion::Cluster::Leader).not_to receive(:new)
+      service.send(:setup_cluster)
+    end
+  end
+end

@@ -60,6 +60,7 @@ module Legion
       end
 
       setup_rbac if data
+      setup_cluster if data
 
       if llm
         setup_llm
@@ -145,6 +146,20 @@ module Legion
       Legion::Logging.debug 'Legion::Rbac gem is not installed, starting without RBAC'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Rbac failed to load: #{e.message}"
+    end
+
+    def setup_cluster
+      cluster_settings = Legion::Settings[:cluster]
+      return unless cluster_settings.is_a?(Hash) && cluster_settings[:leader_election] == true
+
+      require 'legion/cluster'
+      return unless defined?(Legion::Cluster::Leader)
+
+      @cluster_leader = Legion::Cluster::Leader.new
+      @cluster_leader.start
+      Legion::Logging.info('Cluster leader election started')
+    rescue StandardError => e
+      Legion::Logging.warn("Cluster leader setup failed: #{e.message}")
     end
 
     def setup_settings
@@ -373,6 +388,11 @@ module Legion
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
         Legion::Gaia.shutdown
         Legion::Readiness.mark_not_ready(:gaia)
+      end
+
+      if @cluster_leader
+        @cluster_leader.stop
+        @cluster_leader = nil
       end
 
       Legion::Extensions.shutdown
