@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.198] - 2026-03-24
+
+### Changed
+- Bump gemspec minimum: legion-transport >= 1.3.11 (InProcess adapter, shutdown hang fix, Helper mixin)
+- Bump gemspec minimum: legion-tty >= 0.4.34 (latest fixes)
+
 ## [1.4.197] - 2026-03-24
 
 ### Changed
