@@ -46,7 +46,10 @@ module Legion
         @timer_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
         @poll_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
 
-        @loaded_extensions.each { |name| Catalog.transition(name, :stopped) }
+        @loaded_extensions.each do |name|
+          Catalog.transition(name, :stopped)
+          unregister_capabilities(name)
+        end
         Legion::Logging.info 'Successfully shut down all actors'
       end
 
@@ -347,6 +350,10 @@ module Legion
       end
 
       public
+
+      def unregister_capabilities(gem_name)
+        Extensions::Catalog::Registry.unregister_extension(gem_name)
+      end
 
       def register_capabilities(gem_name, runners)
         runners.each_value do |runner_meta|
