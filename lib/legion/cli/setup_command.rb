@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require 'English'
 require 'json'
 require 'fileutils'
 require 'thor'
+require 'rbconfig'
 require 'legion/cli/output'
 
 module Legion
@@ -21,6 +23,21 @@ module Legion
       LEGION_MCP_ENTRY = {
         'command' => 'legionio',
         'args'    => %w[mcp stdio]
+      }.freeze
+
+      PACKS = {
+        agentic:  {
+          description: 'Full cognitive stack: GAIA + LLM + MCP + Apollo',
+          gems:        %w[legion-gaia legion-llm]
+        },
+        llm:      {
+          description: 'LLM routing and provider integration (no cognitive stack)',
+          gems:        %w[legion-llm]
+        },
+        channels: {
+          description: 'Channel adapters for chat platforms',
+          gems:        %w[lex-slack lex-microsoft_teams]
+        }
       }.freeze
 
       SKILL_CONTENT = <<~MARKDOWN
@@ -92,6 +109,54 @@ module Legion
         end
       end
 
+      desc 'agentic', 'Install full cognitive stack (GAIA + LLM + Apollo + all agentic extensions)'
+      option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'
+      def agentic
+        install_pack(:agentic)
+      end
+
+      desc 'llm', 'Install LLM routing and provider integration'
+      option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'
+      def llm
+        install_pack(:llm)
+      end
+
+      desc 'channels', 'Install channel adapters (Slack, Teams)'
+      option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'
+      def channels
+        install_pack(:channels)
+      end
+
+      desc 'packs', 'Show installed feature packs and available gems'
+      def packs
+        out = formatter
+        pack_statuses = PACKS.map do |name, pack|
+          installed, missing = partition_gems(pack[:gems])
+          { name: name, description: pack[:description],
+            installed: installed.map { |g| { name: g, version: gem_version(g) } },
+            missing: missing }
+        end
+
+        if options[:json]
+          out.json(packs: pack_statuses)
+        else
+          out.header('Feature Packs')
+          out.spacer
+          pack_statuses.each do |ps|
+            all_installed = ps[:missing].empty?
+            icon = all_installed ? out.colorize('installed', :success) : out.colorize('not installed', :muted)
+            puts "  #{out.colorize(ps[:name].to_s.ljust(12), :label)} #{icon}  #{ps[:description]}"
+            ps[:installed].each do |g|
+              puts "    #{out.colorize(g[:name], :success)} #{g[:version]}"
+            end
+            ps[:missing].each do |g|
+              puts "    #{out.colorize(g, :muted)} (missing)"
+            end
+          end
+          out.spacer
+        end
+      end
+
       desc 'status', 'Show which platforms have Legion MCP configured'
       def status
         out = formatter
@@ -122,6 +187,111 @@ module Legion
         end
 
         private
+
+        def install_pack(pack_name)
+          pack = PACKS[pack_name]
+          installed, missing = partition_gems(pack[:gems])
+
+          return report_already_installed(pack_name, installed) if missing.empty?
+          return report_dry_run(pack_name, installed, missing) if options[:dry_run]
+
+          execute_pack_install(pack_name, installed, missing)
+        end
+
+        def report_already_installed(pack_name, installed)
+          out = formatter
+          if options[:json]
+            out.json(pack: pack_name, status: 'already_installed',
+                     gems: installed.map { |g| { name: g, version: gem_version(g) } })
+          else
+            out.success("#{pack_name} pack already installed")
+            installed.each { |g| puts "  #{g} #{gem_version(g)}" }
+          end
+        end
+
+        def report_dry_run(pack_name, installed, missing)
+          out = formatter
+          if options[:json]
+            out.json(pack: pack_name, status: 'dry_run', to_install: missing,
+                     already_installed: installed.map { |g| { name: g, version: gem_version(g) } })
+          else
+            out.header("#{pack_name} pack (dry run)")
+            missing.each { |g| puts "  #{out.colorize('install', :accent)} #{g}" }
+            installed.each { |g| puts "  #{out.colorize('skip', :muted)} #{g} #{gem_version(g)} (already installed)" }
+          end
+        end
+
+        def execute_pack_install(pack_name, installed, missing)
+          out = formatter
+          out.header("Installing #{pack_name} pack") unless options[:json]
+          gem_bin = File.join(RbConfig::CONFIG['bindir'], 'gem')
+          results = missing.map { |g| install_gem(g, gem_bin, out) }
+
+          Gem::Specification.reset
+          successes, failures = results.partition { |r| r[:status] == 'installed' }
+
+          if options[:json]
+            out.json(pack: pack_name, installed: successes, failed: failures,
+                     already_present: installed.map { |g| { name: g, version: gem_version(g) } })
+          else
+            out.spacer
+            if failures.empty?
+              out.success("#{pack_name} pack installed (#{successes.size} gem(s))")
+              suggest_next_steps(out, pack_name)
+            else
+              out.error("#{failures.size} gem(s) failed to install")
+              failures.each { |f| puts "  #{f[:name]}: #{f[:error]}" }
+            end
+          end
+        end
+
+        def partition_gems(gem_names)
+          installed = []
+          missing = []
+          gem_names.each do |name|
+            Gem::Specification.find_by_name(name)
+            installed << name
+          rescue Gem::MissingSpecError
+            missing << name
+          end
+          [installed, missing]
+        end
+
+        def gem_version(name)
+          Gem::Specification.find_by_name(name).version.to_s
+        rescue Gem::MissingSpecError
+          nil
+        end
+
+        def install_gem(name, gem_bin, out)
+          puts "  Installing #{name}..." unless options[:json]
+          output = `#{gem_bin} install #{name} --no-document 2>&1`
+          if $CHILD_STATUS.success?
+            out.success("  #{name} installed") unless options[:json]
+            { name: name, status: 'installed' }
+          else
+            out.error("  #{name} failed") unless options[:json]
+            { name: name, status: 'failed', error: output.strip.lines.last&.strip }
+          end
+        end
+
+        def suggest_next_steps(out, pack_name)
+          out.spacer
+          case pack_name
+          when :agentic
+            puts '  Next steps:'
+            puts '    legion start          # full daemon with cognitive stack'
+            puts '    legion start --lite   # single-process, no external services'
+            puts '    legion chat           # interactive AI conversation'
+          when :llm
+            puts '  Next steps:'
+            puts '    legion chat           # interactive AI conversation'
+            puts '    legion llm status     # check provider connectivity'
+          when :channels
+            puts '  Next steps:'
+            puts '    Configure channels in settings: {"gaia": {"channels": {"slack": {"enabled": true}}}}'
+          end
+        end
 
         def install_claude_mcp(installed)
           settings_path = File.expand_path('~/.claude/settings.json')

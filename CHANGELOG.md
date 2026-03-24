@@ -1,5 +1,18 @@
 # Legion Changelog
 
+## [1.4.199] - 2026-03-24
+
+### Added
+- `legion setup agentic` — install full cognitive stack (legion-gaia + legion-llm + all transitive deps) in one command
+- `legion setup llm` — install LLM routing only
+- `legion setup channels` — install channel adapters (lex-slack, lex-microsoft_teams)
+- `legion setup packs` — show installed/missing feature packs
+- `--dry-run` flag on all pack install commands
+- `legion detect` now recommends `legion setup agentic` when legion-gaia or legion-llm are missing
+
+### Changed
+- Comment out Bootsnap.setup in exe/legion (matching exe/legionio)
+
 ## [1.4.198] - 2026-03-24
 
 ### Changed

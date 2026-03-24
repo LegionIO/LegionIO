@@ -16,6 +16,11 @@ module Legion
       class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
       class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
 
+      CORE_RECOMMENDATIONS = {
+        'legion-gaia' => 'Cognitive coordination (GAIA + agentic extensions)',
+        'legion-llm'  => 'LLM routing and provider integration'
+      }.freeze
+
       default_task :scan
 
       desc 'scan', 'Scan environment and recommend extensions (default)'
@@ -109,6 +114,8 @@ module Legion
         end
 
         def display_detections(out, results)
+          display_pack_recommendations(out)
+
           if results.empty?
             out.detail('No software detected that maps to Legion extensions.')
             return
@@ -133,6 +140,27 @@ module Legion
 
           out.spacer
           puts "  #{installed_count} of #{total_count} extension(s) installed"
+        end
+
+        def display_pack_recommendations(out)
+          missing = CORE_RECOMMENDATIONS.reject { |gem_name, _| gem_installed?(gem_name) }
+          return if missing.empty?
+
+          out.header('Recommended Feature Packs')
+          out.spacer
+          missing.each do |gem_name, desc|
+            puts "  #{out.colorize(gem_name.ljust(20), :label)} #{desc}"
+          end
+          out.spacer
+          puts "  Install with: #{out.colorize('legion setup agentic', :accent)}"
+          out.spacer
+        end
+
+        def gem_installed?(name)
+          Gem::Specification.find_by_name(name)
+          true
+        rescue Gem::MissingSpecError
+          false
         end
 
         def interactive_install(out, results)

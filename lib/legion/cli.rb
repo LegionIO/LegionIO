@@ -269,7 +269,7 @@ module Legion
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
 
-      desc 'setup SUBCOMMAND', 'Set up Legion MCP integration for IDEs'
+      desc 'setup SUBCOMMAND', 'Install feature packs and configure IDE integrations'
       subcommand 'setup', Legion::CLI::Setup
 
       desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
