@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.5.5] - 2026-03-24
+
+### Changed
+- `Legion::Service` starts `CertRotation` after `Crypt.start` when `security.mtls.enabled: true`
+- `Legion::Service#shutdown` stops `CertRotation` before `Crypt.shutdown`
+- `setup_mtls_rotation` gracefully handles missing mtls support in older `legion-crypt` versions via `LoadError` rescue
+
 ## [1.5.4] - 2026-03-24
 
 ### Added
