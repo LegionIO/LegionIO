@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.5.4] - 2026-03-24
+
+### Added
+- `Cluster::Leader` wired into `Service` boot behind `cluster.leader_election` feature flag (default: off)
+- `Actors::Singleton` upgraded to dual-backend (Redis + PG advisory locks via `Cluster::Lock`)
+- `Singleton` gating controlled by `cluster.singleton_enabled` feature flag (default: off — every node runs, no behavior change)
+- `Cluster::Lock.extend_lock` method (Redis: Lua TTL extend; PG: always true; none: false)
+- `Singleton` mixin added to lex-health watchdog and lex-metering cleanup/cost_optimizer actors
+
+### Changed
+- `@cluster_leader.stop` called on `Service#shutdown` (before extensions shutdown)
+
 ## [1.5.3] - 2026-03-24
 
 ### Added
