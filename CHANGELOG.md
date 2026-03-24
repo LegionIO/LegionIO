@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.196] - 2026-03-24
+
+### Added
+- LLM fallback in `legion do` command: when keyword matching (`find_by_intent`) returns no results, classifies intent via `Legion::LLM.ask` against the full Capability Registry catalog
+- Graceful degradation: LLM path only activates when both `Legion::LLM` and `Catalog::Registry` are loaded; errors fall through silently
+
 ## [1.4.195] - 2026-03-24
 
 ### Added

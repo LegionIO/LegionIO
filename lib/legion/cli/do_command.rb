@@ -12,7 +12,7 @@ module Legion
 
           formatter.detail("Routing intent: #{intent}")
 
-          result = try_daemon(intent, options) || try_in_process(intent)
+          result = try_daemon(intent, options) || try_in_process(intent) || try_llm_classify(intent)
 
           if result.nil?
             formatter.error('No matching capability found')
@@ -72,6 +72,36 @@ module Legion
             { matched: best.name, runner_class: runner_class, function: best.function,
               status: 'resolved', note: 'Daemon not running; cannot execute. Start with: legion start' }
           end
+        end
+
+        def try_llm_classify(intent)
+          return nil unless defined?(Legion::Extensions::Catalog::Registry) && defined?(Legion::LLM)
+
+          caps = Legion::Extensions::Catalog::Registry.capabilities
+          return nil if caps.empty?
+
+          catalog = caps.map { |c| "#{c.name}: #{c.description || "#{c.extension} #{c.runner}##{c.function}"}" }
+          prompt = "Given these capabilities:\n#{catalog.join("\n")}\n\n" \
+                   "Which capability best matches this intent: \"#{intent}\"?\n" \
+                   'Reply with ONLY the capability name (e.g., lex-consul:health_check:run). ' \
+                   'If none match, reply NONE.'
+
+          response = Legion::LLM.ask(
+            message: prompt,
+            caller:  { extension: 'legionio', tool: 'do_command', tier: 'cli' }
+          )
+          chosen = response.is_a?(Hash) ? response[:response].to_s.strip : response.to_s.strip
+          return nil if chosen.empty? || chosen.upcase == 'NONE'
+
+          cap = Legion::Extensions::Catalog::Registry.find(name: chosen)
+          return nil unless cap
+
+          runner_class = build_runner_class(cap.extension, cap.runner)
+          { matched: cap.name, runner_class: runner_class, function: cap.function,
+            status: 'resolved', source: 'llm',
+            note: 'Daemon not running; cannot execute. Start with: legion start' }
+        rescue StandardError
+          nil
         end
 
         def resolve_runner_class(intent)

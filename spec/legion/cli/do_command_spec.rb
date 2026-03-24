@@ -33,8 +33,57 @@ RSpec.describe Legion::CLI::DoCommand do
     context 'when no daemon and no registry matches' do
       it 'shows no matching capability error' do
         stub_const('Legion::Extensions::Catalog::Registry',
-                   double(find_by_intent: []))
+                   double(find_by_intent: [], capabilities: []))
+        allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
         expect { described_class.run('nonexistent thing', formatter, options) }.to raise_error(SystemExit)
+        expect(formatter).to have_received(:error).with(/No matching capability/)
+      end
+    end
+
+    context 'when LLM fallback classifies intent' do
+      let(:capability) do
+        instance_double(
+          Legion::Extensions::Capability,
+          name:        'lex-consul:health_check:run',
+          extension:   'lex-consul',
+          runner:      'HealthCheck',
+          function:    'run',
+          description: 'Check consul cluster health'
+        )
+      end
+
+      it 'routes via LLM when keyword matching fails' do
+        registry = double(find_by_intent: [], capabilities: [capability],
+                          find: capability)
+        stub_const('Legion::Extensions::Catalog::Registry', registry)
+        hide_const('Legion::Ingress')
+        allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
+
+        llm_mod = Module.new do
+          def self.ask(**)
+            { response: 'lex-consul:health_check:run' }
+          end
+        end
+        stub_const('Legion::LLM', llm_mod)
+
+        described_class.run('is consul ok', formatter, options)
+        expect(formatter).to have_received(:success).with(/Matched/)
+        expect(registry).to have_received(:find).with(name: 'lex-consul:health_check:run')
+      end
+
+      it 'falls through when LLM returns NONE' do
+        registry = double(find_by_intent: [], capabilities: [capability])
+        stub_const('Legion::Extensions::Catalog::Registry', registry)
+        allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
+
+        llm_mod = Module.new do
+          def self.ask(**)
+            { response: 'NONE' }
+          end
+        end
+        stub_const('Legion::LLM', llm_mod)
+
+        expect { described_class.run('completely unrelated', formatter, options) }.to raise_error(SystemExit)
         expect(formatter).to have_received(:error).with(/No matching capability/)
       end
     end
