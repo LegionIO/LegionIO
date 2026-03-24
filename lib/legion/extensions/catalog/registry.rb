@@ -60,6 +60,12 @@ module Legion
           @mutex.synchronize { @capabilities.dup }
         end
 
+        def find_by_mcp_name(mcp_name)
+          @mutex.synchronize do
+            @capabilities.find { |cap| cap.to_mcp_tool[:name] == mcp_name }
+          end
+        end
+
         def for_override(tool_name)
           @mutex.synchronize do
             normalized = tool_name.downcase.tr('-', '_')
