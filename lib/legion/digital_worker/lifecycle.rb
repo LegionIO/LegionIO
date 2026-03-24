@@ -79,6 +79,18 @@ module Legion
           raise AuthorityRequired, "#{from_state} -> #{to_state} requires #{authority} (by: #{by})" if authority && opts[:authority_verified] != true
         end
 
+        if defined?(Legion::Extensions::Extinction::Client)
+          new_level     = EXTINCTION_MAPPING[to_state]
+          current_level = EXTINCTION_MAPPING[from_state] || 0
+          if new_level && new_level > current_level
+            Legion::Extensions::Extinction::Client.new.escalate(
+              level:     new_level,
+              authority: by || :system,
+              reason:    "lifecycle transition: #{from_state} -> #{to_state}"
+            )
+          end
+        end
+
         worker.update(
           lifecycle_state: to_state,
           updated_at:      Time.now.utc,

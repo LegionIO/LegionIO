@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.5.1] - 2026-03-24
+
+### Added
+- Wire lex-extinction into digital worker lifecycle transitions
+- `EXTINCTION_MAPPING` maps lifecycle states to containment levels (0-4)
+- Guarded `Client#escalate` call during `transition!` when containment level increases
+
 ## [1.5.0] - 2026-03-24
 
 ### Added
