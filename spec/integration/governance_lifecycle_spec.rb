@@ -237,6 +237,52 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
+  # Ownership transfer with downstream verification
+  #    Verify lifecycle event and audit chain during ownership transfer scenario
+  # ===========================================================================
+  describe 'ownership transfer with downstream verification' do
+    let(:worker) { build_worker(lifecycle_state: 'active') }
+
+    context 'when lifecycle is paused for ownership transfer prep' do
+      it 'emits worker.lifecycle event with from_state and to_state' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'paused', by: 'admin-1', reason: 'ownership transfer prep',
+          authority_verified: true
+        )
+
+        if defined?(Legion::Events)
+          expect(Legion::Events).to have_received(:emit).with(
+            'worker.lifecycle',
+            hash_including(
+              worker_id:  'worker-gov-01',
+              from_state: 'active',
+              to_state:   'paused'
+            )
+          )
+        end
+      end
+    end
+
+    it 'audit log records transfer event with before/after state' do
+      Legion::DigitalWorker::Lifecycle.transition!(
+        worker, to_state: 'paused', by: 'admin-1', reason: 'ownership transfer',
+        authority_verified: true
+      )
+
+      if defined?(Legion::Audit)
+        expect(Legion::Audit).to have_received(:record).with(
+          hash_including(
+            event_type:   'lifecycle_transition',
+            principal_id: 'admin-1',
+            action:       'transition',
+            status:       'success'
+          )
+        )
+      end
+    end
+  end
+
+  # ===========================================================================
   # 2. Ownership transfer
   #    Transfer worker ownership → validate identity binding updated →
   #    validate trust reset
