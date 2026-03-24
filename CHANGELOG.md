@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.191] - 2026-03-23
+
+### Changed
+- Add `caller: { source: 'cli', command: 'chat' }` to `Legion::LLM.chat` call in `CLI::ChatCommand#create_chat`, completing Wave 5 consumer migration
+
 ## [1.4.190] - 2026-03-23
 
 ### Changed

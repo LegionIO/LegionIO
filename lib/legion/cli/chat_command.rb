@@ -237,7 +237,7 @@ module Legion
           opts.compact!
 
           require 'legion/cli/chat/tool_registry'
-          chat = Legion::LLM.chat(**opts)
+          chat = Legion::LLM.chat(**opts, caller: { source: 'cli', command: 'chat' })
           chat.with_tools(*Chat::ToolRegistry.all_tools)
           chat
         end
