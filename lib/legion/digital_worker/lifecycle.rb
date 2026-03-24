@@ -91,6 +91,16 @@ module Legion
           end
         end
 
+        if to_state == 'terminated' &&
+           defined?(Legion::Extensions::Agentic::Self::Identity::Helpers::VaultSecrets)
+          begin
+            Legion::Extensions::Agentic::Self::Identity::Helpers::VaultSecrets
+              .delete_client_secret(worker_id: worker.worker_id)
+          rescue StandardError => e
+            Legion::Logging.warn("Credential revocation failed for #{worker.worker_id}: #{e.message}") if defined?(Legion::Logging)
+          end
+        end
+
         worker.update(
           lifecycle_state: to_state,
           updated_at:      Time.now.utc,

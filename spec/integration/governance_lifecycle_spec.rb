@@ -405,6 +405,91 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
+  # Full retirement cycle with credential revocation
+  #    active -> retired -> terminated, verifying extinction levels,
+  #    audit chain, and credential revocation call
+  # ===========================================================================
+  describe 'full retirement cycle with credential revocation' do
+    let(:worker)            { build_worker(lifecycle_state: 'active') }
+    let(:extinction_client) { instance_double('ExtinctionClient') }
+
+    before do
+      stub_const('Legion::Extensions::Extinction::Client', Class.new)
+      allow(Legion::Extensions::Extinction::Client).to receive(:new).and_return(extinction_client)
+      allow(extinction_client).to receive(:escalate).and_return({ escalated: true })
+    end
+
+    it 'transitions active -> retired with extinction L3' do
+      Legion::DigitalWorker::Lifecycle.transition!(
+        worker, to_state: 'retired', by: 'manager-1', reason: 'decommission',
+        authority_verified: true
+      )
+      expect(extinction_client).to have_received(:escalate).with(hash_including(level: 3))
+      expect(worker).to have_received(:update).with(hash_including(lifecycle_state: 'retired'))
+    end
+
+    it 'records audit entry for retirement' do
+      Legion::DigitalWorker::Lifecycle.transition!(
+        worker, to_state: 'retired', by: 'manager-1', reason: 'decommission',
+        authority_verified: true
+      )
+
+      if defined?(Legion::Audit)
+        expect(Legion::Audit).to have_received(:record).with(
+          hash_including(
+            event_type: 'lifecycle_transition',
+            action:     'transition',
+            detail:     hash_including(to_state: 'retired')
+          )
+        )
+      end
+    end
+
+    context 'retired -> terminated (requires governance)' do
+      let(:worker) { build_worker(lifecycle_state: 'retired') }
+
+      it 'raises GovernanceRequired without override' do
+        expect do
+          Legion::DigitalWorker::Lifecycle.transition!(
+            worker, to_state: 'terminated', by: 'manager-1', reason: 'final cleanup'
+          )
+        end.to raise_error(Legion::DigitalWorker::Lifecycle::GovernanceRequired)
+      end
+
+      it 'succeeds with governance_override and escalates to L4' do
+        allow(extinction_client).to receive(:escalate).and_return({ escalated: true, level: 4 })
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'terminated', by: 'manager-1', reason: 'final cleanup',
+          governance_override: true
+        )
+        expect(extinction_client).to have_received(:escalate).with(hash_including(level: 4))
+      end
+    end
+
+    context 'credential revocation on termination' do
+      before do
+        stub_const('Legion::Extensions::Agentic::Self::Identity::Helpers::VaultSecrets', Module.new)
+        allow(Legion::Extensions::Agentic::Self::Identity::Helpers::VaultSecrets)
+          .to receive(:delete_client_secret)
+          .and_return({ success: true })
+      end
+
+      it 'calls delete_client_secret for terminated worker' do
+        terminated_worker = build_worker(lifecycle_state: 'retired')
+        allow(extinction_client).to receive(:escalate).and_return({ escalated: true, level: 4 })
+
+        Legion::DigitalWorker::Lifecycle.transition!(
+          terminated_worker, to_state: 'terminated', by: 'admin-1', reason: 'cleanup',
+          governance_override: true
+        )
+
+        expect(Legion::Extensions::Agentic::Self::Identity::Helpers::VaultSecrets)
+          .to have_received(:delete_client_secret).with(worker_id: 'worker-gov-01')
+      end
+    end
+  end
+
+  # ===========================================================================
   # 3. Retirement cycle
   #    Retire a worker → validate queue drain signal → validate data retention
   # ===========================================================================
