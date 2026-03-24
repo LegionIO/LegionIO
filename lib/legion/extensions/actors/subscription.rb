@@ -47,6 +47,49 @@ module Legion
           true
         end
 
+        def prepare
+          @queue = queue.new
+          @queue.channel.prefetch(prefetch) if defined? prefetch
+          consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
+          @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
+          @consumer.on_delivery do |delivery_info, metadata, payload|
+            message = process_message(payload, metadata, delivery_info)
+            fn = find_function(message)
+            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
+
+            affinity_result = check_region_affinity(message)
+            if affinity_result == :reject
+              log.warn "[Subscription] nack: region affinity mismatch"
+              @queue.reject(delivery_info.delivery_tag) if manual_ack
+              next
+            end
+
+            record_cross_region_metric(message) if affinity_result == :remote
+
+            if use_runner?
+              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
+            else
+              runner_class.send(fn, **message)
+            end
+            @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
+
+            cancel if Legion::Settings[:client][:shutting_down]
+          rescue StandardError => e
+            log.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
+            log.error e.backtrace
+            @queue.reject(delivery_info.delivery_tag) if manual_ack
+          end
+          log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
+        rescue StandardError => e
+          log.fatal "Subscription#prepare failed: #{e.message}"
+          log.fatal e.backtrace
+        end
+
+        def activate
+          @queue.subscribe_with(@consumer)
+          log.info "[Subscription] activated: #{lex_name}/#{runner_name} (consumer registered)"
+        end
+
         def block
           false
         end
@@ -101,7 +144,7 @@ module Legion
         end
 
         def subscribe # rubocop:disable Metrics/AbcSize
-          log.info "[Subscription] starting: #{lex_name}/#{runner_name}"
+          log.info "[Subscription] subscribing: #{lex_name}/#{runner_name}"
           sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
           on_cancellation = block { cancel }
@@ -142,7 +185,7 @@ module Legion
             log.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
-          log.info "[Subscription] stopped: #{lex_name}/#{runner_name}" if defined?(log)
+          log.info "[Subscription] subscribed: #{lex_name}/#{runner_name} (consumer registered)" if defined?(log)
         end
 
         private
