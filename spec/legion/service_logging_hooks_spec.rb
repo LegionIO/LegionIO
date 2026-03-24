@@ -5,12 +5,14 @@ require 'spec_helper'
 RSpec.describe 'Service logging hooks registration' do
   let(:service) { Legion::Service.allocate }
   let(:mock_exchange) { double('exchange') }
+  let(:mock_channel) { double('channel', open?: true) }
 
   before do
     stub_const('Legion::Transport::Exchanges::Logging', Class.new)
     allow(Legion::Transport::Exchanges::Logging).to receive(:new).and_return(mock_exchange)
     allow(mock_exchange).to receive(:publish)
     allow(Legion::Transport::Connection).to receive(:session_open?).and_return(true)
+    allow(Legion::Transport::Connection).to receive(:log_channel).and_return(mock_channel)
     Legion::Logging.clear_hooks!
   end
 
@@ -56,7 +58,7 @@ RSpec.describe 'Service logging hooks registration' do
 
     it 'skips publish when connection drops mid-operation' do
       service.send(:register_logging_hooks)
-      allow(Legion::Transport::Connection).to receive(:session_open?).and_return(false)
+      allow(mock_channel).to receive(:open?).and_return(false)
       Legion::Logging.fatal('test fatal')
       expect(mock_exchange).not_to have_received(:publish)
     end

@@ -316,26 +316,32 @@ module Legion
     end
 
     def register_logging_hooks
+      return unless defined?(Legion::Transport::Connection)
       return unless Legion::Transport::Connection.session_open?
 
+      log_ch = Legion::Transport::Connection.log_channel
+      unless log_ch
+        Legion::Logging.debug 'No dedicated log channel available, log forwarding disabled'
+        return
+      end
+
       require 'legion/transport/exchanges/logging' unless defined?(Legion::Transport::Exchanges::Logging)
-      exchange = Legion::Transport::Exchanges::Logging.new
+      exchange = Legion::Transport::Exchanges::Logging.new(channel: log_ch)
 
       %i[fatal error warn].each do |level|
         Legion::Logging.send(:"on_#{level}") do |event|
-          next unless Legion::Transport::Connection.session_open?
+          next unless log_ch&.open?
 
           source = event[:lex] || 'core'
           routing_key = "legion.#{source}.#{level}"
           exchange.publish(Legion::JSON.dump(event), routing_key: routing_key)
-        rescue StandardError => e
-          Legion::Logging.debug "Service#register_logging_hooks publish failed for #{level}: #{e.message}" if defined?(Legion::Logging)
+        rescue StandardError
           nil
         end
       end
 
       Legion::Logging.enable_hooks!
-      Legion::Logging.info('Logging hooks registered for RMQ publishing')
+      Legion::Logging.info('Logging hooks registered (dedicated channel)')
     end
 
     def setup_alerts
@@ -524,21 +530,30 @@ module Legion
 
       Legion::Readiness.wait_until_not_ready(:transport, :data, :cache, :crypt)
 
-      setup_settings
-      Legion::Crypt.start
+      Legion::Settings.load(force: true, config_dirs: Legion::Settings::Loader.default_directories.select { |d| Dir.exist?(d) })
+      Legion::Readiness.mark_ready(:settings)
+
+      Legion::Crypt.start if defined?(Legion::Crypt)
       Legion::Readiness.mark_ready(:crypt)
 
       setup_transport
       Legion::Readiness.mark_ready(:transport)
+      register_logging_hooks
+
+      require 'legion/cache' unless defined?(Legion::Cache)
+      Legion::Cache.setup
+      Legion::Readiness.mark_ready(:cache)
 
       setup_data
       Legion::Readiness.mark_ready(:data)
 
-      setup_gaia
+      setup_rbac if defined?(Legion::Rbac)
+      setup_llm if defined?(Legion::LLM)
+
+      setup_gaia if defined?(Legion::Gaia)
       Legion::Readiness.mark_ready(:gaia)
 
       setup_supervision
-
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
 
