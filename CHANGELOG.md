@@ -24,6 +24,7 @@
 ### Fixed
 - Runner log output now tagged with extension name (e.g. `[mesh][Runner]` instead of bare `[Runner]`)
 - Extension Transport and Routes builders use tagged `log` helper instead of bare `Legion::Logging`
+- Runner.run now sets `status = 'task.exception'` before calling `handle_exception`, preventing null function/result in CheckSubtask messages when handle_exception raises
 
 ## [1.4.198] - 2026-03-24
 

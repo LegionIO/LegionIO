@@ -38,6 +38,8 @@ module Legion
       result = { error: {} }
     rescue StandardError => e
       rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
+      status = 'task.exception'
+      result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
       runner_class.handle_exception(e,
                                     **opts,
                                     runner_class:  runner_class,
@@ -46,8 +48,6 @@ module Legion
                                     task_id:       task_id,
                                     generate_task: generate_task,
                                     check_subtask: check_subtask)
-      status = 'task.exception'
-      result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
       raise e unless catch_exceptions
     ensure
       status = 'task.completed' if status.nil?
