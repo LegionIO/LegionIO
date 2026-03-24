@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'legion/extensions/core'
+require 'legion/extensions/capability'
 require 'legion/extensions/catalog'
 require 'legion/extensions/permissions'
 require 'legion/runner'
