@@ -49,27 +49,62 @@ module Legion
       end
 
       if cache
-        require 'legion/cache'
-        Legion::Cache.setup
-        Legion::Readiness.mark_ready(:cache)
+        begin
+          require 'legion/cache'
+          Legion::Cache.setup
+          Legion::Readiness.mark_ready(:cache)
+        rescue StandardError => e
+          Legion::Logging.warn "Legion::Cache remote failed: #{e.message}, falling back to Cache::Local"
+          begin
+            Legion::Cache::Local.setup
+            Legion::Logging.info 'Legion::Cache::Local connected (fallback)'
+          rescue StandardError => e2
+            Legion::Logging.warn "Legion::Cache::Local also failed: #{e2.message}"
+          end
+          Legion::Readiness.mark_ready(:cache)
+        end
       end
 
       if data
-        setup_data
-        Legion::Readiness.mark_ready(:data)
+        begin
+          setup_data
+          Legion::Readiness.mark_ready(:data)
+        rescue StandardError => e
+          Legion::Logging.warn "Legion::Data remote failed: #{e.message}, falling back to Data::Local"
+          begin
+            require 'legion/data'
+            Legion::Data::Local.setup if defined?(Legion::Data::Local)
+            Legion::Logging.info 'Legion::Data::Local connected (fallback)'
+          rescue StandardError => e2
+            Legion::Logging.warn "Legion::Data::Local also failed: #{e2.message}"
+          end
+          Legion::Readiness.mark_ready(:data)
+        end
       end
 
       setup_rbac if data
       setup_cluster if data
 
       if llm
-        setup_llm
-        Legion::Readiness.mark_ready(:llm)
+        begin
+          setup_llm
+          Legion::Readiness.mark_ready(:llm)
+        rescue LoadError
+          Legion::Logging.info 'Legion::LLM gem is not installed'
+        rescue StandardError => e
+          Legion::Logging.warn "Legion::LLM failed: #{e.message}"
+        end
       end
 
       if gaia
-        setup_gaia
-        Legion::Readiness.mark_ready(:gaia)
+        begin
+          setup_gaia
+          Legion::Readiness.mark_ready(:gaia)
+        rescue LoadError
+          Legion::Logging.info 'Legion::Gaia gem is not installed'
+        rescue StandardError => e
+          Legion::Logging.warn "Legion::Gaia failed: #{e.message}"
+        end
       end
 
       setup_telemetry
