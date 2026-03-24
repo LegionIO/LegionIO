@@ -12,6 +12,10 @@ RSpec.describe Legion::Readiness do
       expect(described_class::COMPONENTS).to include(:settings, :crypt, :transport, :cache, :data, :extensions, :api)
     end
 
+    it 'includes llm and rbac in COMPONENTS' do
+      expect(described_class::COMPONENTS).to include(:llm, :rbac)
+    end
+
     it 'is frozen' do
       expect(described_class::COMPONENTS).to be_frozen
     end
@@ -56,6 +60,12 @@ RSpec.describe Legion::Readiness do
     it 'returns true when all components are ready' do
       described_class::COMPONENTS.each { |c| described_class.mark_ready(c) }
       expect(described_class.ready?).to eq(true)
+    end
+
+    it 'reports not ready when llm is missing' do
+      described_class.reset
+      described_class::COMPONENTS.each { |c| described_class.mark_ready(c) unless c == :llm }
+      expect(described_class.ready?).to be false
     end
   end
 
