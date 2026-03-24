@@ -6,7 +6,7 @@ require 'legion/cli/output'
 require 'legion/cli/mind_growth_command'
 
 RSpec.describe Legion::CLI::MindGrowth do
-  let(:client) { instance_double(Legion::Extensions::MindGrowth::Client) }
+  let(:client) { double('MindGrowth::Client') }
 
   def capture_stdout
     original = $stdout
@@ -18,6 +18,7 @@ RSpec.describe Legion::CLI::MindGrowth do
   end
 
   before do
+    stub_const('Legion::Extensions::MindGrowth::Client', Class.new)
     stub_const('Legion::Extensions::MindGrowth::Runners::Proposer', Module.new do
       def self.get_proposal_object(_id); end
     end)
