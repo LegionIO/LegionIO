@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.193] - 2026-03-24
+
+### Added
+- `legion mind-growth` CLI subcommand with 10 commands: status, propose, approve, reject, build, proposals, profile, health, report, history
+- Delegates to `Legion::Extensions::MindGrowth::Client` (lex-mind-growth extension)
+- Guards with `require_mind_growth!` — raises `CLI::Error` when extension is not loaded
+- Supports `--json` and `--no-color` class options on all subcommands
+
 ## [1.4.192] - 2026-03-24
 
 ### Fixed

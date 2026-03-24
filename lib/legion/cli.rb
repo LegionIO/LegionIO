@@ -24,7 +24,8 @@ module Legion
     autoload :Commit,    'legion/cli/commit_command'
     autoload :Pr,        'legion/cli/pr_command'
     autoload :Review,    'legion/cli/review_command'
-    autoload :Memory,    'legion/cli/memory_command'
+    autoload :Memory,      'legion/cli/memory_command'
+    autoload :MindGrowth,  'legion/cli/mind_growth_command'
     autoload :Plan,      'legion/cli/plan_command'
     autoload :Swarm,     'legion/cli/swarm_command'
     autoload :Gaia,       'legion/cli/gaia_command'
@@ -217,6 +218,9 @@ module Legion
 
       desc 'memory SUBCOMMAND', 'Persistent project memory across sessions'
       subcommand 'memory', Legion::CLI::Memory
+
+      desc 'mind-growth SUBCOMMAND', 'Autonomous cognitive architecture expansion'
+      subcommand 'mind-growth', Legion::CLI::MindGrowth
 
       desc 'plan', 'Start plan mode (read-only exploration, no writes)'
       subcommand 'plan', Legion::CLI::Plan
