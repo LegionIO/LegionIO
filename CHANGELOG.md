@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.190] - 2026-03-23
+
+### Changed
+- Migrate `Guardrails::RAGRelevancy` to use `Legion::LLM.chat` (public API) instead of the private `chat_single` method
+- Add `Guardrails::SYSTEM_CALLER` constant with system pipeline identity to prevent infinite recursion when guardrails calls the LLM through the pipeline
+- The `:system` profile skips governance steps (rbac, classification, billing, gaia_advisory, rag_context, context_load) — guardrails is internal infrastructure, not a user request
+- Add specs covering `SYSTEM_CALLER` structure and LLM call behavior in `RAGRelevancy`
+
 ## [1.4.189] - 2026-03-23
 
 ### Changed

@@ -2,6 +2,8 @@
 
 module Legion
   module Guardrails
+    SYSTEM_CALLER = { requested_by: { identity: 'system:guardrails', type: :system, credential: :internal } }.freeze
+
     module EmbeddingSimilarity
       class << self
         def check(input, safe_embeddings:, threshold: 0.3)
@@ -36,12 +38,13 @@ module Legion
         def check(question:, context:, answer:, threshold: 3)
           return { relevant: true, reason: 'no LLM' } unless defined?(Legion::LLM)
 
-          result = Legion::LLM.chat_single(
-            messages: [
+          result = Legion::LLM.chat(
+            message: [
               { role:    'system',
                 content: 'Rate 1-5 how relevant the answer is to the question given the context. Reply ONLY with the number.' },
               { role: 'user', content: "Question: #{question}\nContext: #{context}\nAnswer: #{answer}" }
-            ]
+            ],
+            caller:  Guardrails::SYSTEM_CALLER
           )
           score = result[:content].to_s.strip.to_i
           relevant = score >= threshold
