@@ -7,9 +7,11 @@ require 'legion/transport/messages/check_subtask'
 
 module Legion
   module Runner
-    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
+    def self.run(runner_class:, function:, task_id: nil, args: nil, check_subtask: true, generate_task: true, parent_id: nil, master_id: nil, catch_exceptions: false, **opts) # rubocop:disable Layout/LineLength, Metrics/CyclomaticComplexity, Metrics/ParameterLists, Metrics/MethodLength, Metrics/PerceivedComplexity
       started_at = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-      Legion::Logging.info "[Runner] start: #{runner_class}##{function} task_id=#{task_id}" if defined?(Legion::Logging)
+      lex_tag = derive_lex_tag(runner_class)
+      rlog = runner_logger(lex_tag)
+      rlog.info "[Runner] start: #{runner_class}##{function} task_id=#{task_id}"
       runner_class = Kernel.const_get(runner_class) if runner_class.is_a? String
 
       if task_id.nil? && generate_task
@@ -31,11 +33,11 @@ module Legion
 
       result = runner_class.send(function, **args)
     rescue Legion::Exception::HandledTask => e
-      Legion::Logging.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}" if defined?(Legion::Logging)
+      rlog.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}"
       status = 'task.exception'
       result = { error: {} }
     rescue StandardError => e
-      Legion::Logging.error "[Runner] exception in #{runner_class}##{function}: #{e.message}" if defined?(Legion::Logging)
+      rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
       runner_class.handle_exception(e,
                                     **opts,
                                     runner_class:  runner_class,
@@ -50,7 +52,7 @@ module Legion
     ensure
       status = 'task.completed' if status.nil?
       duration_ms = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at) * 1000).round
-      Legion::Logging.info "[Runner] complete: #{runner_class}##{function} status=#{status} duration_ms=#{duration_ms}" if defined?(Legion::Logging)
+      rlog.info "[Runner] complete: #{runner_class}##{function} status=#{status} duration_ms=#{duration_ms}"
       Legion::Events.emit("task.#{status == 'task.completed' ? 'completed' : 'failed'}",
                           task_id: task_id, runner_class: runner_class.to_s, function: function, status: status)
       Legion::Runner::Status.update(task_id: task_id, status: status) unless task_id.nil?
@@ -76,10 +78,26 @@ module Legion
             detail:         { task_id: task_id, error: error_message }
           )
         rescue StandardError => e
-          Legion::Logging.debug("Audit in runner.run failed: #{e.message}") if defined?(Legion::Logging)
+          rlog.debug("Audit in runner.run failed: #{e.message}")
         end
       end
       return { success: true, status: status, result: result, task_id: task_id } # rubocop:disable Lint/EnsureReturn
+    end
+
+    def self.derive_lex_tag(runner_class)
+      name = runner_class.is_a?(String) ? runner_class : runner_class.to_s
+      parts = name.split('::')
+      ext_idx = parts.index('Extensions')
+      return parts.last.downcase unless ext_idx && parts[ext_idx + 1]
+
+      parts[ext_idx + 1].gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                        .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                        .downcase
+    end
+
+    def self.runner_logger(tag)
+      @runner_loggers ||= {}
+      @runner_loggers[tag] ||= Legion::Logging::Logger.new(lex: tag)
     end
   end
 end

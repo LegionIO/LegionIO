@@ -28,7 +28,7 @@ module Legion
 
             methods.each do |function|
               route_path = "#{extension_name}/#{runner_name}/#{function}"
-              Legion::Logging.info "[Routes] auto-route registered: POST /api/lex/#{route_path}" if defined?(Legion::Logging)
+              log.info "[Routes] auto-route registered: POST /api/lex/#{route_path}"
               @routes[route_path] = {
                 lex_name:     extension_name,
                 runner_name:  runner_name,

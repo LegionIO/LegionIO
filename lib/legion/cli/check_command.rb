@@ -3,18 +3,32 @@
 module Legion
   module CLI
     module Check
-      CHECKS = %i[settings crypt transport cache data].freeze
+      CHECKS = %i[settings crypt transport cache cache_local data data_local].freeze
       EXTENSION_CHECKS = %i[extensions].freeze
       FULL_CHECKS = %i[api].freeze
 
+      CHECK_LABELS = {
+        settings:    'Legion::Settings',
+        crypt:       'Legion::Crypt',
+        transport:   'Legion::Transport',
+        cache:       'Legion::Cache',
+        cache_local: 'Legion::Cache::Local',
+        data:        'Legion::Data',
+        data_local:  'Legion::Data::Local',
+        extensions:  'Legion::Extensions',
+        api:         'Legion::API'
+      }.freeze
+
       # Dependencies: if a check fails, these dependents are skipped
       DEPENDS_ON = {
-        crypt:      :settings,
-        transport:  :settings,
-        cache:      :settings,
-        data:       :settings,
-        extensions: :transport,
-        api:        :transport
+        crypt:       :settings,
+        transport:   :settings,
+        cache:       :settings,
+        cache_local: :cache,
+        data:        :settings,
+        data_local:  :data,
+        extensions:  :transport,
+        api:         :transport
       }.freeze
 
       autoload :PrivacyCheck, 'legion/cli/check/privacy_check'
@@ -85,7 +99,7 @@ module Legion
 
           checks.each do |name|
             dep = DEPENDS_ON[name]
-            if dep && results[dep] && results[dep][:status] == 'fail'
+            if dep && results[dep] && %w[fail skip].include?(results[dep][:status])
               results[name] = { status: 'skip', error: "#{dep} failed" }
               print_result(formatter, name, results[name], options) unless options[:json]
               next
@@ -111,9 +125,9 @@ module Legion
 
         def run_check(name, options)
           start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-          send(:"check_#{name}", options)
+          detail = send(:"check_#{name}", options)
           elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start).round(2)
-          { status: 'pass', time: elapsed }
+          { status: 'pass', time: elapsed, detail: detail }
         rescue StandardError, LoadError => e
           elapsed = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start).round(2)
           { status: 'fail', error: e.message, time: elapsed }
@@ -123,27 +137,82 @@ module Legion
           require 'legion/settings'
           dir = Connection.send(:resolve_config_dir)
           Legion::Settings.load(config_dir: dir)
+          dir || Legion::Settings.instance_variable_get(:@config_dir) || '(default)'
         end
 
         def check_crypt(_options)
           require 'legion/crypt'
           Legion::Crypt.start
+          vault_addr = ENV.fetch('VAULT_ADDR', nil)
+          connected = defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:vault_connected?) && Legion::Crypt.vault_connected?
+          connected ? "Vault #{vault_addr || 'connected'}" : 'no Vault'
         end
 
         def check_transport(_options)
           require 'legion/transport'
           Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
           Legion::Transport::Connection.setup
+          if Legion::Transport::Connection.lite_mode?
+            'InProcess (lite mode)'
+          else
+            ts = Legion::Settings[:transport] || {}
+            host = ts.dig(:connection, :host) || '127.0.0.1'
+            port = ts.dig(:connection, :port) || 5672
+            vhost = ts.dig(:connection, :vhost) || '/'
+            user = ts.dig(:connection, :user) || 'guest'
+            "amqp://#{user}@#{host}:#{port}#{vhost}"
+          end
         end
 
         def check_cache(_options)
           require 'legion/cache'
+          if defined?(Legion::Cache) && Legion::Cache.respond_to?(:using_memory?) && Legion::Cache.using_memory?
+            'Memory (lite mode)'
+          else
+            cs = Legion::Settings[:cache] || {}
+            driver = cs[:driver] || 'dalli'
+            servers = Array(cs[:servers] || cs[:server] || ['127.0.0.1'])
+            "#{driver} -> #{servers.join(', ')}"
+          end
+        end
+
+        def check_cache_local(_options)
+          raise 'Legion::Cache::Local not available' unless defined?(Legion::Cache::Local) && Legion::Cache::Local.respond_to?(:setup)
+
+          Legion::Cache::Local.setup
+          cs = Legion::Cache::Settings.respond_to?(:local) ? Legion::Cache::Settings.local : {}
+          driver = cs[:driver] || 'dalli'
+          servers = Array(cs[:servers] || cs[:server] || ['127.0.0.1'])
+          "#{driver} -> #{servers.join(', ')}"
         end
 
         def check_data(_options)
           require 'legion/data'
           Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
           Legion::Data.setup
+          ds = Legion::Settings[:data] || {}
+          adapter = ds[:adapter] || 'sqlite'
+          if adapter == 'sqlite'
+            db_path = ds[:database] || 'legion.db'
+            "sqlite -> #{db_path}"
+          else
+            host = ds[:host] || '127.0.0.1'
+            port = ds[:port]
+            database = ds[:database] || 'legion'
+            "#{adapter} -> #{host}#{":#{port}" if port}/#{database}"
+          end
+        end
+
+        def check_data_local(_options)
+          if defined?(Legion::Data::Local) && Legion::Data::Local.respond_to?(:setup)
+            Legion::Data::Local.setup unless Legion::Data::Local.respond_to?(:connected?) && Legion::Data::Local.connected?
+            db_path = Legion::Data::Local.respond_to?(:db_path) ? Legion::Data::Local.db_path : '~/.legionio/local.db'
+            "sqlite -> #{db_path}"
+          elsif defined?(Legion::Data)
+            'not configured'
+          else
+            raise 'Legion::Data not available'
+          end
         end
 
         def check_extensions(_options)
@@ -208,8 +277,16 @@ module Legion
           Legion::Cache.shutdown
         end
 
+        def shutdown_cache_local
+          Legion::Cache::Local.shutdown if defined?(Legion::Cache::Local) && Legion::Cache::Local.respond_to?(:shutdown)
+        end
+
         def shutdown_data
           Legion::Data.shutdown
+        end
+
+        def shutdown_data_local
+          Legion::Data::Local.shutdown if defined?(Legion::Data::Local) && Legion::Data::Local.respond_to?(:shutdown)
         end
 
         def shutdown_extensions
@@ -219,16 +296,17 @@ module Legion
         def shutdown_api; end
 
         def print_result(formatter, name, result, options)
-          label = name.to_s.ljust(14)
+          label = CHECK_LABELS.fetch(name, name.to_s).ljust(22)
           case result[:status]
           when 'pass'
-            line = "  #{label}#{formatter.colorize('pass', :green)}"
+            detail = result[:detail] ? "  #{formatter.colorize(result[:detail].to_s, :muted)}" : ''
+            line = "  #{label} #{formatter.colorize('pass', :green)}#{detail}"
             line += "  (#{result[:time]}s)" if options[:verbose]
           when 'fail'
-            line = "  #{label}#{formatter.colorize('FAIL', :red)}  #{result[:error]}"
+            line = "  #{label} #{formatter.colorize('FAIL', :red)}  #{result[:error]}"
             line += "  (#{result[:time]}s)" if options[:verbose]
           when 'skip'
-            line = "  #{label}#{formatter.colorize('skip', :yellow)}  #{result[:error]}"
+            line = "  #{label} #{formatter.colorize('skip', :yellow)}  #{result[:error]}"
           end
           puts line
         end

@@ -1,6 +1,6 @@
 # Legion Changelog
 
-## [1.4.199] - 2026-03-24
+## [1.5.0] - 2026-03-24
 
 ### Added
 - `legion setup agentic` — install full cognitive stack (legion-gaia + legion-llm + all transitive deps) in one command
@@ -9,6 +9,23 @@
 - `legion setup packs` — show installed/missing feature packs
 - `--dry-run` flag on all pack install commands
 - `legion detect` now recommends `legion setup agentic` when legion-gaia or legion-llm are missing
+- `legionio version --full` displays all installed lex-* extension versions
+- `legionio version` now lists all 13 legion-* gems with `(not installed)` for missing ones
+
+### Changed
+- Overhaul `legionio check` with proper namespace labels (Legion::Settings, Legion::Transport, etc.)
+- Each check returns connection detail strings (config dir, amqp:// URL, driver -> servers, adapter -> host:port/db)
+- Add Legion::Cache::Local and Legion::Data::Local checks with dependency chaining
+- Fix dependency skip logic to cascade through transitive dependencies (skip-on-skip, not just skip-on-fail)
+- Add privacy mode sub-check (`legionio check --privacy`)
+- Comment out Bootsnap.setup in exe/legion (matching exe/legionio)
+- Bump gemspec minimum: legion-data >= 1.5.0
+
+### Fixed
+- Runner log output now tagged with extension name (e.g. `[mesh][Runner]` instead of bare `[Runner]`)
+- Extension Transport and Routes builders use tagged `log` helper instead of bare `Legion::Logging`
+
+## [1.4.198] - 2026-03-24
 
 ### Changed
 - Comment out Bootsnap.setup in exe/legion (matching exe/legionio)

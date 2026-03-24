@@ -9,7 +9,7 @@ module Legion
       attr_accessor :exchanges, :queues, :consumers, :messages
 
       def build
-        Legion::Logging.debug "[Transport] build start: #{lex_name}" if defined?(Legion::Logging)
+        log.debug "[Transport] build start: #{lex_name}"
         @queues = []
         @exchanges = []
         @messages = []
@@ -22,10 +22,10 @@ module Legion
         build_e_to_q(additional_e_to_q)
         auto_create_dlx_exchange
         auto_create_dlx_queue
-        Legion::Logging.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}" if defined?(Legion::Logging)
+        log.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}"
       rescue StandardError => e
-        Legion::Logging.error "[Transport] build failed for #{lex_name}: #{e.message}"
-        Legion::Logging.error e.backtrace
+        log.error "[Transport] build failed for #{lex_name}: #{e.message}"
+        log.error e.backtrace
       end
 
       def generate_base_modules
@@ -49,7 +49,7 @@ module Legion
 
       def auto_create_exchange(exchange, default_exchange = false) # rubocop:disable Style/OptionalBooleanParameter
         if Object.const_defined? exchange
-          Legion::Logging.warn "#{exchange} is already defined"
+          log.warn "#{exchange} is already defined"
           return
         end
         return build_default_exchange if default_exchange
@@ -62,7 +62,7 @@ module Legion
 
       def auto_create_queue(queue)
         if Kernel.const_defined?(queue)
-          Legion::Logging.warn "#{queue} is already defined"
+          log.warn "#{queue} is already defined"
           return
         end
 

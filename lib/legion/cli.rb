@@ -82,6 +82,13 @@ module Legion
         exit(1)
       end
 
+      LEGION_GEMS = %w[
+        legion-transport legion-cache legion-crypt legion-data
+        legion-json legion-logging legion-settings
+        legion-llm legion-gaia legion-mcp legion-rbac
+        legion-tty legion-ffi
+      ].freeze
+
       class_option :json, type: :boolean, default: false, desc: 'Output as JSON'
       class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
       class_option :verbose, type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
@@ -89,11 +96,15 @@ module Legion
 
       desc 'version', 'Show version information'
       map %w[-v --version] => :version
+      option :full, type: :boolean, default: false, desc: 'Include all installed lex-* extension versions'
       def version
         out = formatter
+        lexs = discovered_lexs
         if options[:json]
-          out.json(version: Legion::VERSION, ruby: RUBY_VERSION, platform: RUBY_PLATFORM,
-                   components: installed_components, extensions: discovered_lexs.size)
+          payload = { version: Legion::VERSION, ruby: RUBY_VERSION, platform: RUBY_PLATFORM,
+                      components: installed_components, extensions: lexs.size }
+          payload[:extension_versions] = lex_versions(lexs) if options[:full]
+          out.json(payload)
         else
           out.banner(version: Legion::VERSION)
           out.spacer
@@ -107,8 +118,15 @@ module Legion
           end
 
           out.spacer
-          lex_count = discovered_lexs.size
-          puts "  #{out.colorize("#{lex_count} extension(s)", :accent)} installed"
+          puts "  #{out.colorize("#{lexs.size} extension(s)", :accent)} installed"
+
+          if options[:full] && lexs.any?
+            out.spacer
+            out.header('Extensions')
+            lex_versions(lexs).each do |name, ver|
+              puts "  #{out.colorize(name.ljust(20), :label)} #{ver}"
+            end
+          end
         end
       end
 
@@ -405,20 +423,25 @@ module Legion
 
         def installed_components
           components = { legionio: Legion::VERSION }
-          %w[legion-transport legion-data legion-cache legion-crypt legion-json legion-logging legion-settings
-             legion-llm legion-gaia legion-tty].each do |gem_name|
-            spec = Gem::Specification.find_by_name(gem_name)
+          LEGION_GEMS.each do |gem_name|
             short = gem_name.sub('legion-', '')
+            spec = Gem::Specification.find_by_name(gem_name)
             components[short.to_sym] = spec.version.to_s
           rescue Gem::MissingSpecError => e
             Legion::Logging.debug("CLI#installed_components gem #{gem_name} not installed: #{e.message}") if defined?(Legion::Logging)
-            components[gem_name.sub('legion-', '').to_sym] = '(not installed)'
+            components[short.to_sym] = '(not installed)'
           end
           components
         end
 
         def discovered_lexs
-          Gem::Specification.all_names.select { |g| g.start_with?('lex-') }
+          Gem::Specification.select { |s| s.name.start_with?('lex-') }
+                            .group_by(&:name)
+                            .transform_values { |specs| specs.max_by(&:version) }
+        end
+
+        def lex_versions(lexs)
+          lexs.sort_by { |name, _| name }.to_h { |name, spec| [name, spec.version.to_s] }
         end
 
         def find_pidfile

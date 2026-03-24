@@ -6,6 +6,7 @@ require 'legion/extensions/builders/routes'
 RSpec.describe Legion::Extensions::Builder::Routes do
   let(:dummy_builder) do
     Class.new do
+      include Legion::Extensions::Helpers::Logger
       include Legion::Extensions::Builder::Routes
 
       def extension_name

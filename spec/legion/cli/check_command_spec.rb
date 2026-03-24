@@ -39,10 +39,10 @@ RSpec.describe Legion::CLI::Check do
         expect(exit_code).to eq(0)
       end
 
-      it 'reports all 5 checks as pass in JSON' do
+      it 'reports all checks as pass in JSON' do
         _, output = run_check
         parsed = JSON.parse(output)
-        expect(parsed['results'].keys).to eq(%w[settings crypt transport cache data])
+        expect(parsed['results'].keys).to eq(%w[settings crypt transport cache cache_local data data_local])
         parsed['results'].each_value do |result|
           expect(result['status']).to eq('pass')
         end
@@ -51,7 +51,7 @@ RSpec.describe Legion::CLI::Check do
       it 'reports summary with 0 failures' do
         _, output = run_check
         parsed = JSON.parse(output)
-        expect(parsed['summary']['passed']).to eq(5)
+        expect(parsed['summary']['passed']).to eq(7)
         expect(parsed['summary']['failed']).to eq(0)
         expect(parsed['summary']['level']).to eq('connections')
       end
@@ -63,11 +63,13 @@ RSpec.describe Legion::CLI::Check do
         allow(described_class).to receive(:check_crypt)
         allow(described_class).to receive(:check_transport)
         allow(described_class).to receive(:check_cache)
+        allow(described_class).to receive(:check_cache_local)
         allow(described_class).to receive(:check_data).and_raise(StandardError, 'no db')
         allow(described_class).to receive(:shutdown_settings)
         allow(described_class).to receive(:shutdown_crypt)
         allow(described_class).to receive(:shutdown_transport)
         allow(described_class).to receive(:shutdown_cache)
+        allow(described_class).to receive(:shutdown_cache_local)
       end
 
       it 'returns 1' do
@@ -90,10 +92,12 @@ RSpec.describe Legion::CLI::Check do
         allow(described_class).to receive(:check_transport)
         allow(described_class).to receive(:check_cache).and_raise(LoadError, 'cannot load such file -- legion/cache')
         allow(described_class).to receive(:check_data)
+        allow(described_class).to receive(:check_data_local)
         allow(described_class).to receive(:shutdown_settings)
         allow(described_class).to receive(:shutdown_crypt)
         allow(described_class).to receive(:shutdown_transport)
         allow(described_class).to receive(:shutdown_data)
+        allow(described_class).to receive(:shutdown_data_local)
       end
 
       it 'returns 1' do
@@ -122,6 +126,8 @@ RSpec.describe Legion::CLI::Check do
           expect(parsed['results'][name]['status']).to eq('skip')
           expect(parsed['results'][name]['error']).to eq('settings failed')
         end
+        expect(parsed['results']['cache_local']['status']).to eq('skip')
+        expect(parsed['results']['data_local']['status']).to eq('skip')
       end
     end
 
