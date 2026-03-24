@@ -1,0 +1,43 @@
+{
+  "transport": {
+    "connection": {
+      "port": 5671
+    },
+    "tls": {
+      "enabled": true,
+      "verify": "peer",
+      "ca": "/etc/legionio/tls/ca.pem",
+      "cert": "/etc/legionio/tls/client.crt",
+      "key": "/etc/legionio/tls/client.key"
+    }
+  },
+  "data": {
+    "adapter": "postgres",
+    "tls": {
+      "enabled": true,
+      "sslmode": "verify-full",
+      "ca": "/etc/legionio/tls/ca.pem",
+      "cert": "/etc/legionio/tls/client.crt",
+      "key": "/etc/legionio/tls/client.key"
+    }
+  },
+  "cache": {
+    "adapter": "redis",
+    "tls": {
+      "enabled": true,
+      "verify": "peer",
+      "ca": "/etc/legionio/tls/ca.pem"
+    }
+  },
+  "api": {
+    "port": 4567,
+    "bind": "0.0.0.0",
+    "tls": {
+      "enabled": true,
+      "cert": "/etc/legionio/tls/server.crt",
+      "key": "/etc/legionio/tls/server.key",
+      "ca": "/etc/legionio/tls/ca.pem",
+      "verify": "peer"
+    }
+  }
+}

@@ -47,7 +47,7 @@ module Legion
           true
         end
 
-        def prepare
+        def prepare # rubocop:disable Metrics/AbcSize
           @queue = queue.new
           @queue.channel.prefetch(prefetch) if defined? prefetch
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{Thread.current.object_id}"
@@ -59,7 +59,7 @@ module Legion
 
             affinity_result = check_region_affinity(message)
             if affinity_result == :reject
-              log.warn "[Subscription] nack: region affinity mismatch"
+              log.warn '[Subscription] nack: region affinity mismatch'
               @queue.reject(delivery_info.delivery_tag) if manual_ack
               next
             end

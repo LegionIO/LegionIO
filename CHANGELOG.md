@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.5.5] - 2026-03-24
+
+### Added
+- `Legion::Service#setup_api`: optional Puma TLS via `api.tls.enabled` feature flag (default false); falls back to plain HTTP if cert/key missing
+- `Legion::CLI::Doctor::TlsCheck`: `legion doctor` check for TLS configuration across all components (transport, data, api)
+- `config/tls/settings-tls.json`: complete TLS settings template for all components
+- `config/tls/generate-certs.sh`: dev self-signed CA + server/client cert generator
+- `config/tls/README.md`: TLS setup and validation instructions
+
 ## [1.5.4] - 2026-03-24
 
 ### Added

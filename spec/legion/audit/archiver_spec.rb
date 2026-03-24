@@ -83,7 +83,7 @@ RSpec.describe Legion::Audit::Archiver do
     it 'delegates to HashChain.verify_chain' do
       allow(described_class).to receive(:load_records_for_tier).and_return(records)
       allow(Legion::Audit::HashChain).to receive(:verify_chain).with(records)
-        .and_return({ valid: true, broken_links: [], records_checked: 2 })
+                                                               .and_return({ valid: true, broken_links: [], records_checked: 2 })
 
       result = described_class.verify_chain(tier: :warm)
       expect(result[:valid]).to be true

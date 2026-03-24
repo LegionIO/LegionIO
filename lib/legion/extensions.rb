@@ -31,14 +31,21 @@ module Legion
 
       attr_reader :local_tasks
 
-      def shutdown
+      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         return nil if @loaded_extensions.nil?
 
         @loaded_extensions.each { |name| Catalog.transition(name, :stopping) }
 
+        if @subscription_pool
+          @subscription_pool.shutdown
+          @subscription_pool.kill unless @subscription_pool.wait_for_termination(5)
+          @subscription_pool = nil
+        end
+
         @subscription_tasks.each do |task|
-          task[:threadpool].shutdown
-          task[:threadpool].kill unless task[:threadpool].wait_for_termination(5)
+          task[:running_class]&.new&.cancel if task[:running_class].is_a?(Class)
+        rescue StandardError => e
+          Legion::Logging.debug "Extension shutdown cancel failed: #{e.message}" if defined?(Legion::Logging)
         end
 
         @loop_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }

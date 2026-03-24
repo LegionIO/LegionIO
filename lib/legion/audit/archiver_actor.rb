@@ -41,16 +41,14 @@ module Legion
 
         if Legion::Audit::Archiver.verify_on_archive?
           verify_result = Legion::Audit::Archiver.verify_chain(tier: :warm)
-          unless verify_result[:valid]
-            if defined?(Legion::Logging)
-              Legion::Logging.error "[Audit::ArchiverActor] chain broken after archival: #{verify_result[:broken_links].count} links"
-            end
+          if !verify_result[:valid] && defined?(Legion::Logging)
+            Legion::Logging.error "[Audit::ArchiverActor] chain broken after archival: #{verify_result[:broken_links].count} links"
           end
         end
 
-        if defined?(Legion::Logging)
-          Legion::Logging.info "[Audit::ArchiverActor] complete warm=#{warm_result[:moved]} cold=#{cold_result[:moved]}"
-        end
+        return unless defined?(Legion::Logging)
+
+        Legion::Logging.info "[Audit::ArchiverActor] complete warm=#{warm_result[:moved]} cold=#{cold_result[:moved]}"
       end
     end
   end

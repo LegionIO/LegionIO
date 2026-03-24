@@ -16,6 +16,7 @@ module Legion
       autoload :ExtensionsCheck,  'legion/cli/doctor/extensions_check'
       autoload :PidCheck,         'legion/cli/doctor/pid_check'
       autoload :PermissionsCheck, 'legion/cli/doctor/permissions_check'
+      autoload :TlsCheck,         'legion/cli/doctor/tls_check'
 
       def self.exit_on_failure?
         true
@@ -35,6 +36,7 @@ module Legion
         ExtensionsCheck
         PidCheck
         PermissionsCheck
+        TlsCheck
       ].freeze
 
       desc 'diagnose', 'Check environment health and suggest fixes'

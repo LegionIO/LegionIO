@@ -31,12 +31,12 @@ RSpec.describe Legion::Audit::ColdStorage do
 
   describe '.upload / .download with :local backend' do
     let(:test_data) { 'compressed-content-here' }
-    let(:test_path) { ::File.join(tmpdir, 'test_archive.jsonl.gz') }
+    let(:test_path) { File.join(tmpdir, 'test_archive.jsonl.gz') }
 
     it 'writes data to the given path' do
       result = described_class.upload(data: test_data, path: test_path)
       expect(result[:path]).to eq test_path
-      expect(::File.exist?(test_path)).to be true
+      expect(File.exist?(test_path)).to be true
     end
 
     it 'reads back the same data' do
@@ -45,9 +45,9 @@ RSpec.describe Legion::Audit::ColdStorage do
     end
 
     it 'creates intermediate directories' do
-      deep_path = ::File.join(tmpdir, 'a', 'b', 'c', 'archive.gz')
+      deep_path = File.join(tmpdir, 'a', 'b', 'c', 'archive.gz')
       described_class.upload(data: test_data, path: deep_path)
-      expect(::File.exist?(deep_path)).to be true
+      expect(File.exist?(deep_path)).to be true
     end
   end
 

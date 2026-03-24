@@ -69,7 +69,7 @@ module Legion
       option :dry_run, type: :boolean, default: false, aliases: '--dry-run', desc: 'Preview without executing'
       option :execute, type: :boolean, default: false,                       desc: 'Run archival now'
       option :json,    type: :boolean, default: false,                       desc: 'Output as JSON'
-      def archive # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      def archive
         Connection.ensure_settings
         Connection.ensure_data
 
@@ -156,7 +156,7 @@ module Legion
       desc 'restore', 'Restore cold-archived records to warm tier for querying'
       option :date, type: :string, required: true, desc: 'Date stamp of archive to restore (YYYYMMDD or ISO8601)'
       option :json, type: :boolean, default: false, desc: 'Output as JSON'
-      def restore # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      def restore
         Connection.ensure_settings
         Connection.ensure_data
 

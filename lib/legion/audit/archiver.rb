@@ -32,7 +32,7 @@ module Legion
         return { moved: 0, skipped: true } unless enabled?
 
         result = Legion::Data::Retention.archive_old_records(
-          table: :audit_log,
+          table:              :audit_log,
           archive_after_days: cutoff_days
         )
         { moved: result[:archived], from: :hot, to: :warm }
@@ -40,7 +40,7 @@ module Legion
 
       # warm -> cold: export audit_log_archive rows older than warm_days to compressed JSONL,
       # upload to cold storage, record manifest, delete from warm after checksum verification
-      def archive_to_cold(cutoff_days: warm_days) # rubocop:disable Metrics/MethodLength
+      def archive_to_cold(cutoff_days: warm_days)
         return { moved: 0, skipped: true } unless enabled?
 
         db = Legion::Data.connection
@@ -99,7 +99,7 @@ module Legion
         sio.string
       end
 
-      def write_manifest(tier:, storage_url:, start_date:, end_date:, entry_count:, checksum:, first_hash:, last_hash:)
+      def write_manifest(tier:, storage_url:, start_date:, end_date:, entry_count:, checksum:, first_hash:, last_hash:) # rubocop:disable Metrics/ParameterLists
         db = Legion::Data.connection
         return unless db&.table_exists?(:audit_archive_manifests)
 

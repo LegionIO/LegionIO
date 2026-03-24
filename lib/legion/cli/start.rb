@@ -12,6 +12,13 @@ module Legion
 
           log_level = options[:log_level] || 'info'
 
+          # Load settings early, before any legion-* gem requires can trigger auto-load.
+          # This ensures DNS bootstrap and config file loading happen exactly once.
+          require 'legion/json'
+          require 'legion/settings'
+          directories = Legion::Settings::Loader.default_directories.select { |d| Dir.exist?(d) }
+          Legion::Settings.load(config_dirs: directories)
+
           require 'legion'
           require 'legion/service'
           require 'legion/process'
@@ -38,8 +45,6 @@ module Legion
         private
 
         def clear_log_file
-          require 'legion/settings'
-          Legion::Settings.load
           logging = Legion::Settings[:logging]
           return unless logging.is_a?(Hash) && logging[:log_file]
 
