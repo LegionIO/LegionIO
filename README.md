@@ -8,13 +8,13 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╭──────────────────────────────────────╮
          │           L E G I O N I O            │
          │                                      │
-         │   280+ extensions  ·  35 MCP tools   │
+         │   280+ extensions  ·  41 MCP tools   │
          │   AI chat CLI  ·  REST API  ·  HA    │
          │   cognitive architecture  ·  Vault    │
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.114** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.4.197** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -85,13 +85,33 @@ gem 'legionio'
 | `legion-crypt` | Vault integration, encryption, JWT auth |
 | `legion-tty` | TTY UI components (spinners, tables, prompts) |
 
+## Zero-Infrastructure Mode (Lite)
+
+Run LegionIO without RabbitMQ, Redis, or Memcached:
+
+```bash
+LEGION_MODE=lite legion start     # environment variable
+legion start --lite               # CLI flag
+```
+
+In lite mode, `legion-transport` uses an in-process pub/sub adapter (no RabbitMQ required) and `legion-cache` uses a pure in-memory store with TTL (no Redis/Memcached required). All extensions and features work normally. Useful for single-machine development, CI, and trying LegionIO with no infrastructure.
+
+## Natural Language Intent Router
+
+```bash
+legion do "list all running tasks"
+legion do "start the email extension"
+```
+
+`legion do` routes free-text to the Capability Registry. Routes through the running daemon (MCP Tier 0 fast path) when available, or runs in-process otherwise.
+
 ## Infrastructure
 
 | Component | Role | Required? |
 |-----------|------|-----------|
-| **RabbitMQ** | Task distribution (AMQP 0.9.1) | Yes |
+| **RabbitMQ** | Task distribution (AMQP 0.9.1) | No (lite mode replaces with InProcess adapter) |
 | **SQLite/PostgreSQL/MySQL** | Persistence (tasks, scheduling, chains) | Optional |
-| **Redis/Memcached** | Extension caching | Optional |
+| **Redis/Memcached** | Extension caching | No (lite mode replaces with Memory adapter) |
 | **HashiCorp Vault** | Secrets, PKI, encrypted settings | Optional |
 
 ## The CLI
@@ -306,7 +326,7 @@ legion mcp http           # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**35 tools** in the `legion.*` namespace:
+**41 tools** in the `legion.*` namespace:
 
 | Category | Tools |
 |----------|-------|

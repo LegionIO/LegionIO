@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.186
+**Version**: 1.4.197
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -150,7 +150,7 @@ Legion (lib/legion.rb)
 │                      # Populated by Builders::Routes during autobuild
 │
 ├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
-│   └── (35 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
+│   └── (41 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
 │
 ├── DigitalWorker      # Digital worker platform (AI-as-labor governance)
 │   ├── Lifecycle      # Worker state machine (active/paused/retired/terminated)
@@ -480,11 +480,50 @@ legion
 
 ### MCP Design
 
-Extracted to the `legion-mcp` gem (v0.4.1). See `legion-mcp/CLAUDE.md` for full architecture.
+Extracted to the `legion-mcp` gem (v0.5.5). See `legion-mcp/CLAUDE.md` for full architecture.
 
 - `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
 - Tool naming: `legion.snake_case_name` (dot namespace, not slash)
 - Tier 0 routing: PatternStore + TierRouter + ContextGuard for LLM-free cached responses
+
+### Lite Mode
+
+`LEGION_MODE=lite` (or `--lite` CLI flag, or `:lite` ProcessRole) launches LegionIO without RabbitMQ, Redis, or Memcached:
+
+- `legion-transport` activates the `InProcess` adapter (stub Session/Channel/Exchange/Queue/Consumer that delegate to `Transport::Local` in-memory pub/sub)
+- `legion-cache` activates the `Memory` adapter (pure in-memory cache with TTL expiry and Mutex synchronization)
+- Useful for single-machine development, CI, and testing without infrastructure dependencies
+- Detection: `Connection.lite_mode?` checks `TYPE == 'local'`; cache checks `LEGION_MODE=lite` env var
+
+### `legion do`
+
+Natural-language intent router at the CLI level:
+
+```bash
+legion do "list all running tasks"
+legion do "start the email extension"
+```
+
+Resolves free-text intent to Capability Registry entries. If the daemon is running, delegates to the MCP `legion.do` tool (Tier 0 fast path). If no daemon, runs in-process. Returns the runner's response.
+
+### `legion mind-growth`
+
+CLI for the autonomous cognitive architecture expansion system (`lex-mind-growth`). 10 subcommands:
+
+```bash
+legion mind-growth status           # current growth cycle state
+legion mind-growth analyze          # gap analysis against 5 reference models
+legion mind-growth propose          # propose a new concept
+legion mind-growth evaluate <id>    # evaluate a proposal
+legion mind-growth build <id>       # run staged build pipeline
+legion mind-growth list             # list proposals
+legion mind-growth approve <id>     # manually approve
+legion mind-growth reject <id>      # manually reject
+legion mind-growth profile          # cognitive profile across all models
+legion mind-growth health           # extension fitness validation
+```
+
+Requires `lex-mind-growth` to be loaded. Also exposes 6 MCP tools in the `legion.mind_growth_*` namespace via `legion-mcp`.
 
 ## Dependencies
 
@@ -504,7 +543,7 @@ Extracted to the `legion-mcp` gem (v0.4.1). See `legion-mcp/CLAUDE.md` for full 
 | `oj` (>= 3.16) | Fast JSON (C extension) |
 | `puma` (>= 6.0) | HTTP server for API |
 | `rackup` (>= 2.0) | Rack server launcher for MCP HTTP transport |
-| `legion-mcp` (>= 0.4) | MCP server + Tier 0 routing (extracted gem) |
+| `legion-mcp` (>= 0.5) | MCP server + Tier 0 routing (extracted gem) |
 | `reline` (>= 0.5) | Interactive line editing for chat REPL |
 | `rouge` (>= 4.0) | Syntax highlighting for chat markdown rendering |
 | `tty-spinner` (~> 0.9) | Spinner animation for CLI loading states |
