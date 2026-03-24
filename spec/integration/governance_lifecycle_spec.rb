@@ -185,6 +185,58 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
+  # Extinction escalation verification
+  #    Stub the extinction client and verify correct calls per transition
+  # ===========================================================================
+  describe 'extinction escalation verification' do
+    let(:worker)            { build_worker(lifecycle_state: 'active') }
+    let(:extinction_client) { instance_double('ExtinctionClient') }
+
+    before do
+      stub_const('Legion::Extensions::Extinction::Client', Class.new)
+      allow(Legion::Extensions::Extinction::Client).to receive(:new).and_return(extinction_client)
+      allow(extinction_client).to receive(:escalate).and_return({ escalated: true, level: 2 })
+    end
+
+    context 'active -> paused (extinction level 0 -> 2)' do
+      it 'calls extinction escalate with level 2' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'paused', by: 'manager-1', reason: 'maintenance',
+          authority_verified: true
+        )
+        expect(extinction_client).to have_received(:escalate).with(
+          hash_including(level: 2, reason: /lifecycle transition/)
+        )
+      end
+    end
+
+    context 'active -> retired (extinction level 0 -> 3)' do
+      it 'calls extinction escalate with level 3' do
+        allow(extinction_client).to receive(:escalate).and_return({ escalated: true, level: 3 })
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'retired', by: 'manager-1', reason: 'decommission',
+          authority_verified: true
+        )
+        expect(extinction_client).to have_received(:escalate).with(
+          hash_including(level: 3)
+        )
+      end
+    end
+
+    context 'lateral move (paused -> active, level stays 0)' do
+      let(:worker) { build_worker(lifecycle_state: 'paused') }
+
+      it 'does not call extinction escalate' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'active', by: 'manager-1', reason: 'resume',
+          authority_verified: true
+        )
+        expect(extinction_client).not_to have_received(:escalate)
+      end
+    end
+  end
+
+  # ===========================================================================
   # 2. Ownership transfer
   #    Transfer worker ownership → validate identity binding updated →
   #    validate trust reset
