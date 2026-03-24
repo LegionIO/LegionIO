@@ -1,0 +1,31 @@
+name: Publish to Homebrew
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  trigger-homebrew:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.release.tag_name, 'v')
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${RELEASE_TAG}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+      - name: Trigger build-legion on homebrew-tap
+        run: |
+          gh api repos/LegionIO/homebrew-tap/dispatches \
+            -f event_type=build-legion \
+            -f "client_payload[legionio_version]=${LEGIONIO_VERSION}" \
+            -f "client_payload[ruby_version]=3.4.8" \
+            -f "client_payload[package_revision]=1"
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          LEGIONIO_VERSION: ${{ steps.version.outputs.version }}
