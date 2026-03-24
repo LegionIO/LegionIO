@@ -25,3 +25,5 @@ legionio_animated*.html
 legionio_wallpaper*.svg
 # generated executive briefs
 legionio_overview*
+# git worktrees
+.worktrees/
