@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.5.6] - 2026-03-24
+
+### Changed
+- `Service#register_logging_hooks` uses dedicated `log_channel` from `Connection` instead of shared channel; passes `channel:` to `Exchanges::Logging` to avoid contention
+- `Service#reload` re-setup sequence now includes `register_logging_hooks`, cache re-setup, and guarded `setup_rbac`/`setup_llm`/`setup_gaia` calls
+- `Readiness::COMPONENTS` expanded with `:rbac` and `:llm` for accurate startup tracking
+- LLM and GAIA boot blocks gated so `mark_ready` only fires on success path
+- `Cache` and `Data` boot blocks wrap remote failures with graceful fallback to local adapters
+
 ## [1.5.5] - 2026-03-24
 
 ### Added
