@@ -123,7 +123,8 @@ module Legion
 
         def apollo_data_connected?
           defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && !Legion::Data.connection.nil?
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("Apollo#apollo_data_connected? check failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
 

@@ -100,7 +100,8 @@ module Legion
           { matched: cap.name, runner_class: runner_class, function: cap.function,
             status: 'resolved', source: 'llm',
             note: 'Daemon not running; cannot execute. Start with: legion start' }
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("DoCommand#try_llm_classify failed: #{e.message}") if defined?(Legion::Logging)
           nil
         end
 

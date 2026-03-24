@@ -46,7 +46,8 @@ module Legion
       module CostHelpers
         def metering_available?
           defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && !Legion::Data.connection.nil?
-        rescue StandardError
+        rescue StandardError => e
+          Legion::Logging.debug("CostHelpers#metering_available? check failed: #{e.message}") if defined?(Legion::Logging)
           false
         end
 
