@@ -67,7 +67,8 @@ module Legion
             { role: 'system', content: schema_context },
             { role: 'user',   content: query }
           ],
-          schema:   FILTER_SCHEMA
+          schema:   FILTER_SCHEMA,
+          caller:   { source: 'cli', command: 'trace' }
         )
         Legion::Logging.error "[TraceSearch] LLM filter generation failed for query: #{query.inspect}" if !result[:valid] && defined?(Legion::Logging)
         result[:data] if result[:valid]

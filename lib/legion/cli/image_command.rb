@@ -136,7 +136,7 @@ module Legion
           llm_kwargs[:model]    = options[:model]           if options[:model]
           llm_kwargs[:provider] = options[:provider].to_sym if options[:provider]
 
-          Legion::LLM.chat(messages: messages, **llm_kwargs)
+          Legion::LLM.chat(messages: messages, caller: { source: 'cli', command: 'image' }, **llm_kwargs)
         rescue StandardError => e
           out.error("LLM call failed: #{e.message}")
           raise SystemExit, 1

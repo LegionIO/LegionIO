@@ -57,7 +57,7 @@ module Legion
         kwargs = { messages: [{ role: 'user', content: prompt }] }
         kwargs[:model]    = model           if model
         kwargs[:provider] = provider.to_sym if provider
-        Legion::LLM.chat(**kwargs)
+        Legion::LLM.chat(**kwargs, caller: { source: 'cli', command: 'notebook' })
       end
 
       def self.parse_notebook_response(response)

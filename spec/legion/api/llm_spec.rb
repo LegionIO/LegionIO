@@ -86,7 +86,7 @@ RSpec.describe 'LLM API routes' do
     fake_session = double('ChatSession', model: model_name)
     allow(fake_session).to receive(:ask).and_return(fake_response)
 
-    allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
+    allow(Legion::LLM).to receive(:chat).and_return(fake_session)
   end
 
   # ──────────────────────────────────────────────────────────
@@ -365,8 +365,8 @@ RSpec.describe 'LLM API routes' do
       expect(body[:data][:response]).to eq('hello from LLM')
     end
 
-    it 'passes model and provider from request body to chat_direct' do
-      expect(Legion::LLM).to receive(:chat_direct)
+    it 'passes model and provider from request body to chat' do
+      expect(Legion::LLM).to receive(:chat)
         .with(hash_including(model: 'gpt-4o', provider: 'openai'))
         .and_call_original
       stub_llm_sync_response

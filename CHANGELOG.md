@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.4.189] - 2026-03-23
+
+### Changed
+- Add `caller:` identity to all LLM calls in API, CLI, extensions, and internal modules
+  - `API::Routes::Llm` sync path: `caller: { source: 'api', path: request.path }`
+  - `API::Routes::Prompts`: `caller: { source: 'api', endpoint: 'prompts' }`
+  - `CLI::Commit`, `CLI::Pr`, `CLI::Review`, `CLI::Prompt`, `CLI::Image`: `caller: { source: 'cli', command: '<cmd>' }`
+  - `Notebook::Generator`: `caller: { source: 'cli', command: 'notebook' }`
+  - `TraceSearch`: `caller: { source: 'cli', command: 'trace' }`
+  - `Extensions` inline LLM runners: `caller: { source: 'extension', command: 'llm_runner' }`
+
 ## [1.4.188] - 2026-03-23
 
 ### Changed

@@ -65,7 +65,7 @@ RSpec.describe 'Prompts API routes' do
 
     fake_session = double('ChatSession', model: model_name)
     allow(fake_session).to receive(:ask).and_return(fake_response)
-    allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
+    allow(Legion::LLM).to receive(:chat).and_return(fake_session)
   end
 
   def build_prompt_client(list: [], get_result: nil, render_result: nil)
@@ -377,8 +377,8 @@ RSpec.describe 'Prompts API routes' do
         expect(last_response.status).to eq(200)
       end
 
-      it 'passes model and provider to chat_direct' do
-        expect(Legion::LLM).to receive(:chat_direct)
+      it 'passes model and provider to chat' do
+        expect(Legion::LLM).to receive(:chat)
           .with(hash_including(model: 'claude-opus-4-6', provider: 'bedrock'))
           .and_call_original
         stub_llm_sync_response
@@ -404,7 +404,7 @@ RSpec.describe 'Prompts API routes' do
         stub_prompt_client(build_prompt_client(
                              render_result: { rendered: 'Summarize: Hello world', prompt_version: 1 }
                            ))
-        allow(Legion::LLM).to receive(:chat_direct).and_raise(StandardError, 'provider timeout')
+        allow(Legion::LLM).to receive(:chat).and_raise(StandardError, 'provider timeout')
       end
 
       it 'returns 500 with execution_error' do

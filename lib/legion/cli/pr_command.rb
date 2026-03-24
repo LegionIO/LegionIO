@@ -163,7 +163,7 @@ module Legion
           opts[:model]    = options[:model] if options[:model]
           opts[:provider] = options[:provider]&.to_sym if options[:provider]
 
-          chat = Legion::LLM.chat(**opts)
+          chat = Legion::LLM.chat(**opts, caller: { source: 'cli', command: 'pr' })
           prompt = build_prompt(diff, stat, log, branch)
           response = chat.ask(prompt)
           parse_pr_response(response.content)

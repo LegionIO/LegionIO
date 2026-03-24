@@ -77,7 +77,8 @@ module Legion
               halt code, json_error(rendered[:error], "prompt '#{name}' #{rendered[:error].tr('_', ' ')}", status_code: code)
             end
 
-            session  = Legion::LLM.chat_direct(model: model, provider: provider)
+            session  = Legion::LLM.chat(model: model, provider: provider,
+                                        caller: { source: 'api', endpoint: 'prompts' })
             response = session.ask(rendered[:rendered])
 
             prompt_version = rendered[:prompt_version]

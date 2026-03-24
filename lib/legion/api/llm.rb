@@ -144,7 +144,8 @@ module Legion
               json_response({ request_id: request_id, poll_key: "llm:#{request_id}:status" },
                             status_code: 202)
             else
-              session  = Legion::LLM.chat_direct(model: model, provider: provider)
+              session  = Legion::LLM.chat(model: model, provider: provider,
+                                          caller: { source: 'api', path: request.path })
               response = session.ask(message)
               Legion::Logging.info "API: LLM chat request #{request_id} completed sync model=#{session.model}"
               json_response(

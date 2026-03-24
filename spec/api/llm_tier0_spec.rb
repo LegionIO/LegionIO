@@ -38,7 +38,7 @@ RSpec.describe 'POST /api/llm/chat Tier 0 routing' do
       stub_const('Legion::LLM', Module.new do
         def self.started? = true
 
-        def self.chat_direct(**_opts)
+        def self.chat(**_opts)
           session = Object.new
           session.define_singleton_method(:ask) do |msg|
             response = Object.new
@@ -70,7 +70,7 @@ RSpec.describe 'POST /api/llm/chat Tier 0 routing' do
       stub_const('Legion::LLM', Module.new do
         def self.started? = true
 
-        def self.chat_direct(**_opts)
+        def self.chat(**_opts)
           session = Object.new
           session.define_singleton_method(:ask) do |msg|
             response = Object.new

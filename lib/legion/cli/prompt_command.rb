@@ -242,6 +242,7 @@ module Legion
 
           response = Legion::LLM.chat(
             messages: [{ role: 'user', content: rendered }],
+            caller:   { source: 'cli', command: 'prompt' },
             **llm_kwargs
           )
 
@@ -275,8 +276,10 @@ module Legion
           rendered_b = render_prompt(name, prompt_b[:version], vars, client, out)
           return if rendered_b.nil?
 
-          response_a = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_a }], **llm_kwargs)
-          response_b = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_b }], **llm_kwargs)
+          response_a = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_a }],
+                                        caller:   { source: 'cli', command: 'prompt' }, **llm_kwargs)
+          response_b = Legion::LLM.chat(messages: [{ role: 'user', content: rendered_b }],
+                                        caller:   { source: 'cli', command: 'prompt' }, **llm_kwargs)
 
           if options[:json]
             out.json({ name: name, version_a: prompt_a[:version], version_b: prompt_b[:version],

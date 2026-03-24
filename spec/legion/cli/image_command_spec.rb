@@ -80,7 +80,7 @@ RSpec.describe Legion::CLI::Image do
         with_temp_image('png') do |path|
           cmd = build_command
           expect(Legion::LLM).to receive(:chat).with(
-            messages: [hash_including(role: 'user')]
+            hash_including(messages: [hash_including(role: 'user')])
           ).and_return({ content: 'A PNG image.', usage: {} })
           expect(out).to receive(:header).with('Analysis')
           cmd.analyze(path)

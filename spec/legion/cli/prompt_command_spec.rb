@@ -308,7 +308,7 @@ RSpec.describe Legion::CLI::Prompt do
           .with(name: 'summarize', variables: { 'text' => 'Hello world' })
           .and_return(rendered)
         expect(Legion::LLM).to receive(:chat)
-          .with(messages: [{ role: 'user', content: rendered }])
+          .with(hash_including(messages: [{ role: 'user', content: rendered }]))
           .and_return(llm_response)
         cmd.play('summarize')
       end
@@ -338,7 +338,7 @@ RSpec.describe Legion::CLI::Prompt do
                                       model: 'claude-3', provider: 'anthropic')
         stub_client(cmd)
         expect(Legion::LLM).to receive(:chat)
-          .with(messages: anything, model: 'claude-3', provider: 'anthropic')
+          .with(hash_including(messages: anything, model: 'claude-3', provider: 'anthropic'))
           .and_return(llm_response)
         cmd.play('summarize')
       end
@@ -389,9 +389,9 @@ RSpec.describe Legion::CLI::Prompt do
         allow(client).to receive(:render_prompt)
           .with(name: 'summarize', variables: {}, version: 2).and_return(rendered_v2)
         allow(Legion::LLM).to receive(:chat)
-          .with(messages: [{ role: 'user', content: rendered_v1 }]).and_return(response_v1)
+          .with(hash_including(messages: [{ role: 'user', content: rendered_v1 }])).and_return(response_v1)
         allow(Legion::LLM).to receive(:chat)
-          .with(messages: [{ role: 'user', content: rendered_v2 }]).and_return(response_v2)
+          .with(hash_including(messages: [{ role: 'user', content: rendered_v2 }])).and_return(response_v2)
       end
 
       it 'renders both versions and calls LLM twice' do

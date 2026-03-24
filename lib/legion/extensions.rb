@@ -565,7 +565,8 @@ module Legion
                 kwargs.dig(*keys).to_s
               end
               if defined?(Legion::LLM)
-                Legion::LLM.chat(messages: [{ role: 'user', content: prompt }], model: model)
+                Legion::LLM.chat(messages: [{ role: 'user', content: prompt }], model: model,
+                                 caller: { source: 'extension', command: 'llm_runner' })
               else
                 { success: false, reason: :llm_unavailable }
               end
