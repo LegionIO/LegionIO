@@ -24,24 +24,50 @@ module Legion
 
           private
 
+          def singleton_enabled?
+            return false unless defined?(Legion::Settings)
+
+            cluster = Legion::Settings[:cluster]
+            cluster.is_a?(Hash) && cluster[:singleton_enabled] == true
+          rescue StandardError
+            false
+          end
+
           def skip_or_run(&)
-            return super unless defined?(Legion::Lock)
+            return super unless singleton_enabled?
+            return super unless defined?(Legion::Lock) || defined?(Legion::Cluster::Lock)
 
             role = singleton_role
-            ttl_ms = singleton_ttl * 1000
+            ttl_secs = singleton_ttl
 
-            unless @leader_token
-              @leader_token = Legion::Lock.acquire("leader:#{role}", ttl: ttl_ms)
+            if @leader_token.nil?
+              @leader_token = acquire_singleton_lock(role, ttl_secs)
               return unless @leader_token
-            end
-
-            extended = Legion::Lock.extend_lock("leader:#{role}", @leader_token, ttl: ttl_ms)
-            unless extended
-              @leader_token = Legion::Lock.acquire("leader:#{role}", ttl: ttl_ms)
-              return unless @leader_token
+            else
+              extended = extend_singleton_lock(role, @leader_token, ttl_secs)
+              unless extended
+                @leader_token = acquire_singleton_lock(role, ttl_secs)
+                return unless @leader_token
+              end
             end
 
             super
+          end
+
+          def acquire_singleton_lock(role, ttl_secs)
+            if defined?(Legion::Cluster::Lock)
+              Legion::Cluster::Lock.acquire(name: "leader:#{role}", ttl: ttl_secs)
+            else
+              Legion::Lock.acquire("leader:#{role}", ttl: ttl_secs * 1000)
+            end
+          end
+
+          def extend_singleton_lock(role, token, ttl_secs)
+            if defined?(Legion::Cluster::Lock)
+              Legion::Cluster::Lock.extend_lock(name: "leader:#{role}", token: token, ttl: ttl_secs)
+            else
+              Legion::Lock.extend_lock("leader:#{role}", token, ttl: ttl_secs * 1000)
+            end
           end
         end
       end

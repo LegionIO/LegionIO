@@ -56,6 +56,17 @@ module Legion
         end
       end
 
+      def extend_lock(name:, token: nil, ttl: 30)
+        case backend
+        when :redis
+          extend_lock_redis(name: name, token: token, ttl: ttl)
+        when :postgres
+          true
+        else
+          false
+        end
+      end
+
       def with_lock(name:, ttl: 30, timeout: 5)
         acquired = acquire(name: name, ttl: ttl, timeout: timeout)
         return unless acquired
@@ -121,6 +132,27 @@ module Legion
         db.fetch('SELECT pg_try_advisory_lock(?) AS acquired', key).first[:acquired]
       rescue StandardError => e
         Legion::Logging.debug "Lock#acquire_postgres failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
+        false
+      end
+
+      def extend_lock_redis(name:, token:, ttl:)
+        tok = token || fetch_token(name)
+        return false unless tok
+
+        client = Legion::Cache::Redis.client
+        key = redis_key(name)
+        lua = <<~LUA
+          if redis.call('GET', KEYS[1]) == ARGV[1] then
+            redis.call('PEXPIRE', KEYS[1], ARGV[2])
+            return 1
+          else
+            return 0
+          end
+        LUA
+        result = client.call('EVAL', lua, 1, key, tok, (ttl * 1000).to_s)
+        result == 1
+      rescue StandardError => e
+        Legion::Logging.debug "Lock#extend_lock_redis failed for name=#{name}: #{e.message}" if defined?(Legion::Logging)
         false
       end
 
