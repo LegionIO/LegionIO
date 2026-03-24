@@ -97,6 +97,14 @@ module Legion
     end
 
     def setup_local_mode
+      if lite_mode?
+        Legion::Logging.info 'Starting in lite mode (zero infrastructure)'
+        Legion::Settings[:dev] = true
+        require 'legion/transport/local'
+        require 'legion/crypt/mock_vault' if defined?(Legion::Crypt)
+        return
+      end
+
       return unless local_mode?
 
       Legion::Logging.info 'Starting in local development mode'
@@ -109,6 +117,11 @@ module Legion
     def local_mode?
       ENV['LEGION_LOCAL'] == 'true' ||
         Legion::Settings[:local_mode] == true
+    end
+
+    def lite_mode?
+      ENV['LEGION_MODE'] == 'lite' ||
+        Legion::Settings[:mode].to_s == 'lite'
     end
 
     def setup_data

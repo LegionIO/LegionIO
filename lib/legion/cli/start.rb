@@ -5,6 +5,11 @@ module Legion
     module Start
       class << self
         def run(options)
+          if options[:lite]
+            ENV['LEGION_MODE'] = 'lite'
+            ENV['LEGION_LOCAL'] = 'true'
+          end
+
           log_level = options[:log_level] || 'info'
 
           require 'legion'
@@ -16,6 +21,7 @@ module Legion
           api = options.fetch(:api, true)
           service_opts = { log_level: log_level, api: api }
           service_opts[:http_port] = options[:http_port] if options[:http_port]
+          service_opts[:role] = :lite if options[:lite]
           Legion.instance_variable_set(:@service, Legion::Service.new(**service_opts))
           Legion::Logging.info("Started Legion v#{Legion::VERSION}")
 

@@ -6,7 +6,8 @@ module Legion
       full:   { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: true, supervision: true  },
       api:    { transport: true,  cache: true, data: true,  extensions: false, api: true,  llm: false, gaia: false, crypt: true, supervision: false },
       worker: { transport: true,  cache: true, data: true,  extensions: true,  api: false, llm: true,  gaia: true,  crypt: true, supervision: true  },
-      router: { transport: true,  cache: true, data: false, extensions: true,  api: false, llm: false, gaia: false, crypt: true, supervision: false }
+      router: { transport: true,  cache: true, data: false, extensions: true,  api: false, llm: false, gaia: false, crypt: true, supervision: false },
+      lite:   { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: false, supervision: true }
     }.freeze
 
     def self.resolve(role_name)

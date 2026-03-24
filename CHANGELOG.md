@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.4.194] - 2026-03-24
+
+### Added
+- `--lite` flag on `legion start` command: sets `LEGION_MODE=lite` and `LEGION_LOCAL=true` env vars, assigns `:lite` process role
+- `:lite` process role in `ProcessRole::ROLES`: all subsystems enabled except `crypt: false` (Vault not needed in lite mode)
+- `Service#lite_mode?` checks `LEGION_MODE` env var and `settings[:mode]`
+- `setup_local_mode` handles lite mode: sets dev flag, loads Transport::Local, loads mock_vault if Crypt is defined
+
 ## [1.4.193] - 2026-03-24
 
 ### Added

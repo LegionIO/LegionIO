@@ -123,6 +123,7 @@ module Legion
       option :log_level, type: :string, default: 'info', desc: 'Log level (debug, info, warn, error)'
       option :api, type: :boolean, default: true, desc: 'Start the HTTP API server'
       option :http_port, type: :numeric, desc: 'HTTP API port (overrides settings)'
+      option :lite, type: :boolean, default: false, desc: 'Start in lite mode (no external services)'
       def start
         Legion::CLI::Start.run(options)
       end

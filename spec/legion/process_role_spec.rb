@@ -51,6 +51,19 @@ RSpec.describe Legion::ProcessRole do
       expect(result[:crypt]).to be true
     end
 
+    it 'disables crypt for :lite' do
+      result = described_class.resolve(:lite)
+      expect(result[:transport]).to be true
+      expect(result[:cache]).to be true
+      expect(result[:data]).to be true
+      expect(result[:extensions]).to be true
+      expect(result[:api]).to be true
+      expect(result[:llm]).to be true
+      expect(result[:gaia]).to be true
+      expect(result[:crypt]).to be false
+      expect(result[:supervision]).to be true
+    end
+
     it 'accepts string input' do
       result = described_class.resolve('worker')
       expect(result[:api]).to be false
