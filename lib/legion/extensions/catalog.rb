@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'catalog/registry'
+
 module Legion
   module Extensions
     module Catalog
