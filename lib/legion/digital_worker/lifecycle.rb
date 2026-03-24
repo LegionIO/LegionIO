@@ -88,6 +88,12 @@ module Legion
               authority: by || :system,
               reason:    "lifecycle transition: #{from_state} -> #{to_state}"
             )
+          elsif new_level && new_level < current_level
+            Legion::Extensions::Extinction::Client.new.deescalate(
+              authority:    by || :system,
+              reason:       "lifecycle transition: #{from_state} -> #{to_state}",
+              target_level: new_level
+            )
           end
         end
 

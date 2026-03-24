@@ -196,6 +196,7 @@ RSpec.describe 'Governance lifecycle integration' do
       stub_const('Legion::Extensions::Extinction::Client', Class.new)
       allow(Legion::Extensions::Extinction::Client).to receive(:new).and_return(extinction_client)
       allow(extinction_client).to receive(:escalate).and_return({ escalated: true, level: 2 })
+      allow(extinction_client).to receive(:deescalate).and_return({ deescalated: true, level: 0 })
     end
 
     context 'active -> paused (extinction level 0 -> 2)' do
@@ -223,7 +224,7 @@ RSpec.describe 'Governance lifecycle integration' do
       end
     end
 
-    context 'lateral move (paused -> active, level stays 0)' do
+    context 'level decrease (paused -> active, level 2 -> 0)' do
       let(:worker) { build_worker(lifecycle_state: 'paused') }
 
       it 'does not call extinction escalate' do
@@ -232,6 +233,16 @@ RSpec.describe 'Governance lifecycle integration' do
           authority_verified: true
         )
         expect(extinction_client).not_to have_received(:escalate)
+      end
+
+      it 'calls extinction deescalate' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'active', by: 'manager-1', reason: 'resume',
+          authority_verified: true
+        )
+        expect(extinction_client).to have_received(:deescalate).with(
+          hash_including(target_level: 0, reason: /lifecycle transition/)
+        )
       end
     end
   end
@@ -278,6 +289,40 @@ RSpec.describe 'Governance lifecycle integration' do
             status:       'success'
           )
         )
+      end
+    end
+  end
+
+  # ===========================================================================
+  # De-escalation on resume
+  #    When a paused worker resumes, extinction level decreases — call deescalate
+  # ===========================================================================
+  describe 'de-escalation on resume' do
+    let(:worker)            { build_worker(lifecycle_state: 'paused') }
+    let(:extinction_client) { instance_double('ExtinctionClient') }
+
+    before do
+      stub_const('Legion::Extensions::Extinction::Client', Class.new)
+      allow(Legion::Extensions::Extinction::Client).to receive(:new).and_return(extinction_client)
+      allow(extinction_client).to receive(:escalate).and_return({ escalated: true })
+      allow(extinction_client).to receive(:deescalate).and_return({ deescalated: true, level: 0 })
+    end
+
+    context 'paused -> active (extinction level 2 -> 0)' do
+      it 'calls extinction deescalate' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'active', by: 'manager-1', reason: 'resume',
+          authority_verified: true
+        )
+        expect(extinction_client).to have_received(:deescalate)
+      end
+
+      it 'does not call escalate' do
+        Legion::DigitalWorker::Lifecycle.transition!(
+          worker, to_state: 'active', by: 'manager-1', reason: 'resume',
+          authority_verified: true
+        )
+        expect(extinction_client).not_to have_received(:escalate)
       end
     end
   end
