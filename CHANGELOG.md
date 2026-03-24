@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.5.3] - 2026-03-24
+
+### Added
+- Extinction escalation verification in lifecycle integration tests (stub_const approach)
+- De-escalation on worker resume: `transition!` calls `Client#deescalate` when extinction level decreases
+- Credential revocation on worker termination: calls `VaultSecrets.delete_client_secret` guarded by `defined?`
+- Ownership transfer integration tests with event and audit verification
+- Retirement cycle integration tests with full audit chain and extinction L3/L4 coverage
+
 ## [1.5.2] - 2026-03-24
 
 ### Fixed

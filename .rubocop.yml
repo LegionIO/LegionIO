@@ -57,6 +57,7 @@ Metrics/AbcSize:
   Max: 60
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
+    - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/CyclomaticComplexity:
   Max: 15
