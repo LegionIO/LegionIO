@@ -88,18 +88,29 @@ module Legion
       def load_extensions_parallel(eligible)
         return if eligible.empty?
 
+        if defined?(Legion::Transport::Connection) && Legion::Transport::Connection.respond_to?(:open_build_session)
+          Legion::Transport::Connection.open_build_session
+        end
+
         max_threads = Legion::Settings.dig(:extensions, :parallel_pool_size) || 24
         pool_size = [eligible.count, max_threads].min
         executor = Concurrent::FixedThreadPool.new(pool_size)
 
         futures = eligible.map do |entry|
-          Concurrent::Promises.future_on(executor, entry) { |e| load_extension(e) ? e : nil }
+          Concurrent::Promises.future_on(executor, entry) do |e|
+            Thread.current[:legion_build_session] = true
+            load_extension(e) ? e : nil
+          end
         end
 
         results = futures.map(&:value)
 
         executor.shutdown
         executor.wait_for_termination(30)
+
+        if defined?(Legion::Transport::Connection) && Legion::Transport::Connection.respond_to?(:close_build_session)
+          Legion::Transport::Connection.close_build_session
+        end
 
         results.each_with_index do |result, idx|
           if result
@@ -208,7 +219,18 @@ module Legion
         return if @pending_actors.nil? || @pending_actors.empty?
 
         Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
-        @pending_actors.each { |actor| hook_actor(**actor) }
+
+        sub_actors = []
+        @pending_actors.each do |actor|
+          if actor[:actor_class].ancestors.include?(Legion::Extensions::Actors::Subscription)
+            sub_actors << actor
+          else
+            hook_actor(**actor)
+          end
+        end
+
+        hook_subscription_actors_pooled(sub_actors) unless sub_actors.empty?
+
         @pending_actors.clear
         Legion::Logging.info(
           "Actors hooked: subscription:#{@subscription_tasks.count}," \
@@ -254,7 +276,7 @@ module Legion
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Poll
           @poll_tasks.push(extension_hash)
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Subscription
-          hook_subscription_actor(extension_hash, size, opts)
+          hook_subscription_actors_pooled([extension_hash])
         else
           Legion::Logging.fatal "#{actor_class} did not match any actor classes (ancestors: #{actor_class.ancestors.first(5).map(&:to_s)})"
         end
@@ -296,29 +318,66 @@ module Legion
         []
       end
 
-      def hook_subscription_actor(extension_hash, size, opts)
-        ext_name   = extension_hash[:extension_name]
-        extension  = extension_hash[:extension]
-        actor_class = extension_hash[:actor_class]
+      def hook_subscription_actors_pooled(sub_actors)
+        max_channels = Legion::Settings.dig(:transport, :subscription_pool_size) || 16
+        prepared = []
 
-        unless resolve_remote_invocable(ext_name, opts.merge(actor_class: actor_class, extension: extension))
-          Legion::Logging.debug { "#{ext_name}/#{extension_hash[:actor_name]} is not remote_invocable, skipping AMQP subscription" }
-          @local_tasks.push(extension_hash)
-          return
-        end
+        # Phase 1: Prepare all consumers (parallel, shared pool)
+        pool_size = [sub_actors.size, max_channels].min
+        @subscription_pool = Concurrent::FixedThreadPool.new(pool_size)
 
-        extension_hash[:threadpool] = Concurrent::FixedThreadPool.new(size)
-        size.times do
-          extension_hash[:threadpool].post do
-            klass = actor_class.new
-            if klass.respond_to?(:async)
-              klass.async.subscribe
-            else
-              klass.subscribe
+        sub_actors.each do |actor_hash|
+          actor_class = actor_hash[:actor_class]
+          ext_name = actor_hash[:extension_name]
+          size = resolve_subscription_worker_count(actor_hash)
+
+          unless resolve_remote_invocable(ext_name, actor_hash)
+            @local_tasks.push(actor_hash)
+            next
+          end
+
+          size.times do
+            entry = { actor_hash: actor_hash, instance: nil }
+            prepared << entry
+            @subscription_pool.post do
+              instance = actor_class.new
+              instance.prepare if instance.respond_to?(:prepare)
+              entry[:instance] = instance
+            rescue StandardError => e
+              Legion::Logging.error "Subscription prepare failed for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
             end
           end
+
+          actor_hash[:running_class] = actor_class
+          @subscription_tasks.push(actor_hash)
         end
-        @subscription_tasks.push(extension_hash)
+
+        @subscription_pool.shutdown
+        @subscription_pool.wait_for_termination(30)
+
+        # Phase 2: Activate sequentially (one basic.consume at a time)
+        prepared.each do |entry|
+          next unless entry[:instance]
+
+          begin
+            entry[:instance].activate if entry[:instance].respond_to?(:activate)
+          rescue StandardError => e
+            ext_name = entry[:actor_hash][:extension_name]
+            Legion::Logging.error "[Subscription] activate failed for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
+          end
+        end
+      end
+
+      def resolve_subscription_worker_count(actor_hash)
+        ext_name = actor_hash[:extension_name]
+        ext_settings = Legion::Settings.dig(:extensions, ext_name.to_sym)
+        if ext_settings.is_a?(Hash) && ext_settings.key?(:workers)
+          ext_settings[:workers]
+        elsif actor_hash[:size].is_a?(Integer)
+          actor_hash[:size]
+        else
+          1
+        end
       end
 
       def resolve_remote_invocable(extension_name, opts = {})
