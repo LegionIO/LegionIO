@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'legion/compliance/phi_tag'
+require 'legion/compliance/phi_access_log'
 
 module Legion
   module Compliance
