@@ -368,11 +368,11 @@ module Legion
             end
 
             cap = Extensions::Capability.from_runner(
-              extension:   gem_name,
-              runner:      runner_name.to_s.split('_').map(&:capitalize).join,
-              function:    fn_name.to_s,
-              parameters:  params,
-              tags:        [gem_name.delete_prefix('lex-')]
+              extension:  gem_name,
+              runner:     runner_name.to_s.split('_').map(&:capitalize).join,
+              function:   fn_name.to_s,
+              parameters: params,
+              tags:       [gem_name.delete_prefix('lex-')]
             )
             Extensions::Catalog::Registry.register(cap)
           end

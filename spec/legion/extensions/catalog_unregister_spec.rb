@@ -9,13 +9,13 @@ RSpec.describe 'Catalog unregister on extension unload' do
     it 'removes all capabilities for an extension' do
       runners = {
         pull_request: {
-          extension: 'legion::extensions::github',
+          extension:      'legion::extensions::github',
           extension_name: 'github',
-          runner_name: 'pull_request',
-          runner_class: 'Legion::Extensions::Github::Runners::PullRequest',
-          class_methods: {
-            close: { args: [[:keyreq, :pr_id]] },
-            merge: { args: [[:keyreq, :pr_id]] }
+          runner_name:    'pull_request',
+          runner_class:   'Legion::Extensions::Github::Runners::PullRequest',
+          class_methods:  {
+            close: { args: [%i[keyreq pr_id]] },
+            merge: { args: [%i[keyreq pr_id]] }
           }
         }
       }

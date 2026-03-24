@@ -9,13 +9,13 @@ RSpec.describe 'Catalog population at boot' do
     it 'registers capabilities from runner metadata' do
       runners = {
         pull_request: {
-          extension: 'legion::extensions::github',
+          extension:      'legion::extensions::github',
           extension_name: 'github',
-          runner_name: 'pull_request',
-          runner_class: 'Legion::Extensions::Github::Runners::PullRequest',
-          class_methods: {
-            close: { args: [[:keyreq, :pr_id]] },
-            merge: { args: [[:keyreq, :pr_id], [:key, :strategy]] }
+          runner_name:    'pull_request',
+          runner_class:   'Legion::Extensions::Github::Runners::PullRequest',
+          class_methods:  {
+            close: { args: [%i[keyreq pr_id]] },
+            merge: { args: [%i[keyreq pr_id], %i[key strategy]] }
           }
         }
       }
@@ -32,12 +32,12 @@ RSpec.describe 'Catalog population at boot' do
     it 'skips methods starting with underscore' do
       runners = {
         request: {
-          extension: 'legion::extensions::http',
+          extension:      'legion::extensions::http',
           extension_name: 'http',
-          runner_name: 'request',
-          runner_class: 'Legion::Extensions::Http::Runners::Request',
-          class_methods: {
-            get: { args: [] },
+          runner_name:    'request',
+          runner_class:   'Legion::Extensions::Http::Runners::Request',
+          class_methods:  {
+            get:       { args: [] },
             _internal: { args: [] }
           }
         }
@@ -53,12 +53,12 @@ RSpec.describe 'Catalog population at boot' do
     it 'extracts parameter info from runner args' do
       runners = {
         issue: {
-          extension: 'legion::extensions::jira',
+          extension:      'legion::extensions::jira',
           extension_name: 'jira',
-          runner_name: 'issue',
-          runner_class: 'Legion::Extensions::Jira::Runners::Issue',
-          class_methods: {
-            create: { args: [[:keyreq, :summary], [:key, :description]] }
+          runner_name:    'issue',
+          runner_class:   'Legion::Extensions::Jira::Runners::Issue',
+          class_methods:  {
+            create: { args: [%i[keyreq summary], %i[key description]] }
           }
         }
       }

@@ -6,17 +6,17 @@ module Legion
       :name, :extension, :runner, :function,
       :description, :parameters, :tags, :loaded_at
     ) do
-      def self.from_runner(extension:, runner:, function:, description: nil, parameters: nil, tags: nil)
+      def self.from_runner(extension:, runner:, function:, **opts)
         canonical = "#{extension}:#{runner.to_s.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase}:#{function}"
         new(
-          name: canonical,
-          extension: extension,
-          runner: runner.to_s,
-          function: function.to_s,
-          description: description,
-          parameters: parameters || {},
-          tags: Array(tags),
-          loaded_at: Time.now
+          name:        canonical,
+          extension:   extension,
+          runner:      runner.to_s,
+          function:    function.to_s,
+          description: opts[:description],
+          parameters:  opts[:parameters] || {},
+          tags:        Array(opts[:tags]),
+          loaded_at:   Time.now
         )
       end
 
@@ -37,12 +37,12 @@ module Legion
         end
 
         {
-          name: tool_name,
-          description: description || "#{extension} #{runner}##{function}",
+          name:         tool_name,
+          description:  description || "#{extension} #{runner}##{function}",
           input_schema: {
-            type: 'object',
+            type:       'object',
             properties: properties,
-            required: parameters&.select { |_, v| v.is_a?(Hash) && v[:required] }&.keys&.map(&:to_s) || []
+            required:   parameters&.select { |_, v| v.is_a?(Hash) && v[:required] }&.keys&.map(&:to_s) || []
           }
         }
       end

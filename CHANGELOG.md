@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.4.187] - 2026-03-23
+
+### Added
+- `Legion::Extensions::Capability` Data.define struct for extension capability registration
+- `Legion::Extensions::Catalog::Registry` in-memory capability registry with register, find, find_by_intent, for_mcp, for_override, find_by_mcp_name
+- `register_capabilities` populates Catalog::Registry from extension runners at boot
+- `unregister_capabilities` removes capabilities from Catalog on extension unload
+- `Catalog::Registry.on_change` callback for notifying consumers on registry changes
+
 ## [1.4.186] - 2026-03-23
 
 ### Fixed

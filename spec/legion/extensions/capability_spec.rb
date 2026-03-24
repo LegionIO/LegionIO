@@ -6,12 +6,12 @@ RSpec.describe Legion::Extensions::Capability do
   describe '.from_runner' do
     it 'creates a capability from runner metadata' do
       cap = described_class.from_runner(
-        extension: 'lex-github',
-        runner: 'PullRequest',
-        function: 'close',
+        extension:   'lex-github',
+        runner:      'PullRequest',
+        function:    'close',
         description: 'Close a pull request',
-        parameters: { pr_id: { type: :integer, required: true } },
-        tags: %w[github pr write]
+        parameters:  { pr_id: { type: :integer, required: true } },
+        tags:        %w[github pr write]
       )
 
       expect(cap.name).to eq('lex-github:pull_request:close')
