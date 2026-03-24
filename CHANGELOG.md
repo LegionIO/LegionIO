@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.4.195] - 2026-03-24
+
+### Added
+- `legion do "TEXT"` CLI command: natural language intent router that matches free-text to Capability Registry entries and dispatches via daemon API or in-process Ingress
+- `DoCommand` module with two resolution paths: daemon HTTP dispatch (like `dream`) and in-process `Registry.find_by_intent` + `Ingress.run` fallback
+
 ## [1.4.194] - 2026-03-24
 
 ### Added

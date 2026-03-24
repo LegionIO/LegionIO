@@ -55,6 +55,7 @@ module Legion
     autoload :Tty,            'legion/cli/tty_command'
     autoload :ObserveCommand, 'legion/cli/observe_command'
     autoload :Payroll,        'legion/cli/payroll_command'
+    autoload :DoCommand,   'legion/cli/do_command'
     autoload :Interactive, 'legion/cli/interactive'
     autoload :Docs,        'legion/cli/docs_command'
     autoload :Failover,    'legion/cli/failover_command'
@@ -329,6 +330,21 @@ module Legion
       def ask(*text)
         Legion::CLI::Chat.start(['prompt', text.join(' ')] + ARGV.select { |a| a.start_with?('--') })
       end
+
+      desc 'do TEXT', 'Route a natural language intent to the right extension'
+      long_desc <<~DESC
+        Describe what you want in plain English. Legion routes to the best
+        matching extension and runner automatically.
+
+        Examples:
+          legion do "check consul health"
+          legion do "list running tasks"
+          legion do "review the latest PR"
+      DESC
+      def do_action(*text)
+        Legion::CLI::DoCommand.run(text.join(' '), formatter, options)
+      end
+      map 'do' => :do_action
 
       desc 'dream', 'Trigger a dream cycle on the running daemon'
       option :wait, type: :boolean, default: false, desc: 'Wait for dream cycle to complete'
