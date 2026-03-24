@@ -159,6 +159,8 @@ module Legion
         require 'legion/transport/messages/lex_register'
         Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners).publish
 
+        register_capabilities(entry[:gem_name], extension.runners) if extension.respond_to?(:runners)
+
         if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Hash)
           extension.meta_actors.each_value do |actor|
             extension.log.debug("deferring meta actor: #{actor}") if has_logger
@@ -345,6 +347,32 @@ module Legion
       end
 
       public
+
+      def register_capabilities(gem_name, runners)
+        runners.each_value do |runner_meta|
+          runner_name = runner_meta[:runner_name]
+          (runner_meta[:class_methods] || {}).each do |fn_name, fn_meta|
+            next if fn_name.to_s.start_with?('_')
+
+            params = {}
+            (fn_meta[:args] || []).each do |arg|
+              type, name = arg
+              params[name] = { type: :string, required: type == :keyreq }
+            end
+
+            cap = Extensions::Capability.from_runner(
+              extension:   gem_name,
+              runner:      runner_name.to_s.split('_').map(&:capitalize).join,
+              function:    fn_name.to_s,
+              parameters:  params,
+              tags:        [gem_name.delete_prefix('lex-')]
+            )
+            Extensions::Catalog::Registry.register(cap)
+          end
+        rescue StandardError => e
+          Legion::Logging.warn("Catalog registration error for #{gem_name}: #{e.message}") if defined?(Legion::Logging)
+        end
+      end
 
       def gem_load(entry)
         gem_name     = entry[:gem_name]
