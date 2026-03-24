@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.197] - 2026-03-24
+
+### Changed
+- Add debug logging to 8 swallowed `rescue StandardError` blocks in chat tools and session store: ModelComparison, SystemStatus (fetch_health, fetch_ready), SessionStore (generate_summary, read_session_meta), SaveMemory (ingest_to_apollo), GenerateInsights (scheduling_status, llm_status)
+
 ## [1.4.196] - 2026-03-24
 
 ### Added

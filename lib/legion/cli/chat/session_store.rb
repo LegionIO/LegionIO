@@ -90,7 +90,8 @@ module Legion
             first_msg = user_messages.first[:content].to_s.strip
             first_msg = "#{first_msg[0..120]}..." if first_msg.length > 120
             first_msg
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SessionStore#generate_summary failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 
@@ -102,7 +103,8 @@ module Legion
               summary:       data[:summary],
               model:         data[:model]
             }
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SessionStore#read_session_meta failed: #{e.message}") if defined?(Legion::Logging)
             { message_count: nil, summary: nil, model: nil }
           end
         end

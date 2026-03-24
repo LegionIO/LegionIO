@@ -40,7 +40,8 @@ module Legion
             Legion::LLM::CostTracker::DEFAULT_PRICING.transform_values do |v|
               { input: v[:input], output: v[:output] }
             end
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("ModelComparison#cost_tracker_pricing failed: #{e.message}") if defined?(Legion::Logging)
             {}
           end
 

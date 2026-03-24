@@ -166,7 +166,8 @@ module Legion
             end
             result[:batch] = Legion::LLM::Batch.status if defined?(Legion::LLM::Batch)
             result.empty? ? nil : result
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("GenerateInsights#scheduling_status failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 
@@ -181,7 +182,8 @@ module Legion
               result[:shadow_evals] = s[:total_evaluations]
             end
             result.empty? ? nil : result
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("GenerateInsights#llm_status failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 

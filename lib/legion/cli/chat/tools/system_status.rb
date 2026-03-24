@@ -39,7 +39,8 @@ module Legion
             api_get('/api/health')
           rescue Errno::ECONNREFUSED
             raise
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SystemStatus#fetch_health failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 
@@ -47,7 +48,8 @@ module Legion
             api_get('/api/ready')
           rescue Errno::ECONNREFUSED
             raise
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SystemStatus#fetch_ready failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 

@@ -54,7 +54,8 @@ module Legion
             return nil if data[:error]
 
             'Also ingested into Apollo knowledge graph.'
-          rescue StandardError
+          rescue StandardError => e
+            Legion::Logging.debug("SaveMemory#ingest_to_apollo failed: #{e.message}") if defined?(Legion::Logging)
             nil
           end
 
