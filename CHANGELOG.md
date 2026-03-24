@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.4.192] - 2026-03-24
+
+### Fixed
+- fix `undefined method 'key?' for module Legion::Settings` in extension loader — use `Legion::Settings[:llm].nil?` instead of `.key?(:llm)` since Settings is a module with `[]` accessor, not a Hash
+
 ## [1.4.191] - 2026-03-23
 
 ### Changed

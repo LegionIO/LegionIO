@@ -151,7 +151,7 @@ module Legion
           return false
         end
 
-        if extension.llm_required? && (!Legion::Settings.key?(:llm) || Legion::Settings[:llm][:connected] == false)
+        if extension.llm_required? && (Legion::Settings[:llm].nil? || Legion::Settings[:llm][:connected] == false)
           Legion::Logging.warn "#{ext_name} requires Legion::LLM but isn't enabled, skipping"
           return false
         end
