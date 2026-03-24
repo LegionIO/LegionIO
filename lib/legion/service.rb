@@ -108,6 +108,7 @@ module Legion
       end
 
       setup_telemetry
+      setup_audit_archiver
       setup_safety_metrics
       setup_supervision if supervision
 
@@ -239,20 +240,29 @@ module Legion
       port = api_settings[:port] || 4567
       bind = api_settings[:bind] || '0.0.0.0'
 
+      Legion::API.set :port, port
+      Legion::API.set :bind, bind
+      Legion::API.set :server, :puma
+      Legion::API.set :environment, :production
+
+      tls_cfg = build_api_tls_config(api_settings)
+      if tls_cfg
+        Legion::API.set :ssl_bind_options, tls_cfg
+        Legion::API.set :server_settings, { quiet: true, **ssl_server_settings(tls_cfg, bind, port) }
+        Legion::Logging.info "Starting Legion API (TLS) on #{bind}:#{port}"
+      else
+        require 'puma'
+        puma_log = ::Puma::LogWriter.new(StringIO.new, StringIO.new)
+        Legion::API.set :server_settings, { log_writer: puma_log, quiet: true }
+        Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
+      end
+
       @api_thread = Thread.new do
         retries = 0
         max_retries = api_settings.fetch(:bind_retries, 10)
-        retry_wait = api_settings.fetch(:bind_retry_wait, 3)
+        retry_wait  = api_settings.fetch(:bind_retry_wait, 3)
 
         begin
-          Legion::API.set :port, port
-          Legion::API.set :bind, bind
-          Legion::API.set :server, :puma
-          Legion::API.set :environment, :production
-          require 'puma'
-          puma_log = ::Puma::LogWriter.new(StringIO.new, StringIO.new)
-          Legion::API.set :server_settings, { log_writer: puma_log, quiet: true }
-          Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
           Legion::API.run!(traps: false)
         rescue Errno::EADDRINUSE
           retries += 1
@@ -383,6 +393,30 @@ module Legion
       Legion::Logging.warn "OpenTelemetry setup failed: #{e.message}"
     end
 
+    def setup_audit_archiver
+      require_relative 'audit/archiver_actor'
+      return unless Legion::Audit::ArchiverActor.enabled?
+
+      @audit_archiver_thread = Thread.new do
+        loop do
+          Legion::Audit::ArchiverActor.new.run_archival
+        rescue StandardError => e
+          Legion::Logging.error "[Audit::ArchiverActor] error: #{e.message}" if defined?(Legion::Logging)
+        ensure
+          sleep Legion::Audit::ArchiverActor::INTERVAL_SECONDS
+        end
+      end
+      @audit_archiver_thread.abort_on_exception = false
+      Legion::Logging.info 'Audit archiver actor started' if defined?(Legion::Logging)
+    rescue StandardError => e
+      Legion::Logging.warn "Audit archiver setup failed: #{e.message}" if defined?(Legion::Logging)
+    end
+
+    def shutdown_audit_archiver
+      @audit_archiver_thread&.kill
+      @audit_archiver_thread = nil
+    end
+
     def setup_safety_metrics
       require_relative 'telemetry/safety_metrics'
       Legion::Telemetry::SafetyMetrics.start
@@ -416,6 +450,7 @@ module Legion
       Legion::Settings[:client][:shutting_down] = true
       Legion::Events.emit('service.shutting_down')
 
+      shutdown_audit_archiver
       shutdown_api
 
       Legion::Metrics.reset! if defined?(Legion::Metrics)
@@ -540,6 +575,43 @@ module Legion
     rescue StandardError => e
       Legion::Logging.debug "Service#log_privacy_mode_status failed: #{e.message}" if defined?(Legion::Logging)
       nil
+    end
+
+    private
+
+    def build_api_tls_config(api_settings)
+      tls = api_settings[:tls] || {}
+      tls = tls.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+      return nil unless tls[:enabled] == true
+
+      cert = tls[:cert]
+      key  = tls[:key]
+
+      unless cert && !cert.to_s.empty? && key && !key.to_s.empty?
+        Legion::Logging.warn 'api.tls enabled but cert or key is missing — falling back to plain HTTP'
+        return nil
+      end
+
+      {
+        cert:        cert,
+        key:         key,
+        ca:          tls[:ca],
+        verify_mode: verify_mode_for(tls[:verify])
+      }.compact
+    end
+
+    def ssl_server_settings(tls_cfg, bind, port)
+      return {} unless tls_cfg
+
+      { binds: ["ssl://#{bind}:#{port}?cert=#{tls_cfg[:cert]}&key=#{tls_cfg[:key]}"] }
+    end
+
+    def verify_mode_for(verify)
+      case verify.to_s
+      when 'none'   then 'none'
+      when 'mutual' then 'force_peer'
+      else               'peer'
+      end
     end
   end
 end
