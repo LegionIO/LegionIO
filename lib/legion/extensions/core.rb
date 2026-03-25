@@ -21,6 +21,18 @@ rescue LoadError => e
   Legion::Logging.debug "Extensions::Core: legion-llm helpers not available: #{e.message}" if defined?(Legion::Logging)
 end
 
+begin
+  require_relative 'helpers/llm'
+rescue LoadError => e
+  Legion::Logging.debug "Extensions::Core: local llm helper not available: #{e.message}" if defined?(Legion::Logging)
+end
+
+begin
+  require_relative 'helpers/knowledge'
+rescue LoadError => e
+  Legion::Logging.debug "Extensions::Core: knowledge helper not available: #{e.message}" if defined?(Legion::Logging)
+end
+
 require_relative 'actors/base'
 require_relative 'actors/every'
 require_relative 'actors/loop'
@@ -35,6 +47,7 @@ module Legion
     module Core
       include Legion::Extensions::Helpers::Transport
       include Legion::Extensions::Helpers::Lex
+      include Legion::Extensions::Helpers::Knowledge if defined?(Legion::Extensions::Helpers::Knowledge)
 
       include Legion::Extensions::Builder::Runners
       include Legion::Extensions::Builder::Helpers
