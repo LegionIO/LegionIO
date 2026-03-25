@@ -34,7 +34,6 @@ module Legion
 
       autoload :Session, 'legion/cli/chat/session'
       autoload :StatusIndicator, 'legion/cli/chat/status_indicator'
-      autoload :ApolloWriteback, 'legion/cli/chat/apollo_writeback'
 
       desc 'interactive', 'Start interactive AI conversation'
       def interactive
@@ -105,7 +104,7 @@ module Legion
 
         turn_tool_calls = []
         tool_callbacks = {
-          on_tool_call: ->(tc) { turn_tool_calls << { name: tc.name, args: tc.arguments, result: nil } },
+          on_tool_call:   ->(tc) { turn_tool_calls << { name: tc.name, args: tc.arguments, result: nil } },
           on_tool_result: ->(tr) { turn_tool_calls.last[:result] = tr.to_s.lines.first(3).join.rstrip if turn_tool_calls.last }
         }
 
@@ -116,8 +115,6 @@ module Legion
                    end
 
         chat_log.info "headless complete tokens_in=#{session.stats[:input_tokens]} tokens_out=#{session.stats[:output_tokens]}"
-
-        headless_writeback(text, response&.content, turn_tool_calls, session)
 
         if options[:output_format] == 'json'
           out.json({
@@ -338,8 +335,6 @@ module Legion
             print render_response(buffer, out)
             puts
             puts
-
-            apollo_auto_writeback(stripped, buffer, turn_tool_calls)
           rescue Chat::Session::BudgetExceeded => e
             chat_log.warn "budget_exceeded: #{e.message}"
             puts
@@ -1232,40 +1227,6 @@ module Legion
           )
         rescue StandardError => e
           chat_log.debug "worktree checkpoint failed: #{e.message}"
-        end
-
-        def apollo_auto_writeback(user_query, response_text, turn_tool_calls)
-          return if turn_tool_calls.empty?
-
-          evaluation = Chat::ApolloWriteback.evaluate_turn(
-            tool_calls:    turn_tool_calls,
-            user_query:    user_query,
-            response_text: response_text,
-            model_id:      @session&.model_id
-          )
-          return unless evaluation
-
-          entry_id = Chat::ApolloWriteback.ingest!(evaluation)
-          chat_log.debug "apollo_writeback action=#{evaluation[:action]} entry_id=#{entry_id}" if entry_id
-        rescue StandardError => e
-          chat_log.debug "apollo_writeback failed: #{e.message}"
-        end
-
-        def headless_writeback(user_query, response_text, turn_tool_calls, session)
-          return if turn_tool_calls.empty?
-
-          evaluation = Chat::ApolloWriteback.evaluate_turn(
-            tool_calls:    turn_tool_calls,
-            user_query:    user_query,
-            response_text: response_text,
-            model_id:      session&.model_id
-          )
-          return unless evaluation
-
-          entry_id = Chat::ApolloWriteback.ingest!(evaluation)
-          chat_log&.debug "apollo_writeback action=#{evaluation[:action]} entry_id=#{entry_id}" if entry_id
-        rescue StandardError => e
-          chat_log&.debug "apollo_writeback failed: #{e.message}"
         end
 
         def handle_worktree_rewind(arg, out)

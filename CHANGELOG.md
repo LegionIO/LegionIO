@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.5.15] - 2026-03-25
+
+### Removed
+- CLI chat Apollo writeback prototype (replaced by pipeline step 19 in legion-llm)
+
 ## [1.5.14] - 2026-03-25
 
 ### Fixed
