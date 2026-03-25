@@ -2,6 +2,7 @@
 
 require 'legion/compliance/phi_tag'
 require 'legion/compliance/phi_access_log'
+require 'legion/compliance/phi_erasure'
 
 module Legion
   module Compliance
