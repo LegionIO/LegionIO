@@ -21,6 +21,7 @@ RSpec.describe Legion::Service do
     allow(Legion::Settings).to receive(:[]).with(:rbac).and_return(nil)
     allow(Legion::Settings).to receive(:[]).with(:network).and_return(nil)
     allow(Legion::Settings).to receive(:dig).and_return(nil)
+    allow(Legion::Settings).to receive(:dig).with(:extensions, :shutdown_timeout).and_return(nil)
   end
 
   describe '#shutdown_component' do
@@ -57,7 +58,7 @@ RSpec.describe Legion::Service do
 
     it 'logs a warning on StandardError' do
       service.shutdown_component('Test') { raise 'boom' }
-      expect(Legion::Logging).to have_received(:warn).with(/Test shutdown error: boom/)
+      expect(Legion::Logging).to have_received(:warn).with(/Test shutdown error: RuntimeError: boom/)
     end
   end
 

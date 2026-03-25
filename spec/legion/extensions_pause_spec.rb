@@ -5,8 +5,8 @@ require 'spec_helper'
 RSpec.describe Legion::Extensions do
   describe '.pause_actors' do
     before do
-      allow(Legion::Logging).to receive(:info)
-      allow(Legion::Logging).to receive(:debug)
+      allow(Legion::Logging).to receive(:warn)
+      allow(Legion::Logging).to receive(:error)
     end
 
     it 'shuts down all timer tasks on running instances' do
@@ -55,7 +55,7 @@ RSpec.describe Legion::Extensions do
 
       described_class.pause_actors
 
-      expect(Legion::Logging).to have_received(:info).with('All actors paused')
+      expect(Legion::Logging).to have_received(:warn).with('All actors paused')
     end
   end
 end

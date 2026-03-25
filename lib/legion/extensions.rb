@@ -101,9 +101,9 @@ module Legion
           timer = inst.instance_variable_get(:@timer)
           timer&.shutdown if timer.respond_to?(:shutdown)
         rescue StandardError => e
-          Legion::Logging.debug "pause_actors: #{e.message}" if defined?(Legion::Logging)
+          Legion::Logging.error "pause_actors: #{e.class}: #{e.message}" if defined?(Legion::Logging)
         end
-        Legion::Logging.info 'All actors paused' if defined?(Legion::Logging)
+        Legion::Logging.warn 'All actors paused' if defined?(Legion::Logging)
       end
 
       def load_extensions

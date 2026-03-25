@@ -483,7 +483,8 @@ module Legion
         @cluster_leader = nil
       end
 
-      shutdown_component('Extensions', timeout: 15) { Legion::Extensions.shutdown }
+      ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
+      shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
       Legion::Readiness.mark_not_ready(:extensions)
 
       if Legion::Settings[:llm]&.dig(:connected)
@@ -527,7 +528,8 @@ module Legion
         Legion::Readiness.mark_not_ready(:gaia)
       end
 
-      shutdown_component('Extensions', timeout: 15) { Legion::Extensions.shutdown }
+      ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
+      shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
       Legion::Readiness.mark_not_ready(:extensions)
 
       shutdown_component('Data') { Legion::Data.shutdown }
@@ -640,7 +642,7 @@ module Legion
     rescue Timeout::Error
       Legion::Logging.warn "#{name} shutdown timed out after #{timeout}s, forcing"
     rescue StandardError => e
-      Legion::Logging.warn "#{name} shutdown error: #{e.message}"
+      Legion::Logging.warn "#{name} shutdown error: #{e.class}: #{e.message}"
     end
 
     def setup_network_watchdog
