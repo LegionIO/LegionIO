@@ -62,6 +62,7 @@ module Legion
     autoload :Apollo,      'legion/cli/apollo_command'
     autoload :TraceCommand, 'legion/cli/trace_command'
     autoload :Features,     'legion/cli/features_command'
+    autoload :Debug,        'legion/cli/debug_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -341,6 +342,9 @@ module Legion
 
       desc 'features SUBCOMMAND', 'Install feature bundles (interactive selector)'
       subcommand 'features', Legion::CLI::Features
+
+      desc 'debug', 'Diagnostic dump for troubleshooting (pipe to LLM for analysis)'
+      subcommand 'debug', Legion::CLI::Debug
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

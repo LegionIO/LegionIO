@@ -1,5 +1,18 @@
 # Legion Changelog
 
+## [1.5.11] - 2026-03-25
+
+### Added
+- `legionio debug` command — full diagnostic dump (16 sections: versions, doctor, config, gems, extensions, RBAC, LLM, GAIA, transport, events, Apollo, remote/local Redis, PostgreSQL, RabbitMQ, API health) output as markdown or JSON, suitable for piping to an LLM session
+- `legionio update --cleanup` flag — removes old gem versions after update via `Gem::Uninstaller` (default: no cleanup)
+
+### Fixed
+- `update_command.rb` `snapshot_versions` now uses `find_all_by_name` + max version instead of `find_by_name`, which returned the already-activated (potentially stale) gem version
+- `service.rb` `setup_api` guard prevents duplicate Puma start when `@api_thread` is already alive
+
+### Changed
+- Bumped gemspec dependencies: legion-data >= 1.5.3, legion-gaia >= 0.9.24, legion-llm >= 0.5.8, legion-tty >= 0.4.35
+
 ## [1.5.10] - 2026-03-25
 
 ### Changed

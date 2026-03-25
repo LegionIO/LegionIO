@@ -6,6 +6,7 @@ require 'rbconfig'
 require 'concurrent'
 require 'net/http'
 require 'json'
+require 'rubygems/uninstaller'
 
 module Legion
   module CLI
@@ -22,6 +23,7 @@ module Legion
       desc 'gems', 'Update Legion gems to latest versions (default)'
       default_task :gems
       option :dry_run, type: :boolean, default: false, desc: 'Show what would be updated without installing'
+      option :cleanup, type: :boolean, default: false, desc: 'Remove old gem versions after update'
       def gems
         out = formatter
         gem_bin = File.join(RbConfig::CONFIG['bindir'], 'gem')
@@ -44,6 +46,8 @@ module Legion
         else
           display_results(out, results, before, after)
         end
+
+        cleanup_old_gems(out, target_gems) if options[:cleanup] && !options[:dry_run]
       end
 
       no_commands do
@@ -66,11 +70,12 @@ module Legion
 
         def snapshot_versions(gem_names)
           gem_names.each_with_object({}) do |name, hash|
-            spec = Gem::Specification.find_by_name(name)
-            hash[name] = spec.version.to_s
-          rescue Gem::MissingSpecError => e
-            Legion::Logging.debug("UpdateCommand#snapshot_versions gem #{name} not found: #{e.message}") if defined?(Legion::Logging)
-            hash[name] = nil
+            specs = Gem::Specification.find_all_by_name(name)
+            hash[name] = if specs.empty?
+                           nil
+                         else
+                           specs.map(&:version).max.to_s
+                         end
           end
         end
 
@@ -172,6 +177,39 @@ module Legion
           out.error("#{failed.size} gem(s) failed to update") if failed.any?
 
           suggest_detect(out)
+        end
+
+        def cleanup_old_gems(out, gem_names)
+          Gem::Specification.reset
+          cleaned = 0
+
+          gem_names.each do |name|
+            specs = Gem::Specification.find_all_by_name(name).sort_by(&:version)
+            next if specs.size <= 1
+
+            latest = specs.pop
+            specs.each do |old_spec|
+              Gem::Uninstaller.new(
+                old_spec.name,
+                version:            old_spec.version,
+                ignore:             true,
+                executables:        false,
+                force:              true,
+                abort_on_dependent: false
+              ).uninstall
+              out.success("  Cleaned #{old_spec.name}-#{old_spec.version} (keeping #{latest.version})")
+              cleaned += 1
+            rescue StandardError => e
+              out.error("  Failed to clean #{old_spec.name}-#{old_spec.version}: #{e.message}")
+            end
+          end
+
+          out.spacer
+          if cleaned.positive?
+            out.success("Cleaned #{cleaned} old gem version(s)")
+          else
+            puts 'No old gem versions to clean'
+          end
         end
 
         def suggest_detect(out)

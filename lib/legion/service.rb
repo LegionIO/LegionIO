@@ -236,6 +236,11 @@ module Legion
     end
 
     def setup_api
+      if @api_thread&.alive?
+        Legion::Logging.warn 'API already running, skipping duplicate setup_api call'
+        return
+      end
+
       require 'legion/api'
       api_settings = Legion::Settings[:api] || {}
       port = api_settings[:port] || 4567
