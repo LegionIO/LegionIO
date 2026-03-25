@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.5.12] - 2026-03-25
+
+### Added
+- `GET /api/stats` endpoint — comprehensive daemon runtime stats: extensions (loaded/actor counts), gaia (status/channels/phases), transport (session/channels), cache/cache_local (pool stats), llm (provider health/routing), data/data_local (pool/tuning via legion-data stats), api (puma threads/routes)
+
+### Changed
+- Bumped gemspec dependency: legion-data >= 1.6.0 (required for `Legion::Data.stats`)
+
 ## [1.5.11] - 2026-03-25
 
 ### Added
