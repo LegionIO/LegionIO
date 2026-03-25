@@ -2,6 +2,15 @@
 
 ## [1.5.7] - 2026-03-24
 
+### Added
+- `Legion::Audit::Archiver` — tiered hot/warm/cold audit retention orchestrator; delegates hot→warm to `Legion::Data::Retention`, exports warm→cold as compressed JSONL via `ColdStorage`, records manifests, verifies hash chain after each run
+- `Legion::Audit::ColdStorage` — upload/download abstraction with `:local` (filesystem) and `:s3` (aws-sdk-s3, optional) backends; raises `BackendNotAvailableError` when aws-sdk-s3 not installed
+- `Legion::Audit::ArchiverActor` — thread-based weekly scheduled actor with hour/day-of-week cron guard; started by `Service#setup_audit_archiver` after telemetry
+- `legion audit archive --dry-run / --execute` — preview or execute tiered archival from CLI
+- `legion audit verify_chain --tier --start --end` — direct hash chain integrity check for hot or warm tier
+- `legion audit restore --date` — restore cold JSONL archives back to warm tier for querying
+- Feature flag: `audit.retention.enabled` (default `false`); settings: `hot_days`, `warm_days`, `cold_years`, `cold_storage`, `cold_backend`, `archive_schedule`, `verify_on_archive`
+
 ### Changed
 - `Legion::Service` starts `CertRotation` after `Crypt.start` when `security.mtls.enabled: true`
 - `Legion::Service#shutdown` stops `CertRotation` before `Crypt.shutdown`
