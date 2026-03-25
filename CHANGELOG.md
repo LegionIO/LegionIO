@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.5.8] - 2026-03-24
+
+### Added
+- `Legion::Compliance::PhiTag` — PHI data classification tagging with `phi?`, `tag`, `tagged_cache_key` methods; gated by `compliance.phi_enabled` setting
+- `Legion::Compliance::PhiAccessLog` — PHI access audit bridge that calls `Legion::Audit.record` with `event_type: 'phi_access'`; gated by `compliance.phi_enabled` setting
+- `Legion::Compliance::PhiErasure` — orchestrates cryptographic erasure via `Legion::Crypt::Erasure`, cache key purge, access log, and verification; all steps guarded by `defined?` checks
+
 ## [1.5.7] - 2026-03-24
 
 ### Added
