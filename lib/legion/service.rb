@@ -265,10 +265,12 @@ module Legion
 
       @api_thread = Thread.new do
         retries = 0
-        max_retries = api_settings.fetch(:bind_retries, 10)
-        retry_wait  = api_settings.fetch(:bind_retry_wait, 3)
+        max_retries = api_settings.fetch(:bind_retries, 3)
+        retry_wait  = api_settings.fetch(:bind_retry_wait, 2)
 
         begin
+          raise Errno::EADDRINUSE, "port #{port} already bound" if port_in_use?(bind, port)
+
           Legion::API.run!(traps: false)
         rescue Errno::EADDRINUSE
           retries += 1
@@ -629,6 +631,13 @@ module Legion
     end
 
     private
+
+    def port_in_use?(bind, port)
+      TCPServer.new(bind, port).close
+      false
+    rescue Errno::EADDRINUSE
+      true
+    end
 
     def build_api_tls_config(api_settings)
       tls = api_settings[:tls] || {}

@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.5.13] - 2026-03-25
+
+### Fixed
+- API startup no longer spams Puma banner on port conflict — pre-checks port with lightweight TCP probe before attempting Puma boot
+- Reduced API bind retries from 10 to 3 (6s total vs 30s) so boot completes quickly when port is occupied
+- Daemon remains fully functional (shutdown, Ctrl+C) even when API fails to bind
+
 ## [1.5.12] - 2026-03-25
 
 ### Added
