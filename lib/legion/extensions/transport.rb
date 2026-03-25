@@ -106,12 +106,12 @@ module Legion
 
       def bind_e_to_q(to:, from: default_exchange, routing_key: nil, **)
         if from.is_a? String
-          from = "#{transport_class}::Exchanges::#{from.split('_').collect(&:capitalize).join}" unless from.include?('::')
+          from = "#{transport_class}::Exchanges::#{from.tr('.', '_').split('_').collect(&:capitalize).join}" unless from.include?('::')
           auto_create_exchange(from) unless Object.const_defined? from
         end
 
         if to.is_a? String
-          to = "#{transport_class}::Queues::#{to.split('_').collect(&:capitalize).join}" unless to.include?('::')
+          to = "#{transport_class}::Queues::#{to.tr('.', '_').split('_').collect(&:capitalize).join}" unless to.include?('::')
           auto_create_queue(to) unless Object.const_defined?(to)
         end
 

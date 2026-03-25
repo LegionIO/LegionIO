@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.5.9] - 2026-03-25
+
+### Fixed
+- `Subscription#activate` nil guard — skip activate when `@consumer` is nil (prepare failed silently)
+- `Extensions#shutdown` tracks real actor instances in `@running_instances`, cancels them with deadline-based drain
+- `Extensions::Helpers::Base` runner_class derivation improvements for self-contained actors
+
+### Changed
+- Bumped gemspec dependencies: legion-cache >= 1.3.16, legion-settings >= 1.3.19, legion-transport >= 1.4.0, legion-mcp >= 0.5.1
+
 ## [1.5.8] - 2026-03-24
 
 ### Added

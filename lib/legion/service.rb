@@ -319,6 +319,7 @@ module Legion
     def register_logging_hooks
       return unless defined?(Legion::Transport::Connection)
       return unless Legion::Transport::Connection.session_open?
+      return unless Legion::Transport::Connection.respond_to?(:log_channel)
 
       log_ch = Legion::Transport::Connection.log_channel
       unless log_ch
@@ -327,7 +328,7 @@ module Legion
       end
 
       require 'legion/transport/exchanges/logging' unless defined?(Legion::Transport::Exchanges::Logging)
-      exchange = Legion::Transport::Exchanges::Logging.new(channel: log_ch)
+      exchange = Legion::Transport::Exchanges::Logging.new('legion.logging', channel: log_ch)
 
       %i[fatal error warn].each do |level|
         Legion::Logging.send(:"on_#{level}") do |event|

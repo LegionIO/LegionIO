@@ -61,6 +61,7 @@ module Legion
     autoload :Failover,    'legion/cli/failover_command'
     autoload :Apollo,      'legion/cli/apollo_command'
     autoload :TraceCommand, 'legion/cli/trace_command'
+    autoload :Features,     'legion/cli/features_command'
 
     class Main < Thor
       def self.exit_on_failure?
@@ -337,6 +338,9 @@ module Legion
 
       desc 'trace SUBCOMMAND', 'Natural language trace search via LLM'
       subcommand 'trace', Legion::CLI::TraceCommand
+
+      desc 'features SUBCOMMAND', 'Install feature bundles (interactive selector)'
+      subcommand 'features', Legion::CLI::Features
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

@@ -21,6 +21,7 @@ module Legion
         @subscription_tasks = []
         @local_tasks = []
         @actors = []
+        @running_instances = Concurrent::Array.new
         @pending_actors = Concurrent::Array.new
 
         find_extensions
@@ -31,8 +32,11 @@ module Legion
 
       attr_reader :local_tasks
 
-      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
         return nil if @loaded_extensions.nil?
+
+        deadline = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
+        shutdown_start = Time.now
 
         @loaded_extensions.each { |name| Catalog.transition(name, :stopping) }
 
@@ -42,22 +46,54 @@ module Legion
           @subscription_pool = nil
         end
 
-        @subscription_tasks.each do |task|
-          task[:running_class]&.new&.cancel if task[:running_class].is_a?(Class)
+        # Cancel all running instances (real objects, not new instances)
+        @running_instances&.each do |instance|
+          instance.cancel if instance.respond_to?(:cancel)
         rescue StandardError => e
           Legion::Logging.debug "Extension shutdown cancel failed: #{e.message}" if defined?(Legion::Logging)
         end
 
-        @loop_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
-        @once_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
-        @timer_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
-        @poll_tasks.each { |task| task[:running_class].cancel if task[:running_class].respond_to?(:cancel) }
+        # Wait for in-flight work to drain, up to deadline
+        remaining = deadline - (Time.now - shutdown_start)
+        if remaining.positive?
+          drain_start = Time.now
+          loop do
+            elapsed = Time.now - drain_start
+            break if elapsed >= remaining
+
+            still_active = @running_instances&.any? do |inst|
+              (inst.respond_to?(:channel) && inst.instance_variable_get(:@queue)&.channel&.open?) ||
+                (inst.instance_variable_get(:@timer).respond_to?(:running?) && inst.instance_variable_get(:@timer).running?) ||
+                (inst.instance_variable_get(:@loop) == true)
+            end
+            break unless still_active
+
+            sleep 0.25
+          end
+        end
+
+        # Force-close any channels still open after deadline
+        elapsed = Time.now - shutdown_start
+        if elapsed >= deadline
+          Legion::Logging.warn "Shutdown deadline (#{deadline}s) reached, force-closing remaining actors" if defined?(Legion::Logging)
+          @running_instances&.each do |inst|
+            queue = inst.instance_variable_get(:@queue)
+            queue&.channel&.close if queue&.channel.respond_to?(:close) && queue.channel.open?
+            timer = inst.instance_variable_get(:@timer)
+            timer&.kill if timer.respond_to?(:kill)
+            inst.instance_variable_set(:@loop, false) if inst.instance_variable_defined?(:@loop)
+          rescue StandardError => e
+            Legion::Logging.debug "Force-close failed: #{e.message}" if defined?(Legion::Logging)
+          end
+        end
+
+        @running_instances&.clear
 
         @loaded_extensions.each do |name|
           Catalog.transition(name, :stopped)
           unregister_capabilities(name)
         end
-        Legion::Logging.info 'Successfully shut down all actors'
+        Legion::Logging.info "Successfully shut down all actors (#{(Time.now - shutdown_start).round(1)}s)"
       end
 
       def load_extensions
@@ -276,12 +312,16 @@ module Legion
 
         if actor_class.ancestors.include? Legion::Extensions::Actors::Every
           @timer_tasks.push(extension_hash)
+          @running_instances << extension_hash[:running_class]
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Once
           @once_tasks.push(extension_hash)
+          @running_instances << extension_hash[:running_class]
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Loop
           @loop_tasks.push(extension_hash)
+          @running_instances << extension_hash[:running_class]
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Poll
           @poll_tasks.push(extension_hash)
+          @running_instances << extension_hash[:running_class]
         elsif actor_class.ancestors.include? Legion::Extensions::Actors::Subscription
           hook_subscription_actors_pooled([extension_hash])
         else
@@ -368,6 +408,7 @@ module Legion
 
           begin
             entry[:instance].activate if entry[:instance].respond_to?(:activate)
+            @running_instances << entry[:instance]
           rescue StandardError => e
             ext_name = entry[:actor_hash][:extension_name]
             Legion::Logging.error "[Subscription] activate failed for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
@@ -709,8 +750,11 @@ module Legion
         segments = Helpers::Segments.derive_segments(gem_name)
         tier     = category == :default ? 5 : (categories.dig(category, :tier) || 5)
 
-        # Multi-segment gem names always need nesting for correct require paths
+        # Multi-segment gem names: check if the gem actually uses nested directories
+        # (e.g. lex-agentic-memory -> agentic/memory/) or flat underscored naming
+        # (e.g. lex-swarm-github -> swarm_github.rb). Probe the gem's lib/ to decide.
         nesting = true if segments.length > 1
+        nesting = probe_nesting(gem_name, segments) if nesting && segments.length > 1
 
         if nesting
           const_path   = Helpers::Segments.derive_const_path(gem_name)
@@ -723,6 +767,19 @@ module Legion
 
         { gem_name: gem_name, category: category, tier: tier,
           segments: segments, const_path: const_path, require_path: require_path }
+      end
+
+      def probe_nesting(gem_name, segments)
+        gem_dir = Gem::Specification.find_by_name(gem_name).gem_dir
+        nested_path = "#{gem_dir}/lib/legion/extensions/#{segments.join('/')}.rb"
+        return true if File.exist?(nested_path)
+
+        flat_path = "#{gem_dir}/lib/legion/extensions/#{segments.join('_')}.rb"
+        return false if File.exist?(flat_path)
+
+        true # default to nested if neither found
+      rescue Gem::MissingSpecError
+        true
       end
 
       def default_category_registry

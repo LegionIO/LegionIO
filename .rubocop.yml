@@ -52,6 +52,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/failover_command.rb'
     - 'lib/legion/cli/setup_command.rb'
     - 'lib/legion/cli/trace_command.rb'
+    - 'lib/legion/cli/features_command.rb'
 
 Metrics/AbcSize:
   Max: 60

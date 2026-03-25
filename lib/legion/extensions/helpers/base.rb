@@ -96,8 +96,13 @@ module Legion
 
         def full_path
           @full_path ||= begin
-            gem_name = "lex-#{segments.join('-')}"
-            gem_dir = Gem::Specification.find_by_name(gem_name).gem_dir
+            base_name = segments.join('-')
+            gem_name = "lex-#{base_name}"
+            gem_dir = begin
+              Gem::Specification.find_by_name(gem_name).gem_dir
+            rescue Gem::MissingSpecError
+              Gem::Specification.find_by_name("lex-#{base_name.tr('_', '-')}").gem_dir
+            end
             require_path = Helpers::Segments.derive_require_path(gem_name)
             "#{gem_dir}/lib/#{require_path}"
           end

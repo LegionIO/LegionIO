@@ -86,6 +86,10 @@ module Legion
         end
 
         def activate
+          unless @consumer
+            log.warn "[Subscription] skipping activate for #{lex_name}/#{runner_name}: no consumer (prepare failed?)"
+            return
+          end
           @queue.subscribe_with(@consumer)
           log.info "[Subscription] activated: #{lex_name}/#{runner_name} (consumer registered)"
         end
