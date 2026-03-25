@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.5.14] - 2026-03-25
+
+### Fixed
+- Shutdown no longer hangs when network is unreachable — all component shutdowns wrapped in bounded timeouts via `shutdown_component` helper (#30)
+- Reload path also wrapped with same timeout guards to prevent hangs during network-triggered reload (#30)
+
+### Added
+- Network watchdog: background `Concurrent::TimerTask` monitors transport/data/cache connectivity, pauses actors after sustained failures, triggers `Legion.reload` when network restores (#30)
+- `Legion::Extensions.pause_actors` suspends all `Every` timer tasks without destroying instances (#30)
+- Watchdog is feature-flagged via `network.watchdog.enabled` (default: false), configurable threshold and interval (#30)
+
 ## [1.5.13] - 2026-03-25
 
 ### Fixed
