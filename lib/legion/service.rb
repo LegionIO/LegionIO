@@ -38,6 +38,7 @@ module Legion
         require 'legion/crypt'
         Legion::Crypt.start
         Legion::Readiness.mark_ready(:crypt)
+        setup_mtls_rotation
       end
 
       Legion::Settings.resolve_secrets!
@@ -495,6 +496,7 @@ module Legion
       Legion::Transport::Connection.shutdown
       Legion::Readiness.mark_not_ready(:transport)
 
+      shutdown_mtls_rotation
       Legion::Crypt.shutdown
       Legion::Readiness.mark_not_ready(:crypt)
 
@@ -567,6 +569,34 @@ module Legion
     def load_extensions
       require 'legion/runner'
       Legion::Extensions.hook_extensions
+    end
+
+    def setup_mtls_rotation
+      enabled = Legion::Settings[:security]&.dig(:mtls, :enabled)
+      return unless enabled
+
+      unless defined?(Legion::Crypt::CertRotation)
+        require 'legion/crypt/mtls'
+        require 'legion/crypt/cert_rotation'
+      end
+      return unless defined?(Legion::Crypt::CertRotation)
+
+      @cert_rotation = Legion::Crypt::CertRotation.new
+      @cert_rotation.start
+      Legion::Logging.info '[mTLS] CertRotation started'
+    rescue LoadError => e
+      Legion::Logging.warn "mTLS rotation skipped: #{e.message}"
+    rescue StandardError => e
+      Legion::Logging.warn "mTLS rotation setup failed: #{e.message}"
+    end
+
+    def shutdown_mtls_rotation
+      return unless @cert_rotation
+
+      @cert_rotation.stop
+      @cert_rotation = nil
+    rescue StandardError => e
+      Legion::Logging.warn "mTLS rotation shutdown error: #{e.message}"
     end
 
     def self.log_privacy_mode_status
