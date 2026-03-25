@@ -24,21 +24,19 @@ module Legion
           )
         end
 
-        def query_knowledge(text:, limit: 5, **opts)
+        def query_knowledge(text:, limit: 5, **)
           unless defined?(Legion::Apollo) && Legion::Apollo.started?
             Legion::Logging.debug 'query_knowledge called but Apollo is not available' if defined?(Legion::Logging)
             return { success: false, error: :apollo_not_available }
           end
 
-          Legion::Apollo.query(text: text, limit: limit, **opts)
+          Legion::Apollo.query(text: text, limit: limit, **)
         end
 
         private
 
         def extract_if_needed(content_or_path, type:)
-          if content_or_path.is_a?(String) && File.exist?(content_or_path)
-            return extract_file(content_or_path, type: type)
-          end
+          return extract_file(content_or_path, type: type) if content_or_path.is_a?(String) && File.exist?(content_or_path)
 
           return extract_file(content_or_path, type: type) if content_or_path.respond_to?(:read)
 
@@ -64,7 +62,8 @@ module Legion
         end
 
         def derive_lex_name
-          self.class.name&.split('::')&.dig(2)&.downcase || 'unknown'
+          parts = self.class.name&.split('::')
+          parts && parts[2] ? parts[2].downcase : 'unknown'
         end
       end
     end

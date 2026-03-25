@@ -58,8 +58,8 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
         allow(Legion::Apollo).to receive(:started?).and_return(true)
         allow(Legion::Apollo).to receive(:ingest).and_return({ success: true })
         stub_const('Legion::Data::Extract', double(
-          extract: { success: true, text: 'extracted text', metadata: { pages: 5 }, type: :pdf }
-        ))
+                                              extract: { success: true, text: 'extracted text', metadata: { pages: 5 }, type: :pdf }
+                                            ))
         allow(File).to receive(:exist?).and_return(true)
       end
 

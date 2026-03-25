@@ -1,5 +1,16 @@
 # Legion Changelog
 
+## [1.5.17] - 2026-03-25
+
+### Added
+- `Helpers::Knowledge` — universal `ingest_knowledge` and `query_knowledge` mixin for all extensions; included automatically in `Extensions::Core`
+- Automatic file extraction via `Legion::Data::Extract` when a file path is passed to `ingest_knowledge`
+- Graceful degradation when `Legion::Apollo` or `Legion::Data::Extract` are not available
+- `setup_apollo` in `Service` boot sequence (between LLM and GAIA); wires `Legion::Apollo.start` with `LoadError`/`StandardError` rescue
+- `:apollo` added to `Readiness::COMPONENTS` between `:llm` and `:gaia`
+- `legion-apollo >= 0.2.1` dependency in gemspec
+- `Helpers::LLM#llm_embed` in LegionIO now forwards all keyword arguments (`provider:`, `dimensions:`, etc.) via anonymous `**` forwarding
+
 ## [1.5.15] - 2026-03-25
 
 ### Removed
