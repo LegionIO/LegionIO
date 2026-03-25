@@ -98,6 +98,15 @@ module Legion
         end
       end
 
+      begin
+        setup_apollo
+        Legion::Readiness.mark_ready(:apollo)
+      rescue LoadError
+        Legion::Logging.info 'Legion::Apollo gem is not installed, starting without Apollo'
+      rescue StandardError => e
+        Legion::Logging.warn "Legion::Apollo failed to load: #{e.message}"
+      end
+
       if gaia
         begin
           setup_gaia
@@ -315,6 +324,17 @@ module Legion
       Legion::Logging.info 'Legion::Gaia gem is not installed, starting without cognitive layer'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Gaia failed to load: #{e.message}"
+    end
+
+    def setup_apollo
+      Legion::Logging.info 'Setting up Legion::Apollo'
+      require 'legion/apollo'
+      Legion::Apollo.start
+      Legion::Logging.info 'Legion::Apollo started'
+    rescue LoadError
+      Legion::Logging.info 'Legion::Apollo gem is not installed, starting without Apollo'
+    rescue StandardError => e
+      Legion::Logging.warn "Legion::Apollo failed to load: #{e.message}"
     end
 
     def setup_transport
