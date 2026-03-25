@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'timeout'
 require_relative 'readiness'
 require_relative 'process_role'
 
@@ -130,6 +131,7 @@ module Legion
       api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings.fetch(:enabled, true)
       setup_api if @api_enabled
+      setup_network_watchdog
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
     end
@@ -465,13 +467,14 @@ module Legion
       Legion::Settings[:client][:shutting_down] = true
       Legion::Events.emit('service.shutting_down')
 
+      shutdown_network_watchdog
       shutdown_audit_archiver
       shutdown_api
 
       Legion::Metrics.reset! if defined?(Legion::Metrics)
 
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
-        Legion::Gaia.shutdown
+        shutdown_component('Gaia') { Legion::Gaia.shutdown }
         Legion::Readiness.mark_not_ready(:gaia)
       end
 
@@ -480,32 +483,32 @@ module Legion
         @cluster_leader = nil
       end
 
-      Legion::Extensions.shutdown
+      shutdown_component('Extensions', timeout: 15) { Legion::Extensions.shutdown }
       Legion::Readiness.mark_not_ready(:extensions)
 
       if Legion::Settings[:llm]&.dig(:connected)
-        Legion::LLM.shutdown
+        shutdown_component('LLM') { Legion::LLM.shutdown }
         Legion::Readiness.mark_not_ready(:llm)
       end
 
       if defined?(Legion::Rbac) && Legion::Settings[:rbac]&.dig(:connected)
-        Legion::Rbac.shutdown
+        shutdown_component('Rbac') { Legion::Rbac.shutdown }
         Legion::Readiness.mark_not_ready(:rbac)
       end
 
-      Legion::Data.shutdown if Legion::Settings[:data][:connected]
+      shutdown_component('Data') { Legion::Data.shutdown } if Legion::Settings[:data][:connected]
       Legion::Readiness.mark_not_ready(:data)
 
       Legion::Leader.reset! if defined?(Legion::Leader)
 
-      Legion::Cache.shutdown
+      shutdown_component('Cache') { Legion::Cache.shutdown }
       Legion::Readiness.mark_not_ready(:cache)
 
-      Legion::Transport::Connection.shutdown
+      shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
       Legion::Readiness.mark_not_ready(:transport)
 
       shutdown_mtls_rotation
-      Legion::Crypt.shutdown
+      shutdown_component('Crypt') { Legion::Crypt.shutdown }
       Legion::Readiness.mark_not_ready(:crypt)
 
       Legion::Settings[:client][:ready] = false
@@ -516,26 +519,27 @@ module Legion
       Legion::Logging.info 'Legion::Service.reload was called'
       Legion::Settings[:client][:ready] = false
 
+      shutdown_network_watchdog
       shutdown_api
 
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
-        Legion::Gaia.shutdown
+        shutdown_component('Gaia') { Legion::Gaia.shutdown }
         Legion::Readiness.mark_not_ready(:gaia)
       end
 
-      Legion::Extensions.shutdown
+      shutdown_component('Extensions', timeout: 15) { Legion::Extensions.shutdown }
       Legion::Readiness.mark_not_ready(:extensions)
 
-      Legion::Data.shutdown
+      shutdown_component('Data') { Legion::Data.shutdown }
       Legion::Readiness.mark_not_ready(:data)
 
-      Legion::Cache.shutdown
+      shutdown_component('Cache') { Legion::Cache.shutdown }
       Legion::Readiness.mark_not_ready(:cache)
 
-      Legion::Transport::Connection.shutdown
+      shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
       Legion::Readiness.mark_not_ready(:transport)
 
-      Legion::Crypt.shutdown
+      shutdown_component('Crypt') { Legion::Crypt.shutdown }
       Legion::Readiness.mark_not_ready(:crypt)
 
       Legion::Readiness.wait_until_not_ready(:transport, :data, :cache, :crypt)
@@ -569,6 +573,7 @@ module Legion
 
       Legion::Crypt.cs
       setup_api if @api_enabled
+      setup_network_watchdog
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
       Legion::Logging.info 'Legion has been reloaded'
@@ -628,6 +633,65 @@ module Legion
     rescue StandardError => e
       Legion::Logging.debug "Service#log_privacy_mode_status failed: #{e.message}" if defined?(Legion::Logging)
       nil
+    end
+
+    def shutdown_component(name, timeout: 5, &)
+      Timeout.timeout(timeout, &)
+    rescue Timeout::Error
+      Legion::Logging.warn "#{name} shutdown timed out after #{timeout}s, forcing"
+    rescue StandardError => e
+      Legion::Logging.warn "#{name} shutdown error: #{e.message}"
+    end
+
+    def setup_network_watchdog
+      return unless Legion::Settings.dig(:network, :watchdog, :enabled)
+
+      @consecutive_failures = Concurrent::AtomicFixnum.new(0)
+      threshold = Legion::Settings.dig(:network, :watchdog, :failure_threshold) || 5
+      interval = Legion::Settings.dig(:network, :watchdog, :check_interval) || 15
+
+      @network_watchdog = Concurrent::TimerTask.new(execution_interval: interval) do
+        if network_healthy?
+          prev = @consecutive_failures.value
+          @consecutive_failures.value = 0
+          if prev >= threshold
+            Legion::Logging.info '[Watchdog] Network restored, triggering reload'
+            Thread.new { Legion.reload }
+          end
+        else
+          count = @consecutive_failures.increment
+          Legion::Logging.warn "[Watchdog] Network check failed (#{count}/#{threshold})"
+          if count == threshold
+            Legion::Logging.error '[Watchdog] Network failure threshold reached, pausing actors'
+            Legion::Extensions.pause_actors if Legion::Extensions.respond_to?(:pause_actors)
+          end
+        end
+      rescue StandardError => e
+        Legion::Logging.debug "[Watchdog] check error: #{e.message}"
+      end
+      @network_watchdog.execute
+      Legion::Logging.info "[Watchdog] Network watchdog started (interval=#{interval}s, threshold=#{threshold})"
+    rescue StandardError => e
+      Legion::Logging.warn "Network watchdog setup failed: #{e.message}"
+    end
+
+    def shutdown_network_watchdog
+      @network_watchdog&.shutdown
+      @network_watchdog = nil
+    end
+
+    def network_healthy?
+      return true if defined?(Legion::Transport::Connection) && Legion::Transport::Connection.lite_mode?
+
+      checks = []
+      checks << Legion::Transport::Connection.session_open? if Legion::Settings[:transport][:connected]
+      if Legion::Settings[:data][:connected] && defined?(Legion::Data::Connection)
+        checks << (Legion::Data::Connection.sequel&.test_connection rescue false) # rubocop:disable Style/RescueModifier
+      end
+      checks << Legion::Cache.connected? if Legion::Settings[:cache][:connected] && defined?(Legion::Cache)
+      checks.any?
+    rescue StandardError
+      false
     end
 
     private

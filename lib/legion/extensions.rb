@@ -96,6 +96,16 @@ module Legion
         Legion::Logging.info "Successfully shut down all actors (#{(Time.now - shutdown_start).round(1)}s)"
       end
 
+      def pause_actors
+        @running_instances&.each do |inst|
+          timer = inst.instance_variable_get(:@timer)
+          timer&.shutdown if timer.respond_to?(:shutdown)
+        rescue StandardError => e
+          Legion::Logging.debug "pause_actors: #{e.message}" if defined?(Legion::Logging)
+        end
+        Legion::Logging.info 'All actors paused' if defined?(Legion::Logging)
+      end
+
       def load_extensions
         @extensions ||= []
         @loaded_extensions ||= []
