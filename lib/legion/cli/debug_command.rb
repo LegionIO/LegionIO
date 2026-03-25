@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'fileutils'
 require 'net/http'
 require 'json'
 require 'socket'
@@ -23,34 +24,57 @@ module Legion
       desc 'dump', 'Full diagnostic dump (markdown, suitable for piping to LLM)'
       default_task :dump
       def dump
-        sections = {}
+        sections = collect_all_sections
 
-        sections[:versions]    = section_versions
-        sections[:doctor]      = section_doctor
-        sections[:config]      = section_config
-        sections[:gems]        = section_gems
-        sections[:extensions]  = section_extensions
-        sections[:rbac]        = section_rbac
-        sections[:llm]         = section_llm
-        sections[:gaia]        = section_gaia
-        sections[:transport]   = section_transport
-        sections[:events]      = section_events
-        sections[:apollo]      = section_apollo
-        sections[:remote_redis] = section_remote_redis
-        sections[:local_redis]  = section_local_redis
-        sections[:postgresql]   = section_postgresql
-        sections[:rabbitmq]     = section_rabbitmq
-        sections[:api_health]   = section_api_health
+        output = if options[:json]
+                   ::JSON.pretty_generate(sections)
+                 else
+                   build_markdown(sections)
+                 end
 
-        if options[:json]
-          puts ::JSON.pretty_generate(sections)
-        else
-          render_markdown(sections)
-        end
+        puts output
+
+        path = write_dump_file(output)
+        warn "Saved to #{path}" if path
       end
+
+      DEBUG_DIR = File.expand_path('~/.legionio/debug')
 
       no_commands do # rubocop:disable Metrics/BlockLength
         private
+
+        def collect_all_sections
+          sections = {}
+          sections[:versions]     = section_versions
+          sections[:doctor]       = section_doctor
+          sections[:config]       = section_config
+          sections[:gems]         = section_gems
+          sections[:extensions]   = section_extensions
+          sections[:rbac]         = section_rbac
+          sections[:llm]          = section_llm
+          sections[:gaia]         = section_gaia
+          sections[:transport]    = section_transport
+          sections[:events]       = section_events
+          sections[:apollo]       = section_apollo
+          sections[:remote_redis] = section_remote_redis
+          sections[:local_redis]  = section_local_redis
+          sections[:postgresql]   = section_postgresql
+          sections[:rabbitmq]     = section_rabbitmq
+          sections[:api_health]   = section_api_health
+          sections
+        end
+
+        def write_dump_file(output)
+          FileUtils.mkdir_p(DEBUG_DIR)
+          ext = options[:json] ? 'json' : 'md'
+          filename = "#{Time.now.utc.strftime('%Y-%m-%d_%H%M%S')}.#{ext}"
+          path = File.join(DEBUG_DIR, filename)
+          File.write(path, output)
+          path
+        rescue StandardError => e
+          warn "Warning: could not write debug file: #{e.message}"
+          nil
+        end
 
         def api_host
           options[:host] || '127.0.0.1'
@@ -390,37 +414,38 @@ module Legion
           end
         end
 
-        def render_markdown(sections)
-          puts '# LegionIO Diagnostic Dump'
-          puts
-          puts "Generated: #{Time.now.utc.iso8601}"
-          puts
+        def build_markdown(sections)
+          lines = []
+          lines << '# LegionIO Diagnostic Dump'
+          lines << ''
+          lines << "Generated: #{Time.now.utc.iso8601}"
+          lines << ''
 
-          md_section('Versions', sections[:versions])
-          md_section('Doctor Checks', sections[:doctor])
-          md_section('Configuration (redacted)', sections[:config])
-          md_section('Installed Gems', sections[:gems])
-          md_section('Loaded Extensions', sections[:extensions])
-          md_section('RBAC Roles', sections[:rbac])
-          md_section('LLM Status', sections[:llm])
-          md_section('GAIA Status', sections[:gaia])
-          md_section('Transport Status', sections[:transport])
-          md_section('Recent Events (last 20)', sections[:events])
-          md_section('Apollo Stats', sections[:apollo])
-          md_section('Remote Redis', sections[:remote_redis])
-          md_section('Local Redis', sections[:local_redis])
-          md_section('PostgreSQL', sections[:postgresql])
-          md_section('RabbitMQ', sections[:rabbitmq])
-          md_section('API Health', sections[:api_health])
-        end
+          { 'Versions'                 => :versions,
+            'Doctor Checks'            => :doctor,
+            'Configuration (redacted)' => :config,
+            'Installed Gems'           => :gems,
+            'Loaded Extensions'        => :extensions,
+            'RBAC Roles'               => :rbac,
+            'LLM Status'               => :llm,
+            'GAIA Status'              => :gaia,
+            'Transport Status'         => :transport,
+            'Recent Events (last 20)'  => :events,
+            'Apollo Stats'             => :apollo,
+            'Remote Redis'             => :remote_redis,
+            'Local Redis'              => :local_redis,
+            'PostgreSQL'               => :postgresql,
+            'RabbitMQ'                 => :rabbitmq,
+            'API Health'               => :api_health }.each do |title, key|
+            lines << "## #{title}"
+            lines << ''
+            lines << '```json'
+            lines << ::JSON.pretty_generate(sections[key])
+            lines << '```'
+            lines << ''
+          end
 
-        def md_section(title, data)
-          puts "## #{title}"
-          puts
-          puts '```json'
-          puts ::JSON.pretty_generate(data)
-          puts '```'
-          puts
+          lines.join("\n")
         end
       end
     end
