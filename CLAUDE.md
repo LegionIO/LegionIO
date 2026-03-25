@@ -633,6 +633,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/telemetry.rb` | Opt-in OpenTelemetry tracing: `with_span` wrapper, `sanitize_attributes`, `record_exception` |
 | `lib/legion/metrics.rb` | Opt-in Prometheus metrics: event-driven counters, pull-based gauges, `prometheus-client` guarded |
 | `lib/legion/api/metrics.rb` | `GET /metrics` Prometheus text-format endpoint with gauge refresh |
+| `lib/legion/api/stats.rb` | `GET /api/stats` comprehensive daemon runtime stats (extensions, gaia, transport, cache, llm, data, api) |
 | `lib/legion/chat/notification_queue.rb` | Thread-safe priority queue for background notifications (critical/info/debug) |
 | `lib/legion/chat/notification_bridge.rb` | Event-driven bridge: matches Legion events to chat notifications via fnmatch patterns |
 | `lib/legion/api/middleware/auth.rb` | Auth: JWT Bearer auth middleware (real token validation, skip paths for health/ready) |
