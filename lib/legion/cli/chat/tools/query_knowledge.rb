@@ -43,7 +43,7 @@ module Legion
           private
 
           def apollo_query(query:, domain:, limit:)
-            body = { query: query, limit: limit }
+            body = { query: query, limit: limit, status: %w[confirmed candidate] }
             body[:domain] = domain if domain
 
             uri = URI("http://#{DEFAULT_HOST}:#{apollo_port}/api/apollo/query")

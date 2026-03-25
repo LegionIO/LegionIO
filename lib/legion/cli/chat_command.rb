@@ -34,6 +34,7 @@ module Legion
 
       autoload :Session, 'legion/cli/chat/session'
       autoload :StatusIndicator, 'legion/cli/chat/status_indicator'
+      autoload :ApolloWriteback, 'legion/cli/chat/apollo_writeback'
 
       desc 'interactive', 'Start interactive AI conversation'
       def interactive
@@ -102,13 +103,21 @@ module Legion
 
         chat_log.info "headless prompt model=#{session.model_id} length=#{text.length}"
 
+        turn_tool_calls = []
+        tool_callbacks = {
+          on_tool_call: ->(tc) { turn_tool_calls << { name: tc.name, args: tc.arguments, result: nil } },
+          on_tool_result: ->(tr) { turn_tool_calls.last[:result] = tr.to_s.lines.first(3).join.rstrip if turn_tool_calls.last }
+        }
+
         response = if options[:output_format] == 'json'
-                     session.send_message(text)
+                     session.send_message(text, **tool_callbacks)
                    else
-                     session.send_message(text) { |chunk| print chunk.content if chunk.content }
+                     session.send_message(text, **tool_callbacks) { |chunk| print chunk.content if chunk.content }
                    end
 
         chat_log.info "headless complete tokens_in=#{session.stats[:input_tokens]} tokens_out=#{session.stats[:output_tokens]}"
+
+        headless_writeback(text, response&.content, turn_tool_calls, session)
 
         if options[:output_format] == 'json'
           out.json({
@@ -298,11 +307,13 @@ module Legion
             buffer = String.new
             tool_index = 0
             tool_total = 0
+            turn_tool_calls = []
             @session.send_message(
               stripped,
               on_tool_call:   lambda { |tc|
                 tool_index += 1
                 chat_log.debug "tool_call name=#{tc.name} args=#{tc.arguments.keys.join(',')}"
+                turn_tool_calls << { name: tc.name, args: tc.arguments, result: nil }
                 @session.emit(:tool_start, {
                                 name: tc.name, args: tc.arguments,
                   index: tool_index, total: tool_total
@@ -312,6 +323,7 @@ module Legion
               on_tool_result: lambda { |tr|
                 result_preview = tr.to_s.lines.first(3).join.rstrip
                 chat_log.debug "tool_result preview=#{result_preview[0..200]}"
+                turn_tool_calls.last[:result] = result_preview if turn_tool_calls.last
                 @session.emit(:tool_complete, {
                                 name: 'tool', result_preview: result_preview,
                   index: tool_index, total: tool_total
@@ -326,6 +338,8 @@ module Legion
             print render_response(buffer, out)
             puts
             puts
+
+            apollo_auto_writeback(stripped, buffer, turn_tool_calls)
           rescue Chat::Session::BudgetExceeded => e
             chat_log.warn "budget_exceeded: #{e.message}"
             puts
@@ -1218,6 +1232,40 @@ module Legion
           )
         rescue StandardError => e
           chat_log.debug "worktree checkpoint failed: #{e.message}"
+        end
+
+        def apollo_auto_writeback(user_query, response_text, turn_tool_calls)
+          return if turn_tool_calls.empty?
+
+          evaluation = Chat::ApolloWriteback.evaluate_turn(
+            tool_calls:    turn_tool_calls,
+            user_query:    user_query,
+            response_text: response_text,
+            model_id:      @session&.model_id
+          )
+          return unless evaluation
+
+          entry_id = Chat::ApolloWriteback.ingest!(evaluation)
+          chat_log.debug "apollo_writeback action=#{evaluation[:action]} entry_id=#{entry_id}" if entry_id
+        rescue StandardError => e
+          chat_log.debug "apollo_writeback failed: #{e.message}"
+        end
+
+        def headless_writeback(user_query, response_text, turn_tool_calls, session)
+          return if turn_tool_calls.empty?
+
+          evaluation = Chat::ApolloWriteback.evaluate_turn(
+            tool_calls:    turn_tool_calls,
+            user_query:    user_query,
+            response_text: response_text,
+            model_id:      session&.model_id
+          )
+          return unless evaluation
+
+          entry_id = Chat::ApolloWriteback.ingest!(evaluation)
+          chat_log&.debug "apollo_writeback action=#{evaluation[:action]} entry_id=#{entry_id}" if entry_id
+        rescue StandardError => e
+          chat_log&.debug "apollo_writeback failed: #{e.message}"
         end
 
         def handle_worktree_rewind(arg, out)
