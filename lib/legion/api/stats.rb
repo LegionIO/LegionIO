@@ -163,7 +163,8 @@ module Legion
             return { connected: false } unless defined?(Legion::Data) && Legion::Settings[:data][:connected]
 
             if Legion::Data.respond_to?(:stats)
-              Legion::Data.stats[:shared] || Legion::Data.stats
+              stats = Legion::Data.stats
+              stats[:shared] || stats
             else
               { connected: true, adapter: begin
                 Legion::Data::Connection.adapter
@@ -188,7 +189,8 @@ module Legion
           end
 
           def collect_api
-            info = { port: Legion::Settings.dig(:http, :port) || 4567 }
+            port = Legion::Settings.dig(:api, :port) || Legion::Settings.dig(:http, :port) || 4567
+            info = { port: port }
 
             # Puma thread pool stats if available
             puma_server = Puma::Server.current if defined?(Puma::Server) && Puma::Server.respond_to?(:current)

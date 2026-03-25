@@ -155,6 +155,7 @@ module Legion
           .merge(gaia_paths)
           .merge(apollo_paths)
           .merge(openapi_paths)
+          .merge(stats_paths)
       end
       private_class_method :paths
 
@@ -1661,6 +1662,42 @@ module Legion
         }
       end
       private_class_method :openapi_paths
+
+      def self.stats_paths
+        {
+          '/api/stats' => {
+            get: {
+              tags:        ['Stats'],
+              summary:     'Comprehensive daemon runtime stats',
+              description: 'Returns runtime statistics for all subsystems: extensions, gaia, transport, cache, llm, data, and api. ' \
+                           'Each section collects independently — one subsystem failure does not affect others.',
+              operationId: 'getStats',
+              responses:   {
+                '200' => ok_response('Stats', wrap_data('StatsObject').merge(
+                                                properties: {
+                                                  data: {
+                                                    type:       'object',
+                                                    properties: {
+                                                      extensions:  { type: 'object' },
+                                                      gaia:        { type: 'object' },
+                                                      transport:   { type: 'object' },
+                                                      cache:       { type: 'object' },
+                                                      cache_local: { type: 'object' },
+                                                      llm:         { type: 'object' },
+                                                      data:        { type: 'object' },
+                                                      data_local:  { type: 'object' },
+                                                      api:         { type: 'object' }
+                                                    }
+                                                  },
+                                                  meta: { '$ref' => '#/components/schemas/Meta' }
+                                                }
+                                              ))
+              }
+            }
+          }
+        }
+      end
+      private_class_method :stats_paths
     end
   end
 end
