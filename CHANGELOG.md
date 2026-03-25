@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.5.10] - 2026-03-25
+
+### Changed
+- Guard bootsnap behind `LEGION_BOOTSNAP=true` env var in `exe/legion` and `exe/legionio`, default to disabled
+- Bootsnap also requires `~/.legionio` to exist (prevents premature directory creation on first run)
+
 ## [1.5.9] - 2026-03-25
 
 ### Fixed
