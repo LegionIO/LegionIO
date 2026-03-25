@@ -517,6 +517,9 @@ module Legion
     end
 
     def reload
+      return if @reloading
+
+      @reloading = true
       Legion::Logging.info 'Legion::Service.reload was called'
       Legion::Settings[:client][:ready] = false
 
@@ -579,6 +582,8 @@ module Legion
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
       Legion::Logging.info 'Legion has been reloaded'
+    ensure
+      @reloading = false
     end
 
     def load_extensions
@@ -658,7 +663,7 @@ module Legion
           @consecutive_failures.value = 0
           if prev >= threshold
             Legion::Logging.info '[Watchdog] Network restored, triggering reload'
-            Thread.new { Legion.reload }
+            Thread.new { Legion.reload } unless @reloading
           end
         else
           count = @consecutive_failures.increment
@@ -691,6 +696,8 @@ module Legion
         checks << (Legion::Data::Connection.sequel&.test_connection rescue false) # rubocop:disable Style/RescueModifier
       end
       checks << Legion::Cache.connected? if Legion::Settings[:cache][:connected] && defined?(Legion::Cache)
+      return true if checks.empty?
+
       checks.any?
     rescue StandardError
       false
