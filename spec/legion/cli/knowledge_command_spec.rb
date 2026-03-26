@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
 require 'thor'
 require 'legion/cli/output'
 require 'legion/cli/error'
@@ -227,6 +228,13 @@ RSpec.describe Legion::CLI::Knowledge do
           .with(hash_including(force: true))
           .and_return(ingest_file_result_success)
         described_class.start(['ingest', tmpfile, '--force', '--no-color'])
+      end
+
+      it 'passes dry_run: true when --dry-run given' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file)
+          .with(hash_including(dry_run: true))
+          .and_return(ingest_file_result_success)
+        described_class.start(['ingest', tmpfile, '--dry-run', '--no-color'])
       end
     end
 

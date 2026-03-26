@@ -33,7 +33,7 @@ module Legion
           out.warn("Query failed: #{result[:error]}")
         end
       end
-      default_task :query
+      default_task :help
 
       desc 'retrieve QUESTION', 'Retrieve source chunks without LLM synthesis'
       option :top_k, type: :numeric, default: 5, desc: 'Number of source chunks'
@@ -60,7 +60,8 @@ module Legion
                    knowledge_ingest.ingest_corpus(path: path, force: options[:force],
                                                   dry_run: options[:dry_run])
                  else
-                   knowledge_ingest.ingest_file(file_path: path, force: options[:force])
+                   knowledge_ingest.ingest_file(file_path: path, force: options[:force],
+                                                dry_run: options[:dry_run])
                  end
         out = formatter
         if options[:json]
@@ -128,7 +129,10 @@ module Legion
         end
 
         def truncate(text, max)
-          text.length > max ? "#{text[0..(max - 3)]}..." : text
+          return text if text.length <= max
+          return text[0, max] if max < 4
+
+          "#{text[0, max - 3]}..."
         end
       end
     end
