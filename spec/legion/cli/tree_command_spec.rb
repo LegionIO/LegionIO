@@ -17,27 +17,29 @@ RSpec.describe Legion::CLI::Main do
   describe '#tree' do
     subject(:output) { capture_tree_output }
 
-    it 'shows legion as the root node' do
-      expect(output).to include('legion')
+    let(:prog) { File.basename($PROGRAM_NAME) }
+
+    it 'shows the binary name as the root node' do
+      expect(output).to include(prog)
     end
 
     it 'does not expose internal Thor namespace paths' do
       expect(output).not_to include('c_l_i')
     end
 
-    it 'does not show the raw namespace legion:c_l_i:main' do
-      expect(output).not_to include('legion:c_l_i:main')
+    it 'does not show the raw namespace for the root command' do
+      expect(output).not_to include("#{prog}:c_l_i:main")
     end
 
     it 'shows subcommand groups with clean prefixed names' do
-      expect(output).to include('legion lex')
-      expect(output).to include('legion task')
-      expect(output).to include('legion worker')
+      expect(output).to include("#{prog} lex")
+      expect(output).to include("#{prog} task")
+      expect(output).to include("#{prog} worker")
     end
 
     it 'does not show raw namespace for subcommands' do
-      expect(output).not_to include('legion:c_l_i:lex')
-      expect(output).not_to include('legion:c_l_i:task')
+      expect(output).not_to include("#{prog}:c_l_i:lex")
+      expect(output).not_to include("#{prog}:c_l_i:task")
     end
 
     it 'includes top-level commands like version and start' do
