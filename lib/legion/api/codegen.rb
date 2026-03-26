@@ -6,16 +6,15 @@ module Legion
       module Codegen
         def self.registered(app) # rubocop:disable Metrics/MethodLength
           app.get '/api/codegen/status' do
-            data = if defined?(Legion::MCP::SelfGenerate)
-                     Legion::MCP::SelfGenerate.status
-                   else
-                     { available: false }
-                   end
-            json_response(data)
+            halt 503, json_error('codegen_unavailable', 'codegen not available', status_code: 503) unless defined?(Legion::MCP::SelfGenerate)
+
+            json_response(Legion::MCP::SelfGenerate.status)
           end
 
           app.get '/api/codegen/generated' do
-            return json_response([], status_code: 200) unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
+            unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
+              halt 503, json_error('codegen_unavailable', 'codegen not available', status_code: 503)
+            end
 
             status_filter = params[:status]
             records = Legion::Extensions::Codegen::Helpers::GeneratedRegistry.list(status: status_filter)

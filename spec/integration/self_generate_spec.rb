@@ -14,7 +14,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'gap detection to generation' do
     it 'detects gaps from observer patterns' do
-      next unless defined?(Legion::MCP::Observer) && defined?(Legion::MCP::GapDetector)
+      skip('Legion::MCP::Observer or Legion::MCP::GapDetector not loaded') unless defined?(Legion::MCP::Observer) && defined?(Legion::MCP::GapDetector)
 
       # Seed unmatched intents — needs >= GAP_INTENT_THRESHOLD (5) with same normalized text
       6.times { Legion::MCP::Observer.record_intent('deploy application to production', nil) }
@@ -28,7 +28,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'SelfGenerate cycle' do
     it 'publishes gaps when enabled' do
-      next unless defined?(Legion::MCP::SelfGenerate) && defined?(Legion::MCP::Observer)
+      skip('Legion::MCP::SelfGenerate or Legion::MCP::Observer not loaded') unless defined?(Legion::MCP::SelfGenerate) && defined?(Legion::MCP::Observer)
 
       allow(Legion::Settings).to receive(:dig).and_return(nil)
       allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :enabled).and_return(true)
@@ -47,14 +47,14 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'tier classification' do
     it 'classifies simple gaps correctly' do
-      next unless defined?(Legion::Extensions::Codegen::Helpers::TierClassifier)
+      skip('Legion::Extensions::Codegen::Helpers::TierClassifier not loaded') unless defined?(Legion::Extensions::Codegen::Helpers::TierClassifier)
 
       gap = { occurrence_count: 3 }
       expect(Legion::Extensions::Codegen::Helpers::TierClassifier.classify(gap: gap)).to eq(:simple)
     end
 
     it 'classifies complex gaps correctly' do
-      next unless defined?(Legion::Extensions::Codegen::Helpers::TierClassifier)
+      skip('Legion::Extensions::Codegen::Helpers::TierClassifier not loaded') unless defined?(Legion::Extensions::Codegen::Helpers::TierClassifier)
 
       gap = { occurrence_count: 15 }
       expect(Legion::Extensions::Codegen::Helpers::TierClassifier.classify(gap: gap)).to eq(:complex)
@@ -63,7 +63,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'code review pipeline' do
     it 'validates clean code through syntax and security' do
-      next unless defined?(Legion::Extensions::Eval::Runners::CodeReview)
+      skip('Legion::Extensions::Eval::Runners::CodeReview not loaded') unless defined?(Legion::Extensions::Eval::Runners::CodeReview)
 
       allow(Legion::Settings).to receive(:dig).and_return(nil)
       allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :validation).and_return(
@@ -94,7 +94,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
     end
 
     it 'rejects code with security violations' do
-      next unless defined?(Legion::Extensions::Eval::Runners::CodeReview)
+      skip('Legion::Extensions::Eval::Runners::CodeReview not loaded') unless defined?(Legion::Extensions::Eval::Runners::CodeReview)
 
       allow(Legion::Settings).to receive(:dig).and_return(nil)
       allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :validation).and_return(
@@ -111,8 +111,8 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'review handler verdict routing' do
     it 'approves and registers a generation' do
-      next unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry) &&
-                  defined?(Legion::Extensions::Codegen::Runners::ReviewHandler)
+      skip('Codegen registry or ReviewHandler not loaded') unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry) &&
+                                                                  defined?(Legion::Extensions::Codegen::Runners::ReviewHandler)
 
       generation = {
         id: 'int_gen_001', gap_id: 'gap_int', gap_type: 'unmatched_intent',
@@ -136,7 +136,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'MCP tool registry' do
     it 'supports dynamic tool registration' do
-      next unless defined?(Legion::MCP::Server)
+      skip('Legion::MCP::Server not loaded') unless defined?(Legion::MCP::Server)
 
       tool_class = Class.new(MCP::Tool) do
         tool_name 'test.integration_tool'
@@ -155,7 +155,7 @@ RSpec.describe 'Self-generating functions integration', :integration do
 
   describe 'function metadata DSL' do
     it 'stores and reads function metadata' do
-      next unless defined?(Legion::Extensions::Helpers::Lex)
+      skip('Legion::Extensions::Helpers::Lex not loaded') unless defined?(Legion::Extensions::Helpers::Lex)
 
       # Use a real module under Legion::Extensions namespace so that Lex helpers resolve
       # segments/log/settings correctly via the Base mixin.

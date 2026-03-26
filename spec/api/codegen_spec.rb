@@ -12,20 +12,20 @@ RSpec.describe 'Codegen API' do
   before(:all) { ApiSpecSetup.configure_settings }
 
   describe 'GET /api/codegen/status' do
-    it 'returns codegen status' do
+    it 'returns 503 when codegen subsystem is unavailable' do
       get '/api/codegen/status'
-      expect(last_response.status).to eq(200)
+      expect(last_response.status).to eq(503)
       body = Legion::JSON.load(last_response.body)
-      expect(body).to have_key(:data)
+      expect(body).to have_key(:error)
     end
   end
 
   describe 'GET /api/codegen/generated' do
-    it 'returns generated functions list' do
+    it 'returns 503 when codegen registry is unavailable' do
       get '/api/codegen/generated'
-      expect(last_response.status).to eq(200)
+      expect(last_response.status).to eq(503)
       body = Legion::JSON.load(last_response.body)
-      expect(body).to have_key(:data)
+      expect(body).to have_key(:error)
     end
   end
 
