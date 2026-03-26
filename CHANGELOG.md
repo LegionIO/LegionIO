@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.6.4] - 2026-03-26
+
+### Fixed
+- fix consumer tag collision on boot: subscription actors using `Thread.current.object_id` produced duplicate tags when `FixedThreadPool` reused threads, causing RabbitMQ `NOT_ALLOWED` connection kill and cascading errors; replaced with `SecureRandom.hex(4)`
+
 ## [1.6.3] - 2026-03-26
 
 ### Changed
