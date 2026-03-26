@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.5.18] - 2026-03-25
+
+### Added
+- `scope:` parameter on `Helpers::Knowledge` (`ingest_knowledge` and `query_knowledge`)
+- Scope routing: `:local` -> `Apollo::Local`, `:global` -> `Apollo`, `:all` -> both with local-first dedup
+- Default query scope configurable via `Settings[:apollo][:local][:default_query_scope]`
+- `setup_apollo` now starts `Apollo::Local` when available
+
 ## [1.5.17] - 2026-03-25
 
 ### Added
