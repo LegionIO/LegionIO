@@ -130,7 +130,7 @@ module Legion
 
       Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
 
-      Legion::Extensions::Memory::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Memory::Helpers::ErrorTracer)
+      Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer)
 
       Legion::Crypt.cs if crypt
 

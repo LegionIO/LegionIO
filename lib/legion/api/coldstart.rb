@@ -19,12 +19,13 @@ module Legion
               halt 503, json_error('coldstart_unavailable', 'lex-coldstart is not loaded', status_code: 503)
             end
 
-            unless defined?(Legion::Extensions::Memory)
-              Legion::Logging.warn 'API POST /api/coldstart/ingest returned 503: lex-memory is not loaded'
-              halt 503, json_error('memory_unavailable', 'lex-memory is not loaded', status_code: 503)
+            unless defined?(Legion::Extensions::Agentic::Memory::Trace)
+              Legion::Logging.warn 'API POST /api/coldstart/ingest returned 503: lex-agentic-memory is not loaded'
+              halt 503, json_error('memory_unavailable', 'lex-agentic-memory is not loaded', status_code: 503)
             end
 
             runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
+            runner.define_singleton_method(:log) { Legion::Logging } unless runner.respond_to?(:log)
 
             result = if File.file?(path)
                        runner.ingest_file(file_path: File.expand_path(path))

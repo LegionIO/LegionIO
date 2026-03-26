@@ -128,7 +128,7 @@ module Legion
           { name: 'Lex',           description: 'Auto-registered LEX runner routes' },
           { name: 'Workers',       description: 'Digital worker lifecycle management' },
           { name: 'Teams',         description: 'Team-level worker and cost views' },
-          { name: 'Coldstart',     description: 'Cold-start memory ingestion (requires lex-coldstart + lex-memory)' },
+          { name: 'Coldstart',     description: 'Cold-start memory ingestion (requires lex-coldstart + lex-agentic-memory)' },
           { name: 'Gaia',          description: 'Gaia cognitive layer status' },
           { name: 'Apollo',        description: 'Apollo knowledge graph (requires lex-apollo + legion-data)' },
           { name: 'OpenAPI',       description: 'OpenAPI spec endpoint' }
@@ -1384,8 +1384,8 @@ module Legion
           '/api/coldstart/ingest' => {
             post: {
               tags:        ['Coldstart'],
-              summary:     'Ingest a file or directory into lex-memory',
-              description: 'Requires lex-coldstart and lex-memory to be loaded.',
+              summary:     'Ingest a file or directory into agentic memory',
+              description: 'Requires lex-coldstart and lex-agentic-memory to be loaded.',
               operationId: 'coldstartIngest',
               requestBody: {
                 required: true,
@@ -1404,7 +1404,7 @@ module Legion
                 '401' => UNAUTH_RESPONSE,
                 '404' => NOT_FOUND_RESPONSE,
                 '422' => UNPROCESSABLE_RESPONSE,
-                '503' => { description: 'lex-coldstart or lex-memory not loaded' }
+                '503' => { description: 'lex-coldstart or lex-agentic-memory not loaded' }
               }
             }
           }

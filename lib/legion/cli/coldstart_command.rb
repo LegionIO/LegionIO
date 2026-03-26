@@ -11,10 +11,10 @@ module Legion
       class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
       class_option :verbose,  type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
 
-      desc 'ingest [PATH...]', 'Ingest Claude memory/CLAUDE.md files into lex-memory traces'
+      desc 'ingest [PATH...]', 'Ingest Claude memory/CLAUDE.md files into agentic memory traces'
       long_desc <<~DESC
         Parse Claude Code MEMORY.md or CLAUDE.md files and convert them into
-        lex-memory traces for cold start bootstrapping.
+        agentic memory traces for cold start bootstrapping.
 
         Accepts any number of file or directory paths. When given a directory,
         all CLAUDE.md and MEMORY.md files are discovered recursively.

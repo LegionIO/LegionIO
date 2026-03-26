@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.5.23] - 2026-03-26
+
+### Changed
+- Remove all lex-memory references from service.rb, API coldstart, and OpenAPI docs; use lex-agentic-memory namespace everywhere
+
 ## [1.5.22] - 2026-03-26
 
 ### Fixed
