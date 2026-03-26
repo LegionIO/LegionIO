@@ -57,6 +57,7 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
       before do
         stub_const('Legion::Apollo::Local', Module.new do
           extend self
+
           define_method(:started?) { true }
           define_method(:ingest) { |**_| { success: true, mode: :local } }
         end)
@@ -117,6 +118,7 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
       before do
         stub_const('Legion::Apollo::Local', Module.new do
           extend self
+
           define_method(:started?) { true }
           define_method(:query) { |**_| { success: true, results: [{ content: 'local result' }], mode: :local } }
         end)
@@ -136,6 +138,7 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
         allow(Legion::Apollo).to receive(:query).and_return({ success: true, results: [{ content: 'global', content_hash: 'g1' }] })
         stub_const('Legion::Apollo::Local', Module.new do
           extend self
+
           define_method(:started?) { true }
           define_method(:query) { |**_| { success: true, results: [{ content: 'local', content_hash: 'l1' }] } }
         end)

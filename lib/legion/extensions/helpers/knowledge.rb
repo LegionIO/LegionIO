@@ -61,13 +61,11 @@ module Legion
           Legion::Apollo.query(text: text, limit: limit, **)
         end
 
-        def query_all(text:, limit:, **) # rubocop:disable Metrics/MethodLength
+        def query_all(text:, limit:, **)
           local_results  = local_available?  ? Array((Legion::Apollo::Local.query(text: text, limit: limit, **) || {})[:results]) : []
-          global_results = global_available? ? Array((Legion::Apollo.query(text: text, limit: limit, **) || {})[:results])       : []
+          global_results = global_available? ? Array((Legion::Apollo.query(text: text, limit: limit, **) || {})[:results]) : []
 
-          if local_results.empty? && global_results.empty? && !local_available? && !global_available?
-            return { success: false, error: :apollo_not_available }
-          end
+          return { success: false, error: :apollo_not_available } if local_results.empty? && global_results.empty? && !local_available? && !global_available?
 
           merged = merge_results(local_results, global_results)
           { success: true, results: merged.first(limit), count: [merged.size, limit].min, mode: :all }

@@ -41,6 +41,7 @@ RSpec.describe Legion::Service do
       before do
         stub_const('Legion::Apollo::Local', Module.new do
           extend self
+
           define_method(:start) { nil }
         end)
         allow(Legion::Apollo::Local).to receive(:start)
