@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'tmpdir'
+require 'fileutils'
 require 'legion/cli/chat/context'
 
 RSpec.describe Legion::CLI::Chat::Context, '.to_system_prompt self-awareness' do

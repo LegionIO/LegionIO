@@ -4,6 +4,7 @@ require 'English'
 require 'json'
 require 'fileutils'
 require 'rbconfig'
+require 'thor'
 require 'legion/cli/output'
 
 module Legion
@@ -196,7 +197,13 @@ module Legion
         # -----------------------------------------------------------------------
 
         def build_scaffold_opts
-          { force: false, json: false, only: nil, full: false, dir: nil }
+          {
+            force: options[:force],
+            json:  options[:json],
+            only:  options[:only],
+            full:  options[:full],
+            dir:   options[:dir]
+          }
         end
 
         # -----------------------------------------------------------------------
