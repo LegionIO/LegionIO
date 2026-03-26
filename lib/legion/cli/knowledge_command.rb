@@ -15,7 +15,7 @@ module Legion
       option :label,      type: :string,  desc: 'Human-readable label for this monitor'
       def add(path)
         require_monitor!
-        exts  = options[:extensions]&.split(',')&.map(&:strip)
+        exts = options[:extensions]&.split(',')&.map(&:strip)
         result = Legion::Extensions::Knowledge::Runners::Monitor.add_monitor(
           path:       path,
           extensions: exts,
@@ -113,7 +113,7 @@ module Legion
           return
         end
 
-        sha, *subject_parts = log_line.split(' ')
+        sha, *subject_parts = log_line.split
         subject = subject_parts.join(' ')
         content = "Git commit: #{sha}\nSubject: #{subject}\n\nDiff stat:\n#{diff_stat}"
         tags    = %w[git commit knowledge-capture]

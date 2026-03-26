@@ -8,13 +8,13 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╭──────────────────────────────────────╮
          │           L E G I O N I O            │
          │                                      │
-         │   280+ extensions  ·  41 MCP tools   │
+         │   280+ extensions  ·  58 MCP tools   │
          │   AI chat CLI  ·  REST API  ·  HA    │
          │   cognitive architecture  ·  Vault    │
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.4.197** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.5.20** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -33,7 +33,7 @@ When A completes, B runs. B triggers C, D, and E in parallel. Conditions gate ex
 But that's just the foundation. LegionIO is also:
 
 - **An AI coding assistant** — interactive chat with tools, code review, commit messages, PR generation, and multi-agent workflows
-- **An MCP server** — 35 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
+- **An MCP server** — 58 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
 - **A cognitive computing platform** — 242 brain-modeled extensions across 18 cognitive domains
 - **A digital worker platform** — AI-as-labor with governance, risk tiers, and cost tracking
 
@@ -49,7 +49,7 @@ For the AI features:
 
 ```bash
 legion                    # launch the interactive TTY shell
-legion chat               # interactive AI REPL with 10 built-in tools
+legion chat               # interactive AI REPL with 40 built-in tools
 legion commit             # AI-generated commit message from staged changes
 legion review             # AI code review of your code
 ```
@@ -162,7 +162,7 @@ legion chat prompt "explain main.rb"    # single-prompt mode
 echo "fix the bug" | legion chat prompt - # pipe from stdin
 ```
 
-**10 built-in tools**: read_file, write_file, edit_file, search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent
+**40 built-in tools**: read_file, write_file, edit_file, search_files, search_content, run_command, save_memory, search_memory, web_search, spawn_agent, search_traces, query_knowledge, ingest_knowledge, consolidate_memory, relate_knowledge, knowledge_maintenance, knowledge_stats, summarize_traces, list_extensions, manage_tasks, system_status, view_events, cost_summary, reflect, manage_schedules, worker_status, detect_anomalies, view_trends, trigger_dream, generate_insights, budget_status, provider_health, model_comparison, shadow_eval_status, entity_extract, arbitrage_status, escalation_status, graph_explore, scheduling_status, memory_status
 
 **Slash commands**: `/help` `/quit` `/cost` `/status` `/clear` `/new` `/save` `/load` `/sessions` `/compact` `/fetch URL` `/search QUERY` `/diff` `/copy` `/rewind` `/memory` `/agent` `/agents` `/plan` `/swarm` `/review` `/permissions` `/personality` `/model` `/edit` `/commit` `/workers` `/dream`
 
@@ -199,6 +199,39 @@ legion memory add "always use rspec"
 legion memory search "testing"
 legion memory forget 3
 ```
+
+### Knowledge
+
+Query and manage the Apollo shared knowledge store and local knowledge index:
+
+```bash
+legion knowledge query "how does transport routing work?"
+legion knowledge retrieve "embedding cosine similarity" --scope global
+legion knowledge ingest /path/to/docs/
+legion knowledge status             # index stats, embedding coverage
+legion knowledge health             # detect orphans, quality metrics
+legion knowledge maintain           # cleanup orphans, reindex
+legion knowledge quality            # quality report
+```
+
+### Mind Growth
+
+Autonomous cognitive architecture expansion system. Analyzes gaps, proposes new cognitive extensions, and builds them via a staged pipeline:
+
+```bash
+legion mind-growth status           # current growth cycle state
+legion mind-growth analyze          # gap analysis against 5 reference models
+legion mind-growth propose          # propose a new concept
+legion mind-growth evaluate <id>    # evaluate a proposal
+legion mind-growth build <id>       # run staged build pipeline
+legion mind-growth list             # list proposals
+legion mind-growth approve <id>     # manually approve
+legion mind-growth reject <id>      # manually reject
+legion mind-growth profile          # cognitive profile across all models
+legion mind-growth health           # extension fitness validation
+```
+
+Requires `lex-mind-growth`. Also exposes 6 MCP tools in the `legion.mind_growth_*` namespace.
 
 ### Digital Workers
 
@@ -326,7 +359,7 @@ legion mcp http           # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**41 tools** in the `legion.*` namespace:
+**58 tools** in the `legion.*` namespace:
 
 | Category | Tools |
 |----------|-------|
@@ -340,6 +373,8 @@ legion mcp http --port 8080 --host 0.0.0.0
 | **Workers** | `list_workers`, `show_worker`, `worker_lifecycle`, `worker_costs`, `team_summary` |
 | **RBAC** | `rbac_assignments`, `rbac_check`, `rbac_grants` |
 | **Analytics** | `routing_stats` |
+| **Knowledge** | `query_knowledge`, `knowledge_health` |
+| **Mind Growth** | `mind_growth_status`, `mind_growth_analyze`, `mind_growth_propose`, `mind_growth_evaluate`, `mind_growth_build`, `mind_growth_profile` |
 
 **Resources**: `legion://runners` (full runner catalog), `legion://extensions/{name}` (extension detail)
 
@@ -475,19 +510,21 @@ Before any Legion code loads, the executable applies three performance optimizat
 ```
 legion start
   └── Legion::Service
-      ├── 1. Logging          (legion-logging)
-      ├── 2. Settings         (legion-settings — /etc/legionio, ~/legionio, ./settings)
-      ├── 3. Crypt            (legion-crypt — Vault connection)
-      ├── 4. Transport        (legion-transport — RabbitMQ)
-      ├── 5. Cache            (legion-cache — Redis/Memcached)
-      ├── 6. Data             (legion-data — database + migrations)
-      ├── 7. RBAC             (legion-rbac — optional role-based access control)
-      ├── 8. LLM              (legion-llm — AI provider setup + routing)
-      ├── 9. GAIA             (legion-gaia — cognitive coordination layer)
-      ├── 10. Supervision     (process supervision)
-      ├── 11. Extensions      (discover + load 280+ LEX gems, filtered by role profile)
-      ├── 12. Cluster Secret  (distribute via Vault or memory)
-      └── 13. API             (Sinatra/Puma on port 4567)
+      ├── 1.  Logging          (legion-logging)
+      ├── 2.  Settings         (legion-settings — /etc/legionio, ~/legionio, ./settings)
+      ├── 3.  Crypt            (legion-crypt — Vault connection)
+      ├── 4.  Transport        (legion-transport — RabbitMQ)
+      ├── 5.  Cache            (legion-cache — Redis/Memcached)
+      ├── 6.  Data             (legion-data — database + migrations)
+      ├── 7.  RBAC             (legion-rbac — optional role-based access control)
+      ├── 8.  LLM              (legion-llm — AI provider setup + routing)
+      ├── 9.  Apollo           (legion-apollo — shared/local knowledge store)
+      ├── 10. GAIA             (legion-gaia — cognitive coordination layer)
+      ├── 11. Telemetry        (OpenTelemetry — optional)
+      ├── 12. Supervision      (process supervision)
+      ├── 13. Extensions       (two-phase parallel load: require+autobuild, then hook_all_actors)
+      ├── 14. Cluster Secret   (distribute via Vault or memory)
+      └── 15. API              (Sinatra/Puma on port 4567)
 ```
 
 Each phase registers with `Legion::Readiness`. All phases are individually toggleable.

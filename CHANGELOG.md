@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.6.0] - 2026-03-26
+
+### Added
+- `legion knowledge monitor add/list/remove/status` — multi-directory corpus monitor management
+- `legion knowledge capture commit` — capture git commit as knowledge (hook-compatible)
+- `legion knowledge capture session` — capture session summary as knowledge (hook-compatible)
+- `legion setup claude-code` now installs write-back hooks for automatic knowledge capture
+- `resolve_corpus_path` falls back to first registered monitor when no explicit path given
+
 ## [1.5.23] - 2026-03-26
 
 ### Changed

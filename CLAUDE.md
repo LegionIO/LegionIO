@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.4.197
+**Version**: 1.6.0
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -47,12 +47,13 @@ Legion.start
       ├── 6.  setup_data         (legion-data, MySQL/SQLite + migrations, optional)
       ├── 7.  setup_rbac         (legion-rbac, optional)
       ├── 8.  setup_llm          (legion-llm, AI provider setup + routing, optional)
-      ├── 9.  setup_gaia         (legion-gaia, cognitive coordination layer, optional)
-      ├── 10. setup_telemetry    (OpenTelemetry, optional)
-      ├── 11. setup_supervision  (process supervision)
-      ├── 12. load_extensions    (parallel require+autobuild on 4-thread pool, then hook_all_actors)
-      ├── 13. Legion::Crypt.cs   (distribute cluster secret)
-      └── 14. setup_api          (start Sinatra/Puma on port 4567)
+      ├── 9.  setup_apollo       (legion-apollo, shared + local knowledge store, optional)
+      ├── 10. setup_gaia         (legion-gaia, cognitive coordination layer, optional)
+      ├── 11. setup_telemetry    (OpenTelemetry, optional)
+      ├── 12. setup_supervision  (process supervision)
+      ├── 13. load_extensions    (two-phase parallel: require+autobuild on FixedThreadPool, then hook_all_actors)
+      ├── 14. Legion::Crypt.cs   (distribute cluster secret)
+      └── 15. setup_api          (start Sinatra/Puma on port 4567)
 ```
 
 Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
@@ -150,7 +151,7 @@ Legion (lib/legion.rb)
 │                      # Populated by Builders::Routes during autobuild
 │
 ├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
-│   └── (41 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
+│   └── (58 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
 │
 ├── DigitalWorker      # Digital worker platform (AI-as-labor governance)
 │   ├── Lifecycle      # Worker state machine (active/paused/retired/terminated)
@@ -194,7 +195,7 @@ Legion (lib/legion.rb)
     │   ├── Session        # Multi-turn chat session with streaming
     │   ├── SessionStore   # Persistent session save/load/list/resume/fork
     │   ├── Permissions    # Tool permission model (interactive/auto_approve/read_only)
-    │   ├── ToolRegistry   # Chat tool discovery and registration (40 built-in + extension tools)
+    │   ├── ToolRegistry   # Chat tool discovery and registration (40 built-in tools + extension tools)
     │   ├── ExtensionTool    # permission_tier DSL module for LEX chat tools (:read/:write/:shell)
     │   ├── ExtensionToolLoader # Lazy discovery of tools/ directories from loaded extensions
     │   ├── Context        # Project awareness (git, language, instructions, extra dirs)
@@ -480,7 +481,7 @@ legion
 
 ### MCP Design
 
-Extracted to the `legion-mcp` gem (v0.5.5). See `legion-mcp/CLAUDE.md` for full architecture.
+Extracted to the `legion-mcp` gem (v0.5.9). See `legion-mcp/CLAUDE.md` for full architecture.
 
 - `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
 - Tool naming: `legion.snake_case_name` (dot namespace, not slash)
@@ -768,7 +769,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 
 ```bash
 bundle install
-bundle exec rspec       # 3194 examples, 0 failures
+bundle exec rspec       # ~3500+ examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
 

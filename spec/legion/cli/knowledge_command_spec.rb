@@ -740,7 +740,10 @@ RSpec.describe Legion::CLI::Knowledge do
   describe 'capture subcommand' do
     describe 'commit' do
       it 'outputs something for a valid git repo' do
-        allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with("git log -1 --format='%H %s' 2>/dev/null").and_return("abc1234def5678 add monitor subcommand\n")
+        git_log_cmd = "git log -1 --format='%H %s' 2>/dev/null"
+        git_log_result = "abc1234def5678 add monitor subcommand\n"
+        allow_any_instance_of(Legion::CLI::CaptureCommand)
+          .to receive(:`).with(git_log_cmd).and_return(git_log_result)
         allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with('git diff HEAD~1 --stat 2>/dev/null').and_return("1 file changed\n")
         expect do
           Legion::CLI::CaptureCommand.start(%w[commit --no-color])
