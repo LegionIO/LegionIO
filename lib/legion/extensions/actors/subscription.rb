@@ -51,7 +51,7 @@ module Legion
         def prepare # rubocop:disable Metrics/AbcSize
           @queue = queue.new
           @queue.channel.prefetch(prefetch) if defined? prefetch
-          consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.hex(4)}"
+          consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
           @consumer.on_delivery do |delivery_info, metadata, payload|
             message = process_message(payload, metadata, delivery_info)
@@ -151,7 +151,7 @@ module Legion
         def subscribe # rubocop:disable Metrics/AbcSize
           log.info "[Subscription] subscribing: #{lex_name}/#{runner_name}"
           sleep(delay_start) if delay_start.positive?
-          consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.hex(4)}"
+          consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           on_cancellation = block { cancel }
 
           @consumer = @queue.subscribe(manual_ack: manual_ack, block: false, consumer_tag: consumer_tag, on_cancellation: on_cancellation) do |*rmq_message|

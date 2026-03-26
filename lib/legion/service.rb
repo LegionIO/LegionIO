@@ -126,9 +126,8 @@ module Legion
       if extensions
         load_extensions
         Legion::Readiness.mark_ready(:extensions)
+        setup_generated_functions
       end
-
-      setup_generated_functions
 
       Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
 
