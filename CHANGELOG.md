@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.6.3] - 2026-03-26
+
+### Changed
+- `legionio update` now uses `gem outdated` instead of custom HTTP client to check rubygems.org
+- Remove `concurrent-ruby`, `net/http`, `json` dependencies from update command
+- 4 persistent keep-alive connections replaced by single `gem outdated` call (~8s, 100% reliable)
+
 ## [1.6.2] - 2026-03-26
 
 ### Fixed

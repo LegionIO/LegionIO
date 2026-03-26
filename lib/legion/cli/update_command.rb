@@ -3,9 +3,6 @@
 require 'English'
 require 'thor'
 require 'rbconfig'
-require 'concurrent'
-require 'net/http'
-require 'json'
 require 'rubygems/uninstaller'
 
 module Legion
@@ -81,83 +78,60 @@ module Legion
 
         def update_gems(gem_names, gem_bin, dry_run: false)
           local_versions = snapshot_versions(gem_names)
-          remote_versions = fetch_remote_versions_parallel(gem_names)
+          outdated_map = fetch_outdated(gem_bin, gem_names)
 
-          outdated = gem_names.select do |name|
-            remote = remote_versions[name]
-            local = local_versions[name]
-            remote && local && Gem::Version.new(remote) > Gem::Version.new(local)
-          end
-
-          return dry_run_results(gem_names, local_versions, remote_versions, outdated) if dry_run
-
-          return current_results(gem_names, remote_versions) if outdated.empty?
-
-          install_results(gem_names, gem_bin, remote_versions, outdated)
-        end
-
-        def dry_run_results(gem_names, local_versions, remote_versions, outdated)
-          gem_names.map do |name|
-            remote = remote_versions[name]
-            status = if outdated.include?(name) then 'available'
-                     elsif remote then 'current'
-                     else 'check_failed'
-                     end
-            { name: name, from: local_versions[name], to: remote, status: status }
-          end
-        end
-
-        def current_results(gem_names, remote_versions)
-          gem_names.map do |name|
-            { name: name, status: remote_versions[name] ? 'current' : 'check_failed', remote: remote_versions[name] }
-          end
-        end
-
-        def install_results(gem_names, gem_bin, remote_versions, outdated)
-          output = `#{gem_bin} install #{outdated.join(' ')} --no-document 2>&1`
-          success = $CHILD_STATUS.success?
-          gem_names.map do |name|
-            if outdated.include?(name)
-              { name: name, status: success ? 'installed' : 'failed', remote: remote_versions[name], output: output.strip }
+          results = gem_names.map do |name|
+            info = outdated_map[name]
+            if info
+              { name: name, from: local_versions[name], to: info[:remote], status: dry_run ? 'available' : 'pending' }
             else
-              { name: name, status: remote_versions[name] ? 'current' : 'check_failed', remote: remote_versions[name] }
+              { name: name, from: local_versions[name], status: 'current' }
             end
+          end
+
+          return results if dry_run
+
+          pending = results.select { |r| r[:status] == 'pending' }
+          return results.each { |r| r[:status] = 'current' if r[:status] == 'pending' } if pending.empty?
+
+          install_outdated(gem_bin, pending, results)
+        end
+
+        def fetch_outdated(gem_bin, gem_names)
+          output = `#{gem_bin} outdated 2>&1`
+          return {} unless $CHILD_STATUS.success?
+
+          parse_outdated(output, gem_names)
+        end
+
+        def parse_outdated(output, gem_names)
+          allowed = gem_names.to_set
+          output.each_line.with_object({}) do |line, map|
+            match = line.match(/^(\S+) \((\S+) < (\S+)\)/)
+            next unless match && allowed.include?(match[1])
+
+            map[match[1]] = { local: match[2], remote: match[3] }
           end
         end
 
-        def fetch_remote_versions_parallel(gem_names)
-          results = Concurrent::Hash.new
-          thread_count = [gem_names.size, 4].min
-          slices = gem_names.each_slice((gem_names.size / thread_count.to_f).ceil).to_a
-          threads = slices.map do |batch|
-            Thread.new(batch) do |names|
-              fetch_batch(names, results)
-            end
+        def install_outdated(gem_bin, pending, results)
+          names = pending.map { |r| r[:name] }
+          `#{gem_bin} install #{names.join(' ')} --no-document 2>&1`
+          success = $CHILD_STATUS.success?
+          pending_set = names.to_set
+          results.each do |r|
+            r[:status] = if pending_set.include?(r[:name])
+                           success ? 'installed' : 'failed'
+                         else
+                           'current'
+                         end
           end
-          threads.each { |t| t.join(60) }
           results
-        end
-
-        def fetch_batch(names, results)
-          Net::HTTP.start('rubygems.org', 443, use_ssl: true, open_timeout: 10, read_timeout: 10) do |http|
-            names.each do |name|
-              response = http.request(Net::HTTP::Get.new("/api/v1/versions/#{name}/latest.json"))
-              next unless response.is_a?(Net::HTTPSuccess)
-
-              data = ::JSON.parse(response.body)
-              results[name] = data['version'] if data['version']
-            rescue StandardError => e
-              Legion::Logging.debug("UpdateCommand#fetch_batch #{name}: #{e.message}") if defined?(Legion::Logging)
-            end
-          end
-        rescue StandardError => e
-          Legion::Logging.debug("UpdateCommand#fetch_batch connection: #{e.message}") if defined?(Legion::Logging)
         end
 
         def display_results(out, results, before, after)
           updated = []
           failed = []
-          check_failures = 0
 
           results.each do |r|
             name = r[:name]
@@ -166,11 +140,7 @@ module Legion
               puts "  #{name}: #{r[:from]} -> #{r[:to]}"
               updated << name
             when 'current'
-              local = r[:from] || before[name]
-              puts "  #{name}: #{local || '?'} (already latest)"
-            when 'check_failed'
-              puts "  #{name}: #{before[name]} (remote check failed)"
-              check_failures += 1
+              puts "  #{name}: #{r[:from] || before[name] || '?'} (already latest)"
             when 'installed'
               old_v = before[name]
               new_v = after[name]
@@ -190,8 +160,6 @@ module Legion
           out.spacer
           if updated.any?
             out.success("Updated #{updated.size} gem(s)")
-          elsif check_failures.positive?
-            puts "#{check_failures} gem(s) could not be checked - retry or use --dry-run for details"
           else
             puts 'All gems are up to date'
           end

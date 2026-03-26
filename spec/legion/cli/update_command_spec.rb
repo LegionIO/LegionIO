@@ -11,7 +11,7 @@ RSpec.describe Legion::CLI::Update do
 
   before do
     allow(instance).to receive(:formatter).and_return(formatter)
-    allow(instance).to receive(:fetch_remote_version).and_return(nil)
+    allow(instance).to receive(:fetch_outdated).and_return({})
   end
 
   describe '#discover_legion_gems' do
@@ -44,13 +44,39 @@ RSpec.describe Legion::CLI::Update do
     end
   end
 
+  describe '#parse_outdated' do
+    it 'parses gem outdated output format' do
+      outdated_output = "lex-kerberos (0.1.6 < 0.1.7)\nlegionio (1.5.0 < 1.6.0)\nrake (13.0.0 < 13.1.0)\n"
+      allowed = %w[legionio lex-kerberos]
+      result = instance.send(:parse_outdated, outdated_output, allowed)
+
+      expect(result).to eq({
+                             'lex-kerberos' => { local: '0.1.6', remote: '0.1.7' },
+                             'legionio'     => { local: '1.5.0', remote: '1.6.0' }
+                           })
+    end
+
+    it 'filters to only allowed gem names' do
+      outdated_output = "rake (13.0.0 < 13.1.0)\nlex-kerberos (0.1.6 < 0.1.7)\n"
+      result = instance.send(:parse_outdated, outdated_output, %w[lex-kerberos])
+
+      expect(result.keys).to eq(['lex-kerberos'])
+    end
+
+    it 'returns empty hash for empty output' do
+      result = instance.send(:parse_outdated, '', %w[legionio])
+      expect(result).to eq({})
+    end
+  end
+
   describe '#gems (dry_run)' do
     let(:options) { { json: false, no_color: true, dry_run: true } }
 
     before do
       allow(instance).to receive(:discover_legion_gems).and_return(%w[legionio legion-json])
-      allow(instance).to receive(:fetch_remote_version).with('legionio').and_return('2.0.0')
-      allow(instance).to receive(:fetch_remote_version).with('legion-json').and_return(nil)
+      allow(instance).to receive(:fetch_outdated).and_return(
+        'legionio' => { local: '1.5.0', remote: '2.0.0' }
+      )
     end
 
     it 'does not shell out to gem install' do
@@ -76,7 +102,9 @@ RSpec.describe Legion::CLI::Update do
 
     before do
       allow(instance).to receive(:discover_legion_gems).and_return(%w[legionio])
-      allow(instance).to receive(:fetch_remote_version).with('legionio').and_return('2.0.0')
+      allow(instance).to receive(:fetch_outdated).and_return(
+        'legionio' => { local: '1.5.0', remote: '2.0.0' }
+      )
     end
 
     it 'outputs valid JSON with gems key' do
@@ -94,10 +122,8 @@ RSpec.describe Legion::CLI::Update do
     it 'shows up-to-date message when nothing changed' do
       output = StringIO.new
       $stdout = output
-      results = [{ name: 'legionio', status: 'current', remote: '1.0.0' }]
-      before_v = { 'legionio' => '1.0.0' }
-      after_v = { 'legionio' => '1.0.0' }
-      instance.send(:display_results, formatter, results, before_v, after_v)
+      results = [{ name: 'legionio', status: 'current', from: '1.0.0' }]
+      instance.send(:display_results, formatter, results, {}, {})
       $stdout = STDOUT
       expect(output.string).to include('already latest')
     end
@@ -105,7 +131,7 @@ RSpec.describe Legion::CLI::Update do
     it 'shows updated message when version changed' do
       output = StringIO.new
       $stdout = output
-      results = [{ name: 'legionio', status: 'installed', remote: '1.1.0' }]
+      results = [{ name: 'legionio', status: 'installed' }]
       before_v = { 'legionio' => '1.0.0' }
       after_v = { 'legionio' => '1.1.0' }
       instance.send(:display_results, formatter, results, before_v, after_v)
@@ -140,16 +166,6 @@ RSpec.describe Legion::CLI::Update do
       instance.send(:display_results, formatter, results, {}, {})
       $stdout = STDOUT
       expect(output.string).to include('already latest')
-    end
-
-    it 'shows check_failed status when remote fetch fails' do
-      output = StringIO.new
-      $stdout = output
-      results = [{ name: 'legionio', status: 'check_failed', remote: nil }]
-      before_v = { 'legionio' => '1.0.0' }
-      instance.send(:display_results, formatter, results, before_v, {})
-      $stdout = STDOUT
-      expect(output.string).to include('remote check failed')
     end
   end
 end
