@@ -44,12 +44,13 @@ RSpec.describe Legion::Service do
 
           define_method(:start) { nil }
         end)
+        allow(Legion::Apollo).to receive(:start)
         allow(Legion::Apollo::Local).to receive(:start)
       end
 
       it 'starts Apollo::Local' do
         service.send(:setup_apollo)
-        expect(Legion::Apollo::Local).to have_received(:start)
+        expect(Legion::Apollo::Local).to have_received(:start).once
       end
     end
   end

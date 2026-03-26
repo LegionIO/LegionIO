@@ -10,47 +10,53 @@ require 'legion/logging'
 require 'legion/settings'
 
 # Stub modules that may not be available in isolation
-module Legion
-  module Transport
-    module Messages
-      class Dynamic
-        attr_reader :function, :data
+unless defined?(Legion::Transport::Messages::Dynamic)
+  module Legion
+    module Transport
+      module Messages
+        class Dynamic
+          attr_reader :function, :data
 
-        def initialize(function:, data:, **)
-          @function = function
-          @data = data
-        end
+          def initialize(function:, data:, **)
+            @function = function
+            @data = data
+          end
 
-        def publish
-          Legion::Transport::Local.publish('codegen', @function, Legion::JSON.dump(@data))
+          def publish
+            Legion::Transport::Local.publish('codegen', @function, Legion::JSON.dump(@data))
+          end
         end
       end
     end
   end
+end
 
-  module LLM
-    def self.chat(messages:, _caller: nil, **)
-      messages.last[:content]
-      code = <<~RUBY
-        # frozen_string_literal: true
+unless defined?(Legion::LLM)
+  module Legion
+    module LLM
+      def self.chat(messages:, _caller: nil, **)
+        messages.last[:content]
+        code = <<~RUBY
+          # frozen_string_literal: true
 
-        module Legion
-          module Generated
-            module GreetUser
-              extend self
+          module Legion
+            module Generated
+              module GreetUser
+                extend self
 
-              def greet(name:)
-                { success: true, greeting: "Hello, \#{name}!" }
+                def greet(name:)
+                  { success: true, greeting: "Hello, \#{name}!" }
+                end
               end
             end
           end
-        end
-      RUBY
-      Struct.new(:content).new(code)
-    end
+        RUBY
+        Struct.new(:content).new(code)
+      end
 
-    def self.respond_to_missing?(name, *)
-      name == :chat || super
+      def self.respond_to_missing?(name, *)
+        name == :chat || super
+      end
     end
   end
 end
@@ -59,10 +65,22 @@ end
 require 'legion/transport/local'
 
 # Load codegen extension
-require 'legion/extensions/codegen'
+begin
+  require 'legion/extensions/codegen'
+  LEGION_CODEGEN_EXTENSION_AVAILABLE = true
+rescue LoadError => e
+  LEGION_CODEGEN_EXTENSION_AVAILABLE = false
+  warn "lex-codegen / legion codegen extension not available; skipping dependent behavior: #{e.message}"
+end
 
 # Load eval extension (only code_review runner + security evaluator)
-require 'legion/extensions/eval'
+begin
+  require 'legion/extensions/eval'
+  LEGION_EVAL_EXTENSION_AVAILABLE = true
+rescue LoadError => e
+  LEGION_EVAL_EXTENSION_AVAILABLE = false
+  warn "lex-eval / legion eval extension not available; skipping dependent behavior: #{e.message}"
+end
 
 # Stub MCP Server if not available
 unless defined?(Legion::MCP::Server)

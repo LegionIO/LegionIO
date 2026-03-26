@@ -9,6 +9,11 @@
 - Specs for `/api/codegen/*` API routes (8 routes, 20 examples)
 - Specs for `setup_generated_functions` boot loading in Service (4 examples)
 
+### Fixed
+- Guard `Legion::Transport::Messages::Dynamic` and `Legion::LLM` stub definitions in integration spec with `unless defined?` to prevent redefinition conflicts when real implementations are present
+- Wrap `lex-codegen` and `lex-eval` requires in `LoadError` rescue guards in integration spec; sets `LEGION_CODEGEN_EXTENSION_AVAILABLE` / `LEGION_EVAL_EXTENSION_AVAILABLE` flags for conditional skipping
+- Fix `service_setup_apollo_spec` "starts Apollo::Local" example: stub `Legion::Apollo.start` to prevent internal double-call of `Apollo::Local.start`
+
 ## [1.6.8] - 2026-03-26
 
 ### Added
