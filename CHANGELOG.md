@@ -24,6 +24,12 @@
 ## [1.6.0] - 2026-03-26
 
 ### Added
+- `legion codegen` CLI subcommand (status, list, show, approve, reject, retry, gaps, cycle)
+- `/api/codegen/*` API routes for generated function management
+- Boot loading for generated functions via GeneratedRegistry
+- Function metadata DSL (function_outputs, function_category, function_tags, function_risk_tier, function_idempotent, function_requires, function_expose)
+- ClassMethods for MCP tool exposure (expose_as_mcp_tool, mcp_tool_prefix)
+- End-to-end integration test for self-generating functions
 - `legion knowledge monitor add/list/remove/status` — multi-directory corpus monitor management
 - `legion knowledge capture commit` — capture git commit as knowledge (hook-compatible)
 - `legion knowledge capture session` — capture session summary as knowledge (hook-compatible)

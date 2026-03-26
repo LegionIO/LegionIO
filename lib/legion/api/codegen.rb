@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module Codegen
-        def self.registered(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.registered(app) # rubocop:disable Metrics/MethodLength
           app.get '/api/codegen/status' do
             data = if defined?(Legion::MCP::SelfGenerate)
                      Legion::MCP::SelfGenerate.status
@@ -15,9 +15,7 @@ module Legion
           end
 
           app.get '/api/codegen/generated' do
-            unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
-              return json_response([], status_code: 200)
-            end
+            return json_response([], status_code: 200) unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
 
             status_filter = params[:status]
             records = Legion::Extensions::Codegen::Helpers::GeneratedRegistry.list(status: status_filter)
@@ -74,9 +72,7 @@ module Legion
           end
 
           app.post '/api/codegen/cycle' do
-            unless defined?(Legion::MCP::SelfGenerate)
-              return json_response({ triggered: false, reason: 'self_generate not available' })
-            end
+            return json_response({ triggered: false, reason: 'self_generate not available' }) unless defined?(Legion::MCP::SelfGenerate)
 
             Legion::MCP::SelfGenerate.instance_variable_set(:@last_cycle_at, nil)
             result = Legion::MCP::SelfGenerate.run_cycle

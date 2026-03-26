@@ -138,11 +138,11 @@ RSpec.describe 'Self-generating functions integration', :integration do
     it 'supports dynamic tool registration' do
       next unless defined?(Legion::MCP::Server)
 
-      tool_class = Class.new(::MCP::Tool) do
+      tool_class = Class.new(MCP::Tool) do
         tool_name 'test.integration_tool'
         description 'Integration test tool'
         input_schema(properties: {})
-        def self.call(**) = ::MCP::Tool::Response.new([{ type: 'text', text: '{}' }])
+        def self.call(**) = MCP::Tool::Response.new([{ type: 'text', text: '{}' }])
       end
 
       Legion::MCP::Server.register_tool(tool_class)
@@ -167,10 +167,10 @@ RSpec.describe 'Self-generating functions integration', :integration do
         end
 
         def log
-          @log ||= ::Logger.new(::File::NULL)
+          @log ||= Logger.new(File::NULL)
         end
 
-        def respond_to?(name, include_private = false)
+        def respond_to?(name, include_private: false)
           return true if name == :my_func
 
           super
