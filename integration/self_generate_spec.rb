@@ -29,8 +29,8 @@ module Legion
   end
 
   module LLM
-    def self.chat(messages:, caller:, **)
-      content = messages.last[:content]
+    def self.chat(messages:, _caller: nil, **)
+      messages.last[:content]
       code = <<~RUBY
         # frozen_string_literal: true
 
@@ -117,9 +117,9 @@ RSpec.describe 'Self-Generating Functions End-to-End' do
     allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :cooldown_seconds).and_return(0)
     allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :max_gaps_per_cycle).and_return(5)
     allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :runner_method, :output_dir).and_return(output_dir)
-    allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :validation).and_return({
-      syntax_check: true, run_specs: false, llm_review: false, max_retries: 2
-    })
+    allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :validation).and_return(
+      { syntax_check: true, run_specs: false, llm_review: false, max_retries: 2 }
+    )
     allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :corroboration, :enabled).and_return(false)
     allow(Legion::Settings).to receive(:dig).with(:codegen, :self_generate, :corroboration, :min_agents).and_return(2)
     allow(Legion::Settings).to receive(:dig).with(:node, :name).and_return('test-node')

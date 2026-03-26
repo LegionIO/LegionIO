@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- End-to-end integration test for TBI Phase 5 self-generating functions loop (9 examples)
+- Test dependencies: lex-codegen, lex-eval added to Gemfile for integration testing
 - Specs for `legion codegen` CLI subcommand (8 subcommands, 22 examples)
 - Specs for `/api/codegen/*` API routes (8 routes, 20 examples)
 - Specs for `setup_generated_functions` boot loading in Service (4 examples)

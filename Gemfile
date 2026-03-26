@@ -13,10 +13,10 @@ gem 'legion-settings', path: '../legion-settings' if File.exist?(File.expand_pat
 
 gem 'legion-apollo', path: '../legion-apollo' if File.exist?(File.expand_path('../legion-apollo', __dir__))
 gem 'lex-agentic-memory', path: '../extensions-agentic/lex-agentic-memory' if File.exist?(File.expand_path('../extensions-agentic/lex-agentic-memory', __dir__))
-gem 'lex-llm-gateway', path: '../extensions-core/lex-llm-gateway' if File.exist?(File.expand_path('../extensions-core/lex-llm-gateway', __dir__))
-gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams' if File.exist?(File.expand_path('../extensions/lex-microsoft_teams', __dir__))
 gem 'lex-codegen', path: '../extensions-core/lex-codegen' if File.exist?(File.expand_path('../extensions-core/lex-codegen', __dir__))
 gem 'lex-eval', path: '../extensions-agentic/lex-eval' if File.exist?(File.expand_path('../extensions-agentic/lex-eval', __dir__))
+gem 'lex-llm-gateway', path: '../extensions-core/lex-llm-gateway' if File.exist?(File.expand_path('../extensions-core/lex-llm-gateway', __dir__))
+gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams' if File.exist?(File.expand_path('../extensions/lex-microsoft_teams', __dir__))
 
 gem 'pg'
 
