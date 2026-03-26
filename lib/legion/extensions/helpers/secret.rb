@@ -19,13 +19,11 @@ module Legion
         end
 
         def []=(name, value)
-          return false unless crypt_available?
+          return unless crypt_available?
 
           Legion::Crypt.write(resolve_path(name, shared: false, user: nil), **value)
-          true
         rescue StandardError => e
           log_warn("secret write failed for #{name}: #{e.message}")
-          false
         end
 
         def write(name, shared: false, user: nil, **data)
@@ -138,7 +136,7 @@ module Legion
         end
 
         def secret
-          @_secret_accessor ||= SecretAccessor.new(lex_name: lex_name)
+          @secret ||= SecretAccessor.new(lex_name: lex_name)
         end
       end
     end

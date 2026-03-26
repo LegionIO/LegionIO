@@ -20,12 +20,13 @@ RSpec.describe Legion::Extensions::Helpers::Secret do
 
   before do
     described_class.reset_identity!
-    stub_const('Legion::Settings', Module.new {
+    stub_const('Legion::Settings', Module.new do
       extend self
+
       def [](key)
         { vault: { connected: true } } if key == :crypt
       end
-    })
+    end)
   end
 
   describe '.resolve_identity!' do
@@ -34,12 +35,13 @@ RSpec.describe Legion::Extensions::Helpers::Secret do
     end
 
     it 'prefers kerberos principal over all other sources' do
-      stub_const('Legion::Crypt', Module.new {
+      stub_const('Legion::Crypt', Module.new do
         extend self
+
         def kerberos_principal
           'kerb_user'
         end
-      })
+      end)
       expect(described_class.resolve_identity!).to eq('kerb_user')
       expect(described_class.identity_source).to eq(:kerberos)
     end
@@ -79,37 +81,43 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe '#[]' do
     it 'reads from per-user vault path' do
-      stub_const('Legion::Crypt', Module.new {
+      stub_const('Legion::Crypt', Module.new do
         extend self
+
         def get(path)
           { token: 'abc123' } if path == 'users/testuser/github/api_key'
         end
-        def kerberos_principal; nil; end
-      })
+
+        def kerberos_principal = nil
+      end)
 
       expect(accessor[:api_key]).to eq({ token: 'abc123' })
     end
 
     it 'reads from shared path when shared: true' do
-      stub_const('Legion::Crypt', Module.new {
+      stub_const('Legion::Crypt', Module.new do
         extend self
+
         def get(path)
           { token: 'shared_tok' } if path == 'shared/github/api_key'
         end
-        def kerberos_principal; nil; end
-      })
+
+        def kerberos_principal = nil
+      end)
 
       expect(accessor[:api_key, shared: true]).to eq({ token: 'shared_tok' })
     end
 
     it 'uses explicit user when provided' do
-      stub_const('Legion::Crypt', Module.new {
+      stub_const('Legion::Crypt', Module.new do
         extend self
+
         def get(path)
           { token: 'other_tok' } if path == 'users/other_person/github/api_key'
         end
-        def kerberos_principal; nil; end
-      })
+
+        def kerberos_principal = nil
+      end)
 
       expect(accessor[:api_key, user: 'other_person']).to eq({ token: 'other_tok' })
     end
@@ -122,11 +130,12 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe '#[]=' do
     it 'writes to per-user vault path' do
-      crypt = Module.new {
+      crypt = Module.new do
         extend self
+
         def write(path, **data); end
-        def kerberos_principal; nil; end
-      }
+        def kerberos_principal = nil
+      end
       stub_const('Legion::Crypt', crypt)
       allow(crypt).to receive(:write)
 
@@ -137,11 +146,12 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe '#write' do
     it 'writes to shared path when shared: true' do
-      crypt = Module.new {
+      crypt = Module.new do
         extend self
+
         def write(path, **data); end
-        def kerberos_principal; nil; end
-      }
+        def kerberos_principal = nil
+      end
       stub_const('Legion::Crypt', crypt)
       allow(crypt).to receive(:write)
 
@@ -152,13 +162,15 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe '#exist?' do
     it 'checks per-user path by default' do
-      crypt = Module.new {
+      crypt = Module.new do
         extend self
+
         def exist?(path)
           path == 'users/testuser/github/api_key'
         end
-        def kerberos_principal; nil; end
-      }
+
+        def kerberos_principal = nil
+      end
       stub_const('Legion::Crypt', crypt)
 
       expect(accessor.exist?(:api_key)).to be true
@@ -168,11 +180,12 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe '#delete' do
     it 'deletes from per-user path' do
-      crypt = Module.new {
+      crypt = Module.new do
         extend self
+
         def delete(path); end
-        def kerberos_principal; nil; end
-      }
+        def kerberos_principal = nil
+      end
       stub_const('Legion::Crypt', crypt)
       allow(crypt).to receive(:delete)
 
@@ -183,13 +196,15 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
 
   describe 'identity resolution in path' do
     it 'uses kerberos principal when available' do
-      crypt = Module.new {
+      crypt = Module.new do
         extend self
+
         def get(path); end
+
         def kerberos_principal
           'kerb_user'
         end
-      }
+      end
       stub_const('Legion::Crypt', crypt)
       allow(crypt).to receive(:get)
 

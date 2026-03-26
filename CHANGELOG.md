@@ -15,6 +15,14 @@
 - Move `Legion::LLM.chat` stub to `RSpec.configure before(:each)` block so it always intercepts regardless of whether the real `legion-llm` gem is loaded, preventing external LLM calls in integration tests
 - Fix `service_setup_apollo_spec` "starts Apollo::Local" example: stub `Legion::Apollo.start` to prevent internal double-call of `Apollo::Local.start`
 
+## [1.6.9] - 2026-03-26
+
+### Added
+- `Helpers::Secret` mixin with `SecretAccessor` for per-user and per-lex Vault KV v2 secret access
+- Identity resolution chain: Kerberos principal -> Entra UPN -> explicit user -> ENV['USER']
+- `secret[:name]` / `secret[:name] = { ... }` / `secret.write` / `secret.exist?` / `secret.delete`
+- `shared: true` option for extension-scoped (non-user) secrets
+
 ## [1.6.8] - 2026-03-26
 
 ### Added
