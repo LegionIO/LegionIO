@@ -127,36 +127,31 @@ module Legion
 
         def fetch_remote_versions_parallel(gem_names)
           results = Concurrent::Hash.new
-          pool = Concurrent::FixedThreadPool.new([gem_names.size, 24].min)
-          latch = Concurrent::CountDownLatch.new(gem_names.size)
-
-          gem_names.each do |name|
-            pool.post do
-              version = fetch_remote_version(name)
-              results[name] = version if version
-            rescue StandardError => e
-              Legion::Logging.debug("UpdateCommand#fetch_remote_version #{name}: #{e.message}") if defined?(Legion::Logging)
-            ensure
-              latch.count_down
+          thread_count = [gem_names.size, 4].min
+          slices = gem_names.each_slice((gem_names.size / thread_count.to_f).ceil).to_a
+          threads = slices.map do |batch|
+            Thread.new(batch) do |names|
+              fetch_batch(names, results)
             end
           end
-
-          latch.wait(30)
-          pool.shutdown
+          threads.each { |t| t.join(60) }
           results
         end
 
-        def fetch_remote_version(name)
-          uri = URI("https://rubygems.org/api/v1/versions/#{name}/latest.json")
-          http = Net::HTTP.new(uri.host, uri.port)
-          http.use_ssl = true
-          http.open_timeout = 5
-          http.read_timeout = 10
-          response = http.request(Net::HTTP::Get.new(uri))
-          return nil unless response.is_a?(Net::HTTPSuccess)
+        def fetch_batch(names, results)
+          Net::HTTP.start('rubygems.org', 443, use_ssl: true, open_timeout: 10, read_timeout: 10) do |http|
+            names.each do |name|
+              response = http.request(Net::HTTP::Get.new("/api/v1/versions/#{name}/latest.json"))
+              next unless response.is_a?(Net::HTTPSuccess)
 
-          data = ::JSON.parse(response.body)
-          data['version']
+              data = ::JSON.parse(response.body)
+              results[name] = data['version'] if data['version']
+            rescue StandardError => e
+              Legion::Logging.debug("UpdateCommand#fetch_batch #{name}: #{e.message}") if defined?(Legion::Logging)
+            end
+          end
+        rescue StandardError => e
+          Legion::Logging.debug("UpdateCommand#fetch_batch connection: #{e.message}") if defined?(Legion::Logging)
         end
 
         def display_results(out, results, before, after)

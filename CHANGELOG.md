@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.6.2] - 2026-03-26
+
+### Fixed
+- `legionio update` remote check failed for all gems due to TCP connection exhaustion (24 parallel SSL connections to rubygems.org)
+- Replace thread pool with 4 batched threads using persistent HTTP keep-alive connections (55 gems in ~4s)
+
 ## [1.6.1] - 2026-03-26
 
 ### Fixed
