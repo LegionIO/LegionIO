@@ -1,5 +1,33 @@
 # Legion Changelog
 
+## [1.6.7] - 2026-03-26
+
+### Fixed
+- `setup_generated_functions` now runs only when `extensions: true` (inside the extensions gate) preventing unexpected boot side-effects in CLI flows that disable extensions
+- Consumer tag entropy upgraded from `SecureRandom.hex(4)` (32-bit) to `SecureRandom.uuid` (122-bit) in both `prepare` and `subscribe` paths of subscription actor, eliminating the theoretical RabbitMQ `NOT_ALLOWED` tag collision
+
+## [1.6.6] - 2026-03-26
+
+### Added
+- `legionio bootstrap SOURCE` command: combines `config import`, `config scaffold`, and `setup agentic` into one command
+- Pre-flight checks for klist (Kerberos ticket), brew availability, and legionio binary
+- `--skip-packs` flag to skip gem pack installation (config-only mode)
+- `--start` flag to start redis + legionio via brew services after bootstrap
+- `--force` flag to overwrite existing config files during bootstrap
+- `--json` flag for machine-readable bootstrap output
+- `shell_capture` helper extracted to make shell invocations stubbable in specs
+- 62 specs covering preflight checks, pack extraction, config fetch/write delegation, pack install, summary output, all flags, and error handling
+
+## [1.6.5] - 2026-03-26
+
+### Added
+- `Context.to_system_prompt` appends a live self-awareness section from `lex-agentic-self` Metacognition when the gem is loaded; logic extracted into `self_awareness_hint` helper to keep `to_system_prompt` within Metrics/CyclomaticComplexity limits; guarded with `defined?()` and `rescue StandardError`
+
+## [1.6.4] - 2026-03-26
+
+### Fixed
+- fix consumer tag collision on boot: subscription actors using `Thread.current.object_id` produced duplicate tags when `FixedThreadPool` reused threads, causing RabbitMQ `NOT_ALLOWED` connection kill and cascading errors; replaced with `SecureRandom.hex(4)`
+
 ## [1.6.3] - 2026-03-26
 
 ### Changed
@@ -24,6 +52,12 @@
 ## [1.6.0] - 2026-03-26
 
 ### Added
+- `legion codegen` CLI subcommand (status, list, show, approve, reject, retry, gaps, cycle)
+- `/api/codegen/*` API routes for generated function management
+- Boot loading for generated functions via GeneratedRegistry
+- Function metadata DSL (function_outputs, function_category, function_tags, function_risk_tier, function_idempotent, function_requires, function_expose)
+- ClassMethods for MCP tool exposure (expose_as_mcp_tool, mcp_tool_prefix)
+- End-to-end integration test for self-generating functions
 - `legion knowledge monitor add/list/remove/status` — multi-directory corpus monitor management
 - `legion knowledge capture commit` — capture git commit as knowledge (hook-compatible)
 - `legion knowledge capture session` — capture session summary as knowledge (hook-compatible)

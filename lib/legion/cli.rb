@@ -64,6 +64,7 @@ module Legion
     autoload :TraceCommand, 'legion/cli/trace_command'
     autoload :Features,     'legion/cli/features_command'
     autoload :Debug,        'legion/cli/debug_command'
+    autoload :CodegenCommand, 'legion/cli/codegen_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'
@@ -242,6 +243,9 @@ module Legion
       subcommand 'init', Legion::CLI::Init
 
       # --- Interactive & shortcuts ---
+      desc 'codegen SUBCOMMAND', 'Manage self-generating functions'
+      subcommand 'codegen', CodegenCommand
+
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
 

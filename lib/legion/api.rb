@@ -46,6 +46,7 @@ require_relative 'api/apollo'
 require_relative 'api/costs'
 require_relative 'api/traces'
 require_relative 'api/stats'
+require_relative 'api/codegen'
 require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
@@ -137,6 +138,7 @@ module Legion
     register Routes::Costs
     register Routes::Traces
     register Routes::Stats
+    register Routes::Codegen
     register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger
