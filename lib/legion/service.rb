@@ -128,6 +128,8 @@ module Legion
         Legion::Readiness.mark_ready(:extensions)
       end
 
+      setup_generated_functions
+
       Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
 
       Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer)
@@ -610,6 +612,15 @@ module Legion
     def load_extensions
       require 'legion/runner'
       Legion::Extensions.hook_extensions
+    end
+
+    def setup_generated_functions
+      return unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
+
+      loaded = Legion::Extensions::Codegen::Helpers::GeneratedRegistry.load_on_boot
+      Legion::Logging.info("Loaded #{loaded} generated functions") if defined?(Legion::Logging) && loaded.positive?
+    rescue StandardError => e
+      Legion::Logging.warn("setup_generated_functions failed: #{e.message}") if defined?(Legion::Logging)
     end
 
     def setup_mtls_rotation
