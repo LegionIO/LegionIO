@@ -59,7 +59,7 @@ module Legion
         require_coldstart!
         paths = [Dir.pwd] if paths.empty?
 
-        runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
+        runner = build_runner(Legion::Extensions::Coldstart::Runners::Ingest)
 
         paths.each do |path|
           if File.file?(path)
@@ -83,7 +83,7 @@ module Legion
         out = formatter
         require_coldstart!
 
-        runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Coldstart)
+        runner = build_runner(Legion::Extensions::Coldstart::Runners::Coldstart)
         progress = runner.coldstart_progress
 
         if options[:json]
@@ -111,7 +111,7 @@ module Legion
         end
 
         def run_local_ingest(out, path, dry_run:)
-          runner = Object.new.extend(Legion::Extensions::Coldstart::Runners::Ingest)
+          runner = build_runner(Legion::Extensions::Coldstart::Runners::Ingest)
 
           if File.file?(path)
             result = dry_run ? runner.preview_ingest(file_path: File.expand_path(path)) : runner.ingest_file(file_path: File.expand_path(path))
@@ -150,6 +150,13 @@ module Legion
         rescue StandardError => e
           Legion::Logging.warn("Coldstart#api_port_from_settings failed: #{e.message}") if defined?(Legion::Logging)
           4567
+        end
+
+        def build_runner(mod)
+          obj = Object.new
+          obj.extend(mod)
+          obj.define_singleton_method(:log) { Legion::Logging } unless obj.respond_to?(:log)
+          obj
         end
 
         def require_coldstart!
