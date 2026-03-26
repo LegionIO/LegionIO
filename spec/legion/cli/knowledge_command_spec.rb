@@ -454,7 +454,7 @@ RSpec.describe Legion::CLI::Knowledge do
     it 'shows orphan files' do
       expect do
         described_class.start(%w[maintain --no-color])
-      end.to output(/stale\/old\.md/).to_stdout
+      end.to output(%r{stale/old\.md}).to_stdout
     end
 
     it 'defaults dry_run to true' do
@@ -588,7 +588,7 @@ RSpec.describe Legion::CLI::Knowledge do
 
     it 'returns Dir.pwd when no options or settings' do
       allow(instance).to receive(:options).and_return({})
-      expect(instance.resolve_corpus_path).to eq(::Dir.pwd)
+      expect(instance.resolve_corpus_path).to eq(Dir.pwd)
     end
 
     it 'returns corpus_path option when provided' do

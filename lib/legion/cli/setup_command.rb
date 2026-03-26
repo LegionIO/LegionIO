@@ -27,8 +27,24 @@ module Legion
 
       PACKS = {
         agentic:  {
-          description: 'Full cognitive stack: GAIA + LLM + MCP + Apollo',
-          gems:        %w[legion-gaia legion-llm]
+          description: 'Full cognitive stack: core libs, agentic domains, AI providers, and operational extensions',
+          gems:        %w[
+            legion-apollo legion-gaia legion-llm legion-mcp legion-rbac
+            lex-acp lex-adapter lex-agentic-affect lex-agentic-attention
+            lex-agentic-defense lex-agentic-executive lex-agentic-homeostasis
+            lex-agentic-imagination lex-agentic-inference lex-agentic-integration
+            lex-agentic-language lex-agentic-learning lex-agentic-memory
+            lex-agentic-self lex-agentic-social lex-apollo lex-audit lex-autofix
+            lex-azure-ai lex-bedrock lex-claude lex-codegen lex-coldstart
+            lex-conditioner lex-cortex lex-cost-scanner lex-dataset lex-detect
+            lex-eval lex-exec lex-extinction lex-factory lex-finops lex-foundry
+            lex-gemini lex-governance lex-kerberos lex-knowledge lex-llm-gateway
+            lex-metering lex-mesh lex-microsoft_teams lex-mind-growth lex-node
+            lex-onboard lex-openai lex-pilot-infra-monitor
+            lex-pilot-knowledge-assist lex-privatecore lex-prompt lex-react
+            lex-swarm lex-swarm-github lex-synapse lex-telemetry lex-tick
+            lex-transformer lex-xai
+          ]
         },
         llm:      {
           description: 'LLM routing and provider integration (no cognitive stack)',
@@ -114,6 +130,8 @@ module Legion
       def agentic
         install_pack(:agentic)
       end
+      map 'give-me-all-the-brains' => :agentic
+      map 'brains' => :agentic
 
       desc 'llm', 'Install LLM routing and provider integration'
       option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed without installing'

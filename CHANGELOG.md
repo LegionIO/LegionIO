@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.5.21] - 2026-03-26
+
+### Changed
+- `legionio setup agentic` now installs the full cognitive stack (63 gems): core libs, all agentic domains, all AI providers, and key operational extensions
+- Added `brains` and `give-me-all-the-brains` as aliases for the `agentic` subcommand
+
 ## [1.5.20] - 2026-03-26
 
 ### Added
