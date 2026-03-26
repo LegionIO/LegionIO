@@ -1,5 +1,19 @@
 # Legion Changelog
 
+## [1.5.22] - 2026-03-26
+
+### Changed
+- Consolidate 48 root CLI commands into 7 groups + 19 root commands
+- New groups: `ai`, `git`, `pipeline`, `ops`, `serve`, `admin`, `dev`
+- `ai`: chat, llm, gaia, apollo, knowledge, memory, mind-growth, swarm, plan, trace
+- `git`: commit, pr, review
+- `pipeline`: skill, prompt, eval, dataset, image, notebook
+- `ops`: telemetry, observe, detect, cost, payroll, audit, debug, failover
+- `serve`: mcp, acp
+- `admin`: rbac, auth, worker, team
+- `dev`: generate, docs, openapi, completion, marketplace, features
+- Root keepers: start, stop, status, version, check, doctor, setup, update, config, init, lex, task, chain, schedule, coldstart, tty, do, ask, dream, tree
+
 ## [1.5.21] - 2026-03-26
 
 ### Changed

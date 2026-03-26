@@ -34,7 +34,7 @@ RSpec.describe Legion::CLI::Main do
     it 'shows subcommand groups with clean prefixed names' do
       expect(output).to include("#{prog} lex")
       expect(output).to include("#{prog} task")
-      expect(output).to include("#{prog} worker")
+      expect(output).to include("#{prog} admin")
     end
 
     it 'does not show raw namespace for subcommands' do

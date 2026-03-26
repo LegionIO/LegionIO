@@ -65,6 +65,16 @@ module Legion
     autoload :Features,     'legion/cli/features_command'
     autoload :Debug,        'legion/cli/debug_command'
 
+    module Groups
+      autoload :Ai,       'legion/cli/groups/ai_group'
+      autoload :Git,      'legion/cli/groups/git_group'
+      autoload :Pipeline, 'legion/cli/groups/pipeline_group'
+      autoload :Ops,      'legion/cli/groups/ops_group'
+      autoload :Serve,    'legion/cli/groups/serve_group'
+      autoload :Admin,    'legion/cli/groups/admin_group'
+      autoload :Dev,      'legion/cli/groups/dev_group'
+    end
+
     class Main < Thor
       def self.exit_on_failure?
         true
@@ -199,6 +209,7 @@ module Legion
         exit(exit_code) if exit_code != 0
       end
 
+      # --- Core framework ---
       desc 'lex SUBCOMMAND', 'Manage Legion extensions (LEXs)'
       subcommand 'lex', Legion::CLI::Lex
 
@@ -211,81 +222,18 @@ module Legion
       desc 'config SUBCOMMAND', 'View and validate configuration'
       subcommand 'config', Legion::CLI::Config
 
-      desc 'generate SUBCOMMAND', 'Code generators for LEX components'
-      map 'g' => :generate
-      subcommand 'generate', Legion::CLI::Generate
-
-      desc 'acp SUBCOMMAND', 'Start ACP agent for editor integration'
-      subcommand 'acp', Legion::CLI::Acp
-
-      desc 'mcp SUBCOMMAND', 'Start MCP server for AI agent integration'
-      subcommand 'mcp', Legion::CLI::Mcp
-
-      desc 'worker SUBCOMMAND', 'Manage digital workers'
-      subcommand 'worker', Legion::CLI::Worker
+      desc 'schedule SUBCOMMAND', 'Manage schedules'
+      subcommand 'schedule', Legion::CLI::Schedule
 
       desc 'coldstart SUBCOMMAND', 'Cold start bootstrap and Claude memory ingestion'
       subcommand 'coldstart', Legion::CLI::Coldstart
 
-      desc 'chat SUBCOMMAND', 'Interactive AI conversation'
-      subcommand 'chat', Legion::CLI::Chat
-
-      desc 'commit', 'Generate AI commit message from staged changes'
-      subcommand 'commit', Legion::CLI::Commit
-
-      desc 'pr', 'Create pull request with AI-generated title and description'
-      subcommand 'pr', Legion::CLI::Pr
-
-      desc 'review', 'AI code review of changes'
-      subcommand 'review', Legion::CLI::Review
-
-      desc 'memory SUBCOMMAND', 'Persistent project memory across sessions'
-      subcommand 'memory', Legion::CLI::Memory
-
-      desc 'mind-growth SUBCOMMAND', 'Autonomous cognitive architecture expansion'
-      subcommand 'mind-growth', Legion::CLI::MindGrowth
-
-      desc 'plan', 'Start plan mode (read-only exploration, no writes)'
-      subcommand 'plan', Legion::CLI::Plan
-
-      desc 'swarm SUBCOMMAND', 'Multi-agent swarm orchestration'
-      subcommand 'swarm', Legion::CLI::Swarm
-
-      desc 'gaia SUBCOMMAND', 'GAIA cognitive coordination'
-      subcommand 'gaia', Legion::CLI::Gaia
-
-      desc 'apollo SUBCOMMAND', 'Apollo knowledge graph'
-      subcommand 'apollo', Legion::CLI::Apollo
-
-      desc 'knowledge SUBCOMMAND', 'Search and manage the document knowledge base'
-      subcommand 'knowledge', Legion::CLI::Knowledge
-
-      desc 'schedule SUBCOMMAND', 'Manage schedules'
-      subcommand 'schedule', Legion::CLI::Schedule
-
-      desc 'completion SUBCOMMAND', 'Shell tab completion scripts'
-      subcommand 'completion', Legion::CLI::Completion
-
-      desc 'openapi SUBCOMMAND', 'OpenAPI spec generation'
-      subcommand 'openapi', Legion::CLI::Openapi
-
+      # --- Health & maintenance ---
       desc 'doctor', 'Diagnose environment and suggest fixes'
       subcommand 'doctor', Legion::CLI::Doctor
 
-      desc 'telemetry SUBCOMMAND', 'Session log analytics and telemetry'
-      subcommand 'telemetry', Legion::CLI::Telemetry
-
-      desc 'auth SUBCOMMAND', 'Authenticate with external services'
-      subcommand 'auth', Legion::CLI::Auth
-
-      desc 'rbac SUBCOMMAND', 'Role-based access control management'
-      subcommand 'rbac', Legion::CLI::Rbac
-
-      desc 'audit SUBCOMMAND', 'Audit log inspection and verification'
-      subcommand 'audit', Legion::CLI::Audit
-
-      desc 'detect', 'Scan environment and recommend extensions'
-      subcommand 'detect', Legion::CLI::Detect
+      desc 'setup SUBCOMMAND', 'Install feature packs and configure IDE integrations'
+      subcommand 'setup', Legion::CLI::Setup
 
       desc 'update', 'Update Legion gems to latest versions'
       subcommand 'update', Legion::CLI::Update
@@ -293,62 +241,31 @@ module Legion
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
 
-      desc 'setup SUBCOMMAND', 'Install feature packs and configure IDE integrations'
-      subcommand 'setup', Legion::CLI::Setup
-
-      desc 'skill', 'Manage skills (.legion/skills/ markdown files)'
-      subcommand 'skill', Legion::CLI::Skill
-
-      desc 'prompt SUBCOMMAND', 'Manage versioned LLM prompt templates'
-      subcommand 'prompt', Legion::CLI::Prompt
-
-      desc 'dataset SUBCOMMAND', 'Manage versioned datasets'
-      subcommand 'dataset', Legion::CLI::Dataset
-
-      desc 'cost', 'Cost visibility and reporting'
-      subcommand 'cost', Legion::CLI::Cost
-
-      desc 'team SUBCOMMAND', 'Team and multi-user management'
-      subcommand 'team', Legion::CLI::Team
-
-      desc 'marketplace', 'Extension marketplace (search, info, scan)'
-      subcommand 'marketplace', Legion::CLI::Marketplace
-
-      desc 'notebook', 'Read and export Jupyter notebooks'
-      subcommand 'notebook', Legion::CLI::Notebook
-
-      desc 'llm', 'LLM provider diagnostics (status, ping, models)'
-      subcommand 'llm', Legion::CLI::Llm
-
+      # --- Interactive & shortcuts ---
       desc 'tty', 'Rich terminal UI (onboarding, AI chat, dashboard)'
       subcommand 'tty', Legion::CLI::Tty
 
-      desc 'eval SUBCOMMAND', 'Eval gating and experiment management'
-      subcommand 'eval', Legion::CLI::Eval
+      # --- Command groups ---
+      desc 'ai SUBCOMMAND', 'AI, cognitive, and knowledge commands'
+      subcommand 'ai', Legion::CLI::Groups::Ai
 
-      desc 'observe SUBCOMMAND', 'MCP tool observation stats'
-      subcommand 'observe', Legion::CLI::ObserveCommand
+      desc 'git SUBCOMMAND', 'AI-assisted git workflow (commit, pr, review)'
+      subcommand 'git', Legion::CLI::Groups::Git
 
-      desc 'image SUBCOMMAND', 'Multimodal image analysis and comparison'
-      subcommand 'image', Legion::CLI::Image
+      desc 'pipeline SUBCOMMAND', 'LLM pipeline tools (prompts, evals, datasets, skills)'
+      subcommand 'pipeline', Legion::CLI::Groups::Pipeline
 
-      desc 'payroll SUBCOMMAND', 'Workforce cost and labor economics'
-      subcommand 'payroll', Legion::CLI::Payroll
+      desc 'ops SUBCOMMAND', 'Observability, cost, audit, and operations'
+      subcommand 'ops', Legion::CLI::Groups::Ops
 
-      desc 'docs SUBCOMMAND', 'Documentation site generator'
-      subcommand 'docs', Legion::CLI::Docs
+      desc 'serve SUBCOMMAND', 'Protocol servers (MCP, ACP)'
+      subcommand 'serve', Legion::CLI::Groups::Serve
 
-      desc 'failover SUBCOMMAND', 'Region failover management'
-      subcommand 'failover', Legion::CLI::Failover
+      desc 'admin SUBCOMMAND', 'Auth, RBAC, workers, and teams'
+      subcommand 'admin', Legion::CLI::Groups::Admin
 
-      desc 'trace SUBCOMMAND', 'Natural language trace search via LLM'
-      subcommand 'trace', Legion::CLI::TraceCommand
-
-      desc 'features SUBCOMMAND', 'Install feature bundles (interactive selector)'
-      subcommand 'features', Legion::CLI::Features
-
-      desc 'debug', 'Diagnostic dump for troubleshooting (pipe to LLM for analysis)'
-      subcommand 'debug', Legion::CLI::Debug
+      desc 'dev SUBCOMMAND', 'Generators, docs, marketplace, and shell completion'
+      subcommand 'dev', Legion::CLI::Groups::Dev
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

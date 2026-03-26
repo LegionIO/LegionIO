@@ -4,8 +4,9 @@ require 'spec_helper'
 require 'legion/cli'
 
 RSpec.describe 'Legion Chat Integration' do
-  it 'registers chat subcommand in Main' do
-    expect(Legion::CLI::Main.subcommands).to include('chat')
+  it 'registers chat subcommand under ai group' do
+    expect(Legion::CLI::Main.subcommands).to include('ai')
+    expect(Legion::CLI::Groups::Ai.subcommands).to include('chat')
   end
 
   it 'routes piped stdin legion to chat prompt' do
