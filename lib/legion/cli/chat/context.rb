@@ -61,6 +61,7 @@ module Legion
           end
 
           parts << cognitive_awareness(directory)
+          parts << self_awareness_hint
 
           extra_dirs.each do |dir|
             expanded = File.expand_path(dir)
@@ -179,6 +180,16 @@ module Legion
             path = File.join(dir, file)
             return path if File.exist?(path)
           end
+          nil
+        end
+
+        def self.self_awareness_hint
+          return nil unless defined?(Legion::Extensions::Agentic::Self::Metacognition::Runners::Metacognition)
+
+          result = Legion::Extensions::Agentic::Self::Metacognition::Runners::Metacognition.self_narrative
+          narrative = result[:prose] if result.is_a?(Hash) && result[:prose]
+          narrative ? "\nCurrent self-awareness:\n#{narrative}" : nil
+        rescue StandardError
           nil
         end
       end
