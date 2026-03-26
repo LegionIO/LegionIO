@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.5.20] - 2026-03-26
+
+### Added
+- `legion knowledge health` — local/Apollo/sync health report
+- `legion knowledge maintain` — orphan chunk detection and cleanup (dry-run by default)
+- `legion knowledge quality` — hot/cold/low-confidence chunk quality report
+
 ## [1.5.19] - 2026-03-26
 
 ### Added
