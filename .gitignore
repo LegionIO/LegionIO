@@ -15,7 +15,8 @@
 legionio.key
 # runtime artifacts
 .DS_Store
-legionio.db
+*.db
+*.json
 logs/
 # local settings (may contain secrets)
 settings/
