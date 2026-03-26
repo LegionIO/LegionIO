@@ -68,20 +68,10 @@ module Legion
         out.success("Config written to #{path}") unless options[:json]
 
         # 5. Scaffold missing subsystem files
-        print_step(out, 'Scaffolding missing subsystem files')
-        silent_out = Output::Formatter.new(json: false, color: false)
-        scaffold_opts = build_scaffold_opts
-        ConfigScaffold.run(options[:json] ? silent_out : out, scaffold_opts)
-        results[:scaffold] = :done
+        results[:scaffold] = run_scaffold(out)
 
         # 6. Install packs (unless --skip-packs)
-        if options[:skip_packs]
-          results[:packs_installed] = []
-          out.warn('Skipping pack installation (--skip-packs)') unless options[:json]
-        else
-          print_step(out, "Installing packs: #{pack_names.join(', ')}") unless pack_names.empty?
-          results[:packs_installed] = install_packs(pack_names, out)
-        end
+        results[:packs_installed] = install_packs_step(pack_names, out)
 
         # 7. Post-bootstrap summary
         summary = build_summary(config, results, warns)
@@ -190,6 +180,25 @@ module Legion
           warns << msg
           out.warn(msg) unless options[:json]
           { status: :warn, message: msg }
+        end
+
+        def run_scaffold(out)
+          print_step(out, 'Scaffolding missing subsystem files')
+          silent_out    = Output::Formatter.new(json: false, color: false)
+          scaffold_opts = build_scaffold_opts
+          scaffold_opts[:json] = false if options[:json]
+          ConfigScaffold.run(options[:json] ? silent_out : out, scaffold_opts)
+          :done
+        end
+
+        def install_packs_step(pack_names, out)
+          if options[:skip_packs]
+            out.warn('Skipping pack installation (--skip-packs)') unless options[:json]
+            []
+          else
+            print_step(out, "Installing packs: #{pack_names.join(', ')}") unless pack_names.empty?
+            install_packs(pack_names, out)
+          end
         end
 
         # -----------------------------------------------------------------------
