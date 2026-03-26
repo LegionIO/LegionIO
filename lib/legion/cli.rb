@@ -352,7 +352,7 @@ module Legion
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
-        legion_print_command_tree(self.class, 'legion', '')
+        legion_print_command_tree(self.class, ::File.basename($PROGRAM_NAME), '')
       end
 
       desc 'ask TEXT', 'Quick AI prompt (shortcut for chat prompt)'
