@@ -17,7 +17,7 @@ RSpec.describe Legion::CLI::Main do
   describe '#tree' do
     subject(:output) { capture_tree_output }
 
-    let(:prog) { ::File.basename($PROGRAM_NAME) }
+    let(:prog) { File.basename($PROGRAM_NAME) }
 
     it 'shows the binary name as the root node' do
       expect(output).to include(prog)
