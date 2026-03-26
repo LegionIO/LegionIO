@@ -23,8 +23,8 @@ gem 'mysql2'
 
 group :test do
   gem 'graphql'
-  gem 'lex-codegen', path: '../extensions-core/lex-codegen' if File.exist?(File.expand_path('../extensions-core/lex-codegen', __dir__))
-  gem 'lex-eval', path: '../extensions-agentic/lex-eval' if File.exist?(File.expand_path('../extensions-agentic/lex-eval', __dir__))
+  gem 'lex-codegen'
+  gem 'lex-eval'
   gem 'rack-test'
   gem 'rake'
   gem 'rspec'
