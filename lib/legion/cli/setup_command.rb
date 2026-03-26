@@ -78,6 +78,7 @@ module Legion
 
         install_claude_mcp(installed)
         install_claude_skill(installed)
+        install_claude_hooks(installed)
 
         if options[:json]
           out.json(platform: 'claude-code', installed: installed)
@@ -341,6 +342,43 @@ module Legion
           File.write(skill_path, SKILL_CONTENT)
           installed << skill_path
           puts "  Wrote slash command skill to #{skill_path}" unless options[:json]
+        end
+
+        def install_claude_hooks(installed)
+          settings_path = File.expand_path('~/.claude/settings.json')
+          existing = load_json_file(settings_path)
+
+          hooks = existing['hooks'] || {}
+
+          has_commit  = Array(hooks['PostToolUse']).any? { |h| h['command']&.include?('knowledge capture commit') }
+          has_session = Array(hooks['Stop']).any? { |h| h['command']&.include?('knowledge capture session') }
+          if has_commit && has_session && !options[:force]
+            puts '  Write-back hooks already present (use --force to overwrite)' unless options[:json]
+            return
+          end
+
+          hooks['PostToolUse'] ||= []
+          hooks['Stop'] ||= []
+
+          unless has_commit
+            hooks['PostToolUse'] << {
+              'matcher' => 'Bash',
+              'command' => 'legionio knowledge capture commit',
+              'timeout' => 10_000
+            }
+          end
+
+          unless has_session
+            hooks['Stop'] << {
+              'command' => 'legionio knowledge capture session',
+              'timeout' => 15_000
+            }
+          end
+
+          existing['hooks'] = hooks
+          write_json_file(settings_path, existing)
+          installed << 'hooks'
+          puts '  Installed write-back hooks for knowledge capture' unless options[:json]
         end
 
         def write_mcp_servers_json(_out, path, installed)
