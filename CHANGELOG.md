@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.5.19] - 2026-03-26
+
+### Added
+- `legion knowledge` CLI subcommand: query, retrieve, ingest, status (closes #36)
+  - `legion knowledge query QUESTION` — synthesized LLM answer + ranked source chunks
+  - `legion knowledge retrieve QUESTION` — raw source chunks without synthesis
+  - `legion knowledge ingest PATH` — ingest file or directory corpus
+  - `legion knowledge status` — show corpus file count and size
+
 ## [1.5.18] - 2026-03-25
 
 ### Added

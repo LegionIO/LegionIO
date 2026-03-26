@@ -42,6 +42,7 @@ module Legion
     autoload :Eval,       'legion/cli/eval_command'
     autoload :Update,     'legion/cli/update_command'
     autoload :Init,       'legion/cli/init_command'
+    autoload :Knowledge,  'legion/cli/knowledge_command'
     autoload :Setup,      'legion/cli/setup_command'
     autoload :Skill,      'legion/cli/skill_command'
     autoload :Prompt,     'legion/cli/prompt_command'
@@ -255,6 +256,9 @@ module Legion
 
       desc 'apollo SUBCOMMAND', 'Apollo knowledge graph'
       subcommand 'apollo', Legion::CLI::Apollo
+
+      desc 'knowledge SUBCOMMAND', 'Search and manage the document knowledge base'
+      subcommand 'knowledge', Legion::CLI::Knowledge
 
       desc 'schedule SUBCOMMAND', 'Manage schedules'
       subcommand 'schedule', Legion::CLI::Schedule
