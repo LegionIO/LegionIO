@@ -65,6 +65,7 @@ module Legion
     autoload :Features,     'legion/cli/features_command'
     autoload :Debug,        'legion/cli/debug_command'
     autoload :CodegenCommand, 'legion/cli/codegen_command'
+    autoload :Bootstrap,      'legion/cli/bootstrap_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'
@@ -235,6 +236,9 @@ module Legion
 
       desc 'setup SUBCOMMAND', 'Install feature packs and configure IDE integrations'
       subcommand 'setup', Legion::CLI::Setup
+
+      desc 'bootstrap SOURCE', 'One-command setup: fetch config, scaffold, and install packs'
+      subcommand 'bootstrap', Legion::CLI::Bootstrap
 
       desc 'update', 'Update Legion gems to latest versions'
       subcommand 'update', Legion::CLI::Update
