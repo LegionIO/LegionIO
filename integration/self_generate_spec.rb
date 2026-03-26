@@ -31,32 +31,10 @@ unless defined?(Legion::Transport::Messages::Dynamic)
   end
 end
 
+# Ensure Legion::LLM module exists so it can be stubbed, but don't overwrite a real implementation.
 unless defined?(Legion::LLM)
   module Legion
     module LLM
-      def self.chat(messages:, _caller: nil, **)
-        messages.last[:content]
-        code = <<~RUBY
-          # frozen_string_literal: true
-
-          module Legion
-            module Generated
-              module GreetUser
-                extend self
-
-                def greet(name:)
-                  { success: true, greeting: "Hello, \#{name}!" }
-                end
-              end
-            end
-          end
-        RUBY
-        Struct.new(:content).new(code)
-      end
-
-      def self.respond_to_missing?(name, *)
-        name == :chat || super
-      end
     end
   end
 end
@@ -114,20 +92,52 @@ unless defined?(Legion::MCP::Server)
   end
 end
 
+LLM_STUB_CODE = <<~RUBY
+  # frozen_string_literal: true
+
+  module Legion
+    module Generated
+      module GreetUser
+        extend self
+
+        def greet(name:)
+          { success: true, greeting: "Hello, \#{name}!" }
+        end
+      end
+    end
+  end
+RUBY
+
 RSpec.configure do |config|
   config.disable_monkey_patching!
   config.expect_with(:rspec) { |c| c.syntax = :expect }
+
+  config.before(:each) do
+    allow(Legion::LLM).to receive(:chat) do |messages:, _caller: nil, **_kwargs|
+      messages.last[:content]
+      Struct.new(:content).new(LLM_STUB_CODE)
+    end
+  end
 end
 
 RSpec.describe 'Self-Generating Functions End-to-End' do
+  # Skip this entire example group if the required extensions are not available.
+  before(:all) do
+    extensions_unavailable =
+      (defined?(LEGION_CODEGEN_EXTENSION_AVAILABLE) && !LEGION_CODEGEN_EXTENSION_AVAILABLE) ||
+      (defined?(LEGION_EVAL_EXTENSION_AVAILABLE) && !LEGION_EVAL_EXTENSION_AVAILABLE)
+
+    skip('Legion Codegen/Eval extensions are not available; skipping self-generate integration specs.') if extensions_unavailable
+  end
+
   let(:output_dir) { Dir.mktmpdir('legion_e2e_codegen') }
 
   before do
     # Reset Local transport
     Legion::Transport::Local.reset! if Legion::Transport::Local.respond_to?(:reset!)
 
-    # Reset GeneratedRegistry
-    Legion::Extensions::Codegen::Helpers::GeneratedRegistry.reset!
+    # Reset GeneratedRegistry (only if Codegen extension is loaded)
+    Legion::Extensions::Codegen::Helpers::GeneratedRegistry.reset! if defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
 
     # Configure settings for test
     allow(Legion::Settings).to receive(:dig).and_return(nil)
