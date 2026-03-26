@@ -274,7 +274,7 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
     end
 
     it 'returns the result from Apollo.query' do
-      result = instance.query_knowledge(text: 'find me something', limit: 3)
+      result = instance.query_knowledge(text: 'find me something', limit: 3, scope: :global)
       expect(result).to eq(query_result)
     end
 
