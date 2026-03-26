@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [Unreleased]
+
+### Added
+- Specs for `legion codegen` CLI subcommand (8 subcommands, 22 examples)
+- Specs for `/api/codegen/*` API routes (8 routes, 20 examples)
+- Specs for `setup_generated_functions` boot loading in Service (4 examples)
+
 ## [1.6.8] - 2026-03-26
 
 ### Added
