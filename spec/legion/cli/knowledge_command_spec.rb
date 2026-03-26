@@ -42,6 +42,24 @@ module Legion
             Legion::Extensions::Knowledge::Runners::Ingest.test_scan_result
           end
         end
+
+        module Maintenance
+          class << self
+            attr_accessor :test_health_result, :test_cleanup_result, :test_quality_result
+          end
+
+          def self.health(**)
+            Legion::Extensions::Knowledge::Runners::Maintenance.test_health_result
+          end
+
+          def self.cleanup_orphans(**)
+            Legion::Extensions::Knowledge::Runners::Maintenance.test_cleanup_result
+          end
+
+          def self.quality_report(**)
+            Legion::Extensions::Knowledge::Runners::Maintenance.test_quality_result
+          end
+        end
       end
     end
   end
@@ -49,11 +67,12 @@ end
 
 require 'legion/cli/knowledge_command'
 
-# Patch require_knowledge! and require_ingest! to be no-ops (extensions already stubbed above)
+# Patch require_knowledge!, require_ingest!, require_maintenance! to be no-ops (extensions already stubbed above)
 Legion::CLI::Knowledge.class_eval do
   no_commands do
     define_method(:require_knowledge!) { nil }
     define_method(:require_ingest!) { nil }
+    define_method(:require_maintenance!) { nil }
   end
 end
 
@@ -90,12 +109,44 @@ RSpec.describe Legion::CLI::Knowledge do
     { path: '/tmp/project', file_count: 7, total_bytes: 45_678 }
   end
 
+  let(:health_result_success) do
+    {
+      success: true,
+      local:   { 'chunks' => 42, 'sources' => 5 },
+      apollo:  { 'entries' => 38, 'reachable' => true },
+      sync:    { 'in_sync' => true, 'drift' => 0 }
+    }
+  end
+
+  let(:cleanup_result_success) do
+    {
+      success:       true,
+      orphan_files:  ['stale/old.md'],
+      archived:      1,
+      files_cleaned: 1,
+      dry_run:       true
+    }
+  end
+
+  let(:quality_result_success) do
+    {
+      success:        true,
+      hot_chunks:     [{ id: 1, confidence: 0.95, source_file: 'README.md' }],
+      cold_chunks:    [{ id: 2, confidence: 0.10, source_file: 'archive/old.md' }],
+      low_confidence: [{ id: 3, confidence: 0.05, source_file: 'draft.md' }],
+      summary:        { 'total' => 100, 'healthy' => 88 }
+    }
+  end
+
   before do
     Legion::Extensions::Knowledge::Runners::Query.test_query_result    = query_result_success
     Legion::Extensions::Knowledge::Runners::Query.test_retrieve_result = retrieve_result_success
     Legion::Extensions::Knowledge::Runners::Ingest.test_ingest_file_result   = ingest_file_result_success
     Legion::Extensions::Knowledge::Runners::Ingest.test_ingest_corpus_result = ingest_corpus_result_success
-    Legion::Extensions::Knowledge::Runners::Ingest.test_scan_result = scan_result
+    Legion::Extensions::Knowledge::Runners::Ingest.test_scan_result          = scan_result
+    Legion::Extensions::Knowledge::Runners::Maintenance.test_health_result   = health_result_success
+    Legion::Extensions::Knowledge::Runners::Maintenance.test_cleanup_result  = cleanup_result_success
+    Legion::Extensions::Knowledge::Runners::Maintenance.test_quality_result  = quality_result_success
   end
 
   describe '#query' do
@@ -332,15 +383,232 @@ RSpec.describe Legion::CLI::Knowledge do
     end
   end
 
+  describe '#health' do
+    it 'shows Knowledge Health header' do
+      expect do
+        described_class.start(%w[health --no-color])
+      end.to output(/Knowledge Health/).to_stdout
+    end
+
+    it 'shows Local section' do
+      expect do
+        described_class.start(%w[health --no-color])
+      end.to output(/Local/).to_stdout
+    end
+
+    it 'shows Apollo section' do
+      expect do
+        described_class.start(%w[health --no-color])
+      end.to output(/Apollo/).to_stdout
+    end
+
+    it 'shows Sync section' do
+      expect do
+        described_class.start(%w[health --no-color])
+      end.to output(/Sync/).to_stdout
+    end
+
+    it 'calls Maintenance.health with path' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:health)
+        .with(hash_including(:path))
+        .and_return(health_result_success)
+      described_class.start(%w[health --no-color])
+    end
+
+    it 'passes --corpus-path to health' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:health)
+        .with(hash_including(path: '/custom/path'))
+        .and_return(health_result_success)
+      described_class.start(['health', '--corpus-path', '/custom/path', '--no-color'])
+    end
+
+    context 'when health check fails' do
+      before do
+        Legion::Extensions::Knowledge::Runners::Maintenance.test_health_result =
+          { success: false, error: 'DB unreachable' }
+      end
+
+      it 'shows error message' do
+        expect do
+          described_class.start(%w[health --no-color])
+        end.to output(/DB unreachable/).to_stdout
+      end
+    end
+
+    context 'with --json' do
+      it 'outputs JSON' do
+        output = capture_stdout { described_class.start(%w[health --json --no-color]) }
+        parsed = JSON.parse(output, symbolize_names: true)
+        expect(parsed[:success]).to eq(true)
+      end
+    end
+  end
+
+  describe '#maintain' do
+    it 'shows Knowledge Maintain header with dry run label' do
+      expect do
+        described_class.start(%w[maintain --no-color])
+      end.to output(/Knowledge Maintain \(dry run\)/).to_stdout
+    end
+
+    it 'shows orphan files' do
+      expect do
+        described_class.start(%w[maintain --no-color])
+      end.to output(/stale\/old\.md/).to_stdout
+    end
+
+    it 'defaults dry_run to true' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:cleanup_orphans)
+        .with(hash_including(dry_run: true))
+        .and_return(cleanup_result_success)
+      described_class.start(%w[maintain --no-color])
+    end
+
+    it 'passes dry_run: false when --no-dry-run given' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:cleanup_orphans)
+        .with(hash_including(dry_run: false))
+        .and_return(cleanup_result_success.merge(dry_run: false))
+      described_class.start(%w[maintain --no-dry-run --no-color])
+    end
+
+    it 'omits dry run label when --no-dry-run given' do
+      allow(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:cleanup_orphans)
+        .and_return(cleanup_result_success.merge(dry_run: false))
+      expect do
+        described_class.start(%w[maintain --no-dry-run --no-color])
+      end.to output(/Knowledge Maintain\z|Knowledge Maintain\n/).to_stdout
+    end
+
+    it 'passes --corpus-path to cleanup_orphans' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:cleanup_orphans)
+        .with(hash_including(path: '/my/corpus'))
+        .and_return(cleanup_result_success)
+      described_class.start(['maintain', '--corpus-path', '/my/corpus', '--no-color'])
+    end
+
+    context 'when maintenance fails' do
+      before do
+        Legion::Extensions::Knowledge::Runners::Maintenance.test_cleanup_result =
+          { success: false, error: 'index locked' }
+      end
+
+      it 'shows error message' do
+        expect do
+          described_class.start(%w[maintain --no-color])
+        end.to output(/index locked/).to_stdout
+      end
+    end
+
+    context 'with --json' do
+      it 'outputs JSON' do
+        output = capture_stdout { described_class.start(%w[maintain --json --no-color]) }
+        parsed = JSON.parse(output, symbolize_names: true)
+        expect(parsed[:success]).to eq(true)
+      end
+    end
+  end
+
+  describe '#quality' do
+    it 'shows Knowledge Quality Report header' do
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/Knowledge Quality Report/).to_stdout
+    end
+
+    it 'shows Hot Chunks section' do
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/Hot Chunks/).to_stdout
+    end
+
+    it 'shows Cold Chunks section' do
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/Cold Chunks/).to_stdout
+    end
+
+    it 'shows Low Confidence section' do
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/Low Confidence/).to_stdout
+    end
+
+    it 'shows source file names in chunks' do
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/README\.md/).to_stdout
+    end
+
+    it 'passes limit to quality_report' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:quality_report)
+        .with(hash_including(limit: 20))
+        .and_return(quality_result_success)
+      described_class.start(%w[quality --limit 20 --no-color])
+    end
+
+    it 'defaults limit to 10' do
+      expect(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:quality_report)
+        .with(hash_including(limit: 10))
+        .and_return(quality_result_success)
+      described_class.start(%w[quality --no-color])
+    end
+
+    it 'shows (none) for empty chunk sections' do
+      allow(Legion::Extensions::Knowledge::Runners::Maintenance).to receive(:quality_report)
+        .and_return(quality_result_success.merge(hot_chunks: [], cold_chunks: [], low_confidence: []))
+      expect do
+        described_class.start(%w[quality --no-color])
+      end.to output(/\(none\)/).to_stdout
+    end
+
+    context 'when quality report fails' do
+      before do
+        Legion::Extensions::Knowledge::Runners::Maintenance.test_quality_result =
+          { success: false, error: 'no index found' }
+      end
+
+      it 'shows error message' do
+        expect do
+          described_class.start(%w[quality --no-color])
+        end.to output(/no index found/).to_stdout
+      end
+    end
+
+    context 'with --json' do
+      it 'outputs JSON' do
+        output = capture_stdout { described_class.start(%w[quality --json --no-color]) }
+        parsed = JSON.parse(output, symbolize_names: true)
+        expect(parsed[:success]).to eq(true)
+      end
+    end
+  end
+
+  describe '#resolve_corpus_path' do
+    let(:instance) { described_class.new([], {}) }
+
+    it 'returns Dir.pwd when no options or settings' do
+      allow(instance).to receive(:options).and_return({})
+      expect(instance.resolve_corpus_path).to eq(::Dir.pwd)
+    end
+
+    it 'returns corpus_path option when provided' do
+      allow(instance).to receive(:options).and_return({ corpus_path: '/opt/docs' })
+      expect(instance.resolve_corpus_path).to eq('/opt/docs')
+    end
+  end
+
   describe 'when lex-knowledge is not loaded' do
     before do
-      # Temporarily restore the real require_knowledge! guard by removing the patch
+      # Temporarily restore the real guards by removing the no-op patch
       Legion::CLI::Knowledge.class_eval do
         no_commands do
           define_method(:require_knowledge!) do
             raise Legion::CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
           end
           define_method(:require_ingest!) do
+            raise Legion::CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+          end
+          define_method(:require_maintenance!) do
             raise Legion::CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
           end
         end
@@ -353,6 +621,7 @@ RSpec.describe Legion::CLI::Knowledge do
         no_commands do
           define_method(:require_knowledge!) { nil }
           define_method(:require_ingest!) { nil }
+          define_method(:require_maintenance!) { nil }
         end
       end
     end
@@ -366,6 +635,24 @@ RSpec.describe Legion::CLI::Knowledge do
     it 'raises CLI::Error with helpful message on ingest' do
       expect do
         described_class.start(['ingest', '/tmp/doc.md', '--no-color'])
+      end.to raise_error(Legion::CLI::Error, /lex-knowledge extension is not loaded/)
+    end
+
+    it 'raises CLI::Error with helpful message on health' do
+      expect do
+        described_class.start(%w[health --no-color])
+      end.to raise_error(Legion::CLI::Error, /lex-knowledge extension is not loaded/)
+    end
+
+    it 'raises CLI::Error with helpful message on maintain' do
+      expect do
+        described_class.start(%w[maintain --no-color])
+      end.to raise_error(Legion::CLI::Error, /lex-knowledge extension is not loaded/)
+    end
+
+    it 'raises CLI::Error with helpful message on quality' do
+      expect do
+        described_class.start(%w[quality --no-color])
       end.to raise_error(Legion::CLI::Error, /lex-knowledge extension is not loaded/)
     end
   end
