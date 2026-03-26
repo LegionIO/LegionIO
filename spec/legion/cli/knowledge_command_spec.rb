@@ -60,6 +60,32 @@ module Legion
             Legion::Extensions::Knowledge::Runners::Maintenance.test_quality_result
           end
         end
+
+        module Monitor
+          class << self
+            attr_accessor :test_add_result, :test_remove_result, :test_list_result, :test_status_result
+          end
+
+          def self.add_monitor(**)
+            Legion::Extensions::Knowledge::Runners::Monitor.test_add_result
+          end
+
+          def self.remove_monitor(**)
+            Legion::Extensions::Knowledge::Runners::Monitor.test_remove_result
+          end
+
+          def self.list_monitors
+            Legion::Extensions::Knowledge::Runners::Monitor.test_list_result
+          end
+
+          def self.monitor_status
+            Legion::Extensions::Knowledge::Runners::Monitor.test_status_result
+          end
+
+          def self.resolve_monitors
+            Legion::Extensions::Knowledge::Runners::Monitor.test_list_result || []
+          end
+        end
       end
     end
   end
@@ -67,12 +93,18 @@ end
 
 require 'legion/cli/knowledge_command'
 
-# Patch require_knowledge!, require_ingest!, require_maintenance! to be no-ops (extensions already stubbed above)
+# Patch require_knowledge!, require_ingest!, require_maintenance!, require_monitor! to be no-ops
 Legion::CLI::Knowledge.class_eval do
   no_commands do
     define_method(:require_knowledge!) { nil }
     define_method(:require_ingest!) { nil }
     define_method(:require_maintenance!) { nil }
+  end
+end
+
+Legion::CLI::MonitorCommand.class_eval do
+  no_commands do
+    define_method(:require_monitor!) { nil }
   end
 end
 
@@ -138,6 +170,25 @@ RSpec.describe Legion::CLI::Knowledge do
     }
   end
 
+  let(:monitor_add_result_success) do
+    { success: true }
+  end
+
+  let(:monitor_remove_result_success) do
+    { success: true }
+  end
+
+  let(:monitor_list_result) do
+    [
+      { path: '/opt/docs', label: 'docs', extensions: %w[md rb] },
+      { path: '/opt/wiki', label: nil,    extensions: %w[md] }
+    ]
+  end
+
+  let(:monitor_status_result) do
+    { total_monitors: 2, total_files: 47 }
+  end
+
   before do
     Legion::Extensions::Knowledge::Runners::Query.test_query_result    = query_result_success
     Legion::Extensions::Knowledge::Runners::Query.test_retrieve_result = retrieve_result_success
@@ -147,6 +198,10 @@ RSpec.describe Legion::CLI::Knowledge do
     Legion::Extensions::Knowledge::Runners::Maintenance.test_health_result   = health_result_success
     Legion::Extensions::Knowledge::Runners::Maintenance.test_cleanup_result  = cleanup_result_success
     Legion::Extensions::Knowledge::Runners::Maintenance.test_quality_result  = quality_result_success
+    Legion::Extensions::Knowledge::Runners::Monitor.test_add_result    = monitor_add_result_success
+    Legion::Extensions::Knowledge::Runners::Monitor.test_remove_result = monitor_remove_result_success
+    Legion::Extensions::Knowledge::Runners::Monitor.test_list_result   = monitor_list_result
+    Legion::Extensions::Knowledge::Runners::Monitor.test_status_result = monitor_status_result
   end
 
   describe '#query' do
@@ -583,16 +638,141 @@ RSpec.describe Legion::CLI::Knowledge do
     end
   end
 
+  describe 'monitor subcommand' do
+    describe 'add' do
+      it 'calls add_monitor with path and shows success' do
+        expect(Legion::Extensions::Knowledge::Runners::Monitor).to receive(:add_monitor)
+          .with(hash_including(path: '/opt/docs'))
+          .and_return(monitor_add_result_success)
+        expect do
+          Legion::CLI::MonitorCommand.start(['add', '/opt/docs', '--no-color'])
+        end.to output(/Monitor added/).to_stdout
+      end
+
+      it 'passes extensions as array' do
+        expect(Legion::Extensions::Knowledge::Runners::Monitor).to receive(:add_monitor)
+          .with(hash_including(extensions: %w[md rb]))
+          .and_return(monitor_add_result_success)
+        Legion::CLI::MonitorCommand.start(['add', '/opt/docs', '--extensions', 'md,rb', '--no-color'])
+      end
+
+      it 'passes label option' do
+        expect(Legion::Extensions::Knowledge::Runners::Monitor).to receive(:add_monitor)
+          .with(hash_including(label: 'my-docs'))
+          .and_return(monitor_add_result_success)
+        Legion::CLI::MonitorCommand.start(['add', '/opt/docs', '--label', 'my-docs', '--no-color'])
+      end
+
+      it 'shows error when add fails' do
+        Legion::Extensions::Knowledge::Runners::Monitor.test_add_result = { success: false, error: 'path not found' }
+        expect do
+          Legion::CLI::MonitorCommand.start(['add', '/bad/path', '--no-color'])
+        end.to output(/path not found/).to_stdout
+      end
+    end
+
+    describe 'list' do
+      it 'shows monitor paths' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[list --no-color])
+        end.to output(%r{/opt/docs}).to_stdout
+      end
+
+      it 'shows monitor labels' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[list --no-color])
+        end.to output(/docs/).to_stdout
+      end
+
+      it 'shows Knowledge Monitors header' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[list --no-color])
+        end.to output(/Knowledge Monitors/).to_stdout
+      end
+
+      it 'shows no monitors message when list is empty' do
+        Legion::Extensions::Knowledge::Runners::Monitor.test_list_result = []
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[list --no-color])
+        end.to output(/No monitors registered/).to_stdout
+      end
+    end
+
+    describe 'remove' do
+      it 'calls remove_monitor with identifier and shows success' do
+        expect(Legion::Extensions::Knowledge::Runners::Monitor).to receive(:remove_monitor)
+          .with(hash_including(identifier: '/opt/docs'))
+          .and_return(monitor_remove_result_success)
+        expect do
+          Legion::CLI::MonitorCommand.start(['remove', '/opt/docs', '--no-color'])
+        end.to output(/Monitor removed/).to_stdout
+      end
+
+      it 'shows error when remove fails' do
+        Legion::Extensions::Knowledge::Runners::Monitor.test_remove_result = { success: false, error: 'not found' }
+        expect do
+          Legion::CLI::MonitorCommand.start(['remove', 'nonexistent', '--no-color'])
+        end.to output(/not found/).to_stdout
+      end
+    end
+
+    describe 'status' do
+      it 'shows total monitors count' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[status --no-color])
+        end.to output(/2/).to_stdout
+      end
+
+      it 'shows total files count' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[status --no-color])
+        end.to output(/47/).to_stdout
+      end
+
+      it 'shows Monitor Status header' do
+        expect do
+          Legion::CLI::MonitorCommand.start(%w[status --no-color])
+        end.to output(/Monitor Status/).to_stdout
+      end
+    end
+  end
+
+  describe 'capture subcommand' do
+    describe 'commit' do
+      it 'outputs something for a valid git repo' do
+        allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with("git log -1 --format='%H %s' 2>/dev/null").and_return("abc1234def5678 add monitor subcommand\n")
+        allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with('git diff HEAD~1 --stat 2>/dev/null').and_return("1 file changed\n")
+        expect do
+          Legion::CLI::CaptureCommand.start(%w[commit --no-color])
+        end.to output(/.+/).to_stdout
+      end
+
+      it 'shows warning when no git commit found' do
+        allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with("git log -1 --format='%H %s' 2>/dev/null").and_return('')
+        allow_any_instance_of(Legion::CLI::CaptureCommand).to receive(:`).with('git diff HEAD~1 --stat 2>/dev/null').and_return('')
+        expect do
+          Legion::CLI::CaptureCommand.start(%w[commit --no-color])
+        end.to output(/No git commit found/).to_stdout
+      end
+    end
+  end
+
   describe '#resolve_corpus_path' do
     let(:instance) { described_class.new([], {}) }
 
-    it 'returns Dir.pwd when no options or settings' do
+    it 'returns Dir.pwd when no options and monitors list is empty' do
+      Legion::Extensions::Knowledge::Runners::Monitor.test_list_result = []
       allow(instance).to receive(:options).and_return({})
       expect(instance.resolve_corpus_path).to eq(Dir.pwd)
     end
 
     it 'returns corpus_path option when provided' do
       allow(instance).to receive(:options).and_return({ corpus_path: '/opt/docs' })
+      expect(instance.resolve_corpus_path).to eq('/opt/docs')
+    end
+
+    it 'returns first monitor path when monitors are available' do
+      allow(instance).to receive(:options).and_return({})
       expect(instance.resolve_corpus_path).to eq('/opt/docs')
     end
   end

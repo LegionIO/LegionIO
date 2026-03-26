@@ -2,6 +2,184 @@
 
 module Legion
   module CLI
+    class MonitorCommand < Thor
+      def self.exit_on_failure?
+        true
+      end
+
+      class_option :json,     type: :boolean, default: false, desc: 'Output as JSON'
+      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
+
+      desc 'add PATH', 'Add a directory to corpus monitors'
+      option :extensions, type: :string,  desc: 'Comma-separated file extensions to watch (e.g. md,rb)'
+      option :label,      type: :string,  desc: 'Human-readable label for this monitor'
+      def add(path)
+        require_monitor!
+        exts  = options[:extensions]&.split(',')&.map(&:strip)
+        result = Legion::Extensions::Knowledge::Runners::Monitor.add_monitor(
+          path:       path,
+          extensions: exts,
+          label:      options[:label]
+        )
+        out = formatter
+        if options[:json]
+          out.json(result)
+        elsif result[:success]
+          out.success("Monitor added: #{path}")
+        else
+          out.warn("Failed to add monitor: #{result[:error]}")
+        end
+      end
+
+      desc 'list', 'List registered corpus monitors'
+      def list
+        require_monitor!
+        monitors = Legion::Extensions::Knowledge::Runners::Monitor.list_monitors
+        out = formatter
+        if options[:json]
+          out.json(monitors)
+        elsif monitors.nil? || monitors.empty?
+          out.warn('No monitors registered')
+        else
+          out.header('Knowledge Monitors')
+          monitors.each do |m|
+            label = m[:label] ? " [#{m[:label]}]" : ''
+            exts  = m[:extensions]&.join(', ')
+            puts "  #{m[:path]}#{label}"
+            puts "    Extensions: #{exts}" if exts && !exts.empty?
+          end
+        end
+      end
+      default_task :list
+
+      desc 'remove IDENTIFIER', 'Remove a corpus monitor by path or label'
+      def remove(identifier)
+        require_monitor!
+        result = Legion::Extensions::Knowledge::Runners::Monitor.remove_monitor(identifier:)
+        out = formatter
+        if options[:json]
+          out.json(result)
+        elsif result[:success]
+          out.success("Monitor removed: #{identifier}")
+        else
+          out.warn("Failed to remove monitor: #{result[:error]}")
+        end
+      end
+
+      desc 'status', 'Show monitor status (counts)'
+      def status
+        require_monitor!
+        result = Legion::Extensions::Knowledge::Runners::Monitor.monitor_status
+        out = formatter
+        if options[:json]
+          out.json(result)
+        else
+          out.header('Monitor Status')
+          out.detail({
+                       'Total monitors' => result[:total_monitors].to_s,
+                       'Total files'    => result[:total_files].to_s
+                     })
+        end
+      end
+
+      no_commands do
+        def formatter
+          @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+        end
+
+        def require_monitor!
+          return if defined?(Legion::Extensions::Knowledge::Runners::Monitor)
+
+          raise CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+        end
+      end
+    end
+
+    class CaptureCommand < Thor
+      def self.exit_on_failure?
+        true
+      end
+
+      class_option :json,     type: :boolean, default: false, desc: 'Output as JSON'
+      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
+
+      desc 'commit', 'Capture the last git commit as knowledge'
+      def commit
+        log_line = `git log -1 --format='%H %s' 2>/dev/null`.strip
+        diff_stat = `git diff HEAD~1 --stat 2>/dev/null`.strip
+
+        if log_line.empty?
+          formatter.warn('No git commit found')
+          return
+        end
+
+        sha, *subject_parts = log_line.split(' ')
+        subject = subject_parts.join(' ')
+        content = "Git commit: #{sha}\nSubject: #{subject}\n\nDiff stat:\n#{diff_stat}"
+        tags    = %w[git commit knowledge-capture]
+
+        result = if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+                   Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
+                     content: content,
+                     tags:    tags,
+                     source:  "git:#{sha}"
+                   )
+                 else
+                   { success: false, error: 'lex-knowledge not loaded' }
+                 end
+
+        out = formatter
+        if options[:json]
+          out.json(result)
+        elsif result[:success]
+          out.success("Captured commit #{sha[0, 8]}: #{subject}")
+        else
+          out.warn("Capture failed: #{result[:error]}")
+        end
+      end
+
+      desc 'session', 'Capture a session note from stdin'
+      def session
+        input = $stdin.gets(nil) if $stdin.ready? rescue nil # rubocop:disable Style/RescueModifier
+        input = input.to_s.strip
+
+        if input.empty?
+          formatter.warn('No session input provided (pipe text to stdin)')
+          return
+        end
+
+        repo = `git rev-parse --show-toplevel 2>/dev/null`.strip.split('/').last
+        content = "Session note (#{::Time.now.strftime('%Y-%m-%d')}):\n\n#{input}"
+        tags    = ['session', 'knowledge-capture', ::Time.now.strftime('%Y-%m-%d')]
+        tags   << "repo:#{repo}" unless repo.empty?
+
+        result = if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+                   Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
+                     content: content,
+                     tags:    tags,
+                     source:  "session:#{::Time.now.iso8601}"
+                   )
+                 else
+                   { success: false, error: 'lex-knowledge not loaded' }
+                 end
+
+        out = formatter
+        if options[:json]
+          out.json(result)
+        elsif result[:success]
+          out.success('Session captured')
+        else
+          out.warn("Capture failed: #{result[:error]}")
+        end
+      end
+
+      no_commands do
+        def formatter
+          @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+        end
+      end
+    end
+
     class Knowledge < Thor
       def self.exit_on_failure?
         true
@@ -161,6 +339,12 @@ module Legion
         end
       end
 
+      desc 'monitor SUBCOMMAND', 'Manage knowledge corpus monitors'
+      subcommand 'monitor', MonitorCommand
+
+      desc 'capture SUBCOMMAND', 'Capture knowledge from git commits or sessions'
+      subcommand 'capture', CaptureCommand
+
       no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
@@ -199,11 +383,20 @@ module Legion
         def resolve_corpus_path
           if options[:corpus_path]
             options[:corpus_path]
+          elsif defined?(Legion::Extensions::Knowledge::Runners::Monitor)
+            monitors = Legion::Extensions::Knowledge::Runners::Monitor.resolve_monitors
+            monitors.first&.dig(:path) || legacy_corpus_path || ::Dir.pwd
           elsif defined?(Legion::Settings)
             Legion::Settings.dig(:knowledge, :corpus_path) || ::Dir.pwd
           else
             ::Dir.pwd
           end
+        end
+
+        def legacy_corpus_path
+          return unless defined?(Legion::Settings)
+
+          Legion::Settings.dig(:knowledge, :corpus_path)
         end
 
         def print_sources(sources, out, verbose:)
