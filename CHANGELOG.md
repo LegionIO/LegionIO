@@ -3,9 +3,17 @@
 ## [Unreleased]
 
 ### Added
+- End-to-end integration test for TBI Phase 5 self-generating functions loop (9 examples)
+- Test dependencies: lex-codegen, lex-eval added to Gemfile for integration testing
 - Specs for `legion codegen` CLI subcommand (8 subcommands, 22 examples)
 - Specs for `/api/codegen/*` API routes (8 routes, 20 examples)
 - Specs for `setup_generated_functions` boot loading in Service (4 examples)
+
+### Fixed
+- Guard `Legion::Transport::Messages::Dynamic` stub definition in integration spec with `unless defined?` to prevent redefinition conflicts when real implementations are present
+- Wrap `lex-codegen` and `lex-eval` requires in `LoadError` rescue guards in integration spec; sets `LEGION_CODEGEN_EXTENSION_AVAILABLE` / `LEGION_EVAL_EXTENSION_AVAILABLE` flags and skips entire example group via `before(:all)` when extensions are unavailable
+- Move `Legion::LLM.chat` stub to `RSpec.configure before(:each)` block so it always intercepts regardless of whether the real `legion-llm` gem is loaded, preventing external LLM calls in integration tests
+- Fix `service_setup_apollo_spec` "starts Apollo::Local" example: stub `Legion::Apollo.start` to prevent internal double-call of `Apollo::Local.start`
 
 ## [1.6.8] - 2026-03-26
 

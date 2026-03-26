@@ -23,6 +23,8 @@ gem 'mysql2'
 
 group :test do
   gem 'graphql'
+  gem 'lex-codegen'
+  gem 'lex-eval'
   gem 'rack-test'
   gem 'rake'
   gem 'rspec'
