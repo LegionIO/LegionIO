@@ -60,8 +60,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'legion-settings', '>= 1.3.19'
   spec.add_dependency 'legion-transport', '>= 1.4.0'
 
-  spec.add_dependency 'legion-apollo', '>= 0.2.1'
-  spec.add_dependency 'legion-gaia', '>= 0.9.24'
+  spec.add_dependency 'legion-apollo', '>= 0.3.1'
+  spec.add_dependency 'legion-gaia', '>= 0.9.26'
   spec.add_dependency 'legion-llm', '>= 0.5.8'
   spec.add_dependency 'legion-tty', '>= 0.4.35'
   spec.add_dependency 'lex-node'
