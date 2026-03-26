@@ -36,6 +36,21 @@ RSpec.describe Legion::Service do
         expect { service.send(:setup_apollo) }.not_to raise_error
       end
     end
+
+    context 'when Apollo::Local is available' do
+      before do
+        stub_const('Legion::Apollo::Local', Module.new do
+          extend self
+          define_method(:start) { nil }
+        end)
+        allow(Legion::Apollo::Local).to receive(:start)
+      end
+
+      it 'starts Apollo::Local' do
+        service.send(:setup_apollo)
+        expect(Legion::Apollo::Local).to have_received(:start)
+      end
+    end
   end
 
   describe 'Readiness COMPONENTS' do

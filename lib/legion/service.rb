@@ -330,6 +330,7 @@ module Legion
       Legion::Logging.info 'Setting up Legion::Apollo'
       require 'legion/apollo'
       Legion::Apollo.start
+      Legion::Apollo::Local.start if defined?(Legion::Apollo::Local)
       Legion::Logging.info 'Legion::Apollo started'
     rescue LoadError
       Legion::Logging.info 'Legion::Apollo gem is not installed, starting without Apollo'
