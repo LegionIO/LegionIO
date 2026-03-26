@@ -33,12 +33,6 @@ rescue LoadError => e
   Legion::Logging.debug "Extensions::Core: knowledge helper not available: #{e.message}" if defined?(Legion::Logging)
 end
 
-begin
-  require_relative 'helpers/secret'
-rescue LoadError => e
-  Legion::Logging.debug "Extensions::Core: secret helper not available: #{e.message}" if defined?(Legion::Logging)
-end
-
 require_relative 'actors/base'
 require_relative 'actors/every'
 require_relative 'actors/loop'

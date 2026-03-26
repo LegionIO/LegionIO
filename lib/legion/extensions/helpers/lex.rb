@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'legion/json/helper'
+require_relative 'secret'
 
 module Legion
   module Extensions
@@ -9,6 +10,7 @@ module Legion
         include Legion::Extensions::Helpers::Core
         include Legion::Extensions::Helpers::Logger
         include Legion::JSON::Helper
+        include Legion::Extensions::Helpers::Secret
 
         module ClassMethods
           def expose_as_mcp_tool(value = :_unset)

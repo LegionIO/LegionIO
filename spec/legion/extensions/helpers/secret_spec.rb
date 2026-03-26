@@ -199,3 +199,9 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
     end
   end
 end
+
+RSpec.describe 'Helpers::Lex includes Secret' do
+  it 'includes Secret module' do
+    expect(Legion::Extensions::Helpers::Lex.ancestors).to include(Legion::Extensions::Helpers::Secret)
+  end
+end
