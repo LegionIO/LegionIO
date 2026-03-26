@@ -94,7 +94,7 @@ RSpec.describe Legion::CLI::Update do
     it 'shows up-to-date message when nothing changed' do
       output = StringIO.new
       $stdout = output
-      results = [{ name: 'legionio', status: 'updated' }]
+      results = [{ name: 'legionio', status: 'current', remote: '1.0.0' }]
       before_v = { 'legionio' => '1.0.0' }
       after_v = { 'legionio' => '1.0.0' }
       instance.send(:display_results, formatter, results, before_v, after_v)
@@ -105,7 +105,7 @@ RSpec.describe Legion::CLI::Update do
     it 'shows updated message when version changed' do
       output = StringIO.new
       $stdout = output
-      results = [{ name: 'legionio', status: 'updated' }]
+      results = [{ name: 'legionio', status: 'installed', remote: '1.1.0' }]
       before_v = { 'legionio' => '1.0.0' }
       after_v = { 'legionio' => '1.1.0' }
       instance.send(:display_results, formatter, results, before_v, after_v)
@@ -139,7 +139,17 @@ RSpec.describe Legion::CLI::Update do
       results = [{ name: 'legionio', status: 'current', from: '1.0.0' }]
       instance.send(:display_results, formatter, results, {}, {})
       $stdout = STDOUT
-      expect(output.string).to include('current')
+      expect(output.string).to include('already latest')
+    end
+
+    it 'shows check_failed status when remote fetch fails' do
+      output = StringIO.new
+      $stdout = output
+      results = [{ name: 'legionio', status: 'check_failed', remote: nil }]
+      before_v = { 'legionio' => '1.0.0' }
+      instance.send(:display_results, formatter, results, before_v, {})
+      $stdout = STDOUT
+      expect(output.string).to include('remote check failed')
     end
   end
 end

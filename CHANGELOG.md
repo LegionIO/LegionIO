@@ -1,5 +1,13 @@
 # Legion Changelog
 
+## [1.6.1] - 2026-03-26
+
+### Fixed
+- `legionio update` now shows "(remote check failed)" instead of "(already latest)" when rubygems.org fetch fails
+- Add HTTP timeouts (5s connect, 10s read) to remote version checks to prevent thread pool exhaustion
+- Install failures now show "(install may have failed)" instead of "(already latest)"
+- Distinct statuses: current, check_failed, installed, failed (was single ambiguous "updated" for all)
+
 ## [1.6.0] - 2026-03-26
 
 ### Added

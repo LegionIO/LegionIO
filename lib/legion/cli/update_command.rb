@@ -89,24 +89,38 @@ module Legion
             remote && local && Gem::Version.new(remote) > Gem::Version.new(local)
           end
 
-          if dry_run
-            return gem_names.map do |name|
-              local = local_versions[name]
-              remote = remote_versions[name]
-              needs_update = remote && local && Gem::Version.new(remote) > Gem::Version.new(local)
-              { name: name, from: local, to: remote, status: needs_update ? 'available' : 'current' }
-            end
+          return dry_run_results(gem_names, local_versions, remote_versions, outdated) if dry_run
+
+          return current_results(gem_names, remote_versions) if outdated.empty?
+
+          install_results(gem_names, gem_bin, remote_versions, outdated)
+        end
+
+        def dry_run_results(gem_names, local_versions, remote_versions, outdated)
+          gem_names.map do |name|
+            remote = remote_versions[name]
+            status = if outdated.include?(name) then 'available'
+                     elsif remote then 'current'
+                     else 'check_failed'
+                     end
+            { name: name, from: local_versions[name], to: remote, status: status }
           end
+        end
 
-          return gem_names.map { |name| { name: name, status: 'updated', output: '' } } if outdated.empty?
+        def current_results(gem_names, remote_versions)
+          gem_names.map do |name|
+            { name: name, status: remote_versions[name] ? 'current' : 'check_failed', remote: remote_versions[name] }
+          end
+        end
 
+        def install_results(gem_names, gem_bin, remote_versions, outdated)
           output = `#{gem_bin} install #{outdated.join(' ')} --no-document 2>&1`
           success = $CHILD_STATUS.success?
           gem_names.map do |name|
             if outdated.include?(name)
-              { name: name, status: success ? 'updated' : 'failed', output: output.strip }
+              { name: name, status: success ? 'installed' : 'failed', remote: remote_versions[name], output: output.strip }
             else
-              { name: name, status: 'updated', output: '' }
+              { name: name, status: remote_versions[name] ? 'current' : 'check_failed', remote: remote_versions[name] }
             end
           end
         end
@@ -134,7 +148,11 @@ module Legion
 
         def fetch_remote_version(name)
           uri = URI("https://rubygems.org/api/v1/versions/#{name}/latest.json")
-          response = Net::HTTP.get_response(uri)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = true
+          http.open_timeout = 5
+          http.read_timeout = 10
+          response = http.request(Net::HTTP::Get.new(uri))
           return nil unless response.is_a?(Net::HTTPSuccess)
 
           data = ::JSON.parse(response.body)
@@ -144,6 +162,7 @@ module Legion
         def display_results(out, results, before, after)
           updated = []
           failed = []
+          check_failures = 0
 
           results.each do |r|
             name = r[:name]
@@ -152,12 +171,17 @@ module Legion
               puts "  #{name}: #{r[:from]} -> #{r[:to]}"
               updated << name
             when 'current'
-              puts "  #{name}: #{r[:from] || '?'} (current)"
-            when 'updated'
+              local = r[:from] || before[name]
+              puts "  #{name}: #{local || '?'} (already latest)"
+            when 'check_failed'
+              puts "  #{name}: #{before[name]} (remote check failed)"
+              check_failures += 1
+            when 'installed'
               old_v = before[name]
               new_v = after[name]
               if old_v == new_v
-                puts "  #{name}: #{old_v} (already latest)"
+                out.error("  #{name}: #{old_v} (install may have failed)")
+                failed << name
               else
                 out.success("  #{name}: #{old_v} -> #{new_v}")
                 updated << name
@@ -171,6 +195,8 @@ module Legion
           out.spacer
           if updated.any?
             out.success("Updated #{updated.size} gem(s)")
+          elsif check_failures.positive?
+            puts "#{check_failures} gem(s) could not be checked - retry or use --dry-run for details"
           else
             puts 'All gems are up to date'
           end
