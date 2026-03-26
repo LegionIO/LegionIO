@@ -155,7 +155,13 @@ module Legion
         def require_coldstart!
           require 'legion/logging'
           Legion::Logging.setup(level: options[:verbose] ? 'debug' : 'warn') unless Legion::Logging.instance_variable_get(:@log)
-          require 'legion/extensions/memory'
+
+          begin
+            require 'legion/extensions/agentic/memory/trace'
+          rescue LoadError
+            Legion::Logging.debug('lex-agentic-memory not available, traces will be parsed but not stored') if defined?(Legion::Logging)
+          end
+
           require 'legion/extensions/coldstart'
         rescue LoadError => e
           formatter.error("lex-coldstart not available: #{e.message}")

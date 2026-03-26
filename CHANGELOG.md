@@ -2,6 +2,9 @@
 
 ## [1.5.22] - 2026-03-26
 
+### Fixed
+- `coldstart ingest` no longer crashes when lex-memory is absent; uses lex-agentic-memory trace store instead
+
 ### Changed
 - Consolidate 48 root CLI commands into 7 groups + 19 root commands
 - New groups: `ai`, `git`, `pipeline`, `ops`, `serve`, `admin`, `dev`
