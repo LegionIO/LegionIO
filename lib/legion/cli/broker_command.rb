@@ -75,7 +75,7 @@ module Legion
         exit(1)
       end
 
-      no_commands do
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],

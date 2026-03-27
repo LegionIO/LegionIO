@@ -33,9 +33,9 @@ RSpec.describe 'Extensions local dispatch wiring' do
       runner_mod = Module.new { def self.action(**); end }
       actor_hash = {
         extension_name: 'test_ext',
-        actor_class: Class.new,
-        runner_class: runner_mod,
-        actor_name: 'test_actor'
+        actor_class:    Class.new,
+        runner_class:   runner_mod,
+        actor_name:     'test_actor'
       }
 
       Legion::Extensions.send(:dispatch_local_actors, [actor_hash])

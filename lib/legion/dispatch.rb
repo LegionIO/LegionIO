@@ -9,8 +9,8 @@ module Legion
         @dispatcher ||= Local.new
       end
 
-      def submit(&block)
-        dispatcher.submit(&block)
+      def submit(&)
+        dispatcher.submit(&)
       end
 
       def shutdown

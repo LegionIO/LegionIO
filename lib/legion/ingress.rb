@@ -39,7 +39,7 @@ module Legion
 
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
-      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/AbcSize
         Legion::Logging.info "[Ingress] run: source=#{source} runner_class=#{runner_class} function=#{function}" if defined?(Legion::Logging)
         check_subtask = opts.fetch(:check_subtask, true)
         generate_task = opts.fetch(:generate_task, true)

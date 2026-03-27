@@ -16,8 +16,8 @@ RSpec.describe 'Ingress local dispatch' do
   describe '.local_runner?' do
     it 'returns true when runner is in local_tasks' do
       allow(Legion::Extensions).to receive(:local_tasks).and_return([
-                                                                       { runner_module: runner_module, actor_name: 'test' }
-                                                                     ])
+                                                                      { runner_module: runner_module, actor_name: 'test' }
+                                                                    ])
       expect(Legion::Ingress.local_runner?(runner_module)).to be true
     end
 
@@ -35,22 +35,22 @@ RSpec.describe 'Ingress local dispatch' do
   describe '.run with local runner' do
     before do
       allow(Legion::Extensions).to receive(:local_tasks).and_return([
-                                                                       { runner_module: runner_module, actor_name: 'test' }
-                                                                     ])
+                                                                      { runner_module: runner_module, actor_name: 'test' }
+                                                                    ])
     end
 
     it 'invokes the runner directly without AMQP' do
       # Use a named constant so Ingress validation and const_get work
       stub_const('TestLocalRunner', runner_module)
       allow(Legion::Extensions).to receive(:local_tasks).and_return([
-                                                                       { runner_module: TestLocalRunner, actor_name: 'test' }
-                                                                     ])
+                                                                      { runner_module: TestLocalRunner, actor_name: 'test' }
+                                                                    ])
 
       result = Legion::Ingress.run(
-        payload: { key: 'value' },
+        payload:      { key: 'value' },
         runner_class: 'TestLocalRunner',
-        function: 'action',
-        source: 'test'
+        function:     'action',
+        source:       'test'
       )
       expect(result[:result]).to eq('local')
     end

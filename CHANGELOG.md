@@ -2,7 +2,14 @@
 
 ## [Unreleased]
 
+## [1.6.11] - 2026-03-26
+
 ### Added
+- `Legion::Dispatch` module with pluggable strategy interface and `Local` implementation using `Concurrent::FixedThreadPool`
+- Local dispatch wiring in `extensions.rb`: `dispatch_local_actors` registers non-remote extensions in thread pool
+- `Ingress.local_runner?` short-circuit: runners for `remote_invocable? false` extensions skip AMQP round-trip
+- `setup_dispatch` in `Service` boot sequence with graceful shutdown
+- `legion broker stats` and `legion broker cleanup` CLI commands for RabbitMQ management
 - End-to-end integration test for TBI Phase 5 self-generating functions loop (9 examples)
 - Test dependencies: lex-codegen, lex-eval added to Gemfile for integration testing
 - Specs for `legion codegen` CLI subcommand (8 subcommands, 22 examples)
