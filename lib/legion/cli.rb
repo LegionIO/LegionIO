@@ -60,7 +60,8 @@ module Legion
     autoload :Interactive, 'legion/cli/interactive'
     autoload :Docs,        'legion/cli/docs_command'
     autoload :Failover,    'legion/cli/failover_command'
-    autoload :Apollo,      'legion/cli/apollo_command'
+    autoload :AbsorbCommand, 'legion/cli/absorb_command'
+    autoload :Apollo,        'legion/cli/apollo_command'
     autoload :TraceCommand, 'legion/cli/trace_command'
     autoload :Features,     'legion/cli/features_command'
     autoload :Debug,        'legion/cli/debug_command'
@@ -275,6 +276,9 @@ module Legion
 
       desc 'dev SUBCOMMAND', 'Generators, docs, marketplace, and shell completion'
       subcommand 'dev', Legion::CLI::Groups::Dev
+
+      desc 'absorb SUBCOMMAND', 'Absorb content from external sources'
+      subcommand 'absorb', AbsorbCommand
 
       desc 'broker SUBCOMMAND', 'RabbitMQ broker management (stats, cleanup)'
       subcommand 'broker', Legion::CLI::Broker
