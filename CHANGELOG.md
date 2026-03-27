@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.6.14] - 2026-03-27
+
+### Added
+- `Legion::Compliance` module rewritten with DEFAULTS hash, `merge_settings` registration, and clean API
+- `Compliance.setup` registers max-classification defaults: PHI, PCI, PII, FedRAMP all enabled by default
+- `Compliance.enabled?`, `.phi_enabled?`, `.pci_enabled?`, `.pii_enabled?`, `.fedramp_enabled?` convenience methods
+- `Compliance.classification_level` returns `'confidential'` by default (highest level)
+- `Compliance.profile` returns a hash with all compliance flags for downstream consumers
+- `setup_compliance` wired into Service boot sequence after settings load
+- Compliance profile spec (8 examples)
+
+### Changed
+- `Compliance.phi_enabled?` now uses `Settings.dig(:compliance, :phi_enabled)` instead of chaining `[]` calls
+- Existing PhiTag and PhiAccessLog specs updated to use `merge_settings` instead of stubbing `Settings.[]`
+
 ## [1.6.13] - 2026-03-27
 
 ### Added
