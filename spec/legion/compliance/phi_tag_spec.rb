@@ -5,7 +5,7 @@ require 'legion/compliance'
 
 RSpec.describe Legion::Compliance::PhiTag do
   before do
-    allow(Legion::Settings).to receive(:[]).with(:compliance).and_return({ phi_enabled: true })
+    Legion::Settings.merge_settings(:compliance, Legion::Compliance::DEFAULTS)
   end
 
   describe '.phi?' do
@@ -53,7 +53,7 @@ RSpec.describe Legion::Compliance::PhiTag do
 
   describe 'feature flag' do
     it 'returns false from phi? when phi_enabled is false' do
-      allow(Legion::Settings).to receive(:[]).with(:compliance).and_return({ phi_enabled: false })
+      allow(Legion::Compliance).to receive(:phi_enabled?).and_return(false)
       expect(described_class.phi?(phi: true)).to be false
     end
   end

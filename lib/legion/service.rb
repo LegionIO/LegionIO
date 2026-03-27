@@ -31,6 +31,7 @@ module Legion
       Legion::Logging.debug('Starting Legion::Service')
       setup_settings
       apply_cli_overrides(http_port: http_port)
+      setup_compliance
       setup_local_mode
       reconfigure_logging(log_level)
       Legion::Logging.info("node name: #{Legion::Settings[:client][:name]}")
@@ -223,6 +224,15 @@ module Legion
       Legion::Readiness.mark_ready(:settings)
       Legion::Logging.info('Legion::Settings Loaded')
       self.class.log_privacy_mode_status
+    end
+
+    def setup_compliance
+      require 'legion/compliance'
+      Legion::Compliance.setup
+    rescue LoadError => e
+      Legion::Logging.debug "Compliance module not available: #{e.message}"
+    rescue StandardError => e
+      Legion::Logging.warn "Compliance setup failed: #{e.message}"
     end
 
     def apply_cli_overrides(http_port: nil)
