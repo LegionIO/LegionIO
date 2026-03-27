@@ -79,6 +79,12 @@ module Legion
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
+        if local_runner?(rc)
+          Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
+          klass = rc.is_a?(String) ? Kernel.const_get(rc) : rc
+          return klass.send(fn.to_sym, **message)
+        end
+
         runner_block = lambda {
           Legion::Runner.run(
             runner_class:  rc,
@@ -112,6 +118,15 @@ module Legion
       rescue Legion::DigitalWorker::Registry::InsufficientConsent => e
         Legion::Logging.error "[Ingress] insufficient_consent: #{e.message}" if defined?(Legion::Logging)
         { success: false, status: 'task.blocked', error: { code: 'insufficient_consent', message: e.message } }
+      end
+
+      def local_runner?(runner_class)
+        return false unless defined?(Legion::Extensions) && Legion::Extensions.local_tasks.is_a?(Array)
+
+        klass = runner_class.is_a?(String) ? Kernel.const_get(runner_class) : runner_class
+        Legion::Extensions.local_tasks.any? { |t| t[:runner_module] == klass }
+      rescue NameError
+        false
       end
 
       private
