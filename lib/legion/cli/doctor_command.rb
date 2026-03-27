@@ -42,7 +42,12 @@ module Legion
       desc 'diagnose', 'Check environment health and suggest fixes'
       method_option :fix, type: :boolean, default: false, desc: 'Auto-fix issues where possible'
       def diagnose
-        out     = formatter
+        out = formatter
+        begin
+          Connection.ensure_settings
+        rescue StandardError => e
+          Legion::Logging.debug("Doctor#diagnose settings load failed: #{e.message}") if defined?(Legion::Logging)
+        end
         results = run_all_checks
 
         if options[:json]
@@ -54,6 +59,8 @@ module Legion
         auto_fix(results) if options[:fix]
 
         exit(1) if results.any?(&:fail?)
+      ensure
+        Connection.shutdown
       end
 
       default_task :diagnose

@@ -119,7 +119,8 @@ module Legion
         # Check transport config
         if Connection.settings?
           transport = Legion::Settings[:transport] || {}
-          warnings << 'Transport host not configured (RabbitMQ will use default localhost)' if transport[:host].nil? || transport[:host].to_s.empty?
+          transport_host = transport.dig(:connection, :host)
+          warnings << 'Transport host not configured (RabbitMQ will use default localhost)' if transport_host.nil? || transport_host.to_s.empty?
 
           # Check data config
           data = Legion::Settings[:data] || {}

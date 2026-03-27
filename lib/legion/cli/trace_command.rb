@@ -2,6 +2,7 @@
 
 require 'thor'
 require 'legion/cli/output'
+require 'legion/cli/connection'
 
 module Legion
   module CLI
@@ -12,12 +13,16 @@ module Legion
         true
       end
 
-      class_option :json,     type: :boolean, default: false, desc: 'Output as JSON'
-      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
+      class_option :json,       type: :boolean, default: false, desc: 'Output as JSON'
+      class_option :no_color,   type: :boolean, default: false, desc: 'Disable color output'
+      class_option :verbose,    type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
+      class_option :config_dir, type: :string,                  desc: 'Config directory path'
 
       desc 'search QUERY', 'Search traces with natural language'
       option :limit, type: :numeric, default: 50, desc: 'Max results to return'
       def search(*query_parts)
+        return unless setup_connection
+
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -38,10 +43,14 @@ module Legion
         end
 
         display_results(out, result)
+      ensure
+        Legion::CLI::Connection.shutdown
       end
 
       desc 'summarize QUERY', 'Show aggregate statistics for matching traces'
       def summarize(*query_parts)
+        return unless setup_connection
+
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -62,6 +71,8 @@ module Legion
         end
 
         display_summary(out, result)
+      ensure
+        Legion::CLI::Connection.shutdown
       end
 
       default_task :search
@@ -69,6 +80,17 @@ module Legion
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+        end
+
+        def setup_connection
+          Legion::CLI::Connection.config_dir = options[:config_dir] if options[:config_dir]
+          Legion::CLI::Connection.log_level  = options[:verbose] ? 'debug' : 'error'
+          Legion::CLI::Connection.ensure_llm
+          Legion::CLI::Connection.ensure_data
+          true
+        rescue CLI::Error => e
+          formatter.error("Setup failed: #{e.message}")
+          false
         end
 
         private

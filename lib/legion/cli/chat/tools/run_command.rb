@@ -18,9 +18,20 @@ module Legion
           def execute(command:, timeout: 120, working_directory: nil)
             dir = working_directory ? File.expand_path(working_directory) : Dir.pwd
 
-            stdout, stderr, status = nil
-            ::Timeout.timeout(timeout) do
-              stdout, stderr, status = Open3.capture3(command, chdir: dir)
+            stdout, stderr, status = Open3.popen3(command, chdir: dir) do |stdin, out, err, wait_thr|
+              stdin.close
+              out_reader = Thread.new { out.read }
+              err_reader = Thread.new { err.read }
+
+              unless wait_thr.join(timeout)
+                ::Process.kill('TERM', wait_thr.pid)
+                wait_thr.join(5) || ::Process.kill('KILL', wait_thr.pid)
+                out_reader.kill
+                err_reader.kill
+                raise ::Timeout::Error, "command timed out after #{timeout}s"
+              end
+
+              [out_reader.value, err_reader.value, wait_thr.value]
             end
 
             output = String.new
@@ -29,11 +40,9 @@ module Legion
             output << stderr unless stderr.empty?
             output << "\n[exit code: #{status.exitstatus}]"
             output
-          rescue ::Timeout::Error => e
-            Legion::Logging.warn("RunCommand#execute timed out after #{timeout}s for command #{command}: #{e.message}") if defined?(Legion::Logging)
+          rescue ::Timeout::Error
             "[command timed out after #{timeout}s]: #{command}"
           rescue StandardError => e
-            Legion::Logging.warn("RunCommand#execute failed for command #{command}: #{e.message}") if defined?(Legion::Logging)
             "Error executing command: #{e.message}"
           end
         end

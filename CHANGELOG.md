@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [1.6.18] - 2026-03-27
+
+### Fixed
+- `legionio pipeline image analyze`: `call_llm` no longer passes unsupported `messages:` keyword to `Legion::LLM.chat`; now creates a chat object and sends multimodal content via `chat.ask`, returning a plain hash with `:content` and `:usage` keys
+- `legionio ai trace search/summarize`: both commands now call `setup_connection` before invoking `TraceSearch`, ensuring `Legion::LLM` is booted so `TraceSearch.generate_filter` can use structured LLM output instead of returning "no filter generated"; added `class_option :config_dir` and `class_option :verbose` to `TraceCommand`
+
+## [1.6.17] - 2026-03-27
+
+### Fixed
+- `legionio check`: `resolve_secrets!` is now called after a successful crypt check so `lease://`, `vault://`, and `env://` credential URIs are resolved before transport/data checks attempt to connect
+- `legionio check transport`: raises an early descriptive error when transport credentials are still unresolved URI references (Vault lease pending), instead of failing with a confusing connection error
+- `legionio check data`: raises an early descriptive error when database credentials are still unresolved URI references (Vault lease pending)
+- `legionio llm status/providers/models`: `boot_llm_settings` now calls `resolve_secrets!` so `env://` and `vault://` API key references are resolved before provider enabled-state is evaluated
+- `legionio llm providers`: providers with unresolved credential URIs are now shown as `deferred (credentials pending Vault)` in yellow instead of incorrectly `disabled`
+- `Connection.ensure_settings`: calls `resolve_secrets!` after loading settings so `env://` references are resolved in all CLI commands that use the lazy connection manager
+
+## [1.6.16] - 2026-03-27
+
+### Fixed
+- `config validate` transport host check now reads from `transport.connection.host` instead of `transport.host` (correct config nesting)
+- `doctor diagnose` now loads settings via `Connection.ensure_settings` before running checks, so cache/database/vault/extensions checks no longer skip due to `Legion::Settings` being undefined; also adds `ensure Connection.shutdown` for clean teardown
+
+## [1.6.15] - 2026-03-27
+
+### Added
+- Absorbers: new LEX component type for pattern-matched content acquisition
+- `Absorbers::Base` class with `pattern`/`description` DSL and knowledge helpers (`absorb_to_knowledge`, `absorb_raw`, `translate`, `report_progress`)
+- `Absorbers::Matchers::Base` auto-registering matcher interface with `Matchers::Url` for URL glob matching
+- `Absorbers::PatternMatcher` for thread-safe input-to-absorber resolution with priority-based dispatch
+- `Builders::Absorbers` for auto-discovery of absorber classes during extension boot
+- `Capability.from_absorber` factory method for Capability Registry integration
+- `AbsorberDispatch` module for pattern resolution and handler execution
+- `legionio absorb` CLI command with `url`, `list`, and `resolve` subcommands
+- `legionio dev generate absorber` scaffolding template
+
 ## [1.6.14] - 2026-03-27
 
 ### Added

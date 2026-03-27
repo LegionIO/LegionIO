@@ -31,6 +31,7 @@ module Legion
 
           dir = resolve_config_dir
           Legion::Settings.load(config_dir: dir)
+          Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
           @settings_ready = true
         end
 

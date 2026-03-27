@@ -6,6 +6,22 @@ module Legion
       :name, :extension, :runner, :function,
       :description, :parameters, :tags, :loaded_at
     ) do
+      def self.from_absorber(extension:, absorber:, patterns: [], description: nil)
+        absorber_name = absorber.name&.split('::')&.last || absorber.object_id.to_s
+        snake = absorber_name.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase
+        canonical = "#{extension}:absorber:#{snake}"
+        new(
+          name:        canonical,
+          extension:   extension,
+          runner:      'Absorber',
+          function:    absorber_name,
+          description: description,
+          parameters:  { input: { type: :string, required: true } },
+          tags:        ['absorber'] + patterns.map { |p| "pattern:#{p[:type]}:#{p[:value]}" },
+          loaded_at:   Time.now
+        )
+      end
+
       def self.from_runner(extension:, runner:, function:, **opts)
         canonical = "#{extension}:#{runner.to_s.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase}:#{function}"
         new(

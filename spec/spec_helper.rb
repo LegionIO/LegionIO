@@ -3,6 +3,10 @@
 require 'rspec'
 require 'simplecov'
 SimpleCov.start
+# SimpleCov's at_exit interprets any $! (including RSpec's SystemExit(0) and
+# thread IOErrors from Open3) as a "previous error" and forces exit(1).
+# Override to let RSpec control the exit code.
+SimpleCov.define_singleton_method(:previous_error?) { |_| false }
 require 'bundler/setup'
 require 'legion'
 require 'legion/service'

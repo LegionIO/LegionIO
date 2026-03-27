@@ -26,6 +26,12 @@ RSpec.describe Legion::CLI::TraceCommand do
   before do
     stub_const('Legion::TraceSearch', Module.new)
     allow(Legion::TraceSearch).to receive(:search).and_return(search_result)
+
+    allow(Legion::CLI::Connection).to receive(:config_dir=)
+    allow(Legion::CLI::Connection).to receive(:log_level=)
+    allow(Legion::CLI::Connection).to receive(:ensure_llm)
+    allow(Legion::CLI::Connection).to receive(:ensure_data)
+    allow(Legion::CLI::Connection).to receive(:shutdown)
   end
 
   describe '#search' do

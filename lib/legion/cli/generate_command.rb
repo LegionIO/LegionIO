@@ -125,6 +125,30 @@ module Legion
         out.success("Created #{message_path}")
       end
 
+      desc 'absorber NAME', 'Add an absorber to the current LEX'
+      option :url_pattern, type: :string, default: 'example.com/path/*', desc: 'URL pattern to match'
+      def absorber(name)
+        out = formatter
+        lex = detect_lex(out)
+
+        snake = name.downcase.gsub(/[^a-z0-9]/, '_')
+        class_name = snake.split('_').map(&:capitalize).join
+        lex_class = lex.split('_').map(&:capitalize).join
+        url_pat = options[:url_pattern]
+
+        absorber_path = "lib/legion/extensions/#{lex}/absorbers/#{snake}.rb"
+        spec_path = "spec/absorbers/#{snake}_spec.rb"
+
+        ensure_dir(File.dirname(absorber_path))
+        ensure_dir(File.dirname(spec_path))
+
+        File.write(absorber_path, absorber_template(lex_class, class_name, url_pat))
+        File.write(spec_path, absorber_spec_template(lex_class, class_name, url_pat))
+
+        out.success("Created #{absorber_path}")
+        out.success("Created #{spec_path}")
+      end
+
       desc 'tool NAME', 'Add a chat tool to the current LEX'
       def tool(name)
         out = formatter
@@ -356,6 +380,58 @@ module Legion
               it 'executes successfully' do
                 result = tool.execute(example: 'test')
                 expect(result).to be_a(String)
+              end
+            end
+          RUBY
+        end
+
+        def absorber_template(lex_class, class_name, url_pat)
+          escaped_pat = url_pat.inspect
+          <<~RUBY
+            # frozen_string_literal: true
+
+            module Legion
+              module Extensions
+                module #{lex_class}
+                  module Absorbers
+                    class #{class_name} < Legion::Extensions::Absorbers::Base
+                      pattern :url, #{escaped_pat}
+                      description 'TODO: describe what this absorber handles'
+
+                      def handle(url: nil, content: nil, metadata: {}, context: {})
+                        report_progress(message: 'starting absorption')
+
+                        # TODO: implement content acquisition and processing
+                        # absorb_to_knowledge(content: text, tags: ['tag'])
+
+                        report_progress(message: 'done', percent: 100)
+                        { success: true }
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          RUBY
+        end
+
+        def absorber_spec_template(lex_class, class_name, url_pat)
+          test_url = url_pat.gsub('*', 'test')
+          <<~RUBY
+            # frozen_string_literal: true
+
+            RSpec.describe Legion::Extensions::#{lex_class}::Absorbers::#{class_name} do
+              describe '.patterns' do
+                it 'has registered patterns' do
+                  expect(described_class.patterns).not_to be_empty
+                end
+              end
+
+              describe '#handle' do
+                it 'returns success' do
+                  result = described_class.new.handle(url: 'https://#{test_url}')
+                  expect(result[:success]).to be true
+                end
               end
             end
           RUBY
