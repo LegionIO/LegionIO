@@ -120,7 +120,7 @@ module Legion
           end
         end
 
-        def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
           app.get '/api/workers/:id/health' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
@@ -155,11 +155,39 @@ module Legion
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
             halt 404, json_error('not_found', "Worker #{params[:id]} not found", status_code: 404) if worker.nil?
 
-            json_response({
-                            worker_id: params[:id],
-                            events:    [],
-                            note:      'lifecycle event persistence is not yet implemented'
-                          })
+            if params[:stream] == 'true' && defined?(Legion::Events)
+              content_type 'text/event-stream'
+              headers 'Cache-Control'     => 'no-cache',
+                      'Connection'        => 'keep-alive',
+                      'X-Accel-Buffering' => 'no'
+
+              queue = Queue.new
+              listener = Legion::Events.on('*') do |event|
+                queue.push(event) if event[:worker_id] == params[:id]
+              end
+
+              stream do |out|
+                Thread.new do
+                  loop do
+                    event = queue.pop
+                    data = Legion::JSON.dump({ **event.transform_keys(&:to_s) })
+                    out << "event: #{event[:event]}\ndata: #{data}\n\n"
+                  rescue IOError, Errno::EPIPE
+                    break
+                  end
+                ensure
+                  Legion::Events.off('*', listener)
+                end
+
+                out.callback { Legion::Events.off('*', listener) }
+                out.errback { Legion::Events.off('*', listener) }
+              end
+            else
+              count = (params[:count] || 25).to_i
+              all_events = Routes::Events.recent_events([count * 4, 100].min)
+              filtered = all_events.select { |e| e['worker_id'] == params[:id] || e[:worker_id] == params[:id] }
+              json_response({ worker_id: params[:id], events: filtered.last(count) })
+            end
           end
 
           app.get '/api/workers/:id/costs' do

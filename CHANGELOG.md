@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.6.13] - 2026-03-27
+
+### Added
+- `DigitalWorker.heartbeat` method for updating worker health status and last heartbeat timestamp
+- `DigitalWorker.detect_orphans` method to find workers with stale or nil heartbeats
+- `DigitalWorker.pause_orphans!` method to auto-pause orphaned workers with event emission
+- Consent tier sync on lifecycle transitions: `worker.update` now includes `consent_tier` from `CONSENT_MAPPING`
+- `Lifecycle.sync_consent_tier` calls `lex-consent` runner when available, graceful degradation when not
+- Per-worker SSE events at `/api/workers/:id/events?stream=true` with queue-per-client filtering
+- Polling fallback for per-worker events via ring buffer filtering (default mode)
+
 ## [1.6.11] - 2026-03-26
 
 ### Added
