@@ -7,6 +7,12 @@
 ### Changed
 - Bump `legion-logging` dependency to `>= 1.4.0` (required for `log_exception`, writer lambdas)
 
+### Fixed
+- `subscription.rb` (both `on_delivery` and `subscribe` blocks): initialize `fn = nil` before `process_message` so the rescue interpolation never raises `NameError` if message processing fails before `fn` is assigned
+- `Helpers::Logger#lex_name` removed to avoid overriding `Helpers::Base#lex_name` (underscore contract used by settings/routing); renamed to private `log_lex_name` used only within this module for gem name derivation
+- `Helpers::Logger#handle_exception`: use `spec&.version&.to_s` so nil spec version produces `nil` rather than `""` in structured log output
+- README: update version badge from `v1.6.18` to `v1.6.20`
+
 ## [1.6.19] - 2026-03-27
 
 ### Fixed

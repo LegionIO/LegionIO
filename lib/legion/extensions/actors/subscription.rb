@@ -53,6 +53,7 @@ module Legion
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
           @consumer.on_delivery do |delivery_info, metadata, payload|
+            fn = nil
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
             log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
@@ -156,6 +157,7 @@ module Legion
             metadata = rmq_message.last
             delivery_info = rmq_message.first
 
+            fn = nil
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
             log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)

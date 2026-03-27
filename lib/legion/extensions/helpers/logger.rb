@@ -9,10 +9,10 @@ module Legion
         def handle_exception(exception, task_id: nil, **opts)
           spec = gem_spec_for_lex
           log.log_exception(exception,
-                            lex:             lex_name,
+                            lex:             log_lex_name,
                             component_type:  derive_component_type,
                             gem_name:        lex_gem_name,
-                            lex_version:     spec&.version.to_s,
+                            lex_version:     spec&.version&.to_s,
                             gem_path:        spec&.full_gem_path,
                             source_code_uri: spec&.metadata&.[]('source_code_uri'),
                             handled:         true,
@@ -52,18 +52,10 @@ module Legion
         end
 
         def lex_gem_name
-          base_name = respond_to?(:segments) ? segments.join('-') : derive_log_tag
-          "lex-#{base_name}"
-        rescue StandardError
-          nil
-        end
+          base_name = log_lex_name
+          return nil unless base_name
 
-        def lex_name
-          if respond_to?(:segments)
-            segments.join('-')
-          else
-            derive_log_tag
-          end
+          "lex-#{base_name}"
         rescue StandardError
           nil
         end
@@ -74,6 +66,16 @@ module Legion
 
           Gem::Specification.find_by_name(name)
         rescue Gem::MissingSpecError
+          nil
+        end
+
+        def log_lex_name
+          if respond_to?(:segments)
+            segments.join('-')
+          else
+            derive_log_tag
+          end
+        rescue StandardError
           nil
         end
       end
