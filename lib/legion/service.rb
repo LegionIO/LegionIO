@@ -50,6 +50,8 @@ module Legion
         register_logging_hooks
       end
 
+      setup_dispatch
+
       if cache
         begin
           require 'legion/cache'
@@ -339,6 +341,12 @@ module Legion
       Legion::Logging.warn "Legion::Apollo failed to load: #{e.message}"
     end
 
+    def setup_dispatch
+      require 'legion/dispatch'
+      Legion::Dispatch.dispatcher.start
+      Legion::Logging.info "[Service] Dispatch started (strategy: #{Legion::Dispatch.dispatcher.class.name})"
+    end
+
     def setup_transport
       Legion::Logging.info 'Setting up Legion::Transport'
       require 'legion/transport'
@@ -504,6 +512,8 @@ module Legion
         @cluster_leader.stop
         @cluster_leader = nil
       end
+
+      shutdown_component('Dispatch') { Legion::Dispatch.shutdown } if defined?(Legion::Dispatch)
 
       ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
       shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
