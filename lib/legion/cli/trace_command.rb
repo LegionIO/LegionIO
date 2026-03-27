@@ -12,12 +12,15 @@ module Legion
         true
       end
 
-      class_option :json,     type: :boolean, default: false, desc: 'Output as JSON'
-      class_option :no_color, type: :boolean, default: false, desc: 'Disable color output'
+      class_option :json,       type: :boolean, default: false, desc: 'Output as JSON'
+      class_option :no_color,   type: :boolean, default: false, desc: 'Disable color output'
+      class_option :verbose,    type: :boolean, default: false, aliases: ['-V'], desc: 'Verbose logging'
+      class_option :config_dir, type: :string,                  desc: 'Config directory path'
 
       desc 'search QUERY', 'Search traces with natural language'
       option :limit, type: :numeric, default: 50, desc: 'Max results to return'
       def search(*query_parts)
+        setup_connection
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -42,6 +45,7 @@ module Legion
 
       desc 'summarize QUERY', 'Show aggregate statistics for matching traces'
       def summarize(*query_parts)
+        setup_connection
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -69,6 +73,15 @@ module Legion
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+        end
+
+        def setup_connection
+          Connection.config_dir = options[:config_dir] if options[:config_dir]
+          Connection.log_level  = options[:verbose] ? 'debug' : 'error'
+          Connection.ensure_llm
+          Connection.ensure_data
+        rescue CLI::Error => e
+          Legion::Logging.warn("TraceCommand#setup_connection: #{e.message}") if defined?(Legion::Logging)
         end
 
         private

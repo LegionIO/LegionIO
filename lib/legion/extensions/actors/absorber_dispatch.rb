@@ -31,9 +31,24 @@ module Legion
         end
 
         def publish_event(routing_key, **payload)
-          return unless defined?(Legion::Transport::Message)
+          return unless defined?(Legion::Transport)
 
-          Legion::Transport::Message.new(routing_key: routing_key, **payload).publish
+          session = Legion::Transport.respond_to?(:session) ? Legion::Transport.session : nil
+          if session.respond_to?(:open?)
+            return unless session.open?
+          elsif session.nil?
+            return
+          end
+
+          message_class =
+            if defined?(Legion::Transport::Messages::Dynamic)
+              Legion::Transport::Messages::Dynamic
+            elsif defined?(Legion::Transport::Message)
+              Legion::Transport::Message
+            end
+          return unless message_class
+
+          message_class.new(routing_key: routing_key, **payload).publish
         rescue StandardError => e
           Legion::Logging.warn("AbsorberDispatch publish failed: #{e.message}") if defined?(Legion::Logging)
         end

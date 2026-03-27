@@ -512,6 +512,13 @@ module Legion
             description: absorber_meta[:description]
           )
           Extensions::Catalog::Registry.register(cap)
+        rescue StandardError => e
+          if defined?(Legion::Logging)
+            Legion::Logging.warn(
+              "Absorber catalog registration error for #{gem_name} " \
+              "(#{absorber_meta[:absorber_module]}): #{e.message}"
+            )
+          end
         end
       end
 

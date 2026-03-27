@@ -136,10 +136,24 @@ module Legion
           llm_kwargs[:model]    = options[:model]           if options[:model]
           llm_kwargs[:provider] = options[:provider].to_sym if options[:provider]
 
-          Legion::LLM.chat(messages: messages, caller: { source: 'cli', command: 'image' }, **llm_kwargs)
+          chat = Legion::LLM.chat(**llm_kwargs)
+          user_msg = messages.first
+          response = chat.ask(user_msg[:content])
+          { content: response.content, usage: extract_usage(response) }
         rescue StandardError => e
           out.error("LLM call failed: #{e.message}")
           raise SystemExit, 1
+        end
+
+        def extract_usage(response)
+          return {} unless response.respond_to?(:usage) && response.usage
+
+          {
+            input_tokens:  response.usage.input_tokens,
+            output_tokens: response.usage.output_tokens
+          }
+        rescue StandardError
+          {}
         end
 
         def render_response(out, response, meta)

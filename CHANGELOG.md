@@ -29,7 +29,7 @@
 - `Capability.from_absorber` factory method for Capability Registry integration
 - `AbsorberDispatch` module for pattern resolution and handler execution
 - `legionio absorb` CLI command with `url`, `list`, and `resolve` subcommands
-- `legionio generate absorber` scaffolding template
+- `legionio dev generate absorber` scaffolding template
 
 ## [1.6.14] - 2026-03-27
 

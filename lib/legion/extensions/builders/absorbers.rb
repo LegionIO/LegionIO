@@ -16,7 +16,8 @@ module Legion
           require_files(absorber_files)
 
           absorber_files.each do |file|
-            class_name = file.split('/').last.sub('.rb', '').split('_').collect(&:capitalize).join
+            snake_name  = file.split('/').last.sub('.rb', '')
+            class_name  = snake_name.split('_').collect(&:capitalize).join
             absorber_class = "#{lex_class}::Absorbers::#{class_name}"
 
             next unless Kernel.const_defined?(absorber_class)
@@ -24,10 +25,10 @@ module Legion
             klass = Kernel.const_get(absorber_class)
             next unless klass < Legion::Extensions::Absorbers::Base
 
-            @absorbers[class_name.to_sym] = {
+            @absorbers[snake_name.to_sym] = {
               extension:       lex_name,
               extension_class: lex_class,
-              absorber_name:   class_name,
+              absorber_name:   snake_name,
               absorber_class:  absorber_class,
               absorber_module: klass,
               patterns:        klass.patterns,
