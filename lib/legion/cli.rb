@@ -66,6 +66,7 @@ module Legion
     autoload :Debug,        'legion/cli/debug_command'
     autoload :CodegenCommand, 'legion/cli/codegen_command'
     autoload :Bootstrap,      'legion/cli/bootstrap_command'
+    autoload :Broker,         'legion/cli/broker_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'
@@ -274,6 +275,9 @@ module Legion
 
       desc 'dev SUBCOMMAND', 'Generators, docs, marketplace, and shell completion'
       subcommand 'dev', Legion::CLI::Groups::Dev
+
+      desc 'broker SUBCOMMAND', 'RabbitMQ broker management (stats, cleanup)'
+      subcommand 'broker', Legion::CLI::Broker
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
