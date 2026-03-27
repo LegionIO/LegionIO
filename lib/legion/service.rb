@@ -48,7 +48,7 @@ module Legion
       if transport
         setup_transport
         Legion::Readiness.mark_ready(:transport)
-        register_logging_hooks
+        setup_logging_transport
       end
 
       setup_dispatch
@@ -369,34 +369,71 @@ module Legion
       Legion::Logging.info 'Legion::Transport connected'
     end
 
-    def register_logging_hooks
+    def setup_logging_transport # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       return unless defined?(Legion::Transport::Connection)
       return unless Legion::Transport::Connection.session_open?
-      return unless Legion::Transport::Connection.respond_to?(:log_channel)
 
-      log_ch = Legion::Transport::Connection.log_channel
-      unless log_ch
-        Legion::Logging.debug 'No dedicated log channel available, log forwarding disabled'
-        return
+      lt_settings = begin
+        Legion::Settings.dig(:logging, :transport) || {}
+      rescue StandardError
+        {}
+      end
+      return unless lt_settings[:enabled] == true
+
+      forward_logs       = lt_settings.fetch(:forward_logs, true)
+      forward_exceptions = lt_settings.fetch(:forward_exceptions, true)
+      return unless forward_logs || forward_exceptions
+
+      log_session = Legion::Transport::Connection.create_dedicated_session(name: 'legion-logging')
+      @log_session = log_session
+      log_channel = log_session.create_channel
+      log_channel.prefetch(1)
+      exchange = log_channel.topic('legion.logging', durable: true)
+
+      if forward_logs
+        Legion::Logging.log_writer = lambda { |event, routing_key:|
+          begin
+            next unless log_channel&.open?
+
+            exchange.publish(Legion::JSON.dump(event), routing_key: routing_key)
+          rescue StandardError
+            nil
+          end
+        }
       end
 
-      require 'legion/transport/exchanges/logging' unless defined?(Legion::Transport::Exchanges::Logging)
-      exchange = Legion::Transport::Exchanges::Logging.new('legion.logging', channel: log_ch)
+      if forward_exceptions
+        Legion::Logging.exception_writer = lambda { |event, routing_key:, headers:, properties:|
+          begin
+            next unless log_channel&.open?
 
-      %i[fatal error warn].each do |level|
-        Legion::Logging.send(:"on_#{level}") do |event|
-          next unless log_ch&.open?
-
-          source = event[:lex] || 'core'
-          routing_key = "legion.#{source}.#{level}"
-          exchange.publish(Legion::JSON.dump(event), routing_key: routing_key)
-        rescue StandardError
-          nil
-        end
+            exchange.publish(
+              Legion::JSON.dump(event),
+              routing_key: routing_key,
+              headers:     headers,
+              **properties
+            )
+          rescue StandardError
+            nil
+          end
+        }
       end
 
-      Legion::Logging.enable_hooks!
-      Legion::Logging.info('Logging hooks registered (dedicated channel)')
+      modes = []
+      modes << 'logs' if forward_logs
+      modes << 'exceptions' if forward_exceptions
+      Legion::Logging.info("Logging transport wired: #{modes.join(' + ')} (dedicated session)")
+    rescue StandardError => e
+      Legion::Logging.warn "Logging transport setup failed: #{e.message}"
+    end
+
+    def teardown_logging_transport
+      Legion::Logging.log_writer = nil
+      Legion::Logging.exception_writer = nil
+      @log_session&.close if @log_session.respond_to?(:close) && @log_session.open?
+      @log_session = nil
+    rescue StandardError
+      nil
     end
 
     def setup_alerts
@@ -551,6 +588,7 @@ module Legion
       shutdown_component('Cache') { Legion::Cache.shutdown }
       Legion::Readiness.mark_not_ready(:cache)
 
+      teardown_logging_transport
       shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
       Legion::Readiness.mark_not_ready(:transport)
 
@@ -562,7 +600,7 @@ module Legion
       Legion::Events.emit('service.shutdown')
     end
 
-    def reload
+    def reload # rubocop:disable Metrics/MethodLength
       return if @reloading
 
       @reloading = true
@@ -587,6 +625,7 @@ module Legion
       shutdown_component('Cache') { Legion::Cache.shutdown }
       Legion::Readiness.mark_not_ready(:cache)
 
+      teardown_logging_transport
       shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
       Legion::Readiness.mark_not_ready(:transport)
 
@@ -603,7 +642,8 @@ module Legion
 
       setup_transport
       Legion::Readiness.mark_ready(:transport)
-      register_logging_hooks
+      teardown_logging_transport
+      setup_logging_transport
 
       require 'legion/cache' unless defined?(Legion::Cache)
       Legion::Cache.setup
