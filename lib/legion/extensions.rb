@@ -89,6 +89,8 @@ module Legion
 
         @running_instances&.clear
 
+        Legion::Dispatch.shutdown if defined?(Legion::Dispatch) && Legion::Dispatch.instance_variable_get(:@dispatcher)
+
         @loaded_extensions.each do |name|
           Catalog.transition(name, :stopped)
           unregister_capabilities(name)
@@ -283,6 +285,7 @@ module Legion
         end
 
         hook_subscription_actors_pooled(sub_actors) unless sub_actors.empty?
+        dispatch_local_actors(@local_tasks) unless @local_tasks.empty?
 
         @pending_actors.clear
         Legion::Logging.info(
@@ -290,7 +293,8 @@ module Legion
           "every:#{@timer_tasks.count}," \
           "poll:#{@poll_tasks.count}," \
           "once:#{@once_tasks.count}," \
-          "loop:#{@loop_tasks.count}"
+          "loop:#{@loop_tasks.count}," \
+          "local:#{@local_tasks.count}"
         )
         @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
       end
@@ -464,6 +468,32 @@ module Legion
 
         # 5. Default
         true
+      end
+
+      def dispatch_local_actors(actors)
+        require 'legion/dispatch'
+
+        actors.each do |actor_hash|
+          ext_name = actor_hash[:extension_name]
+
+          runner_mod = actor_hash[:runner_class]
+          unless runner_mod
+            actor_str = actor_hash[:actor_class].to_s
+            runner_str = actor_str.sub('::Actor::', '::Runners::')
+            runner_mod = begin
+              Kernel.const_get(runner_str)
+            rescue NameError
+              Legion::Logging.warn "[LocalDispatch] runner not found for #{ext_name}: #{runner_str}" if defined?(Legion::Logging)
+              next
+            end
+          end
+
+          actor_hash[:runner_module] = runner_mod
+          actor_hash[:running_class] = actor_hash[:actor_class]
+          @running_instances&.push(actor_hash[:actor_class])
+
+          Legion::Logging.info "[LocalDispatch] registered: #{ext_name}/#{actor_hash[:actor_name]}" if defined?(Legion::Logging)
+        end
       end
 
       public
