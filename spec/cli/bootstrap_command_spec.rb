@@ -269,7 +269,7 @@ RSpec.describe Legion::CLI::Bootstrap do
     allow(Legion::CLI::ConfigImport).to receive(:parse_payload)
       .and_return(opts.fetch(:config, {}))
     allow(Legion::CLI::ConfigImport).to receive(:write_config)
-      .and_return(opts.fetch(:path, '/tmp/imported.json'))
+      .and_return(opts.fetch(:paths, ['/tmp/bootstrapped_settings.json']))
     allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
     allow(cli).to receive(:run_preflight_checks).and_return({})
     allow(cli).to receive(:install_packs).and_return([])
@@ -306,7 +306,7 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:fetch_source).and_return('{}')
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload).and_return({ llm: { enabled: true } })
       expect(Legion::CLI::ConfigImport).to receive(:write_config)
-        .with({ llm: { enabled: true } }, force: true).and_return('/tmp/imported.json')
+        .with({ llm: { enabled: true } }, force: true).and_return(['/tmp/llm.json'])
       allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:install_packs).and_return([])
@@ -318,7 +318,7 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:fetch_source).and_return('{}')
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload).and_return({})
       expect(Legion::CLI::ConfigImport).to receive(:write_config)
-        .with({}, force: false).and_return('/tmp/imported.json')
+        .with({}, force: false).and_return([])
       allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:install_packs).and_return([])
@@ -337,7 +337,7 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:fetch_source).and_return('{"packs":["agentic"]}')
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload)
         .and_return({ packs: ['agentic'], llm: { enabled: true } })
-      allow(Legion::CLI::ConfigImport).to receive(:write_config).and_return('/tmp/imported.json')
+      allow(Legion::CLI::ConfigImport).to receive(:write_config).and_return(['/tmp/llm.json'])
       allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:print_summary)
@@ -539,8 +539,8 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(cli).to receive(:print_summary)
     end
 
-    it 'calls out.json with the results hash' do
-      expect(out).to receive(:json).with(hash_including(:config_written))
+    it 'calls out.json with the results hash containing config_written array' do
+      expect(out).to receive(:json).with(hash_including(config_written: ['/tmp/bootstrapped_settings.json']))
       cli.execute('/tmp/bootstrap.json')
     end
 
