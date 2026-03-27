@@ -18,8 +18,10 @@ RSpec.describe 'Service#setup_logging_transport' do
   context 'when transport is not connected' do
     it 'returns early without wiring writers' do
       allow(Legion::Transport::Connection).to receive(:session_open?).and_return(false)
+      allow(Legion::Transport::Connection).to receive(:create_dedicated_session)
       service.send(:setup_logging_transport)
-      expect(Legion::Logging.log_writer).to respond_to(:call)
+      expect(Legion::Transport::Connection).not_to have_received(:create_dedicated_session)
+      expect(service.instance_variable_get(:@log_session)).to be_nil
     end
   end
 
@@ -27,8 +29,10 @@ RSpec.describe 'Service#setup_logging_transport' do
     it 'returns early without wiring writers' do
       allow(Legion::Transport::Connection).to receive(:session_open?).and_return(true)
       allow(Legion::Settings).to receive(:dig).with(:logging, :transport).and_return({ enabled: false })
+      allow(Legion::Transport::Connection).to receive(:create_dedicated_session)
       service.send(:setup_logging_transport)
-      expect(Legion::Logging.log_writer).to respond_to(:call)
+      expect(Legion::Transport::Connection).not_to have_received(:create_dedicated_session)
+      expect(service.instance_variable_get(:@log_session)).to be_nil
     end
   end
 
@@ -58,7 +62,7 @@ RSpec.describe 'Service#setup_logging_transport' do
     it 'wires log_writer to a callable lambda' do
       service.send(:setup_logging_transport)
       expect(Legion::Logging.log_writer).to respond_to(:call)
-      expect(Legion::Logging.log_writer).not_to eq(Legion::Logging.method(:log_writer).owner)
+      expect(Legion::Transport::Connection).to have_received(:create_dedicated_session).with(name: 'legion-logging')
     end
 
     it 'wires exception_writer to a callable lambda' do

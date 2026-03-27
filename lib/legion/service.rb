@@ -425,12 +425,14 @@ module Legion
       Legion::Logging.info("Logging transport wired: #{modes.join(' + ')} (dedicated session)")
     rescue StandardError => e
       Legion::Logging.warn "Logging transport setup failed: #{e.message}"
+      teardown_logging_transport
     end
 
     def teardown_logging_transport
       Legion::Logging.log_writer = nil
       Legion::Logging.exception_writer = nil
-      @log_session&.close if @log_session.respond_to?(:close) && @log_session.open?
+      @log_session&.close if @log_session.respond_to?(:close) &&
+                             (!@log_session.respond_to?(:open?) || @log_session.open?)
       @log_session = nil
     rescue StandardError
       nil

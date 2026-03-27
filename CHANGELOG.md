@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.6.19] - 2026-03-27
+
+### Fixed
+- `teardown_logging_transport`: rescue block in `setup_logging_transport` now calls `teardown_logging_transport` to clean up any partially-created `@log_session` on failure
+- `teardown_logging_transport`: guard `open?` call with `respond_to?(:open?)` check to avoid `NoMethodError` on session objects that do not implement the method
+- `service_logging_transport_spec`: early-return specs now assert `create_dedicated_session` was not called and `@log_session` remains nil, rather than the vacuous `respond_to(:call)` check
+- `service_logging_transport_spec`: replaced vacuous `not_to eq(owner)` assertion with `have_received(:create_dedicated_session)` to verify the dedicated session was actually created
+
 ## [1.6.18] - 2026-03-27
 
 ### Added
