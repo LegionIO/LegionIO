@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.6.16] - 2026-03-27
+
+### Fixed
+- `config validate` transport host check now reads from `transport.connection.host` instead of `transport.host` (correct config nesting)
+- `doctor diagnose` now loads settings via `Connection.ensure_settings` before running checks, so cache/database/vault/extensions checks no longer skip due to `Legion::Settings` being undefined; also adds `ensure Connection.shutdown` for clean teardown
+
 ## [1.6.15] - 2026-03-27
 
 ### Added
