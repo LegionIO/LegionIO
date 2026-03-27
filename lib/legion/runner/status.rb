@@ -21,8 +21,7 @@ module Legion
         Legion::Transport::Messages::TaskUpdate.new(task_id: task_id, status: status, **).publish
       rescue StandardError => e
         retries += 1
-        Legion::Logging.warn "[Status] update_rmq failed (attempt #{retries}/3): #{e.message}"
-        Legion::Logging.fatal e.backtrace
+        Legion::Logging.log_exception(e, level: :fatal, payload_summary: "[Status] update_rmq failed (attempt #{retries}/3)", component_type: :runner)
         retry if retries < 3
       end
 
@@ -32,9 +31,9 @@ module Legion
         task = Legion::Data::Model::Task[task_id]
         task.update(status: status)
       rescue StandardError => e
-        Legion::Logging.warn "[Status] update_db failed for task_id=#{task_id}: #{e.message}"
-        Legion::Logging.warn '[Status] falling back to RabbitMQ update'
-        Legion::Logging.warn e.backtrace
+        Legion::Logging.log_exception(e, level:           :warn,
+                                         payload_summary: "[Status] update_db failed for task_id=#{task_id}, falling back to RabbitMQ update",
+                                         component_type:  :runner)
         update_rmq(task_id: task_id, status: status, **)
       end
 
@@ -61,8 +60,7 @@ module Legion
 
         { success: true, task_id: Legion::Data::Model::Task.insert(insert), **insert }
       rescue StandardError => e
-        Legion::Logging.error e.message
-        Legion::Logging.error e.backtrace
+        Legion::Logging.log_exception(e, component_type: :runner)
         raise(e)
       end
     end

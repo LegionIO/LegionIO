@@ -17,13 +17,11 @@ check_subtask: check_subtask? }}"
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
             skip_or_run { poll_cycle }
           rescue StandardError => e
-            Legion::Logging.fatal e.message
-            Legion::Logging.fatal e.backtrace
+            Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
           end
           @timer.execute
         rescue StandardError => e
-          Legion::Logging.error e.message
-          Legion::Logging.error e.backtrace
+          Legion::Logging.log_exception(e, component_type: :actor)
         end
 
         def poll_cycle
@@ -55,8 +53,7 @@ check_subtask: check_subtask? }}"
           log.debug("#{self.class} result: #{results}")
           results
         rescue StandardError => e
-          Legion::Logging.fatal e.message
-          Legion::Logging.fatal e.backtrace
+          Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
         end
 
         def cache_name
@@ -91,7 +88,7 @@ check_subtask: check_subtask? }}"
           Legion::Logging.debug 'Cancelling Legion Poller'
           @timer.shutdown
         rescue StandardError => e
-          Legion::Logging.error e.message
+          Legion::Logging.log_exception(e, component_type: :actor)
         end
       end
     end

@@ -9,8 +9,7 @@ module Legion
         def runner
           Legion::Runner.run(runner_class: runner_class, function: function, check_subtask: check_subtask?, generate_task: generate_task?)
         rescue StandardError => e
-          Legion::Logging.error e.message
-          Legion::Logging.error e.backtrace
+          Legion::Logging.log_exception(e, component_type: :actor)
         end
 
         def manual
@@ -23,8 +22,7 @@ module Legion
             klass.send(func, **args)
           end
         rescue StandardError => e
-          Legion::Logging.error e.message
-          Legion::Logging.error e.backtrace
+          Legion::Logging.log_exception(e, component_type: :actor)
         end
 
         def function
