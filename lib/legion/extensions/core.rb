@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'absorbers'
+require_relative 'builders/absorbers'
 require_relative 'builders/actors'
 require_relative 'builders/helpers'
 require_relative 'builders/hooks'
@@ -49,6 +51,7 @@ module Legion
       include Legion::Extensions::Helpers::Lex
       include Legion::Extensions::Helpers::Knowledge if defined?(Legion::Extensions::Helpers::Knowledge)
 
+      include Legion::Extensions::Builder::Absorbers
       include Legion::Extensions::Builder::Runners
       include Legion::Extensions::Builder::Helpers
       include Legion::Extensions::Builder::Actors
@@ -73,6 +76,7 @@ module Legion
         end
         build_helpers
         build_runners
+        build_absorbers
         build_actors
         build_hooks
         build_routes
