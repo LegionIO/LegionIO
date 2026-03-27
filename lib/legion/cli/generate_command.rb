@@ -386,6 +386,7 @@ module Legion
         end
 
         def absorber_template(lex_class, class_name, url_pat)
+          escaped_pat = url_pat.inspect
           <<~RUBY
             # frozen_string_literal: true
 
@@ -394,7 +395,7 @@ module Legion
                 module #{lex_class}
                   module Absorbers
                     class #{class_name} < Legion::Extensions::Absorbers::Base
-                      pattern :url, '#{url_pat}'
+                      pattern :url, #{escaped_pat}
                       description 'TODO: describe what this absorber handles'
 
                       def handle(url: nil, content: nil, metadata: {}, context: {})

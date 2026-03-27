@@ -13,6 +13,7 @@ module Legion
       desc 'url URL', 'Absorb content from a URL'
       option :scope, type: :string, default: 'global', desc: 'Knowledge scope (global/local/all)'
       def url(input_url)
+        Connection.ensure_settings
         out = formatter
         result = Legion::Extensions::Actors::AbsorberDispatch.dispatch(
           input:   input_url,
@@ -31,6 +32,7 @@ module Legion
 
       desc 'list', 'List registered absorber patterns'
       def list
+        Connection.ensure_settings
         out = formatter
         patterns = Legion::Extensions::Absorbers::PatternMatcher.list
 
@@ -50,6 +52,7 @@ module Legion
 
       desc 'resolve URL', 'Show which absorber would handle a URL (dry run)'
       def resolve(input_url)
+        Connection.ensure_settings
         out = formatter
         absorber = Legion::Extensions::Absorbers::PatternMatcher.resolve(input_url)
 
