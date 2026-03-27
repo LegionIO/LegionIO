@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.20] - 2026-03-27
+
+### Changed
+- Bump `legion-logging` dependency to `>= 1.4.0` (required for `log_exception`, writer lambdas)
+
 ## [1.6.19] - 2026-03-27
 
 ### Fixed
