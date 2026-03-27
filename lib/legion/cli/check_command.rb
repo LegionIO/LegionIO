@@ -107,6 +107,7 @@ module Legion
 
             results[name] = run_check(name, options)
             started << name if results[name][:status] == 'pass'
+            resolve_secrets_after_crypt(name, results[name])
             print_result(formatter, name, results[name], options) unless options[:json]
           end
 
@@ -121,6 +122,15 @@ module Legion
         def setup_logging(log_level)
           require 'legion/logging'
           Legion::Logging.setup(log_level: log_level, level: log_level, trace: false)
+        end
+
+        def resolve_secrets_after_crypt(name, result)
+          return unless name == :crypt && result[:status] == 'pass'
+          return unless Legion::Settings.respond_to?(:resolve_secrets!)
+
+          Legion::Settings.resolve_secrets!
+        rescue StandardError => e
+          Legion::Logging.warn("Check#run secret resolution failed: #{e.message}") if defined?(Legion::Logging)
         end
 
         def run_check(name, options)
@@ -151,6 +161,13 @@ module Legion
         def check_transport(_options)
           require 'legion/transport'
           Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
+          conn = Legion::Settings[:transport][:connection] || {}
+          user = conn[:user].to_s
+          pass = conn[:password].to_s
+          if user.start_with?('lease://', 'vault://') || pass.start_with?('lease://', 'vault://')
+            raise "credentials not resolved (Vault lease pending) — user: #{user.split('#').first}"
+          end
+
           Legion::Transport::Connection.setup
           if Legion::Transport::Connection.lite_mode?
             'InProcess (lite mode)'
@@ -189,6 +206,13 @@ module Legion
         def check_data(_options)
           require 'legion/data'
           Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
+          creds = Legion::Settings[:data][:creds] || Legion::Settings[:data] || {}
+          db_user = (creds[:user] || creds[:username]).to_s
+          db_pass = creds[:password].to_s
+          if db_user.start_with?('lease://', 'vault://') || db_pass.start_with?('lease://', 'vault://')
+            raise "credentials not resolved (Vault lease pending) — user: #{db_user.split('#').first}"
+          end
+
           Legion::Data.setup
           ds = Legion::Settings[:data] || {}
           adapter = ds[:adapter] || 'sqlite'

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.6.17] - 2026-03-27
+
+### Fixed
+- `legionio check`: `resolve_secrets!` is now called after a successful crypt check so `lease://`, `vault://`, and `env://` credential URIs are resolved before transport/data checks attempt to connect
+- `legionio check transport`: raises an early descriptive error when transport credentials are still unresolved URI references (Vault lease pending), instead of failing with a confusing connection error
+- `legionio check data`: raises an early descriptive error when database credentials are still unresolved URI references (Vault lease pending)
+- `legionio llm status/providers/models`: `boot_llm_settings` now calls `resolve_secrets!` so `env://` and `vault://` API key references are resolved before provider enabled-state is evaluated
+- `legionio llm providers`: providers with unresolved credential URIs are now shown as `deferred (credentials pending Vault)` in yellow instead of incorrectly `disabled`
+- `Connection.ensure_settings`: calls `resolve_secrets!` after loading settings so `env://` references are resolved in all CLI commands that use the lazy connection manager
+
 ## [1.6.16] - 2026-03-27
 
 ### Fixed

@@ -84,6 +84,7 @@ module Legion
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_settings
+          Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
           require 'legion/llm'
           Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)
         end
@@ -121,12 +122,21 @@ module Legion
         def collect_providers
           providers_cfg = llm_settings[:providers] || {}
           providers_cfg.map do |name, cfg|
+            enabled = cfg[:enabled] == true
             {
               name:          name,
-              enabled:       cfg[:enabled] == true,
+              enabled:       enabled,
+              deferred:      !enabled && unresolved_credentials?(cfg),
               default_model: cfg[:default_model],
               reachable:     check_reachable(name, cfg)
             }
+          end
+        end
+
+        def unresolved_credentials?(cfg)
+          %i[api_key secret_key bearer_token password].any? do |key|
+            val = cfg[key].to_s
+            val.start_with?('vault://', 'lease://', 'env://')
           end
         end
 
@@ -293,11 +303,19 @@ module Legion
                        when false then 'enabled, unreachable'
                        else 'enabled'
                        end
+                     elsif p[:deferred]
+                       'deferred (credentials pending Vault)'
                      else
                        'disabled'
                      end
 
-            color = p[:enabled] ? :green : :muted
+            color = if p[:enabled]
+                      :green
+                    elsif p[:deferred]
+                      :yellow
+                    else
+                      :muted
+                    end
             name_str = p[:name].to_s.ljust(12)
             model_str = p[:default_model] ? " (#{p[:default_model]})" : ''
             puts "  #{out.colorize(name_str, :label)}#{out.colorize(status, color)}#{model_str}"
