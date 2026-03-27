@@ -4,6 +4,14 @@
 
 ## [1.6.18] - 2026-03-27
 
+### Added
+- `setup_logging_transport`: dedicated AMQP session for log and exception forwarding, replacing the previous `register_logging_hooks` approach; writer lambda wiring is gated by `Settings[:logging][:transport]` feature flags
+- `teardown_logging_transport`: cleanly shuts down the dedicated logging AMQP session during the shutdown sequence
+
+### Changed
+- Split `log.error(e.message); log.error(e.backtrace)` patterns replaced with `log.log_exception` across 14 files for structured, single-call exception logging
+- `Extensions::Helpers::Logger#handle_exception` rewritten to use `log.log_exception` with full lex context
+
 ### Fixed
 - `legionio pipeline image analyze`: `call_llm` no longer passes unsupported `messages:` keyword to `Legion::LLM.chat`; now creates a chat object and sends multimodal content via `chat.ask`, returning a plain hash with `:content` and `:usage` keys
 - `legionio ai trace search/summarize`: both commands now call `setup_connection` before invoking `TraceSearch`, ensuring `Legion::LLM` is booted so `TraceSearch.generate_filter` can use structured LLM output instead of returning "no filter generated"; added `class_option :config_dir` and `class_option :verbose` to `TraceCommand`
