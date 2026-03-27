@@ -107,13 +107,16 @@ module Legion
           end
         end
 
+        new_consent = CONSENT_MAPPING[to_state]
         worker.update(
           lifecycle_state: to_state,
+          consent_tier:    new_consent ? new_consent.to_s : worker.consent_tier,
           updated_at:      Time.now.utc,
           retired_at:      %w[retired terminated].include?(to_state) ? Time.now.utc : worker.retired_at,
           retired_by:      %w[retired terminated].include?(to_state) ? by : worker.retired_by,
           retired_reason:  reason || worker.retired_reason
         )
+        sync_consent_tier(worker, new_consent) if new_consent
 
         if defined?(Legion::Events)
           Legion::Events.emit('worker.lifecycle', {
@@ -167,6 +170,18 @@ module Legion
       def self.consent_tier(state)
         CONSENT_MAPPING.fetch(state, :consult)
       end
+
+      def self.sync_consent_tier(worker, tier)
+        return unless defined?(Legion::Extensions::Consent::Runners::Consent)
+
+        Legion::Extensions::Consent::Runners::Consent.update_tier(
+          worker_id: worker.worker_id,
+          tier:      tier.to_s
+        )
+      rescue StandardError => e
+        Legion::Logging.debug("[Lifecycle] consent sync failed for #{worker.worker_id}: #{e.message}") if defined?(Legion::Logging)
+      end
+      private_class_method :sync_consent_tier
     end
   end
 end
