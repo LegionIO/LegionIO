@@ -14,7 +14,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.5.20** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.6.20** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 

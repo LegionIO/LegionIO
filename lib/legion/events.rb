@@ -31,8 +31,7 @@ module Legion
         listeners[event_name.to_s].each do |listener|
           listener.call(event)
         rescue StandardError => e
-          Legion::Logging.warn "[Events] listener error on #{event_name}: #{e.message}"
-          Legion::Logging.error e.backtrace&.first(5)
+          Legion::Logging.log_exception(e, payload_summary: "[Events] listener error on #{event_name}", component_type: :event)
         end
 
         # Also fire wildcard listeners

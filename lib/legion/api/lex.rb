@@ -53,8 +53,7 @@ module Legion
           context.json_response({ task_id: result[:task_id], status: result[:status],
                                    result: result[:result] }.compact)
         rescue StandardError => e
-          Legion::Logging.error "API POST /api/lex/#{request.path_info.sub(%r{^/api/lex/}, '')}: #{e.class} — #{e.message}"
-          Legion::Logging.error e.backtrace&.first(5)
+          Legion::Logging.log_exception(e, payload_summary: "API POST /api/lex/#{request.path_info.sub(%r{^/api/lex/}, '')}", component_type: :api)
           context.json_error('internal_error', e.message, status_code: 500)
         end
 

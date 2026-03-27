@@ -266,8 +266,7 @@ module Legion
         end
         true
       rescue StandardError => e
-        Legion::Logging.error e.message
-        Legion::Logging.error e.backtrace
+        Legion::Logging.log_exception(e, lex: entry[:gem_name], component_type: :boot)
         false
       end
 

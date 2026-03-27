@@ -16,15 +16,13 @@ module Legion
             begin
               skip_or_run { use_runner? ? runner : manual }
             rescue StandardError => e
-              log.error "[Every] tick failed for #{self.class}: #{e.message}" if defined?(log)
-              log.error e.backtrace if defined?(log)
+              log.log_exception(e, payload_summary: "[Every] tick failed for #{self.class}", component_type: :actor) if defined?(log)
             end
           end
 
           @timer.execute
         rescue StandardError => e
-          log.error e.message
-          log.error e.backtrace
+          log.log_exception(e, component_type: :actor)
         end
 
         def time
@@ -49,8 +47,7 @@ module Legion
 
           @timer.shutdown
         rescue StandardError => e
-          log.error e.message
-          log.error e.backtrace
+          log.log_exception(e, component_type: :actor)
         end
       end
     end

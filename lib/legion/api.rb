@@ -95,8 +95,7 @@ module Legion
     error do
       content_type :json
       err = env['sinatra.error']
-      Legion::Logging.error "API #{request.request_method} #{request.path_info} returned 500: #{err.class} — #{err.message}"
-      Legion::Logging.error err.backtrace&.first(10)
+      Legion::Logging.log_exception(err, payload_summary: "API #{request.request_method} #{request.path_info} returned 500", component_type: :api)
       Legion::JSON.dump({
                           error: { code: 'internal_error', message: err.message },
                           meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }

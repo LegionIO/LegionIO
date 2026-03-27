@@ -220,9 +220,7 @@ module Legion
           lex_class.const_set(:Data, Module.new { extend Legion::Extensions::Data })
         end
       rescue StandardError => e
-        Legion::Logging.error "[Core] auto_generate_data failed for #{name}: #{e.message}" if defined?(Legion::Logging)
-        log.error e.message
-        log.error e.backtrace
+        log.log_exception(e, payload_summary: "[Core] auto_generate_data failed for #{name}", component_type: :builder)
       end
     end
   end

@@ -2,7 +2,34 @@
 
 ## [Unreleased]
 
+## [1.6.20] - 2026-03-27
+
+### Changed
+- Bump `legion-logging` dependency to `>= 1.4.0` (required for `log_exception`, writer lambdas)
+
+### Fixed
+- `subscription.rb` (both `on_delivery` and `subscribe` blocks): initialize `fn = nil` before `process_message` so the rescue interpolation never raises `NameError` if message processing fails before `fn` is assigned
+- `Helpers::Logger#lex_name` removed to avoid overriding `Helpers::Base#lex_name` (underscore contract used by settings/routing); renamed to private `log_lex_name` used only within this module for gem name derivation
+- `Helpers::Logger#handle_exception`: use `spec&.version&.to_s` so nil spec version produces `nil` rather than `""` in structured log output
+- README: update version badge from `v1.6.18` to `v1.6.20`
+
+## [1.6.19] - 2026-03-27
+
+### Fixed
+- `teardown_logging_transport`: rescue block in `setup_logging_transport` now calls `teardown_logging_transport` to clean up any partially-created `@log_session` on failure
+- `teardown_logging_transport`: guard `open?` call with `respond_to?(:open?)` check to avoid `NoMethodError` on session objects that do not implement the method
+- `service_logging_transport_spec`: early-return specs now assert `create_dedicated_session` was not called and `@log_session` remains nil, rather than the vacuous `respond_to(:call)` check
+- `service_logging_transport_spec`: replaced vacuous `not_to eq(owner)` assertion with `have_received(:create_dedicated_session)` to verify the dedicated session was actually created
+
 ## [1.6.18] - 2026-03-27
+
+### Added
+- `setup_logging_transport`: dedicated AMQP session for log and exception forwarding, replacing the previous `register_logging_hooks` approach; writer lambda wiring is gated by `Settings[:logging][:transport]` feature flags
+- `teardown_logging_transport`: cleanly shuts down the dedicated logging AMQP session during the shutdown sequence
+
+### Changed
+- Split `log.error(e.message); log.error(e.backtrace)` patterns replaced with `log.log_exception` across 14 files for structured, single-call exception logging
+- `Extensions::Helpers::Logger#handle_exception` rewritten to use `log.log_exception` with full lex context
 
 ### Fixed
 - `legionio pipeline image analyze`: `call_llm` no longer passes unsupported `messages:` keyword to `Legion::LLM.chat`; now creates a chat object and sends multimodal content via `chat.ask`, returning a plain hash with `:content` and `:usage` keys

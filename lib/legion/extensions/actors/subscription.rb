@@ -17,8 +17,7 @@ module Legion
           @queue = queue.new
           @queue.channel.prefetch(prefetch) if defined? prefetch
         rescue StandardError => e
-          log.fatal e.message
-          log.fatal e.backtrace
+          log.log_exception(e, level: :fatal, component_type: :actor)
         end
 
         def create_queue
@@ -48,12 +47,13 @@ module Legion
           true
         end
 
-        def prepare # rubocop:disable Metrics/AbcSize
+        def prepare
           @queue = queue.new
           @queue.channel.prefetch(prefetch) if defined? prefetch
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
           @consumer.on_delivery do |delivery_info, metadata, payload|
+            fn = nil
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
             log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
@@ -76,14 +76,12 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            log.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
-            log.error e.backtrace
+            log.log_exception(e, payload_summary: "[Subscription] message processing failed: #{lex_name}/#{fn}", component_type: :actor)
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
         rescue StandardError => e
-          log.fatal "Subscription#prepare failed: #{e.message}"
-          log.fatal e.backtrace
+          log.log_exception(e, level: :fatal, payload_summary: 'Subscription#prepare failed', component_type: :actor)
         end
 
         def activate
@@ -159,6 +157,7 @@ module Legion
             metadata = rmq_message.last
             delivery_info = rmq_message.first
 
+            fn = nil
             message = process_message(payload, metadata, delivery_info)
             fn = find_function(message)
             log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
@@ -185,8 +184,7 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            log.error "[Subscription] message processing failed: #{lex_name}/#{fn}: #{e.message}"
-            log.error e.backtrace
+            log.log_exception(e, payload_summary: "[Subscription] message processing failed: #{lex_name}/#{fn}", component_type: :actor)
             log.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end

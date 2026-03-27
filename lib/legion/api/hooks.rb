@@ -66,8 +66,7 @@ module Legion
 
           dispatch_hook(context, payload: payload, runner: runner, function: function)
         rescue StandardError => e
-          Legion::Logging.error "API #{request.request_method} #{request.path_info}: #{e.class} — #{e.message}"
-          Legion::Logging.error e.backtrace&.first(5)
+          Legion::Logging.log_exception(e, payload_summary: "API #{request.request_method} #{request.path_info}", component_type: :api)
           context.json_error('internal_error', e.message, status_code: 500)
         end
 
