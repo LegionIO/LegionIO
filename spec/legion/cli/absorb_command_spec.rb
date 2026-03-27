@@ -4,44 +4,18 @@ require 'spec_helper'
 require 'thor'
 require 'legion/cli/output'
 require 'legion/cli/error'
-
-# Stub extension modules before loading the command
-module Legion
-  module Extensions
-    module Actors
-      module AbsorberDispatch
-        class << self
-          attr_accessor :test_dispatch_result
-        end
-
-        def self.dispatch(**)
-          Legion::Extensions::Actors::AbsorberDispatch.test_dispatch_result
-        end
-      end
-    end
-
-    module Absorbers
-      module PatternMatcher
-        class << self
-          attr_accessor :test_list_result, :test_resolve_result
-        end
-
-        def self.list
-          Legion::Extensions::Absorbers::PatternMatcher.test_list_result || []
-        end
-
-        def self.resolve(_input)
-          Legion::Extensions::Absorbers::PatternMatcher.test_resolve_result
-        end
-      end
-    end
-  end
-end
-
+require 'legion/extensions/absorbers'
+require 'legion/extensions/actors/absorber_dispatch'
 require 'legion/cli/absorb_command'
 
 RSpec.describe Legion::CLI::AbsorbCommand do
   let(:command) { described_class.new }
+
+  before do
+    allow(Legion::Extensions::Absorbers::PatternMatcher).to receive(:list).and_return([])
+    allow(Legion::Extensions::Absorbers::PatternMatcher).to receive(:resolve).and_return(nil)
+    allow(Legion::Extensions::Actors::AbsorberDispatch).to receive(:dispatch).and_return(nil)
+  end
 
   describe '.exit_on_failure?' do
     it 'returns true' do
