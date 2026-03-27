@@ -2,7 +2,9 @@
 
 require 'rspec'
 require 'simplecov'
+SimpleCov.external_at_exit = true
 SimpleCov.start
+at_exit { SimpleCov.result.format! if SimpleCov.running }
 require 'bundler/setup'
 require 'legion'
 require 'legion/service'
