@@ -15,6 +15,15 @@
 - Move `Legion::LLM.chat` stub to `RSpec.configure before(:each)` block so it always intercepts regardless of whether the real `legion-llm` gem is loaded, preventing external LLM calls in integration tests
 - Fix `service_setup_apollo_spec` "starts Apollo::Local" example: stub `Legion::Apollo.start` to prevent internal double-call of `Apollo::Local.start`
 
+## [1.6.10] - 2026-03-26
+
+### Changed
+- `ConfigImport.write_config` now splits recognized subsystem keys (`microsoft_teams`, `rbac`, `api`, `logging`, `gaia`, `extensions`, `llm`, `data`, `cache_local`, `cache`, `transport`, `crypt`, `role`) into individual `{key}.json` files
+- Remaining unrecognized keys written to `bootstrapped_settings.json` (replaces `imported.json`)
+- Subsystem files are always overwritten on bootstrap; remainder file respects `--force` for merge behavior
+- `write_config` returns an array of written paths instead of a single path
+- `legion bootstrap` and `legion config import` updated to display per-file write confirmations
+
 ## [1.6.9] - 2026-03-26
 
 ### Added
