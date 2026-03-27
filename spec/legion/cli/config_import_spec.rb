@@ -171,12 +171,23 @@ RSpec.describe Legion::CLI::ConfigImport do
       expect(File.exist?(File.join(tmpdir, 'bootstrapped_settings.json'))).to be(false)
     end
 
-    it 'overwrites existing subsystem files regardless of force flag' do
+    it 'deep merges existing subsystem files when force is false' do
       transport_path = File.join(tmpdir, 'transport.json')
       File.write(transport_path, JSON.generate({ transport: { host: 'old-host', port: 5672 } }))
 
       config = { transport: { host: 'new-host' } }
       described_class.write_config(config, force: false)
+
+      result = JSON.parse(File.read(transport_path), symbolize_names: true)
+      expect(result).to eq({ transport: { host: 'new-host', port: 5672 } })
+    end
+
+    it 'overwrites existing subsystem files when force is true' do
+      transport_path = File.join(tmpdir, 'transport.json')
+      File.write(transport_path, JSON.generate({ transport: { host: 'old-host', port: 5672 } }))
+
+      config = { transport: { host: 'new-host' } }
+      described_class.write_config(config, force: true)
 
       result = JSON.parse(File.read(transport_path), symbolize_names: true)
       expect(result).to eq({ transport: { host: 'new-host' } })

@@ -195,7 +195,11 @@ module Legion
         paths = ConfigImport.write_config(config, force: options[:force])
         summary = ConfigImport.summary(config)
 
-        paths.each { |p| out.success("Written: #{p}") }
+        if paths.empty?
+          out.warn('No config files were written (empty configuration).')
+        else
+          paths.each { |p| out.success("Written: #{p}") }
+        end
         out.info("Sections: #{summary[:sections].join(', ')}")
         if summary[:vault_clusters].any?
           out.info("Vault clusters: #{summary[:vault_clusters].join(', ')}")

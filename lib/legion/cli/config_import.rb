@@ -69,7 +69,13 @@ module Legion
 
           subsystem_data = remainder.delete(key)
           path = File.join(SETTINGS_DIR, "#{key}.json")
-          File.write(path, "#{::JSON.pretty_generate({ key => subsystem_data })}\n")
+          to_write = { key => subsystem_data }
+          if File.exist?(path) && !force
+            existing = ::JSON.parse(File.read(path), symbolize_names: true)
+            existing_subsystem = existing[key]
+            to_write = { key => deep_merge(existing_subsystem, subsystem_data) } if existing_subsystem.is_a?(Hash) && subsystem_data.is_a?(Hash)
+          end
+          File.write(path, "#{::JSON.pretty_generate(to_write)}\n")
           written << path
         end
 

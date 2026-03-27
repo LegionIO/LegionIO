@@ -65,7 +65,13 @@ module Legion
         # 4. Write config
         paths = ConfigImport.write_config(config, force: options[:force])
         results[:config_written] = paths
-        paths.each { |p| out.success("Written: #{p}") } unless options[:json]
+        unless options[:json]
+          if paths.empty?
+            out.warn('No config files were written (config was empty after removing packs).')
+          else
+            paths.each { |p| out.success("Written: #{p}") }
+          end
+        end
 
         # 5. Scaffold missing subsystem files
         results[:scaffold] = run_scaffold(out)
