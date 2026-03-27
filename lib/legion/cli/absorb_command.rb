@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'legion/extensions/absorbers'
+require 'legion/extensions/absorbers/pattern_matcher'
+require 'legion/extensions/actors/absorber_dispatch'
+
 module Legion
   module CLI
     class AbsorbCommand < Thor
