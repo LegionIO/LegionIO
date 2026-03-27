@@ -5,7 +5,7 @@ require 'legion/compliance'
 
 RSpec.describe Legion::Compliance::PhiAccessLog do
   before do
-    allow(Legion::Settings).to receive(:[]).with(:compliance).and_return({ phi_enabled: true })
+    Legion::Settings.merge_settings(:compliance, Legion::Compliance::DEFAULTS)
   end
 
   describe '.log_access' do
@@ -49,7 +49,7 @@ RSpec.describe Legion::Compliance::PhiAccessLog do
 
     context 'when phi_enabled is false' do
       before do
-        allow(Legion::Settings).to receive(:[]).with(:compliance).and_return({ phi_enabled: false })
+        allow(Legion::Compliance).to receive(:phi_enabled?).and_return(false)
         stub_const('Legion::Audit', Module.new)
         allow(Legion::Audit).to receive(:record)
       end

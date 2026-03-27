@@ -43,6 +43,48 @@ module Legion
         Legion::Data::Model::DigitalWorker.where(team: team)
       end
 
+      def heartbeat(worker_id:, health_status: 'healthy', health_node: nil)
+        worker = Legion::Data::Model::DigitalWorker.first(worker_id: worker_id)
+        return nil unless worker
+
+        updates = { last_heartbeat_at: Time.now.utc, health_status: health_status }
+        updates[:health_node] = health_node if health_node
+        worker.update(updates)
+        worker
+      end
+
+      def detect_orphans(stale_days: 7)
+        cutoff = Time.now.utc - (stale_days * 86_400)
+        active = Legion::Data::Model::DigitalWorker.where(lifecycle_state: 'active')
+        active.all.select do |w|
+          w.last_heartbeat_at.nil? || w.last_heartbeat_at < cutoff
+        end
+      end
+
+      def pause_orphans!(stale_days: 7, by: 'system:orphan_detection')
+        orphans = detect_orphans(stale_days: stale_days)
+        orphans.each do |worker|
+          Lifecycle.transition!(
+            worker,
+            to_state:           'paused',
+            by:                 by,
+            reason:             "no heartbeat for #{stale_days}+ days",
+            authority_verified: true
+          )
+          if defined?(Legion::Events)
+            Legion::Events.emit('worker.orphan_detected', {
+                                  worker_id:         worker.worker_id,
+                                  owner_msid:        worker.owner_msid,
+                                  last_heartbeat_at: worker.last_heartbeat_at,
+                                  at:                Time.now.utc
+                                })
+          end
+        rescue Lifecycle::InvalidTransition => e
+          Legion::Logging.debug("[OrphanDetection] skip #{worker.worker_id}: #{e.message}") if defined?(Legion::Logging)
+        end
+        orphans
+      end
+
       def active_local_ids
         return [] unless defined?(Registry)
 
