@@ -8,6 +8,11 @@ require 'legion/cli/image_command'
 RSpec.describe Legion::CLI::Image do
   let(:out) { instance_double(Legion::CLI::Output::Formatter) }
   let(:llm_mod) { Module.new }
+  let(:llm_response) do
+    double('Response', content: 'A beautiful image.',
+                       usage:   double('Usage', input_tokens: 100, output_tokens: 20))
+  end
+  let(:chat_session) { double('ChatSession', ask: llm_response) }
 
   before do
     allow(Legion::CLI::Output::Formatter).to receive(:new).and_return(out)
@@ -25,10 +30,7 @@ RSpec.describe Legion::CLI::Image do
     allow(Legion::CLI::Connection).to receive(:shutdown)
 
     stub_const('Legion::LLM', llm_mod)
-    allow(Legion::LLM).to receive(:chat).and_return({
-                                                      content: 'A beautiful image.',
-                                                      usage:   { input_tokens: 100, output_tokens: 20 }
-                                                    })
+    allow(Legion::LLM).to receive(:chat).and_return(chat_session)
   end
 
   def build_command(opts = {})
@@ -79,9 +81,7 @@ RSpec.describe Legion::CLI::Image do
       it 'reads image, sends to LLM, and outputs response' do
         with_temp_image('png') do |path|
           cmd = build_command
-          expect(Legion::LLM).to receive(:chat).with(
-            hash_including(messages: [hash_including(role: 'user')])
-          ).and_return({ content: 'A PNG image.', usage: {} })
+          expect(Legion::LLM).to receive(:chat).and_return(chat_session)
           expect(out).to receive(:header).with('Analysis')
           cmd.analyze(path)
         end
@@ -93,12 +93,11 @@ RSpec.describe Legion::CLI::Image do
           expected_b64 = Base64.strict_encode64(raw)
           cmd = build_command
 
-          expect(Legion::LLM).to receive(:chat) do |args|
-            content = args[:messages].first[:content]
+          expect(chat_session).to receive(:ask) do |content|
             image_block = content.find { |b| b[:type] == 'image' }
             expect(image_block[:source][:data]).to eq(expected_b64)
             expect(image_block[:source][:media_type]).to eq('image/png')
-            { content: 'ok', usage: {} }
+            llm_response
           end
           cmd.analyze(path)
         end
@@ -109,11 +108,10 @@ RSpec.describe Legion::CLI::Image do
           cmd = described_class.new([], json: false, no_color: true, verbose: false,
                                         format: 'text', prompt: 'What color is this?')
 
-          expect(Legion::LLM).to receive(:chat) do |args|
-            content = args[:messages].first[:content]
+          expect(chat_session).to receive(:ask) do |content|
             text_block = content.find { |b| b[:type] == 'text' }
             expect(text_block[:text]).to eq('What color is this?')
-            { content: 'red', usage: {} }
+            llm_response
           end
           cmd.analyze(path)
         end
@@ -125,7 +123,7 @@ RSpec.describe Legion::CLI::Image do
                                         format: 'text', prompt: 'desc', model: 'claude-opus-4-5')
           expect(Legion::LLM).to receive(:chat)
             .with(hash_including(model: 'claude-opus-4-5'))
-            .and_return({ content: 'ok', usage: {} })
+            .and_return(chat_session)
           cmd.analyze(path)
         end
       end
@@ -136,7 +134,7 @@ RSpec.describe Legion::CLI::Image do
                                         format: 'text', prompt: 'desc', provider: 'anthropic')
           expect(Legion::LLM).to receive(:chat)
             .with(hash_including(provider: :anthropic))
-            .and_return({ content: 'ok', usage: {} })
+            .and_return(chat_session)
           cmd.analyze(path)
         end
       end
@@ -147,11 +145,10 @@ RSpec.describe Legion::CLI::Image do
         it "maps .#{ext} to image/jpeg" do
           with_temp_image(ext) do |path|
             cmd = build_command
-            expect(Legion::LLM).to receive(:chat) do |args|
-              content = args[:messages].first[:content]
+            expect(chat_session).to receive(:ask) do |content|
               image_block = content.find { |b| b[:type] == 'image' }
               expect(image_block[:source][:media_type]).to eq('image/jpeg')
-              { content: 'ok', usage: {} }
+              llm_response
             end
             cmd.analyze(path)
           end
@@ -162,11 +159,10 @@ RSpec.describe Legion::CLI::Image do
         it "maps .#{ext} to image/#{ext}" do
           with_temp_image(ext) do |path|
             cmd = build_command
-            expect(Legion::LLM).to receive(:chat) do |args|
-              content = args[:messages].first[:content]
+            expect(chat_session).to receive(:ask) do |content|
               image_block = content.find { |b| b[:type] == 'image' }
               expect(image_block[:source][:media_type]).to eq("image/#{ext}")
-              { content: 'ok', usage: {} }
+              llm_response
             end
             cmd.analyze(path)
           end
@@ -236,7 +232,7 @@ RSpec.describe Legion::CLI::Image do
 
       it 'shows error when LLM raises an exception' do
         with_temp_image('png') do |path|
-          allow(Legion::LLM).to receive(:chat).and_raise(StandardError, 'provider unavailable')
+          allow(chat_session).to receive(:ask).and_raise(StandardError, 'provider unavailable')
           cmd = build_command
           expect(out).to receive(:error).with(/LLM call failed.*provider unavailable/)
           expect { cmd.analyze(path) }.to raise_error(SystemExit)
@@ -264,13 +260,12 @@ RSpec.describe Legion::CLI::Image do
                                           format: 'text',
                                           prompt: 'Compare these two images and describe the differences')
 
-            expect(Legion::LLM).to receive(:chat) do |args|
-              content = args[:messages].first[:content]
+            expect(chat_session).to receive(:ask) do |content|
               image_blocks = content.select { |b| b[:type] == 'image' }
               expect(image_blocks.length).to eq(2)
               expect(image_blocks[0][:source][:media_type]).to eq('image/png')
               expect(image_blocks[1][:source][:media_type]).to eq('image/jpeg')
-              { content: 'They differ.', usage: {} }
+              llm_response
             end
             cmd.compare(path1, path2)
           end
@@ -284,11 +279,10 @@ RSpec.describe Legion::CLI::Image do
             cmd = described_class.new([], json: false, no_color: true, verbose: false,
                                           format: 'text', prompt: custom_prompt)
 
-            expect(Legion::LLM).to receive(:chat) do |args|
-              content = args[:messages].first[:content]
+            expect(chat_session).to receive(:ask) do |content|
               text_block = content.find { |b| b[:type] == 'text' }
               expect(text_block[:text]).to eq(custom_prompt)
-              { content: 'same brightness', usage: {} }
+              llm_response
             end
             cmd.compare(path1, path2)
           end

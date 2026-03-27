@@ -2,6 +2,7 @@
 
 require 'thor'
 require 'legion/cli/output'
+require 'legion/cli/connection'
 
 module Legion
   module CLI
@@ -43,7 +44,7 @@ module Legion
 
         display_results(out, result)
       ensure
-        Connection.shutdown
+        Legion::CLI::Connection.shutdown
       end
 
       desc 'summarize QUERY', 'Show aggregate statistics for matching traces'
@@ -71,7 +72,7 @@ module Legion
 
         display_summary(out, result)
       ensure
-        Connection.shutdown
+        Legion::CLI::Connection.shutdown
       end
 
       default_task :search
@@ -82,10 +83,10 @@ module Legion
         end
 
         def setup_connection
-          Connection.config_dir = options[:config_dir] if options[:config_dir]
-          Connection.log_level  = options[:verbose] ? 'debug' : 'error'
-          Connection.ensure_llm
-          Connection.ensure_data
+          Legion::CLI::Connection.config_dir = options[:config_dir] if options[:config_dir]
+          Legion::CLI::Connection.log_level  = options[:verbose] ? 'debug' : 'error'
+          Legion::CLI::Connection.ensure_llm
+          Legion::CLI::Connection.ensure_data
           true
         rescue CLI::Error => e
           formatter.error("Setup failed: #{e.message}")
