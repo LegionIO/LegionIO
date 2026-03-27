@@ -229,6 +229,7 @@ module Legion
         Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners).publish
 
         register_capabilities(entry[:gem_name], extension.runners) if extension.respond_to?(:runners)
+        register_absorber_capabilities(entry[:gem_name], extension.absorbers) if extension.respond_to?(:absorbers)
 
         if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Hash)
           extension.meta_actors.each_value do |actor|
@@ -500,6 +501,18 @@ module Legion
 
       def unregister_capabilities(gem_name)
         Extensions::Catalog::Registry.unregister_extension(gem_name)
+      end
+
+      def register_absorber_capabilities(gem_name, absorbers)
+        absorbers.each_value do |absorber_meta|
+          cap = Extensions::Capability.from_absorber(
+            extension:   gem_name,
+            absorber:    absorber_meta[:absorber_module],
+            patterns:    absorber_meta[:patterns],
+            description: absorber_meta[:description]
+          )
+          Extensions::Catalog::Registry.register(cap)
+        end
       end
 
       def register_capabilities(gem_name, runners)
