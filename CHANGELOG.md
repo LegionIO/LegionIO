@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.6.13] - 2026-03-27
+
+### Added
+- Absorbers: new LEX component type for pattern-matched content acquisition
+- `Absorbers::Base` class with `pattern`/`description` DSL and knowledge helpers (`absorb_to_knowledge`, `absorb_raw`, `translate`, `report_progress`)
+- `Absorbers::Matchers::Base` auto-registering matcher interface with `Matchers::Url` for URL glob matching
+- `Absorbers::PatternMatcher` for thread-safe input-to-absorber resolution with priority-based dispatch
+- `Builders::Absorbers` for auto-discovery of absorber classes during extension boot
+- `Capability.from_absorber` factory method for Capability Registry integration
+- `AbsorberDispatch` module for pattern resolution and handler execution
+- `legion absorb` CLI command with `url`, `list`, and `resolve` subcommands
+- `legion generate absorber` scaffolding template
+
 ## [1.6.11] - 2026-03-26
 
 ### Added
