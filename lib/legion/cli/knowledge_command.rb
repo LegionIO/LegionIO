@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'shellwords'
+
 module Legion
   module CLI
     class MonitorCommand < Thor
@@ -173,9 +175,129 @@ module Legion
         end
       end
 
-      no_commands do
+      desc 'transcript', 'Capture a Claude Code session transcript as knowledge'
+      option :session_id, type: :string, desc: 'Session ID (defaults to CLAUDE_SESSION_ID env)'
+      option :cwd,        type: :string, desc: 'Working directory (defaults to CLAUDE_CWD env)'
+      option :max_chunks, type: :numeric, default: 50, desc: 'Max conversation turn chunks to ingest'
+      def transcript
+        session_id = options[:session_id] || ENV.fetch('CLAUDE_SESSION_ID', nil)
+        cwd        = options[:cwd] || ENV.fetch('CLAUDE_CWD', nil) || ::Dir.pwd
+
+        unless session_id
+          formatter.warn('No session ID provided (set CLAUDE_SESSION_ID or --session-id)')
+          return
+        end
+
+        jsonl_path = resolve_transcript_path(session_id, cwd)
+        unless jsonl_path && ::File.exist?(jsonl_path)
+          formatter.warn("Transcript not found: #{jsonl_path || 'could not resolve path'}")
+          return
+        end
+
+        turns = extract_turns(jsonl_path)
+        if turns.empty?
+          formatter.warn('No conversation turns found in transcript')
+          return
+        end
+
+        repo      = `git -C #{Shellwords.escape(cwd)} rev-parse --show-toplevel 2>/dev/null`.strip.split('/').last
+        base_tags = ['claude-code', 'transcript', "session:#{session_id}", ::Time.now.strftime('%Y-%m-%d')]
+        base_tags << "repo:#{repo}" unless repo.to_s.empty?
+
+        ingested = 0
+        turns.first(options[:max_chunks]).each_with_index do |turn, idx|
+          content = format_turn(turn, idx + 1)
+          next if content.strip.empty?
+
+          result = ingest_content(
+            content: content,
+            tags:    base_tags + ["turn:#{idx + 1}"],
+            source:  "claude-code:#{session_id}:turn-#{idx + 1}"
+          )
+          ingested += 1 if result[:success]
+        end
+
+        out = formatter
+        if options[:json]
+          out.json(success: true, session_id: session_id, turns: turns.size, ingested: ingested)
+        else
+          out.success("Captured #{ingested}/#{[turns.size, options[:max_chunks]].min} turns from session #{session_id[0, 8]}")
+        end
+      end
+
+      no_commands do # rubocop:disable Metrics/BlockLength
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
+        end
+
+        def resolve_transcript_path(session_id, cwd)
+          project_dir = cwd.gsub('/', '-')
+          ::File.expand_path("~/.claude/projects/#{project_dir}/#{session_id}.jsonl")
+        end
+
+        def extract_turns(path)
+          turns = []
+          current_turn = nil
+
+          ::File.foreach(path) do |line|
+            entry = ::JSON.parse(line, symbolize_names: true)
+            type  = entry[:type]
+
+            case type
+            when 'user'
+              turns << current_turn if current_turn
+              current_turn = { user: extract_message_text(entry), assistant: +'', timestamp: entry[:timestamp] }
+            when 'assistant'
+              next unless current_turn
+
+              text = extract_message_text(entry)
+              current_turn[:assistant] << text unless text.empty?
+            end
+          rescue ::JSON::ParserError
+            next
+          end
+
+          turns << current_turn if current_turn
+          turns
+        end
+
+        def extract_message_text(entry)
+          msg = entry[:message]
+          return '' unless msg
+
+          content = msg[:content]
+          case content
+          when String then content
+          when Array
+            content.filter_map { |block| block[:text] if block[:type] == 'text' }.join("\n")
+          else ''
+          end
+        end
+
+        def format_turn(turn, number)
+          text = "## Turn #{number}\n"
+          text << "Timestamp: #{turn[:timestamp]}\n\n" if turn[:timestamp]
+          text << "### User\n#{truncate_text(turn[:user], 4096)}\n\n"
+          text << "### Assistant\n#{truncate_text(turn[:assistant], 4096)}\n"
+          text
+        end
+
+        def truncate_text(text, max_bytes)
+          return text if text.bytesize <= max_bytes
+
+          "#{text.byteslice(0, max_bytes - 20)}\n\n[truncated]"
+        end
+
+        def ingest_content(content:, tags:, source:)
+          if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+            Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
+              content: content, tags: tags, source: source
+            )
+          elsif defined?(Legion::Apollo)
+            Legion::Apollo.ingest(content: content, tags: tags, source: source)
+          else
+            { success: false, error: 'neither lex-knowledge nor legion-apollo available' }
+          end
         end
       end
     end

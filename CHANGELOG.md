@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.6.21] - 2026-03-27
+
+### Added
+- `legionio knowledge capture transcript` CLI command: ingests Claude Code session transcripts into Apollo knowledge store
+- Stop hook for automatic transcript capture at session end (installed via `legion setup claude-code`)
+
 ## [1.6.20] - 2026-03-27
 
 ### Changed

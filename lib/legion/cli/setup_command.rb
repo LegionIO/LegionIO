@@ -350,9 +350,9 @@ module Legion
 
           hooks = existing['hooks'] || {}
 
-          has_commit  = Array(hooks['PostToolUse']).any? { |h| h['command']&.include?('knowledge capture commit') }
-          has_session = Array(hooks['Stop']).any? { |h| h['command']&.include?('knowledge capture session') }
-          if has_commit && has_session && !options[:force]
+          has_commit     = Array(hooks['PostToolUse']).any? { |h| h['command']&.include?('knowledge capture commit') }
+          has_transcript = Array(hooks['Stop']).any? { |h| h['command']&.include?('knowledge capture transcript') }
+          if has_commit && has_transcript && !options[:force]
             puts '  Write-back hooks already present (use --force to overwrite)' unless options[:json]
             return
           end
@@ -368,10 +368,10 @@ module Legion
             }
           end
 
-          unless has_session
+          unless has_transcript
             hooks['Stop'] << {
-              'command' => 'legionio knowledge capture session',
-              'timeout' => 15_000
+              'command' => 'legionio knowledge capture transcript',
+              'timeout' => 30_000
             }
           end
 

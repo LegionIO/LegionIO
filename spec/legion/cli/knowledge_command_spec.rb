@@ -758,6 +758,108 @@ RSpec.describe Legion::CLI::Knowledge do
         end.to output(/No git commit found/).to_stdout
       end
     end
+
+    describe 'transcript' do
+      let(:tmpdir)     { Dir.mktmpdir('transcript-test') }
+      let(:session_id) { 'test-session-abc-123' }
+      let(:jsonl_path) { File.join(tmpdir, "#{session_id}.jsonl") }
+
+      before do
+        lines = [
+          { type: 'user', message: { role: 'user', content: 'hello world' },
+            timestamp: '2026-03-27T10:00:00Z' }.to_json,
+          { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Hi there!' }] },
+            timestamp: '2026-03-27T10:00:01Z' }.to_json,
+          { type: 'progress', data: { type: 'hook' } }.to_json,
+          { type: 'user', message: { role: 'user', content: 'fix the bug' },
+            timestamp: '2026-03-27T10:01:00Z' }.to_json,
+          { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Done!' }] },
+            timestamp: '2026-03-27T10:01:05Z' }.to_json
+        ]
+        File.write(jsonl_path, "#{lines.join("\n")}\n")
+
+        # Stub resolve_transcript_path to return our temp file
+        allow_any_instance_of(Legion::CLI::CaptureCommand)
+          .to receive(:resolve_transcript_path).and_return(jsonl_path)
+        allow_any_instance_of(Legion::CLI::CaptureCommand)
+          .to receive(:`).with(anything).and_return('legion')
+      end
+
+      after { FileUtils.rm_rf(tmpdir) }
+
+      it 'warns when no session ID is provided' do
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:fetch).with('CLAUDE_SESSION_ID', nil).and_return(nil)
+        expect do
+          Legion::CLI::CaptureCommand.start(%w[transcript --no-color])
+        end.to output(/No session ID/).to_stdout
+      end
+
+      it 'ingests conversation turns' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file).twice
+                                                                                       .and_return({ success: true })
+        expect do
+          Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--no-color'])
+        end.to output(%r{Captured 2/2 turns}).to_stdout
+      end
+
+      it 'skips progress entries' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file).twice
+                                                                                       .and_return({ success: true })
+        Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--no-color'])
+      end
+
+      it 'respects --max-chunks' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file).once
+                                                                                       .and_return({ success: true })
+        expect do
+          Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--max-chunks', '1', '--no-color'])
+        end.to output(%r{Captured 1/1 turns}).to_stdout
+      end
+
+      it 'tags with session ID' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file)
+          .with(hash_including(tags: include("session:#{session_id}")))
+          .twice.and_return({ success: true })
+        Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--no-color'])
+      end
+
+      it 'includes turn content with user and assistant sections' do
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file)
+          .with(hash_including(content: /hello world.*Hi there!/m))
+          .and_return({ success: true })
+        expect(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file)
+          .with(hash_including(content: /fix the bug.*Done!/m))
+          .and_return({ success: true })
+        Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--no-color'])
+      end
+
+      context 'with --json' do
+        it 'outputs JSON with turn count' do
+          allow(Legion::Extensions::Knowledge::Runners::Ingest).to receive(:ingest_file)
+            .and_return({ success: true })
+          output = capture_stdout do
+            Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--json', '--no-color'])
+          end
+          parsed = JSON.parse(output, symbolize_names: true)
+          expect(parsed[:turns]).to eq(2)
+          expect(parsed[:ingested]).to eq(2)
+        end
+      end
+
+      context 'when transcript file is missing' do
+        before do
+          allow_any_instance_of(Legion::CLI::CaptureCommand)
+            .to receive(:resolve_transcript_path).and_return('/nonexistent/path.jsonl')
+        end
+
+        it 'warns about missing transcript' do
+          expect do
+            Legion::CLI::CaptureCommand.start(['transcript', '--session-id', session_id, '--no-color'])
+          end.to output(/Transcript not found/).to_stdout
+        end
+      end
+    end
   end
 
   describe '#resolve_corpus_path' do
