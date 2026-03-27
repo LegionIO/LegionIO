@@ -20,7 +20,8 @@ module Legion
       desc 'search QUERY', 'Search traces with natural language'
       option :limit, type: :numeric, default: 50, desc: 'Max results to return'
       def search(*query_parts)
-        setup_connection
+        return unless setup_connection
+
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -41,11 +42,14 @@ module Legion
         end
 
         display_results(out, result)
+      ensure
+        Connection.shutdown
       end
 
       desc 'summarize QUERY', 'Show aggregate statistics for matching traces'
       def summarize(*query_parts)
-        setup_connection
+        return unless setup_connection
+
         require 'legion/trace_search'
         query = query_parts.join(' ')
         out = formatter
@@ -66,6 +70,8 @@ module Legion
         end
 
         display_summary(out, result)
+      ensure
+        Connection.shutdown
       end
 
       default_task :search
@@ -80,8 +86,10 @@ module Legion
           Connection.log_level  = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_llm
           Connection.ensure_data
+          true
         rescue CLI::Error => e
-          Legion::Logging.warn("TraceCommand#setup_connection: #{e.message}") if defined?(Legion::Logging)
+          formatter.error("Setup failed: #{e.message}")
+          false
         end
 
         private

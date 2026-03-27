@@ -165,7 +165,9 @@ module Legion
           user = conn[:user].to_s
           pass = conn[:password].to_s
           if user.start_with?('lease://', 'vault://') || pass.start_with?('lease://', 'vault://')
-            raise "credentials not resolved (Vault lease pending) — user: #{user.split('#').first}"
+            scheme = user[%r{\A[^:]+://}]
+            redacted = scheme ? "#{scheme}..." : '(unresolved)'
+            raise "credentials not resolved (Vault lease pending) — user: #{redacted}"
           end
 
           Legion::Transport::Connection.setup
@@ -209,9 +211,7 @@ module Legion
           creds = Legion::Settings[:data][:creds] || Legion::Settings[:data] || {}
           db_user = (creds[:user] || creds[:username]).to_s
           db_pass = creds[:password].to_s
-          if db_user.start_with?('lease://', 'vault://') || db_pass.start_with?('lease://', 'vault://')
-            raise "credentials not resolved (Vault lease pending) — user: #{db_user.split('#').first}"
-          end
+          raise_if_unresolved_data_creds(db_user, db_pass)
 
           Legion::Data.setup
           ds = Legion::Settings[:data] || {}
@@ -225,6 +225,20 @@ module Legion
             database = ds[:database] || 'legion'
             "#{adapter} -> #{host}#{":#{port}" if port}/#{database}"
           end
+        end
+
+        def raise_if_unresolved_data_creds(db_user, db_pass)
+          return unless db_user.start_with?('lease://', 'vault://') || db_pass.start_with?('lease://', 'vault://')
+
+          unresolved_fields = []
+          unresolved_fields << 'user'     if db_user.start_with?('lease://', 'vault://')
+          unresolved_fields << 'password' if db_pass.start_with?('lease://', 'vault://')
+          scheme_hints = []
+          scheme_hints << 'lease://...' if db_user.start_with?('lease://') || db_pass.start_with?('lease://')
+          scheme_hints << 'vault://...' if db_user.start_with?('vault://') || db_pass.start_with?('vault://')
+          details = "unresolved fields: #{unresolved_fields.join(', ')}"
+          details += " (#{scheme_hints.join(', ')})" unless scheme_hints.empty?
+          raise "credentials not resolved (Vault lease pending) — #{details}"
         end
 
         def check_data_local(_options)

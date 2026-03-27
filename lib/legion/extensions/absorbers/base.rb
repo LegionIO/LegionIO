@@ -39,10 +39,11 @@ module Legion
         end
 
         def absorb_raw(content:, tags: [], scope: :global, **)
-          if defined?(Legion::Apollo)
+          if apollo_available?
             Legion::Apollo.ingest(content: content, tags: Array(tags), scope: scope, **)
-          elsif defined?(Legion::Logging)
-            Legion::Logging.warn('absorb_raw: Apollo not available')
+          else
+            Legion::Logging.warn('absorb_raw: Apollo not available') if defined?(Legion::Logging)
+            { success: false, error: :apollo_not_available }
           end
         end
 
@@ -66,7 +67,9 @@ module Legion
         end
 
         def apollo_available?
-          defined?(Legion::Apollo) && Legion::Apollo.respond_to?(:ingest)
+          defined?(Legion::Apollo) &&
+            Legion::Apollo.respond_to?(:ingest) &&
+            (!Legion::Apollo.respond_to?(:started?) || Legion::Apollo.started?)
         end
 
         def fallback_absorb(reason, content, tags, scope, opts)
