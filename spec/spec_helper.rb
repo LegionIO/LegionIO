@@ -2,9 +2,9 @@
 
 require 'rspec'
 require 'simplecov'
-SimpleCov.external_at_exit = true
 SimpleCov.start
-at_exit { SimpleCov.result.format! if SimpleCov.running }
+# Prevent SimpleCov from treating RSpec's SystemExit(0) as an error (Ruby 3.4 compat)
+SimpleCov.define_singleton_method(:previous_error?) { |_| false }
 require 'bundler/setup'
 require 'legion'
 require 'legion/service'
