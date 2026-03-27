@@ -192,10 +192,14 @@ module Legion
         out.info("Fetching config from #{source}...")
         body = ConfigImport.fetch_source(source)
         config = ConfigImport.parse_payload(body)
-        path = ConfigImport.write_config(config, force: options[:force])
+        paths = ConfigImport.write_config(config, force: options[:force])
         summary = ConfigImport.summary(config)
 
-        out.success("Config written to #{path}")
+        if paths.empty?
+          out.warn('No config files were written (empty configuration).')
+        else
+          paths.each { |p| out.success("Written: #{p}") }
+        end
         out.info("Sections: #{summary[:sections].join(', ')}")
         if summary[:vault_clusters].any?
           out.info("Vault clusters: #{summary[:vault_clusters].join(', ')}")

@@ -10,7 +10,12 @@ module Legion
   module CLI
     module ConfigImport
       SETTINGS_DIR = File.expand_path('~/.legionio/settings')
-      IMPORT_FILE  = 'imported.json'
+      BOOTSTRAPPED_FILE = 'bootstrapped_settings.json'
+
+      SUBSYSTEM_KEYS = %i[
+        microsoft_teams rbac api logging gaia extensions
+        llm data cache_local cache transport crypt role
+      ].freeze
 
       module_function
 
@@ -56,15 +61,35 @@ module Legion
 
       def write_config(config, force: false)
         FileUtils.mkdir_p(SETTINGS_DIR)
-        path = File.join(SETTINGS_DIR, IMPORT_FILE)
+        written = []
+        remainder = config.dup
 
-        if File.exist?(path) && !force
-          existing = ::JSON.parse(File.read(path), symbolize_names: true)
-          config = deep_merge(existing, config)
+        SUBSYSTEM_KEYS.each do |key|
+          next unless remainder.key?(key)
+
+          subsystem_data = remainder.delete(key)
+          path = File.join(SETTINGS_DIR, "#{key}.json")
+          to_write = { key => subsystem_data }
+          if File.exist?(path) && !force
+            existing = ::JSON.parse(File.read(path), symbolize_names: true)
+            existing_subsystem = existing[key]
+            to_write = { key => deep_merge(existing_subsystem, subsystem_data) } if existing_subsystem.is_a?(Hash) && subsystem_data.is_a?(Hash)
+          end
+          File.write(path, "#{::JSON.pretty_generate(to_write)}\n")
+          written << path
         end
 
-        File.write(path, ::JSON.pretty_generate(config))
-        path
+        unless remainder.empty?
+          path = File.join(SETTINGS_DIR, BOOTSTRAPPED_FILE)
+          if File.exist?(path) && !force
+            existing = ::JSON.parse(File.read(path), symbolize_names: true)
+            remainder = deep_merge(existing, remainder)
+          end
+          File.write(path, "#{::JSON.pretty_generate(remainder)}\n")
+          written << path
+        end
+
+        written
       end
 
       def deep_merge(base, overlay)

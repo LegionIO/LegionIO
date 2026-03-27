@@ -115,43 +115,113 @@ RSpec.describe Legion::CLI::ConfigImport do
 
     after { FileUtils.rm_rf(tmpdir) }
 
-    it 'writes config JSON to disk' do
+    it 'returns an array of written paths' do
       config = { transport: { host: 'localhost' } }
-      path = described_class.write_config(config)
-      expect(File.exist?(path)).to be(true)
-      written = JSON.parse(File.read(path), symbolize_names: true)
-      expect(written[:transport][:host]).to eq('localhost')
+      paths = described_class.write_config(config)
+      expect(paths).to be_an(Array)
     end
 
-    it 'returns the full path to the written file' do
-      config = { logging: { level: 'info' } }
-      path = described_class.write_config(config)
-      expect(path).to eq(File.join(tmpdir, 'imported.json'))
+    it 'writes recognized subsystem keys to individual files' do
+      config = { transport: { host: 'localhost' }, llm: { enabled: true } }
+      paths = described_class.write_config(config)
+
+      transport_path = File.join(tmpdir, 'transport.json')
+      llm_path = File.join(tmpdir, 'llm.json')
+
+      expect(paths).to include(transport_path, llm_path)
+      expect(File.exist?(transport_path)).to be(true)
+      expect(File.exist?(llm_path)).to be(true)
+
+      transport_data = JSON.parse(File.read(transport_path), symbolize_names: true)
+      expect(transport_data).to eq({ transport: { host: 'localhost' } })
+
+      llm_data = JSON.parse(File.read(llm_path), symbolize_names: true)
+      expect(llm_data).to eq({ llm: { enabled: true } })
     end
 
-    it 'deep merges with existing file when force is false' do
-      existing = { transport: { host: 'old-host', port: 5672 } }
-      File.write(File.join(tmpdir, 'imported.json'), JSON.generate(existing))
+    it 'writes unrecognized keys to bootstrapped_settings.json' do
+      config = { custom_thing: { foo: 'bar' }, another: 123 }
+      paths = described_class.write_config(config)
 
-      overlay = { transport: { host: 'new-host' }, data: { adapter: 'sqlite' } }
-      described_class.write_config(overlay, force: false)
+      bootstrapped_path = File.join(tmpdir, 'bootstrapped_settings.json')
+      expect(paths).to include(bootstrapped_path)
 
-      result = JSON.parse(File.read(File.join(tmpdir, 'imported.json')), symbolize_names: true)
-      expect(result[:transport][:host]).to eq('new-host')
-      expect(result[:transport][:port]).to eq(5672)
-      expect(result[:data][:adapter]).to eq('sqlite')
+      written = JSON.parse(File.read(bootstrapped_path), symbolize_names: true)
+      expect(written).to eq({ custom_thing: { foo: 'bar' }, another: 123 })
     end
 
-    it 'overwrites existing file with force: true' do
-      existing = { transport: { host: 'old-host', port: 5672 } }
-      File.write(File.join(tmpdir, 'imported.json'), JSON.generate(existing))
+    it 'splits a mixed config into subsystem files and remainder' do
+      config = { logging: { level: 'debug' }, transport: { host: 'rmq' }, app_name: 'test' }
+      paths = described_class.write_config(config)
 
-      new_config = { logging: { level: 'debug' } }
-      described_class.write_config(new_config, force: true)
+      expect(paths.size).to eq(3)
+      expect(File.exist?(File.join(tmpdir, 'logging.json'))).to be(true)
+      expect(File.exist?(File.join(tmpdir, 'transport.json'))).to be(true)
+      expect(File.exist?(File.join(tmpdir, 'bootstrapped_settings.json'))).to be(true)
 
-      result = JSON.parse(File.read(File.join(tmpdir, 'imported.json')), symbolize_names: true)
-      expect(result.keys).to eq([:logging])
-      expect(result[:logging][:level]).to eq('debug')
+      remainder = JSON.parse(File.read(File.join(tmpdir, 'bootstrapped_settings.json')), symbolize_names: true)
+      expect(remainder).to eq({ app_name: 'test' })
+    end
+
+    it 'does not write bootstrapped_settings.json when all keys are subsystem keys' do
+      config = { logging: { level: 'info' }, cache: { driver: 'dalli' } }
+      paths = described_class.write_config(config)
+
+      expect(paths).not_to include(File.join(tmpdir, 'bootstrapped_settings.json'))
+      expect(File.exist?(File.join(tmpdir, 'bootstrapped_settings.json'))).to be(false)
+    end
+
+    it 'deep merges existing subsystem files when force is false' do
+      transport_path = File.join(tmpdir, 'transport.json')
+      File.write(transport_path, JSON.generate({ transport: { host: 'old-host', port: 5672 } }))
+
+      config = { transport: { host: 'new-host' } }
+      described_class.write_config(config, force: false)
+
+      result = JSON.parse(File.read(transport_path), symbolize_names: true)
+      expect(result).to eq({ transport: { host: 'new-host', port: 5672 } })
+    end
+
+    it 'overwrites existing subsystem files when force is true' do
+      transport_path = File.join(tmpdir, 'transport.json')
+      File.write(transport_path, JSON.generate({ transport: { host: 'old-host', port: 5672 } }))
+
+      config = { transport: { host: 'new-host' } }
+      described_class.write_config(config, force: true)
+
+      result = JSON.parse(File.read(transport_path), symbolize_names: true)
+      expect(result).to eq({ transport: { host: 'new-host' } })
+    end
+
+    it 'deep merges remainder with existing bootstrapped_settings.json when force is false' do
+      bootstrapped_path = File.join(tmpdir, 'bootstrapped_settings.json')
+      File.write(bootstrapped_path, JSON.generate({ old_key: 'keep', nested: { a: 1, b: 2 } }))
+
+      config = { nested: { b: 99, c: 3 }, new_key: 'added' }
+      described_class.write_config(config, force: false)
+
+      result = JSON.parse(File.read(bootstrapped_path), symbolize_names: true)
+      expect(result[:old_key]).to eq('keep')
+      expect(result[:nested]).to eq({ a: 1, b: 99, c: 3 })
+      expect(result[:new_key]).to eq('added')
+    end
+
+    it 'overwrites bootstrapped_settings.json with force: true' do
+      bootstrapped_path = File.join(tmpdir, 'bootstrapped_settings.json')
+      File.write(bootstrapped_path, JSON.generate({ old_key: 'should_be_gone' }))
+
+      config = { new_key: 'only_this' }
+      described_class.write_config(config, force: true)
+
+      result = JSON.parse(File.read(bootstrapped_path), symbolize_names: true)
+      expect(result.keys).to eq([:new_key])
+    end
+
+    it 'does not mutate the original config hash' do
+      config = { transport: { host: 'localhost' }, llm: { enabled: true }, app: 'test' }
+      original_keys = config.keys.dup
+      described_class.write_config(config)
+      expect(config.keys).to eq(original_keys)
     end
 
     it 'creates the settings directory if it does not exist' do
@@ -159,6 +229,16 @@ RSpec.describe Legion::CLI::ConfigImport do
       stub_const('Legion::CLI::ConfigImport::SETTINGS_DIR', nested)
       described_class.write_config({ logging: { level: 'info' } })
       expect(Dir.exist?(nested)).to be(true)
+    end
+
+    it 'writes all recognized subsystem key types' do
+      config = described_class::SUBSYSTEM_KEYS.to_h { |k| [k, { enabled: true }] }
+      paths = described_class.write_config(config)
+
+      described_class::SUBSYSTEM_KEYS.each do |key|
+        expect(File.exist?(File.join(tmpdir, "#{key}.json"))).to be(true)
+      end
+      expect(paths.size).to eq(described_class::SUBSYSTEM_KEYS.size)
     end
   end
 
