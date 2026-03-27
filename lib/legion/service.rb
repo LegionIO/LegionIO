@@ -248,14 +248,18 @@ module Legion
       Legion::Logging.setup(log_level: log_level, level: log_level, trace: true)
     end
 
-    def reconfigure_logging(cli_level)
-      logging_settings = Legion::Settings[:logging] || {}
-      level = cli_level || logging_settings[:level] || 'info'
+    def reconfigure_logging(cli_level = nil)
+      ls = Legion::Settings[:logging] || {}
+      level = cli_level || ls[:level] || 'info'
+
       Legion::Logging.setup(
-        level:      level,
-        log_file:   logging_settings[:log_file],
-        log_stdout: logging_settings[:log_stdout],
-        trace:      logging_settings.fetch(:trace, true)
+        level:       level,
+        format:      (ls[:format] || 'text').to_sym,
+        log_file:    ls[:log_file],
+        log_stdout:  ls.fetch(:log_stdout, true),
+        trace:       ls.fetch(:trace, true),
+        async:       ls.fetch(:async, true),
+        include_pid: ls.fetch(:include_pid, false)
       )
     end
 
