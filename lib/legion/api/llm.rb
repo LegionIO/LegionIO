@@ -43,6 +43,8 @@ module Legion
         end
 
         def self.register_chat(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+          register_inference(app)
+
           app.post '/api/llm/chat' do # rubocop:disable Metrics/BlockLength
             Legion::Logging.debug "API: POST /api/llm/chat params=#{params.keys}"
             require_llm!
@@ -163,6 +165,75 @@ module Legion
           end
         end
 
+        def self.register_inference(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+          app.post '/api/llm/inference' do # rubocop:disable Metrics/BlockLength
+            require_llm!
+            body = parse_request_body
+            validate_required!(body, :messages)
+
+            messages = body[:messages]
+            tools    = body[:tools] || []
+            model    = body[:model]
+            provider = body[:provider]
+
+            unless messages.is_a?(Array)
+              halt 400, { 'Content-Type' => 'application/json' },
+                   Legion::JSON.dump({ error: { code: 'invalid_messages', message: 'messages must be an array' } })
+            end
+
+            session = Legion::LLM.chat(
+              model:    model,
+              provider: provider,
+              caller:   { source: 'api', path: request.path }
+            )
+
+            unless tools.empty?
+              tool_declarations = tools.map do |t|
+                ts = t.respond_to?(:transform_keys) ? t.transform_keys(&:to_sym) : t
+                tname = ts[:name].to_s
+                tdesc = ts[:description].to_s
+                tparams = ts[:parameters] || {}
+                Class.new do
+                  define_singleton_method(:tool_name) { tname }
+                  define_singleton_method(:description)  { tdesc }
+                  define_singleton_method(:parameters)   { tparams }
+                  define_method(:call) { |**_| raise NotImplementedError, "#{tname} executes client-side only" }
+                end
+              end
+              session.with_tools(*tool_declarations)
+            end
+
+            messages.each { |m| session.add_message(m) }
+
+            last_user = messages.select { |m| (m[:role] || m['role']).to_s == 'user' }.last
+            prompt    = (last_user || {})[:content] || (last_user || {})['content'] || ''
+
+            response = session.ask(prompt)
+
+            tc_list = if response.respond_to?(:tool_calls) && response.tool_calls
+                        Array(response.tool_calls).map do |tc|
+                          {
+                            id:        tc.respond_to?(:id) ? tc.id : nil,
+                            name:      tc.respond_to?(:name) ? tc.name : tc.to_s,
+                            arguments: tc.respond_to?(:arguments) ? tc.arguments : {}
+                          }
+                        end
+                      end
+
+            json_response({
+                            content:       response.content,
+                            tool_calls:    tc_list,
+                            stop_reason:   response.respond_to?(:stop_reason) ? response.stop_reason : nil,
+                            model:         session.model.to_s,
+                            input_tokens:  response.respond_to?(:input_tokens) ? response.input_tokens : nil,
+                            output_tokens: response.respond_to?(:output_tokens) ? response.output_tokens : nil
+                          }, status_code: 200)
+          rescue StandardError => e
+            Legion::Logging.error "[api/llm/inference] #{e.class}: #{e.message}" if defined?(Legion::Logging)
+            json_response({ error: { code: 'inference_error', message: e.message } }, status_code: 500)
+          end
+        end
+
         def self.register_providers(app)
           app.get '/api/llm/providers' do
             require_llm!
@@ -190,7 +261,7 @@ module Legion
         end
 
         class << self
-          private :register_chat, :register_providers
+          private :register_chat, :register_inference, :register_providers
         end
       end
     end

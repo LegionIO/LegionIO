@@ -176,7 +176,14 @@ module Legion
         def setup_connection
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
-          Connection.ensure_llm
+          Connection.ensure_settings
+
+          require 'legion/llm/daemon_client'
+          return if Legion::LLM::DaemonClient.available?
+
+          raise CLI::Error,
+                "LegionIO daemon is not running. Start it with: legionio start\n  " \
+                'All LLM requests must route through the daemon.'
         end
 
         def setup_notification_bridge
@@ -237,13 +244,13 @@ module Legion
         end
 
         def create_chat
-          opts = {}
-          opts[:model]    = options[:model] || chat_setting(:model)
-          opts[:provider] = (options[:provider] || chat_setting(:provider))&.to_sym
-          opts.compact!
-
+          require 'legion/cli/chat/daemon_chat'
           require 'legion/cli/chat/tool_registry'
-          chat = Legion::LLM.chat(**opts, caller: { source: 'cli', command: 'chat' })
+
+          chat = Chat::DaemonChat.new(
+            model:    options[:model] || chat_setting(:model),
+            provider: (options[:provider] || chat_setting(:provider))&.to_sym
+          )
           chat.with_tools(*Chat::ToolRegistry.all_tools)
           chat
         end
