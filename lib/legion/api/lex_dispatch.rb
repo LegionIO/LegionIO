@@ -52,7 +52,7 @@ module Legion
           end
         end
 
-        def self.dispatch_request(context, request, params)
+        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength
           content_type = 'application/json'
           context.content_type content_type
 
@@ -78,6 +78,30 @@ module Legion
             body.nil? || body.empty? ? {} : Legion::JSON.load(body)
           rescue StandardError
             {}
+          end
+
+          # Remote dispatch: when the runner class is not loaded locally, forward via AMQP
+          unless extension_loaded_locally?(entry)
+            if definition_blocks_remote?(entry)
+              context.halt 403, Legion::JSON.dump({
+                                                    task_id:         nil,
+                                                    conversation_id: nil,
+                                                    status:          'failed',
+                                                    error:           { code: 403, message: 'Method not remotely invocable' }
+                                                  })
+            end
+
+            exchange_name = "lex.#{entry[:lex_name]}"
+            routing_key   = "lex.#{entry[:lex_name]}.#{entry[:component_type]}.#{entry[:component_name]}.#{entry[:method_name]}"
+
+            if request.env['HTTP_X_LEGION_SYNC'] == 'true'
+              result = Legion::API::SyncDispatch.dispatch(exchange_name, routing_key, payload, envelope)
+              return Legion::JSON.dump(result)
+            else
+              dispatch_async_amqp(exchange_name, routing_key, payload, envelope)
+              context.status 202
+              return Legion::JSON.dump(envelope.merge(status: 'queued'))
+            end
           end
 
           result = Legion::Ingress.run(
@@ -124,8 +148,47 @@ module Legion
           }.compact
         end
 
+        # Returns true when the runner class referenced by the route entry is
+        # available in the current process (i.e. the extension is loaded locally).
+        def self.extension_loaded_locally?(entry)
+          runner_class = entry[:runner_class]
+          return false if runner_class.nil? || runner_class.to_s.empty?
+
+          # Try constant lookup — safe because runner_class is from the route registry,
+          # not from user input.
+          parts = runner_class.to_s.split('::').reject(&:empty?)
+          parts.reduce(Object) { |mod, name| mod.const_get(name, false) }
+          true
+        rescue NameError, TypeError
+          false
+        end
+
+        # Returns true when the definition-level flag explicitly disables remote dispatch.
+        # Extension-level gate (entry[:lex_name] module) takes precedence over definition flag.
+        def self.definition_blocks_remote?(entry)
+          defn = entry[:definition]
+          return false if defn.nil?
+
+          defn[:remote_invocable] == false
+        end
+
+        # Publish an async AMQP message for remote dispatch (fire-and-forget).
+        def self.dispatch_async_amqp(exchange_name, routing_key, payload, envelope)
+          return unless defined?(Legion::Transport) &&
+                        Legion::Transport.respond_to?(:connected?) &&
+                        Legion::Transport.connected?
+
+          channel = Legion::Transport.channel
+          exchange = channel.exchange(exchange_name, type: :topic, durable: true, passive: true)
+          message = Legion::JSON.dump(payload.merge(envelope))
+          exchange.publish(message, routing_key: routing_key, content_type: 'application/json', persistent: true)
+        rescue StandardError => e
+          Legion::Logging.warn "[LexDispatch] async AMQP publish failed: #{e.message}" if defined?(Legion::Logging)
+        end
+
         class << self
-          private :register_discovery, :register_dispatch, :dispatch_request, :build_envelope
+          private :register_discovery, :register_dispatch, :dispatch_request, :build_envelope,
+                  :extension_loaded_locally?, :definition_blocks_remote?, :dispatch_async_amqp
         end
       end
     end

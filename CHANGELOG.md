@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.6.24] - 2026-03-28
+
+### Added
+- `Legion::API.register_library_routes(gem_name, routes_module)` class method: library gems self-register their Sinatra route modules at boot via `router.register_library` + Sinatra `register`. Implemented in `lib/legion/api/library_routes.rb`.
+- `Legion::API::SyncDispatch.dispatch(exchange_name, routing_key, payload, envelope, timeout:)`: synchronous AMQP dispatch using a temporary exclusive reply_to queue with configurable timeout (default 30s). Implemented in `lib/legion/api/sync_dispatch.rb`.
+- Remote dispatch in `LexDispatch`: when a registered extension route's runner class is not loaded in the current process, the request is forwarded via AMQP — async (202) by default or sync (blocks on reply queue) when `X-Legion-Sync: true` header is present. Returns 403 when `definition[:remote_invocable] == false`.
+- `Routes::Llm` and `Routes::Apollo` registration now guarded: skipped in `api.rb` when `Legion::LLM::Routes` / `Legion::Apollo::Routes` are already defined (i.e. self-registered by the library gem).
+
+### Changed
+- `api.rb`: requires `api/library_routes` and `api/sync_dispatch`; LLM and Apollo route registration conditional on gem self-registration not already having run.
+
 ## [1.6.23] - 2026-03-28
 
 ### Added

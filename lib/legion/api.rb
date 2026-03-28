@@ -48,6 +48,8 @@ require_relative 'api/traces'
 require_relative 'api/stats'
 require_relative 'api/codegen'
 require_relative 'api/router'
+require_relative 'api/library_routes'
+require_relative 'api/sync_dispatch'
 require_relative 'api/lex_dispatch'
 require_relative 'api/graphql' if defined?(GraphQL)
 
@@ -153,14 +155,14 @@ module Legion
     register Routes::Capacity
     register Routes::Audit
     register Routes::Metrics
-    register Routes::Llm
+    register Routes::Llm unless defined?(Legion::LLM::Routes)
     register Routes::ExtensionCatalog
     register Routes::OrgChart
     register Routes::Governance
     register Routes::Acp
     register Routes::Prompts
     register Routes::Marketplace
-    register Routes::Apollo
+    register Routes::Apollo unless defined?(Legion::Apollo::Routes)
     register Routes::Costs
     register Routes::Traces
     register Routes::Stats
