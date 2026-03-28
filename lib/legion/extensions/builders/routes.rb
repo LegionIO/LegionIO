@@ -28,14 +28,28 @@ module Legion
 
             methods.each do |function|
               route_path = "#{extension_name}/#{runner_name}/#{function}"
+              defn = runner_module.respond_to?(:definition_for) ? runner_module.definition_for(function) : nil
               log.info "[Routes] auto-route registered: POST /api/lex/#{route_path}"
               @routes[route_path] = {
-                lex_name:     extension_name,
-                runner_name:  runner_name,
-                function:     function,
-                runner_class: runner_class,
-                route_path:   route_path
+                lex_name:       extension_name,
+                runner_name:    runner_name,
+                function:       function,
+                component_type: 'runners',
+                runner_class:   runner_class,
+                route_path:     route_path,
+                definition:     defn
               }
+
+              next unless defined?(Legion::API) && Legion::API.respond_to?(:router)
+
+              Legion::API.router.register_extension_route(
+                lex_name:       extension_name,
+                component_type: 'runners',
+                component_name: runner_name,
+                method_name:    function.to_s,
+                runner_class:   runner_class,
+                definition:     defn
+              )
             end
           end
         end

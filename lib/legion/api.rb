@@ -47,6 +47,8 @@ require_relative 'api/costs'
 require_relative 'api/traces'
 require_relative 'api/stats'
 require_relative 'api/codegen'
+require_relative 'api/router'
+require_relative 'api/lex_dispatch'
 require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
@@ -72,6 +74,21 @@ module Legion
       Legion::API::OpenAPI.to_json
     end
 
+    # Root discovery — lists all tiers
+    get '/api/discovery' do
+      content_type :json
+      Legion::JSON.dump({
+                          infrastructure: [
+                            { path: '/api/health', method: 'GET' },
+                            { path: '/api/ready', method: 'GET' },
+                            { path: '/api/openapi.json', method: 'GET' },
+                            { path: '/api/discovery', method: 'GET' }
+                          ],
+                          libraries:      Legion::API.router.library_names,
+                          extensions:     Legion::API.router.extension_names
+                        })
+    end
+
     # Health and readiness
     get '/api/health' do
       json_response({ status: 'ok', version: Legion::VERSION })
@@ -87,8 +104,14 @@ module Legion
       content_type :json
       Legion::Logging.warn "API #{request.request_method} #{request.path_info} returned 404: no route matches"
       Legion::JSON.dump({
-                          error: { code: 'not_found', message: "no route matches #{request.request_method} #{request.path_info}" },
-                          meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
+                          task_id:         nil,
+                          conversation_id: nil,
+                          status:          'failed',
+                          error:           {
+                            code:    404,
+                            message: "no route matches #{request.request_method} #{request.path_info}"
+                          },
+                          meta:            { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
                         })
     end
 
@@ -97,12 +120,16 @@ module Legion
       err = env['sinatra.error']
       Legion::Logging.log_exception(err, payload_summary: "API #{request.request_method} #{request.path_info} returned 500", component_type: :api)
       Legion::JSON.dump({
-                          error: { code: 'internal_error', message: err.message },
-                          meta:  { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
+                          task_id:         nil,
+                          conversation_id: nil,
+                          status:          'failed',
+                          error:           { code: 500, message: err.message },
+                          meta:            { timestamp: Time.now.utc.iso8601, node: Legion::Settings[:client][:name] }
                         })
     end
 
     # Mount route modules
+    register Routes::LexDispatch
     register Routes::Tasks
     register Routes::Extensions
     register Routes::Nodes
@@ -142,6 +169,13 @@ module Legion
 
     use Legion::API::Middleware::RequestLogger
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
+
+    # Tier-aware router (three-tier namespace)
+    class << self
+      def router
+        @router ||= Legion::API::Router.new
+      end
+    end
 
     # Hook registry (preserved from original implementation)
     class << self

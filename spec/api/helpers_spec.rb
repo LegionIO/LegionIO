@@ -27,7 +27,8 @@ RSpec.describe Legion::API::Helpers do
       get '/api/nonexistent'
       expect(last_response.status).to eq(404)
       body = Legion::JSON.load(last_response.body)
-      expect(body[:error][:code]).to eq('not_found')
+      expect(body[:error][:code]).to eq(404)
+      expect(body[:status]).to eq('failed')
     end
   end
 
