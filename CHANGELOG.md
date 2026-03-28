@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.29] - 2026-03-28
+
+### Fixed
+- Fallback route guards in `api.rb` now check `router.library_names.include?` instead of `defined?` — prevents 404s when gem modules are loaded but routes are not yet mounted (fixes #53)
+
 ## [1.6.28] - 2026-03-28
 
 ### Fixed

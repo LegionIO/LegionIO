@@ -128,6 +128,13 @@ module Legion
                         })
     end
 
+    # Tier-aware router (three-tier namespace)
+    class << self
+      def router
+        @router ||= Legion::API::Router.new
+      end
+    end
+
     # Mount route modules
     register Routes::LexDispatch
     register Routes::Tasks
@@ -139,11 +146,11 @@ module Legion
     register Routes::Chains
     register Routes::Settings
     register Routes::Events
-    register Routes::Transport unless defined?(Legion::Transport::Routes)
+    register Routes::Transport unless router.library_names.include?('transport')
     register Routes::Workers
     register Routes::Coldstart
-    register Routes::Gaia unless defined?(Legion::Gaia::Routes)
-    register Routes::Rbac unless defined?(Legion::Rbac::Routes)
+    register Routes::Gaia unless router.library_names.include?('gaia')
+    register Routes::Rbac unless router.library_names.include?('rbac')
     register Routes::Auth
     register Routes::AuthWorker
     register Routes::AuthHuman
@@ -151,14 +158,14 @@ module Legion
     register Routes::Capacity
     register Routes::Audit
     register Routes::Metrics
-    register Routes::Llm unless defined?(Legion::LLM::Routes)
+    register Routes::Llm unless router.library_names.include?('llm')
     register Routes::ExtensionCatalog
     register Routes::OrgChart
     register Routes::Governance
     register Routes::Acp
     register Routes::Prompts
     register Routes::Marketplace
-    register Routes::Apollo unless defined?(Legion::Apollo::Routes)
+    register Routes::Apollo unless router.library_names.include?('apollo')
     register Routes::Costs
     register Routes::Traces
     register Routes::Stats
@@ -167,12 +174,5 @@ module Legion
 
     use Legion::API::Middleware::RequestLogger
     use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
-
-    # Tier-aware router (three-tier namespace)
-    class << self
-      def router
-        @router ||= Legion::API::Router.new
-      end
-    end
   end
 end
