@@ -36,8 +36,8 @@ module Legion
           end
 
           if options[:json]
-            out.json({ legacy: legacy, deleted: options[:execute] })
             perform_deletion(legacy) if options[:execute]
+            out.json({ legacy: legacy, deleted: options[:execute] })
             return
           end
 

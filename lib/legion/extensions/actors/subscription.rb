@@ -33,7 +33,6 @@ module Legion
           exchange_object = default_exchange.new
           queue_object = Kernel.const_get(queue_string).new
 
-          queue_object.bind(exchange_object, routing_key: "runners.#{runner_name}")
           queue_object.bind(exchange_object, routing_key: "#{amqp_prefix}.runners.#{runner_name}.#")
         end
 
@@ -99,22 +98,6 @@ module Legion
           end
           @queue.subscribe_with(@consumer)
           log.info "[Subscription] activated: #{lex_name}/#{runner_name} (consumer registered)"
-        end
-
-        def block
-          false
-        end
-
-        def consumers
-          1
-        end
-
-        def manual_ack
-          true
-        end
-
-        def delay_start
-          0
         end
 
         def include_metadata_in_message?

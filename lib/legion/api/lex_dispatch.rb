@@ -27,7 +27,14 @@ module Legion
               params[:lex_name], params[:component_type],
               params[:component_name], params[:method_name]
             )
-            halt 404, Legion::JSON.dump({ error: { code: 404, message: 'route not found' } }) unless entry
+            unless entry
+              halt 404, Legion::JSON.dump({
+                                            task_id:         nil,
+                                            conversation_id: nil,
+                                            status:          'failed',
+                                            error:           { code: 404, message: 'route not found' }
+                                          })
+            end
 
             Legion::JSON.dump({
                                 extension:      params[:lex_name],
@@ -141,13 +148,21 @@ module Legion
                             })
         end
 
+        def self.parse_header_integer(value)
+          return nil if value.nil?
+
+          Integer(value)
+        rescue ArgumentError, TypeError
+          nil
+        end
+
         def self.build_envelope(request)
-          task_id = request.env['HTTP_X_LEGION_TASK_ID']&.to_i
+          task_id         = parse_header_integer(request.env['HTTP_X_LEGION_TASK_ID'])
           conversation_id = request.env['HTTP_X_LEGION_CONVERSATION_ID'] || ::SecureRandom.uuid
-          parent_id = request.env['HTTP_X_LEGION_PARENT_ID']&.to_i
-          master_id = request.env['HTTP_X_LEGION_MASTER_ID']&.to_i
-          chain_id = request.env['HTTP_X_LEGION_CHAIN_ID']&.to_i
-          debug = request.env['HTTP_X_LEGION_DEBUG'] == 'true'
+          parent_id       = parse_header_integer(request.env['HTTP_X_LEGION_PARENT_ID'])
+          master_id       = parse_header_integer(request.env['HTTP_X_LEGION_MASTER_ID'])
+          chain_id        = parse_header_integer(request.env['HTTP_X_LEGION_CHAIN_ID'])
+          debug           = request.env['HTTP_X_LEGION_DEBUG'] == 'true'
 
           {
             task_id:         task_id,
@@ -198,8 +213,8 @@ module Legion
         end
 
         class << self
-          private :register_discovery, :register_dispatch, :dispatch_request, :build_envelope,
-                  :extension_loaded_locally?, :definition_blocks_remote?, :dispatch_async_amqp
+          private :register_discovery, :register_dispatch, :dispatch_request, :parse_header_integer,
+                  :build_envelope, :extension_loaded_locally?, :definition_blocks_remote?, :dispatch_async_amqp
         end
       end
     end
