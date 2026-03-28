@@ -36,6 +36,22 @@ module Legion
             }
 
             Legion::Extensions::Absorbers::PatternMatcher.register(klass)
+
+            next unless defined?(Legion::API) && Legion::API.respond_to?(:router)
+
+            absorber_methods = klass.public_instance_methods(false).reject { |m| m.to_s.start_with?('_') }
+            absorber_methods = [:absorb] if absorber_methods.empty?
+            absorber_methods.each do |method_name|
+              Legion::API.router.register_extension_route(
+                lex_name:       lex_name,
+                amqp_prefix:    respond_to?(:amqp_prefix) ? amqp_prefix : "lex.#{lex_name}",
+                component_type: 'absorbers',
+                component_name: snake_name,
+                method_name:    method_name.to_s,
+                runner_class:   klass,
+                definition:     klass.respond_to?(:definition_for) ? klass.definition_for(method_name) : nil
+              )
+            end
           end
         rescue StandardError => e
           Legion::Logging.error("Failed to build absorbers: #{e.message}") if defined?(Legion::Logging)

@@ -20,8 +20,6 @@ require_relative 'api/chains'
 require_relative 'api/settings'
 require_relative 'api/events'
 require_relative 'api/transport'
-require_relative 'api/hooks'
-require_relative 'api/lex'
 require_relative 'api/workers'
 require_relative 'api/coldstart'
 require_relative 'api/gaia'
@@ -141,13 +139,11 @@ module Legion
     register Routes::Chains
     register Routes::Settings
     register Routes::Events
-    register Routes::Transport
-    register Routes::Hooks
-    register Routes::Lex
+    register Routes::Transport unless defined?(Legion::Transport::Routes)
     register Routes::Workers
     register Routes::Coldstart
-    register Routes::Gaia
-    register Routes::Rbac
+    register Routes::Gaia unless defined?(Legion::Gaia::Routes)
+    register Routes::Rbac unless defined?(Legion::Rbac::Routes)
     register Routes::Auth
     register Routes::AuthWorker
     register Routes::AuthHuman
@@ -176,66 +172,6 @@ module Legion
     class << self
       def router
         @router ||= Legion::API::Router.new
-      end
-    end
-
-    # Hook registry (preserved from original implementation)
-    class << self
-      def hook_registry
-        @hook_registry ||= {}
-      end
-
-      def register_hook(lex_name:, hook_name:, hook_class:, default_runner: nil, route_path: nil)
-        route = route_path || "#{lex_name}/#{hook_name}"
-        key = route
-        hook_registry[key] = {
-          lex_name:       lex_name,
-          hook_name:      hook_name,
-          hook_class:     hook_class,
-          default_runner: default_runner,
-          route_path:     route
-        }
-        Legion::Logging.debug "Registered hook endpoint: /api/hooks/lex/#{route}"
-      end
-
-      def find_hook(lex_name, hook_name = nil)
-        if hook_name
-          hook_registry["#{lex_name}/#{hook_name}"]
-        else
-          hook_registry["#{lex_name}/webhook"] ||
-            hook_registry.values.find { |h| h[:lex_name] == lex_name }
-        end
-      end
-
-      def find_hook_by_path(path)
-        hook_registry[path] || hook_registry.values.find { |h| h[:route_path] == path }
-      end
-
-      def registered_hooks
-        hook_registry.values
-      end
-
-      def route_registry
-        @route_registry ||= {}
-      end
-
-      def register_route(lex_name:, runner_name:, function:, runner_class:, route_path:)
-        route_registry[route_path] = {
-          lex_name:     lex_name,
-          runner_name:  runner_name,
-          function:     function,
-          runner_class: runner_class,
-          route_path:   route_path
-        }
-        Legion::Logging.debug "Registered LEX route: POST /api/lex/#{route_path}"
-      end
-
-      def find_route_by_path(path)
-        route_registry[path]
-      end
-
-      def registered_routes
-        route_registry.values
       end
     end
   end

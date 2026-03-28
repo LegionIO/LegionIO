@@ -64,7 +64,7 @@ module Legion
           end
         end
 
-        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity
           content_type = 'application/json'
           context.content_type content_type
 
@@ -132,6 +132,10 @@ module Legion
               return Legion::JSON.dump(envelope.merge(status: 'queued'))
             end
           end
+
+          # Hook-aware dispatch: when component_type is 'hooks' and the runner class
+          # is a Hooks::Base subclass, apply verify -> route -> transform -> Ingress.
+          return dispatch_hook(context, request, entry, payload, envelope) if entry[:component_type] == 'hooks' && hook_base_subclass?(entry[:runner_class])
 
           result = Legion::Ingress.run(
             payload:       payload.merge(envelope.slice(:task_id, :conversation_id, :parent_id, :master_id, :chain_id)),
@@ -224,9 +228,68 @@ module Legion
           raise
         end
 
+        def self.hook_base_subclass?(runner_class)
+          return false unless defined?(Legion::Extensions::Hooks::Base)
+          return false if runner_class.nil?
+
+          klass = runner_class.is_a?(Class) ? runner_class : Kernel.const_get(runner_class.to_s)
+          klass < Legion::Extensions::Hooks::Base
+        rescue NameError, TypeError
+          false
+        end
+
+        def self.dispatch_hook(context, request, entry, payload, envelope)
+          hook = entry[:runner_class].new
+
+          # Re-read body for verification (request body was already read for payload parsing)
+          request.body.rewind
+          body_for_verify = request.body.read
+          request.body.rewind
+
+          unless hook.verify(request.env, body_for_verify)
+            context.halt 401, Legion::JSON.dump({
+                                                  task_id: nil, conversation_id: nil, status: 'failed',
+                                                  error: { code: 401, message: 'hook verification failed' }
+                                                })
+          end
+
+          function = hook.route(request.env, payload)
+          unless function
+            context.halt 422, Legion::JSON.dump({
+                                                  task_id: nil, conversation_id: nil, status: 'failed',
+                                                  error: { code: 422, message: 'hook could not route this event' }
+                                                })
+          end
+
+          # If the hook defines the routed function as an instance method, call it to transform
+          if hook.class.method_defined?(function) && hook.class.instance_method(function).owner != Legion::Extensions::Hooks::Base
+            transformed = hook.send(function, payload)
+            payload = transformed if transformed
+          end
+
+          runner = hook.runner_class || entry[:runner_class]
+
+          result = Legion::Ingress.run(
+            payload:       payload.merge(envelope.slice(:task_id, :conversation_id, :parent_id, :master_id, :chain_id)),
+            runner_class:  runner,
+            function:      function,
+            source:        'hook',
+            check_subtask: true,
+            generate_task: true
+          )
+
+          response_body = envelope.merge(
+            status: result[:status],
+            result: result[:result]
+          ).compact
+
+          Legion::JSON.dump(response_body)
+        end
+
         class << self
           private :register_discovery, :register_dispatch, :dispatch_request, :parse_header_integer,
-                  :build_envelope, :extension_loaded_locally?, :definition_blocks_remote?, :dispatch_async_amqp
+                  :build_envelope, :extension_loaded_locally?, :definition_blocks_remote?, :dispatch_async_amqp,
+                  :hook_base_subclass?, :dispatch_hook
         end
       end
     end

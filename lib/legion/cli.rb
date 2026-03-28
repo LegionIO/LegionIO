@@ -69,6 +69,7 @@ module Legion
     autoload :CodegenCommand, 'legion/cli/codegen_command'
     autoload :Bootstrap,      'legion/cli/bootstrap_command'
     autoload :Broker,         'legion/cli/broker_command'
+    autoload :AdminCommand,   'legion/cli/admin_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'

@@ -43,6 +43,40 @@ module Legion
         exit(1)
       end
 
+      desc 'purge-topology', 'Remove old v2.0 AMQP exchanges (legion.* that have lex.* counterparts)'
+      option :execute, type: :boolean, default: false, desc: 'Actually delete exchanges (default: dry-run)'
+      def purge_topology
+        require 'legion/cli/admin_command'
+        out        = formatter
+        exchanges  = management_api("/exchanges/#{vhost_encoded}").map { |e| { name: e[:name], type: e[:type] } }
+        candidates = Legion::CLI::AdminCommand.detect_old_exchanges(exchanges)
+
+        if candidates.empty?
+          out.success('No old v2.0 topology exchanges found.')
+          return
+        end
+
+        if options[:json]
+          out.json({ candidates: candidates, deleted: options[:execute] })
+          candidates.each { |e| management_delete("/exchanges/#{vhost_encoded}/#{ERB::Util.url_encode(e[:name])}") } if options[:execute]
+          return
+        end
+
+        out.header("Old v2.0 Exchanges (#{candidates.size})")
+        candidates.each { |e| out.warn("#{e[:name]} (#{e[:type]})") }
+        out.spacer
+
+        if options[:execute]
+          candidates.each { |e| management_delete("/exchanges/#{vhost_encoded}/#{ERB::Util.url_encode(e[:name])}") }
+          out.success("Purged #{candidates.size} exchange(s).")
+        else
+          out.warn('Dry-run mode — pass --execute to delete')
+        end
+      rescue Legion::CLI::Error => e
+        formatter.error(e.message)
+        exit(1)
+      end
+
       desc 'cleanup', 'Find (and optionally delete) orphaned queues with 0 consumers and 0 messages'
       option :execute, type: :boolean, default: false, desc: 'Actually delete orphaned queues (default: dry-run)'
       def cleanup

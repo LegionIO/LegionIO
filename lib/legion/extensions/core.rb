@@ -217,36 +217,11 @@ module Legion
       end
 
       def register_hooks
-        return if @hooks.nil? || @hooks.empty?
-        return unless defined?(Legion::API)
-
-        # Find the first runner class as default for hooks that don't specify one
-        default_runner = @runners.values.first&.dig(:runner_class)
-
-        @hooks.each_value do |hook_info|
-          Legion::API.register_hook(
-            lex_name:       extension_name,
-            hook_name:      hook_info[:hook_name],
-            hook_class:     hook_info[:hook_class],
-            default_runner: hook_info[:hook_class].new.runner_class || default_runner,
-            route_path:     hook_info[:route_path]
-          )
-        end
+        # Hook registration is handled by Routes::LexDispatch via the Router (v3.0)
       end
 
       def register_routes
-        return if @routes.nil? || @routes.empty?
-        return unless defined?(Legion::API)
-
-        @routes.each_value do |route_info|
-          Legion::API.register_route(
-            lex_name:     route_info[:lex_name],
-            runner_name:  route_info[:runner_name],
-            function:     route_info[:function],
-            runner_class: route_info[:runner_class],
-            route_path:   route_info[:route_path]
-          )
-        end
+        # Route registration is handled by Routes::LexDispatch via the Router (v3.0)
       end
 
       def auto_generate_transport

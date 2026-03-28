@@ -22,6 +22,7 @@ module Legion
         build_e_to_q(additional_e_to_q)
         auto_create_dlx_exchange
         auto_create_dlx_queue
+        auto_generate_messages
         log.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}"
       rescue StandardError => e
         log.log_exception(e, payload_summary: "[Transport] build failed for #{lex_name}", component_type: :transport)
@@ -92,6 +93,41 @@ module Legion
         special_name = default_exchange.new.exchange_name
         dlx_queue = Legion::Transport::Queue.new "#{special_name}.dlx", auto_delete: false
         dlx_queue.bind("#{special_name}.dlx", { routing_key: '#' })
+      end
+
+      def auto_generate_messages
+        return unless defined?(@runners) && @runners.is_a?(Hash)
+
+        messages_mod = transport_class::Messages
+        ext_amqp = amqp_prefix
+        @runners.each_value { |info| auto_generate_runner_messages(info, messages_mod, ext_amqp) }
+      rescue StandardError => e
+        log.error("[Transport] auto-generate messages failed: #{e.message}") if respond_to?(:log)
+      end
+
+      def auto_generate_runner_messages(runner_info, messages_mod, ext_amqp)
+        runner_name   = runner_info[:runner_name]
+        runner_module = runner_info[:runner_module]
+        return if runner_module.nil?
+        return unless runner_module.respond_to?(:definition_for)
+
+        methods = runner_module.respond_to?(:instance_methods) ? runner_module.instance_methods(false) : []
+        methods.each { |method_name| auto_generate_message(runner_name, method_name, runner_module, messages_mod, ext_amqp) }
+      end
+
+      def auto_generate_message(runner_name, method_name, runner_module, messages_mod, ext_amqp)
+        defn = runner_module.definition_for(method_name)
+        return if defn.nil? || defn[:inputs].nil? || defn[:inputs].empty?
+
+        class_name = "#{runner_name.to_s.split('_').collect(&:capitalize).join}#{method_name.to_s.split('_').collect(&:capitalize).join}"
+        return if messages_mod.const_defined?(class_name, false)
+
+        routing_key = "#{ext_amqp}.runners.#{runner_name}.#{method_name}"
+        msg_class = Class.new(Legion::Transport::Message) do
+          define_method(:exchange_name) { ext_amqp }
+          define_method(:routing_key) { routing_key }
+        end
+        messages_mod.const_set(class_name, msg_class)
       end
 
       def build_e_to_q(array)

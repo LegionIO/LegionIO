@@ -1125,7 +1125,7 @@ module Legion
       private_class_method :lex_route_responses
 
       def self.lex_paths
-        base = {
+        {
           '/api/lex' => {
             get: {
               tags:        ['Lex'],
@@ -1156,27 +1156,6 @@ module Legion
             }
           }
         }
-
-        # Auto-routes (LEX)
-        if defined?(Legion::API) && Legion::API.respond_to?(:registered_routes)
-          Legion::API.registered_routes.each do |route|
-            path_key = "/api/lex/#{route[:route_path]}"
-            base[path_key] = {
-              post: {
-                operationId: "#{route[:lex_name]}.#{route[:runner_name]}.#{route[:function]}",
-                summary:     "Invoke #{route[:runner_name]}##{route[:function]} on lex-#{route[:lex_name]}",
-                tags:        [route[:lex_name]],
-                requestBody: {
-                  required: false,
-                  content:  { 'application/json' => { schema: { type: 'object' } } }
-                },
-                responses:   lex_route_responses
-              }
-            }
-          end
-        end
-
-        base
       end
       private_class_method :lex_paths
 
