@@ -146,7 +146,7 @@ module Legion
         return [] if @exchanges.count != 1
 
         @queues.map do |queue|
-          { from: @exchanges.first, to: queue, routing_key: queue }
+          { from: @exchanges.first, to: queue, routing_key: "runners.#{queue}" }
         end
       end
 

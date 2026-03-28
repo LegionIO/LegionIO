@@ -33,8 +33,8 @@ module Legion
           exchange_object = default_exchange.new
           queue_object = Kernel.const_get(queue_string).new
 
-          queue_object.bind(exchange_object, routing_key: actor_name)
-          queue_object.bind(exchange_object, routing_key: "#{lex_name}.#{actor_name}.#")
+          queue_object.bind(exchange_object, routing_key: "runners.#{runner_name}")
+          queue_object.bind(exchange_object, routing_key: "#{amqp_prefix}.runners.#{runner_name}.#")
         end
 
         def queue
