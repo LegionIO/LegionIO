@@ -149,10 +149,10 @@ module Legion
           const_name = "#{camelize(runner_name)}#{camelize(method_name)}"
           next if ctx[:messages_mod].const_defined?(const_name, false)
 
-          rk = "#{ctx[:prefix]}.runners.#{runner_name}.#{method_name}"
+          rk_value = "#{ctx[:prefix]}.runners.#{runner_name}.#{method_name}"
           ctx[:messages_mod].const_set(const_name, Class.new(Legion::Transport::Message) do
             define_method(:exchange) { ctx[:default_exch] }
-            define_method(:routing_key) { rk }
+            define_method(:routing_key) { rk_value }
           end)
         end
       rescue StandardError => e

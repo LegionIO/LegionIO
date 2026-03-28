@@ -221,6 +221,7 @@ module Legion
           exchange.publish(message, routing_key: routing_key, content_type: 'application/json', persistent: true)
         rescue StandardError => e
           Legion::Logging.warn "[LexDispatch] async AMQP publish failed: #{e.message}" if defined?(Legion::Logging)
+          raise
         end
 
         class << self
