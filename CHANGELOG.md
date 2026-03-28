@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.6.25] - 2026-03-28
+
+### Added
+- `Legion::Extensions::Absorbers::Dispatch`: module-function dispatch pipeline — `dispatch(input, context:)`, depth limiting, cycle detection via ancestor_chain, `dispatch_children`, `extract_urls`, thread-safe `@dispatched` registry
+- `Legion::Extensions::Absorbers::PatternMatcher`: URL/file pattern registry — `register(absorber_class)`, `resolve(input)`, priority-ordered matching, `reset!`
+- `Legion::Extensions::Absorbers::Transport`: v3.0 AMQP topology — `publish_absorb_request`, `build_message`, `lex_name_from_absorber_class`, `absorber_name_from_class`; exchanges named `lex.{lex_name}`, routing keys `lex.{lex_name}.absorbers.{name}.absorb`
+- `Legion::Extensions::Absorbers::Base`: updated with `TokenRevocationError`, `TokenUnavailableError`, and `with_token(provider:, &block)` helper for OAuth-gated absorbers
+- `Legion::Extensions::Absorbers::Matchers::File`: file-path pattern matcher using `File.fnmatch`
+- `Legion::Auth::OauthCallback`: ephemeral TCP server for OAuth redirect callback — `wait_for_callback`, `parse_callback`; per-port lifecycle
+- `Legion::Auth::TokenManager`: `TokenExpiredError`, `mark_revoked!`, `revoked?` for token lifecycle and revocation detection
+- `Legion::CLI::ConnectCommand`: `legion connect microsoft`, `legion connect github`, `legion connect status`, `legion connect disconnect` — browser OAuth flow entry points registered as `legion connect` subcommand
+- Chat URL detection: `Session#check_for_absorbable_urls` auto-dispatches matched URLs after each user message
+- `spec/integration/absorber_pipeline_spec.rb`: 12-example end-to-end integration spec covering PatternMatcher resolution, Dispatch routing, transport suppression in lite mode, absorber → Apollo.ingest pipeline, depth/cycle guards
+
 ## [1.6.24] - 2026-03-28
 
 ### Added
