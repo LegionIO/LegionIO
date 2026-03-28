@@ -38,8 +38,17 @@ module Legion
           nil
         end
 
+        def self.included(base)
+          base.extend(Legion::Extensions::Actors::Dsl) unless base.singleton_class.include?(Legion::Extensions::Actors::Dsl)
+          base.define_dsl_accessor(:use_runner, default: true) unless base.respond_to?(:use_runner)
+          base.define_dsl_accessor(:check_subtask, default: true) unless base.respond_to?(:check_subtask)
+          base.define_dsl_accessor(:generate_task, default: false) unless base.respond_to?(:generate_task)
+          base.define_dsl_accessor(:enabled, default: true) unless base.respond_to?(:enabled)
+          base.define_dsl_accessor(:remote_invocable, default: true) unless base.respond_to?(:remote_invocable)
+        end
+
         def use_runner?
-          true
+          self.class.respond_to?(:use_runner) ? self.class.use_runner : true
         end
 
         def args
@@ -47,19 +56,19 @@ module Legion
         end
 
         def check_subtask?
-          true
+          self.class.respond_to?(:check_subtask) ? self.class.check_subtask : true
         end
 
         def generate_task?
-          false
+          self.class.respond_to?(:generate_task) ? self.class.generate_task : false
         end
 
         def enabled?
-          true
+          self.class.respond_to?(:enabled) ? self.class.enabled : true
         end
 
         def remote_invocable?
-          true
+          self.class.respond_to?(:remote_invocable) ? self.class.remote_invocable : true
         end
       end
     end

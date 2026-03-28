@@ -71,20 +71,8 @@ check_subtask: check_subtask? }}"
           0.00
         end
 
-        def time
-          9
-        end
-
         def run_now?
-          true
-        end
-
-        def check_subtask?
-          true
-        end
-
-        def timeout
-          5
+          run_now
         end
 
         def action(_payload = {})

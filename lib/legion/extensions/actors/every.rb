@@ -31,16 +31,8 @@ module Legion
           log.log_exception(e, component_type: :actor)
         end
 
-        def time
-          1
-        end
-
-        def timeout
-          5
-        end
-
         def run_now?
-          false
+          run_now
         end
 
         def action(**_opts)

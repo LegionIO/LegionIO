@@ -15,7 +15,15 @@ module Legion
       }.freeze
 
       def definition(method_name, **opts)
-        own_definitions[method_name.to_sym] = DEFAULTS.merge(opts)
+        base = DEFAULTS.transform_values do |value|
+          case value
+          when Array, Hash
+            value.dup
+          else
+            value
+          end
+        end
+        own_definitions[method_name.to_sym] = base.merge(opts)
       end
 
       def definitions

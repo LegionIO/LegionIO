@@ -52,7 +52,7 @@ module Legion
           end
         end
 
-        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength
+        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
           content_type = 'application/json'
           context.content_type content_type
 
@@ -98,6 +98,17 @@ module Legion
               result = Legion::API::SyncDispatch.dispatch(exchange_name, routing_key, payload, envelope)
               return Legion::JSON.dump(result)
             else
+              unless defined?(Legion::Transport) &&
+                     Legion::Transport.respond_to?(:connected?) &&
+                     Legion::Transport.connected?
+                context.halt 503, Legion::JSON.dump({
+                                                      task_id:         nil,
+                                                      conversation_id: nil,
+                                                      status:          'failed',
+                                                      error:           { code: 503, message: 'Transport not available' }
+                                                    })
+              end
+
               dispatch_async_amqp(exchange_name, routing_key, payload, envelope)
               context.status 202
               return Legion::JSON.dump(envelope.merge(status: 'queued'))
