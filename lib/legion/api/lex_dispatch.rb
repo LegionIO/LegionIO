@@ -83,8 +83,14 @@ module Legion
           payload = begin
             body = request.body.read
             body.nil? || body.empty? ? {} : Legion::JSON.load(body)
-          rescue StandardError
-            {}
+          rescue StandardError => e
+            Legion::Logging.warn "[LexDispatch] invalid JSON body: #{e.message}" if defined?(Legion::Logging)
+            context.halt 400, Legion::JSON.dump({
+                                                  task_id:         nil,
+                                                  conversation_id: nil,
+                                                  status:          'failed',
+                                                  error:           { code: 400, message: 'request body is not valid JSON' }
+                                                })
           end
 
           # Remote dispatch: when the runner class is not loaded locally, forward via AMQP

@@ -88,9 +88,16 @@ module Legion
             uri = URI("http://#{options[:host]}:#{options[:port]}/api#{path}")
             req = Net::HTTP::Delete.new(uri)
             req.basic_auth(options[:user], options[:password])
-            Net::HTTP.start(uri.host, uri.port, open_timeout: 5, read_timeout: 10) { |http| http.request(req) }
+            response = Net::HTTP.start(uri.host, uri.port, open_timeout: 5, read_timeout: 10) do |http|
+              http.request(req)
+            end
+            raise Legion::CLI::Error, "Management API #{response.code}: #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+            response
           rescue Errno::ECONNREFUSED
             raise Legion::CLI::Error, "Cannot connect to RabbitMQ management API at #{options[:host]}:#{options[:port]}"
+          rescue Net::OpenTimeout, Net::ReadTimeout
+            raise Legion::CLI::Error, 'Timed out connecting to RabbitMQ management API'
           end
 
           # Find exchanges and queues matching legacy v2.0 pattern: legion.{lex_name}.*
