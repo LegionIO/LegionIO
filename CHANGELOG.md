@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.6.22] - 2026-03-27
+
+### Added
+- `POST /api/llm/inference` daemon endpoint: accepts a full messages array plus optional tool schemas, runs a single LLM completion pass, and returns `{ content, tool_calls, stop_reason, model, input_tokens, output_tokens }` — the client owns the tool execution loop
+- `Legion::CLI::Chat::DaemonChat` adapter: drop-in replacement for the `RubyLLM::Chat` object that routes all inference through the daemon, executes tool calls locally, and loops until the LLM produces a final text response
+- `spec/legion/api/llm_inference_spec.rb`: 12 examples covering the new `/api/llm/inference` endpoint
+- `spec/legion/cli/chat/daemon_chat_spec.rb`: 25 examples covering `DaemonChat` initialization, tool registration, tool execution loop, streaming, and error handling
+
+### Changed
+- `legion chat setup_connection`: replaced `Connection.ensure_llm` (local LLM boot) with a daemon availability check via `Legion::LLM::DaemonClient.available?` — **hard fails with a descriptive error if the daemon is not running**
+- `legion chat create_chat`: now returns a `DaemonChat` instance instead of a direct `RubyLLM::Chat` object; all LLM calls route through the daemon
+
 ## [1.6.21] - 2026-03-27
 
 ### Added
