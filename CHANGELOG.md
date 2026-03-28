@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.27] - 2026-03-28
+
+### Fixed
+- `Connection.ensure_crypt` now calls `resolve_secrets!` a second time after `Legion::Crypt.start` so that `lease://` URI refs are resolved once the LeaseManager is running (closes #50)
+
 ## [1.6.26] - 2026-03-28
 
 ### Added

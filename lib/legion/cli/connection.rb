@@ -69,6 +69,8 @@ module Legion
           ensure_settings
           require 'legion/crypt'
           Legion::Crypt.start
+          # Re-resolve now that LeaseManager is available for lease:// URIs
+          Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
           @crypt_ready = true
         rescue LoadError
           raise CLI::Error, 'legion-crypt gem is not installed (gem install legion-crypt)'

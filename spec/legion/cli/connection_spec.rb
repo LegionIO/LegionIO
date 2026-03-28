@@ -226,6 +226,28 @@ RSpec.describe Legion::CLI::Connection do
         described_class.ensure_crypt
         expect(Legion::Crypt).to have_received(:start).once
       end
+
+      it 're-resolves secrets after Crypt.start to handle lease:// URIs' do
+        # ensure_settings calls resolve_secrets! once; ensure_crypt adds a second call after Crypt.start
+        allow(Legion::Settings).to receive(:resolve_secrets!)
+        described_class.ensure_crypt
+        expect(Legion::Settings).to have_received(:resolve_secrets!).at_least(2).times
+      end
+
+      it 'calls resolve_secrets! after Crypt.start, not just before' do
+        call_order = []
+        allow(Legion::Crypt).to receive(:start) { call_order << :crypt_start }
+        allow(Legion::Settings).to receive(:resolve_secrets!) { call_order << :resolve_secrets }
+        described_class.ensure_crypt
+        # ensure_settings fires resolve_secrets first, then Crypt.start, then resolve_secrets again
+        expect(call_order).to eq(%i[resolve_secrets crypt_start resolve_secrets])
+      end
+
+      it 'skips resolve_secrets! when Settings does not respond to it' do
+        allow(Legion::Settings).to receive(:respond_to?).with(:resolve_secrets!).and_return(false)
+        expect(Legion::Settings).not_to receive(:resolve_secrets!)
+        described_class.ensure_crypt
+      end
     end
 
     context 'when crypt initialization fails with StandardError' do
