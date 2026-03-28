@@ -466,11 +466,11 @@ module Legion
                 tool_index += 1
                 chat_log.debug "tool_call name=#{tc.name} args=#{tc.arguments.keys.join(',')}"
                 turn_tool_calls << { name: tc.name, args: tc.arguments, result: nil }
+                puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
                 @session.emit(:tool_start, {
                                 name: tc.name, args: tc.arguments,
                   index: tool_index, total: tool_total
                               })
-                puts out.dim("  [tool] #{tc.name}(#{tc.arguments.keys.join(', ')})")
               },
               on_tool_result: lambda { |tr|
                 result_preview = tr.to_s.lines.first(3).join.rstrip

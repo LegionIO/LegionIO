@@ -28,6 +28,7 @@ legionio_wallpaper*.svg
 legionio_overview*
 # git worktrees
 .worktrees/
+worktrees/
 # local-only directories
 docs/
 config/tls/

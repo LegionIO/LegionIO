@@ -103,6 +103,8 @@ module Legion
           return if @llm_ready
 
           ensure_settings
+          ensure_crypt rescue nil
+          Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
           require 'legion/llm'
           Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)
           Legion::LLM.start

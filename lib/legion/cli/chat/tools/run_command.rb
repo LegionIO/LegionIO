@@ -10,6 +10,8 @@ module Legion
     class Chat
       module Tools
         class RunCommand < RubyLLM::Tool
+          MAX_OUTPUT_CHARS = 48_000
+
           description 'Execute a shell command and return its output. Use for running tests, builds, git commands, etc.'
           param :command, type: 'string', desc: 'The shell command to execute'
           param :timeout, type: 'integer', desc: 'Timeout in seconds (default: 120)', required: false
@@ -73,7 +75,7 @@ module Legion
               [out_reader.value, err_reader.value, wait_thr.value]
             end
 
-            format_output(command, stdout, stderr, status.exitstatus)
+            truncate_output(format_output(command, stdout, stderr, status.exitstatus))
           rescue ::Timeout::Error
             "[command timed out after #{timeout}s]: #{command}"
           rescue StandardError => e
@@ -87,6 +89,14 @@ module Legion
             output << stderr.to_s unless stderr.to_s.empty?
             output << "\n[exit code: #{exit_code}]"
             output
+          end
+
+          private
+
+          def truncate_output(text)
+            return text if text.length <= MAX_OUTPUT_CHARS
+
+            "#{text[0, MAX_OUTPUT_CHARS]}\n\n[... truncated at #{MAX_OUTPUT_CHARS} characters (#{text.length} total)]"
           end
         end
       end

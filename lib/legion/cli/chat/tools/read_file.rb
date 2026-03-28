@@ -8,6 +8,8 @@ module Legion
     class Chat
       module Tools
         class ReadFile < RubyLLM::Tool
+          MAX_OUTPUT_CHARS = 48_000
+
           description 'Read the contents of a file. Returns the file content with line numbers.'
           param :path, type: 'string', desc: 'Absolute or relative path to the file'
           param :offset, type: 'integer', desc: 'Line number to start reading from (1-based)', required: false
@@ -27,7 +29,10 @@ module Legion
               "#{(start_line + i + 1).to_s.rjust(5)} | #{line}"
             end
 
-            "#{expanded} (#{lines.length} lines total)\n#{numbered.join}"
+            result = "#{expanded} (#{lines.length} lines total)\n#{numbered.join}"
+            return result if result.length <= MAX_OUTPUT_CHARS
+
+            "#{result[0, MAX_OUTPUT_CHARS]}\n\n[... truncated at #{MAX_OUTPUT_CHARS} characters — use offset/limit params to read specific sections]"
           rescue StandardError => e
             Legion::Logging.warn("ReadFile#execute failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             "Error reading #{path}: #{e.message}"

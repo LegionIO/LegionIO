@@ -51,6 +51,7 @@ module Legion
           return unless @active_spinner
 
           @active_spinner.stop
+          $stderr.print "\r\e[2K"
           @active_spinner = nil
         end
       end
