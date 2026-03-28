@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'legion/auth/token_manager'
 require 'legion/extensions/absorbers/matchers/base'
 require 'legion/extensions/absorbers/matchers/url'
 require 'legion/extensions/absorbers/base'
@@ -105,6 +106,60 @@ RSpec.describe Legion::Extensions::Absorbers::Base do
       absorber = test_absorber.new
       absorber.runners = double('runners')
       expect(absorber.runners).not_to be_nil
+    end
+  end
+
+  describe 'error constants' do
+    it 'defines TokenRevocationError' do
+      expect(described_class::TokenRevocationError.ancestors).to include(StandardError)
+    end
+
+    it 'defines TokenUnavailableError' do
+      expect(described_class::TokenUnavailableError.ancestors).to include(StandardError)
+    end
+  end
+
+  describe '#with_token' do
+    let(:absorber) { test_absorber.new }
+    let(:mock_manager) { instance_double(Legion::Auth::TokenManager) }
+
+    before do
+      allow(absorber).to receive(:token_manager_for).and_return(mock_manager)
+    end
+
+    it 'yields the token when valid' do
+      allow(mock_manager).to receive(:token_valid?).and_return(true)
+      allow(mock_manager).to receive(:revoked?).and_return(false)
+      allow(mock_manager).to receive(:ensure_valid_token).and_return('valid-token')
+
+      result = nil
+      absorber.with_token(provider: :microsoft) { |t| result = t }
+      expect(result).to eq('valid-token')
+    end
+
+    it 'raises TokenUnavailableError when no valid token' do
+      allow(mock_manager).to receive(:token_valid?).and_return(false)
+      expect { absorber.with_token(provider: :microsoft) { nil } }.to raise_error(described_class::TokenUnavailableError)
+    end
+
+    it 'raises TokenRevocationError when token is revoked' do
+      allow(mock_manager).to receive(:token_valid?).and_return(true)
+      allow(mock_manager).to receive(:revoked?).and_return(true)
+      expect { absorber.with_token(provider: :microsoft) { nil } }.to raise_error(described_class::TokenRevocationError)
+    end
+
+    it 'raises TokenUnavailableError when refresh returns nil' do
+      allow(mock_manager).to receive(:token_valid?).and_return(true)
+      allow(mock_manager).to receive(:revoked?).and_return(false)
+      allow(mock_manager).to receive(:ensure_valid_token).and_return(nil)
+      expect { absorber.with_token(provider: :microsoft) { nil } }.to raise_error(described_class::TokenUnavailableError)
+    end
+
+    it 'wraps TokenExpiredError as TokenUnavailableError' do
+      allow(mock_manager).to receive(:token_valid?).and_return(true)
+      allow(mock_manager).to receive(:revoked?).and_return(false)
+      allow(mock_manager).to receive(:ensure_valid_token).and_raise(Legion::Auth::TokenManager::TokenExpiredError, 'expired')
+      expect { absorber.with_token(provider: :microsoft) { nil } }.to raise_error(described_class::TokenUnavailableError, 'expired')
     end
   end
 end

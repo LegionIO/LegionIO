@@ -60,7 +60,8 @@ module Legion
     autoload :Interactive, 'legion/cli/interactive'
     autoload :Docs,        'legion/cli/docs_command'
     autoload :Failover,    'legion/cli/failover_command'
-    autoload :AbsorbCommand, 'legion/cli/absorb_command'
+    autoload :AbsorbCommand,   'legion/cli/absorb_command'
+    autoload :ConnectCommand,  'legion/cli/connect_command'
     autoload :Apollo,        'legion/cli/apollo_command'
     autoload :TraceCommand, 'legion/cli/trace_command'
     autoload :Features,     'legion/cli/features_command'
@@ -279,6 +280,9 @@ module Legion
 
       desc 'absorb SUBCOMMAND', 'Absorb content from external sources'
       subcommand 'absorb', AbsorbCommand
+
+      desc 'connect PROVIDER', 'Connect external accounts via OAuth2'
+      subcommand 'connect', ConnectCommand
 
       desc 'broker SUBCOMMAND', 'RabbitMQ broker management (stats, cleanup)'
       subcommand 'broker', Legion::CLI::Broker

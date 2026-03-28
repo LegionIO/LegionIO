@@ -8,6 +8,12 @@ module Legion
       class Base
         extend Legion::Extensions::Definitions
 
+        class TokenRevocationError < StandardError
+        end
+
+        class TokenUnavailableError < StandardError
+        end
+
         attr_accessor :job_id, :runners
 
         class << self
@@ -67,7 +73,27 @@ module Legion
           Legion::Logging.info("absorb[#{job_id}] #{"#{percent}% " if percent}#{message}")
         end
 
+        def with_token(provider:)
+          raise TokenUnavailableError, "#{provider} token not available" unless token_manager_for(provider).token_valid?
+          raise TokenRevocationError, "#{provider} token has been revoked" if token_manager_for(provider).revoked?
+
+          token = token_manager_for(provider).ensure_valid_token
+          raise TokenUnavailableError, "#{provider} token refresh failed" unless token
+
+          yield token
+        rescue Legion::Auth::TokenManager::TokenExpiredError => e
+          raise TokenUnavailableError, e.message
+        end
+
         private
+
+        def token_manager_for(provider)
+          @token_managers ||= {}
+          @token_managers[provider] ||= begin
+            require 'legion/auth/token_manager'
+            Legion::Auth::TokenManager.new(provider: provider)
+          end
+        end
 
         def chunker_available?
           defined?(Legion::Extensions::Knowledge::Helpers::Chunker)

@@ -5,6 +5,9 @@ require 'time'
 module Legion
   module Auth
     class TokenManager
+      class TokenExpiredError < StandardError
+      end
+
       def initialize(provider:)
         @provider = provider
       end
@@ -42,6 +45,10 @@ module Legion
 
       def revoked?
         secret[:"#{@provider}_token_revoked"] == true
+      end
+
+      def mark_revoked!
+        secret[:"#{@provider}_token_revoked"] = true
       end
 
       private
