@@ -2,14 +2,21 @@
 
 require_relative 'base'
 require_relative 'fingerprint'
+require_relative 'dsl'
 require 'time'
 
 module Legion
   module Extensions
     module Actors
       class Poll
+        extend Legion::Extensions::Actors::Dsl
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Actors::Fingerprint
+
+        define_dsl_accessor :time, default: 9
+        define_dsl_accessor :timeout, default: 5
+        define_dsl_accessor :run_now, default: true
+        define_dsl_accessor :int_percentage_normalize, default: 0.00
 
         def initialize
           log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, run_now: run_now?,

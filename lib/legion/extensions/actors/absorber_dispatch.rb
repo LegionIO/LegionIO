@@ -19,7 +19,7 @@ module Legion
 
           absorber = absorber_class.new
           absorber.job_id = job_id
-          result = absorber.handle(url: input, content: context[:content],
+          result = absorber.absorb(url: input, content: context[:content],
                                    metadata: context[:metadata] || {}, context: context)
           publish_event("absorb.complete.#{job_id}", job_id: job_id, absorber: absorber_class.name,
                                                      result: result)

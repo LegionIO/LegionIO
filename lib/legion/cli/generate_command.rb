@@ -427,9 +427,9 @@ module Legion
                 end
               end
 
-              describe '#handle' do
+              describe '#absorb' do
                 it 'returns success' do
-                  result = described_class.new.handle(url: 'https://#{test_url}')
+                  result = described_class.new.absorb(url: 'https://#{test_url}')
                   expect(result[:success]).to be true
                 end
               end

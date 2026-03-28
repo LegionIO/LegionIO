@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative '../definitions'
+
 module Legion
   module Extensions
     module Hooks
       class Base
+        extend Legion::Extensions::Definitions
         include Legion::Extensions::Helpers::Lex
 
         class << self
@@ -44,12 +47,8 @@ module Legion
             @verify_config = { header: header.upcase.tr('-', '_'), secret: secret }
           end
 
-          def mount(path)
-            @mount_path = path
-          end
-
           attr_reader :route_type, :route_header_name, :route_field_name,
-                      :route_mapping, :verify_type, :verify_config, :mount_path
+                      :route_mapping, :verify_type, :verify_config
         end
 
         # Instance methods called by the API layer
@@ -63,7 +62,7 @@ module Legion
           when :field
             route_by_field(payload)
           else
-            :handle
+            :handle # deprecated fallback; prefer explicit route_header/route_field
           end
         end
 

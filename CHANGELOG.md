@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.6.23] - 2026-03-28
+
+### Added
+- `Legion::Extensions::Definitions` mixin: class-level `definition` DSL for method contracts (`desc`, `inputs`, `outputs`, `remote_invocable`, `mcp_exposed`, `idempotent`, `risk_tier`, `tags`, `requires`). Auto-extended onto every runner module at boot by the builder.
+- `Legion::Extensions::Actors::Dsl` mixin: `define_dsl_accessor` generates class-level getter/setter DSL with inheritance and instance delegation. Wired into all actor base classes (`Every`, `Poll`, `Subscription`, `Once`, `Base`).
+- `Absorbers::Base#absorb`: canonical entry point replacing `handle`. `alias handle absorb` preserves backward compatibility.
+
+### Changed
+- `Builders::Runners#build_runner_list`: auto-extends `Legion::Extensions::Definitions` onto every discovered runner module unless it already responds to `:definition`.
+- `Hooks::Base`: extended with `Definitions` mixin; `mount` DSL removed (paths fully derived from naming).
+- `Absorbers::Base`: extended with `Definitions` mixin.
+- `AbsorberDispatch`: calls `absorber.absorb` instead of `absorber.handle`.
+- `Helpers::Lex`: all `function_*` helpers and `expose_as_mcp_tool`/`mcp_tool_prefix` marked `@deprecated` — use `definition` DSL instead.
+
 ## [1.6.22] - 2026-03-27
 
 ### Added

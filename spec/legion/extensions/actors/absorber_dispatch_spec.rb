@@ -11,7 +11,7 @@ RSpec.describe Legion::Extensions::Actors::AbsorberDispatch do
       description 'Test absorber'
       def self.name = 'TestDispatchAbsorber'
 
-      def handle(url: nil, **_opts)
+      def absorb(url: nil, **_opts)
         { success: true, url: url }
       end
     end
@@ -62,7 +62,7 @@ RSpec.describe Legion::Extensions::Actors::AbsorberDispatch do
       error_absorber = Class.new(Legion::Extensions::Absorbers::Base) do
         pattern :url, 'error.com/*'
         def self.name = 'ErrorAbsorber'
-        def handle(**) = raise('boom')
+        def absorb(**) = raise('boom')
       end
       Legion::Extensions::Absorbers::PatternMatcher.register(error_absorber)
 
@@ -79,7 +79,7 @@ RSpec.describe Legion::Extensions::Actors::AbsorberDispatch do
         pattern :url, 'content.com/*'
         def self.name = 'ContentAbsorber'
 
-        def handle(content: nil, **_opts)
+        def absorb(content: nil, **_opts)
           { received_content: content }
         end
       end

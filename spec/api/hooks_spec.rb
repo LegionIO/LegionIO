@@ -20,9 +20,7 @@ RSpec.describe 'Hooks API' do
   end
 
   let(:mounted_hook_class) do
-    klass = Class.new(Legion::Extensions::Hooks::Base)
-    klass.mount '/callback'
-    klass
+    Class.new(Legion::Extensions::Hooks::Base)
   end
 
   describe 'GET /api/hooks' do
@@ -61,12 +59,9 @@ RSpec.describe 'Hooks API' do
   end
 
   describe 'Hooks::Base.mount' do
-    it 'stores mount_path on the class' do
+    it 'mount DSL is removed; routes are fully derived from naming' do
       klass = Class.new(Legion::Extensions::Hooks::Base)
-      expect(klass.mount_path).to be_nil
-
-      klass.mount '/callback'
-      expect(klass.mount_path).to eq('/callback')
+      expect(klass).not_to respond_to(:mount)
     end
   end
 

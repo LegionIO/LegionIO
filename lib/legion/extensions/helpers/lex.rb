@@ -13,6 +13,7 @@ module Legion
         include Legion::Extensions::Helpers::Secret
 
         module ClassMethods
+          # @deprecated Use mcp_exposed: flag in definition DSL instead
           def expose_as_mcp_tool(value = :_unset)
             if value == :_unset
               return @expose_as_mcp_tool unless @expose_as_mcp_tool.nil?
@@ -27,6 +28,7 @@ module Legion
             end
           end
 
+          # @deprecated Use mcp_exposed: flag in definition DSL instead
           def mcp_tool_prefix(value = :_unset)
             if value == :_unset
               @mcp_tool_prefix
@@ -36,42 +38,52 @@ module Legion
           end
         end
 
+        # @deprecated Use definition DSL instead: definition :method, desc:, inputs:, outputs:
         def function_example(function, example)
           function_set(function, :example, example)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, inputs: { ... }
         def function_options(function, options)
           function_set(function, :options, options)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, desc: '...'
         def function_desc(function, desc)
           function_set(function, :desc, desc)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, outputs: { ... }
         def function_outputs(function, outputs)
           function_set(function, :outputs, outputs)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, category: '...'
         def function_category(function, category)
           function_set(function, :category, category)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, tags: [...]
         def function_tags(function, tags)
           function_set(function, :tags, tags)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, risk_tier: :standard
         def function_risk_tier(function, tier)
           function_set(function, :risk_tier, tier)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, idempotent: true
         def function_idempotent(function, value)
           function_set(function, :idempotent, value)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, requires: [...]
         def function_requires(function, deps)
           function_set(function, :requires, deps)
         end
 
+        # @deprecated Use definition DSL instead: definition :method, mcp_exposed: true
         def function_expose(function, value)
           function_set(function, :expose, value)
         end

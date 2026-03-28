@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
+require_relative '../definitions'
+
 module Legion
   module Extensions
     module Absorbers
       class Base
+        extend Legion::Extensions::Definitions
+
         attr_accessor :job_id, :runners
 
         class << self
@@ -21,9 +25,12 @@ module Legion
           end
         end
 
-        def handle(url: nil, content: nil, metadata: {}, context: {})
-          raise NotImplementedError, "#{self.class.name} must implement #handle"
+        def absorb(url: nil, content: nil, metadata: {}, context: {})
+          raise NotImplementedError, "#{self.class.name} must implement #absorb"
         end
+
+        # @deprecated Use #absorb instead
+        alias handle absorb
 
         def absorb_to_knowledge(content:, tags: [], scope: :global, **opts)
           return fallback_absorb(:chunker, content, tags, scope, opts) unless chunker_available?

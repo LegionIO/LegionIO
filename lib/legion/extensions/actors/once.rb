@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative 'dsl'
 
 module Legion
   module Extensions
     module Actors
       class Once
+        extend Legion::Extensions::Actors::Dsl
         include Legion::Extensions::Actors::Base
+
+        define_dsl_accessor :delay, default: 1.0
 
         def initialize
           return unless enabled?

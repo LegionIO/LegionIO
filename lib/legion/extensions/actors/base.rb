@@ -1,10 +1,19 @@
 # frozen_string_literal: true
 
+require_relative 'dsl'
+
 module Legion
   module Extensions
     module Actors
       module Base
+        extend Legion::Extensions::Actors::Dsl
         include Legion::Extensions::Helpers::Lex
+
+        define_dsl_accessor :use_runner, default: true
+        define_dsl_accessor :check_subtask, default: true
+        define_dsl_accessor :generate_task, default: false
+        define_dsl_accessor :enabled, default: true
+        define_dsl_accessor :remote_invocable, default: true
 
         def runner
           Legion::Runner.run(runner_class: runner_class, function: function, check_subtask: check_subtask?, generate_task: generate_task?)

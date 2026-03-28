@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative '../definitions'
 
 module Legion
   module Extensions
@@ -22,6 +23,7 @@ module Legion
             runner_name = file.split('/').last.sub('.rb', '')
             runner_class =  "#{lex_class}::Runners::#{runner_name.split('_').collect(&:capitalize).join}"
             loaded_runner = Kernel.const_get(runner_class)
+            loaded_runner.extend(Legion::Extensions::Definitions) unless loaded_runner.respond_to?(:definition)
             Legion::Logging.debug "[Runners] registered: #{runner_class}" if defined?(Legion::Logging)
 
             @runners[runner_name.to_sym] = {

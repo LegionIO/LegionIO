@@ -2,13 +2,19 @@
 
 require_relative 'base'
 require_relative 'fingerprint'
+require_relative 'dsl'
 
 module Legion
   module Extensions
     module Actors
       class Every
+        extend Legion::Extensions::Actors::Dsl
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Actors::Fingerprint
+
+        define_dsl_accessor :time, default: 1
+        define_dsl_accessor :timeout, default: 5
+        define_dsl_accessor :run_now, default: false
 
         def initialize(**_opts)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do

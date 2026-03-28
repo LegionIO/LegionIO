@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative 'dsl'
 require 'date'
 require 'securerandom'
 
@@ -8,9 +9,16 @@ module Legion
   module Extensions
     module Actors
       class Subscription
+        extend Legion::Extensions::Actors::Dsl
         include Concurrent::Async
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Helpers::Transport
+
+        define_dsl_accessor :consumers, default: 1
+        define_dsl_accessor :manual_ack, default: true
+        define_dsl_accessor :delay_start, default: 0
+        define_dsl_accessor :block, default: false
+        define_dsl_accessor :prefetch, default: 2
 
         def initialize(**_options)
           super()
