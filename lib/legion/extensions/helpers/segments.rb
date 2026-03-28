@@ -27,7 +27,7 @@ module Legion
         end
 
         def segments_to_amqp_prefix(segments)
-          "legion.#{segments.join('.')}"
+          "lex.#{segments.join('.')}"
         end
 
         def segments_to_settings_path(segments)

@@ -90,13 +90,13 @@ RSpec.describe Legion::Extensions::Helpers::Segments do
   end
 
   describe '.segments_to_amqp_prefix' do
-    it 'prepends legion. and joins with dots' do
+    it 'prepends lex. and joins with dots' do
       expect(described_class.segments_to_amqp_prefix(%w[agentic cognitive anchor]))
-        .to eq('legion.agentic.cognitive.anchor')
+        .to eq('lex.agentic.cognitive.anchor')
     end
 
     it 'handles single segment' do
-      expect(described_class.segments_to_amqp_prefix(['node'])).to eq('legion.node')
+      expect(described_class.segments_to_amqp_prefix(['node'])).to eq('lex.node')
     end
   end
 

@@ -54,8 +54,8 @@ RSpec.describe Legion::Extensions::Helpers::Base do
       expect(subject.log_tag).to eq('[agentic][cognitive][anchor]')
     end
 
-    it 'returns amqp_prefix with legion. prefix' do
-      expect(subject.amqp_prefix).to eq('legion.agentic.cognitive.anchor')
+    it 'returns amqp_prefix with lex. prefix' do
+      expect(subject.amqp_prefix).to eq('lex.agentic.cognitive.anchor')
     end
 
     it 'returns settings_path as symbol array' do
@@ -98,8 +98,8 @@ RSpec.describe Legion::Extensions::Helpers::Base do
       expect(subject.lex_name).to eq('http')
     end
 
-    it 'returns amqp_prefix with legion. prefix' do
-      expect(subject.amqp_prefix).to eq('legion.http')
+    it 'returns amqp_prefix with lex. prefix' do
+      expect(subject.amqp_prefix).to eq('lex.http')
     end
 
     it 'returns settings_path as symbol array' do
@@ -144,7 +144,7 @@ RSpec.describe Legion::Extensions::Helpers::Base do
     end
 
     it 'derives amqp_prefix correctly' do
-      expect(ext.amqp_prefix).to eq('legion.microsoft_teams')
+      expect(ext.amqp_prefix).to eq('lex.microsoft_teams')
     end
   end
 
