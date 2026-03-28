@@ -33,3 +33,4 @@ docs/
 config/tls/
 # generated integration specs
 spec/integration/self_generate_spec.rb
+worktrees/

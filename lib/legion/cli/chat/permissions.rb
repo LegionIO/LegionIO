@@ -67,7 +67,7 @@ module Legion
           def call(args)
             normalized = normalize_args(args)
             desc = permission_description(normalized)
-            return 'Tool execution denied by user.' unless Permissions.confirm?(desc)
+            return RubyLLM::Tool::Halt.new('Tool execution denied by user.') unless Permissions.confirm?(desc)
 
             super
           end
