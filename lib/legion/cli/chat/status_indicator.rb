@@ -16,6 +16,10 @@ module Legion
           subscribe_events
         end
 
+        def pause
+          stop_spinner
+        end
+
         private
 
         def subscribe_events
