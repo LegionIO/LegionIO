@@ -76,6 +76,7 @@ module Legion
         end
         build_helpers
         build_runners
+        generate_messages_from_definitions
         build_absorbers
         build_actors
         build_hooks
@@ -111,6 +112,55 @@ module Legion
 
       def remote_invocable?
         true
+      end
+
+      # Auto-generate AMQP message classes for each runner method that has a definition.
+      # Explicit Messages::* classes in the transport directory take precedence.
+      # Runs after build_runners so definitions are populated.
+      def generate_messages_from_definitions
+        ctx = message_generation_context
+        return unless ctx
+
+        @runners.each do |runner_name, attr|
+          generate_runner_messages(ctx, runner_name, attr)
+        end
+      rescue StandardError => e
+        log.warn "[Core] generate_messages_from_definitions failed: #{e.message}" if defined?(log)
+      end
+
+      def message_generation_context
+        return unless defined?(Legion::Transport::Message)
+        return unless lex_class.const_defined?('Transport', false)
+
+        transport_mod = lex_class::Transport
+        return unless transport_mod.const_defined?('Messages', false) && transport_mod.const_defined?('Exchanges', false)
+
+        default_exch = transport_mod.default_exchange
+        { messages_mod: transport_mod::Messages, default_exch: default_exch, prefix: amqp_prefix }
+      rescue StandardError
+        nil
+      end
+
+      def generate_runner_messages(ctx, runner_name, attr)
+        runner_module = attr[:runner_module]
+        return unless runner_module.respond_to?(:definitions)
+
+        runner_module.definitions.each_key do |method_name|
+          const_name = "#{camelize(runner_name)}#{camelize(method_name)}"
+          next if ctx[:messages_mod].const_defined?(const_name, false)
+
+          rk = "#{ctx[:prefix]}.runners.#{runner_name}.#{method_name}"
+          ctx[:messages_mod].const_set(const_name, Class.new(Legion::Transport::Message) do
+            define_method(:exchange) { ctx[:default_exch] }
+            define_method(:routing_key) { rk }
+          end)
+        end
+      rescue StandardError => e
+        log.warn "[Core] message generation error for #{runner_name}: #{e.message}" if defined?(log)
+      end
+
+      def camelize(name)
+        name.to_s.split('_').collect(&:capitalize).join
       end
 
       def build_data
