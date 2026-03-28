@@ -88,8 +88,9 @@ module Legion
             Legion::Transport.connected?
         end
 
-        def publish_to_transport(_absorber_class, _input, _record)
-          # Transport publishing will be wired in Task 1.3
+        def publish_to_transport(absorber_class, _input, record)
+          require_relative 'transport'
+          Transport.publish_absorb_request(absorber_class: absorber_class, record: record)
         end
 
         def extract_urls(text)

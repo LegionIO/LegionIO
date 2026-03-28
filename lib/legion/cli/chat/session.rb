@@ -39,6 +39,7 @@ module Legion
 
         def send_message(message, on_tool_call: nil, on_tool_result: nil, &block)
           check_budget!
+          check_for_absorbable_urls(message)
 
           @stats[:messages_sent] += 1
           @turn += 1
@@ -101,6 +102,21 @@ module Legion
           raise BudgetExceeded,
                 format('Budget exceeded: $%<cost>.4f spent of $%<limit>.2f limit',
                        cost: cost, limit: @budget_usd)
+        end
+
+        def check_for_absorbable_urls(text)
+          return unless defined?(Legion::Extensions::Absorbers::Dispatch)
+          return unless defined?(Legion::Extensions::Absorbers::PatternMatcher)
+
+          urls = Legion::Extensions::Absorbers::Dispatch.extract_urls(text.to_s)
+          return if urls.empty?
+
+          urls.each do |url|
+            absorber = Legion::Extensions::Absorbers::PatternMatcher.resolve(url)
+            next unless absorber
+
+            Legion::Extensions::Absorbers::Dispatch.dispatch(url, context: { conversation_id: object_id.to_s })
+          end
         end
       end
     end
