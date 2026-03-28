@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.6.26] - 2026-03-28
+
+### Added
+- Absorber Router registration: `builders/absorbers.rb` now registers absorbers with `Legion::API.router` for v3.0 API discovery and dispatch (component_type: `absorbers`)
+- Hook-aware LexDispatch: `POST /api/extensions/:lex/hooks/:name/:method` applies verify/route/transform lifecycle for `Hooks::Base` subclasses; auto-generated hooks pass through unchanged
+- Transport message auto-generation: `auto_generate_messages` in `extensions/transport.rb` creates `Legion::Transport::Message` subclasses from runner definitions with inputs at boot time; explicit classes always take precedence
+- `legion broker purge-topology` CLI command: detects old v2.0 AMQP exchanges (`legion.*`) that have v3.0 counterparts (`lex.*`) and optionally deletes them via RabbitMQ management API; defaults to `--dry-run`
+- `spec/api/lex_dispatch_spec.rb`: 10-example spec covering v3.0 LexDispatch routes (replaces old lex_spec.rb)
+- `spec/api/lex_dispatch_hooks_spec.rb`: 5-example spec for hook-aware dispatch (401/422/success/passthrough)
+- `spec/api/old_systems_removed_spec.rb`: 10-example spec verifying old registries are gone
+- `spec/cli/admin_command_spec.rb`: 21-example spec for topology detection logic
+- `spec/extensions/builders/absorbers_spec.rb`: 10-example spec for absorber builder + Router registration
+- `spec/extensions/transport_auto_messages_spec.rb`: 14-example spec for message auto-generation
+- `unless defined?` guards on `Routes::Gaia`, `Routes::Transport`, `Routes::Rbac` registration for library gem self-registration
+
+### Removed
+- `Routes::Lex` (`api/lex.rb`): old `/api/lex/*` wildcard dispatcher — use `/api/extensions/:lex/runners/:name/:method`
+- `Routes::Hooks` (`api/hooks.rb`): old `/api/hooks/lex/*` handler — use `/api/extensions/:lex/hooks/:name/:method`
+- `Legion::API.hook_registry`, `.register_hook`, `.find_hook`, `.find_hook_by_path`, `.registered_hooks` — hooks auto-register via builder
+- `Legion::API.route_registry`, `.register_route`, `.find_route_by_path`, `.registered_routes` — routes auto-register via builder
+
+### Changed
+- Routes builder log message now uses v3.0 path format (`/api/extensions/...` instead of `/api/lex/...`)
+
 ## [1.6.25] - 2026-03-28
 
 ### Added
