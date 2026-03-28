@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.6.28] - 2026-03-28
+
+### Fixed
+- `legion lex list` now displays extensions in clean aligned tables with Name, Version, Status, Runners, Actors columns
+- Grouped view drops redundant category/tier columns from rows (already shown in group header); sorts alphabetically within each group
+- Flat/category-filtered view uses Name, Version, Category, Status, Runners, Actors columns; sorts alphabetically
+- Runners and actors are formatted as comma-joined names (up to 3) or a count summary instead of raw `Array#to_s` output
+- JSON output for both flat and grouped list modes is now handled directly in the render methods
+
 ## [1.6.27] - 2026-03-28
 
 ### Fixed

@@ -299,22 +299,48 @@ module Legion
           end
         end
 
+        def format_runners(runners)
+          return '-' unless runners.is_a?(Array) && runners.any?
+
+          runners.length <= 3 ? runners.join(', ') : "#{runners.length} runners"
+        end
+
+        def format_actors(actors)
+          return '-' unless actors.is_a?(Array) && actors.any?
+
+          names = actors.map { |a| a.is_a?(Hash) ? a[:name] : a.to_s }
+          names.length <= 3 ? names.join(', ') : "#{names.length} actors"
+        end
+
         def render_flat_table(out, rows)
-          table_rows = rows.map do |l|
-            [l[:name], l[:version], l[:category].to_s, l[:tier].to_s, out.status(l[:status]), l[:runners].to_s, l[:actors].to_s]
+          if options[:json]
+            out.json(rows)
+            return
           end
-          out.table(%w[name version category tier status runners actors], table_rows)
+
+          table_rows = rows.sort_by { |l| l[:name] }.map do |l|
+            [l[:name], l[:version], l[:category].to_s, out.status(l[:status]),
+             format_runners(l[:runners]), format_actors(l[:actors])]
+          end
+          out.table(%w[name version category status runners actors], table_rows)
         end
 
         def render_grouped_table(out, rows)
+          if options[:json]
+            out.json(rows)
+            return
+          end
+
           grouped = rows.group_by { |l| [l[:tier], l[:category]] }
           grouped.keys.sort_by { |tier, cat| [tier, cat.to_s] }.each do |key|
             tier, cat = key
-            out.header("=== #{cat} (tier #{tier}) ===")
-            group_rows = grouped[key].map do |l|
-              [l[:name], l[:version], l[:category].to_s, l[:tier].to_s, out.status(l[:status]), l[:runners].to_s, l[:actors].to_s]
+            out.spacer
+            out.header("#{cat} (tier #{tier})")
+            group_rows = grouped[key].sort_by { |l| l[:name] }.map do |l|
+              [l[:name], l[:version], out.status(l[:status]),
+               format_runners(l[:runners]), format_actors(l[:actors])]
             end
-            out.table(%w[name version category tier status runners actors], group_rows)
+            out.table(%w[name version status runners actors], group_rows)
           end
         end
 
