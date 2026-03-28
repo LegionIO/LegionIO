@@ -24,43 +24,63 @@ module Legion
           )
         end
 
-        response = nil
-        reply_queue_name = "sync.reply.#{::SecureRandom.uuid}"
-
-        begin
-          channel = Legion::Transport.channel
-          reply_queue = channel.queue(reply_queue_name, exclusive: true, auto_delete: true)
-
-          reply_queue.subscribe do |_delivery_info, _metadata, body|
-            response = begin
-              Legion::JSON.load(body)
-            rescue StandardError
-              { raw: body }
-            end
-          end
-
-          publish_sync(channel, exchange_name, routing_key, payload, envelope, reply_queue_name)
-
-          deadline = Time.now + timeout
-          sleep 0.05 until response || Time.now > deadline
-
-          response || envelope.merge(
-            status: 'timeout',
-            error:  { code: 504, message: "Sync dispatch timed out after #{timeout}s" }
-          )
-        ensure
-          begin
-            reply_queue&.delete
-          rescue StandardError
-            nil
-          end
-        end
+        perform_dispatch(exchange_name, routing_key, payload, envelope, timeout)
       rescue StandardError => e
         Legion::Logging.error "[SyncDispatch] #{e.class}: #{e.message}" if defined?(Legion::Logging)
         envelope.merge(
           status: 'failed',
           error:  { code: 500, message: e.message }
         )
+      end
+
+      # @api private
+      def self.perform_dispatch(exchange_name, routing_key, payload, envelope, timeout)
+        response  = nil
+        mutex     = Mutex.new
+        condition = ConditionVariable.new
+        reply_queue_name = "sync.reply.#{::SecureRandom.uuid}"
+
+        begin
+          channel = Legion::Transport.channel
+          reply_queue = channel.queue(reply_queue_name, exclusive: true, auto_delete: true)
+          subscribe_reply(reply_queue, mutex, condition) { |r| response = r }
+          publish_sync(channel, exchange_name, routing_key, payload, envelope, reply_queue_name)
+          wait_for_response(mutex, condition, timeout) { response }
+          response || envelope.merge(
+            status: 'timeout',
+            error:  { code: 504, message: "Sync dispatch timed out after #{timeout}s" }
+          )
+        ensure
+          reply_queue&.delete rescue nil # rubocop:disable Style/RescueModifier
+        end
+      end
+
+      # @api private
+      def self.subscribe_reply(reply_queue, mutex, condition)
+        reply_queue.subscribe do |_delivery_info, _metadata, body|
+          parsed = begin
+            Legion::JSON.load(body)
+          rescue StandardError
+            { raw: body }
+          end
+          mutex.synchronize do
+            yield parsed
+            condition.signal
+          end
+        end
+      end
+
+      # @api private
+      def self.wait_for_response(mutex, condition, timeout)
+        mutex.synchronize do
+          deadline = Time.now + timeout
+          loop do
+            remaining = deadline - Time.now
+            break if yield || remaining <= 0
+
+            condition.wait(mutex, remaining)
+          end
+        end
       end
 
       # @api private
@@ -76,7 +96,7 @@ module Legion
         )
       end
 
-      private_class_method :publish_sync
+      private_class_method :perform_dispatch, :subscribe_reply, :wait_for_response, :publish_sync
     end
   end
 end
