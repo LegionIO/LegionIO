@@ -81,8 +81,6 @@ module Legion
         build_actors
         build_hooks
         build_routes
-        register_hooks
-        register_routes
         Legion::Logging.debug "[Core] autobuild complete: #{name}" if defined?(Legion::Logging)
       end
 
@@ -214,14 +212,6 @@ module Legion
 
       def default_settings
         {}
-      end
-
-      def register_hooks
-        # Hook registration is handled by Routes::LexDispatch via the Router (v3.0)
-      end
-
-      def register_routes
-        # Route registration is handled by Routes::LexDispatch via the Router (v3.0)
       end
 
       def auto_generate_transport

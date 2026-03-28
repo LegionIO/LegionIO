@@ -99,7 +99,7 @@ Legion (lib/legion.rb)
 │   │   ├── Runners    # Build runners from extension definitions (stores runner_module ref)
 │   │   ├── Helpers    # Builder utilities
 │   │   ├── Hooks      # Webhook hook system builder
-│   │   └── Routes     # Auto-route builder: introspects runners, registers POST /api/lex/* routes
+│   │   └── Routes     # Auto-route builder: introspects runners, registers POST /api/extensions/* routes
 │   ├── Helpers/       # Helper mixins for extensions
 │   │   ├── Base       # Base helper mixin
 │   │   ├── Core       # Core helper mixin
@@ -130,7 +130,7 @@ Legion (lib/legion.rb)
 │   │   ├── Events     # SSE stream (sinatra stream) + ring buffer polling fallback
 │   │   ├── Transport  # Connection status, exchanges, queues, publish
 │   │   ├── Hooks      # List + trigger registered extension hooks
-│   │   ├── Lex        # Auto-routes: `POST /api/lex/*` wildcard + `GET /api/lex` listing
+│   │   ├── LexDispatch # Dispatch: `POST /api/extensions/:lex/:type/:component/:method` + discovery GET
 │   │   ├── Workers    # Digital worker lifecycle (`/api/workers/*`) + team routes (`/api/teams/*`)
 │   │   ├── Coldstart  # `POST /api/coldstart/ingest` — trigger lex-coldstart ingest from API
 │   │   ├── Capacity   # Aggregate, forecast, per-worker capacity endpoints
@@ -145,10 +145,8 @@ Legion (lib/legion.rb)
 │   │   ├── ApiVersion # `/api/v1/` rewrite, Deprecation/Sunset headers
 │   │   ├── BodyLimit  # Request body size limit (1MB max, returns 413)
 │   │   └── RateLimit  # Sliding-window rate limiting with per-IP/agent/tenant tiers
-│   ├── hook_registry  # Class-level registry: register_hook, find_hook, registered_hooks
-│   │                  # Populated by extensions via Legion::API.register_hook(...)
-│   └── route_registry # Class-level registry: register_route, find_route_by_path, registered_routes
-│                      # Populated by Builders::Routes during autobuild
+│   └── router         # Class-level Router: extension_names, find_extension_route, registered_routes
+│                      # Populated by Builders::Routes during autobuild via LexDispatch
 │
 ├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
 │   └── (58 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
@@ -609,8 +607,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/api/settings.rb` | Settings: read/write with redaction + readonly guards |
 | `lib/legion/api/events.rb` | Events: SSE stream + polling fallback (ring buffer) |
 | `lib/legion/api/transport.rb` | Transport: status, exchanges, queues, publish |
-| `lib/legion/api/hooks.rb` | Hooks: list registered + trigger via Ingress; supports custom response headers |
-| `lib/legion/api/lex.rb` | Lex auto-routes: `POST /api/lex/*` wildcard dispatch + `GET /api/lex` listing |
+| `lib/legion/api/lex_dispatch.rb` | LexDispatch: `POST /api/extensions/:lex/:type/:component/:method` dispatch + `GET` discovery; remote AMQP forwarding, hook-aware routing via `Routes::LexDispatch` |
 | `lib/legion/api/workers.rb` | Workers + Teams: digital worker lifecycle REST endpoints (`/api/workers/*`) and team cost endpoints (`/api/teams/*`) |
 | `lib/legion/api/coldstart.rb` | Coldstart: `POST /api/coldstart/ingest` — triggers lex-coldstart ingest runner (requires lex-coldstart + lex-memory) |
 | `lib/legion/api/gaia.rb` | Gaia: system status endpoints |
@@ -731,6 +728,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/cli/doctor/` | Individual check modules: ruby_version, bundle, config, rabbitmq, database, cache, vault, extensions, pid, permissions, plus result.rb |
 | `lib/legion/cli/telemetry_command.rb` | `legion telemetry` subcommands (stats, ingest) — session log analytics |
 | `lib/legion/cli/auth_command.rb` | `legion auth` subcommands (teams) — delegated OAuth browser flow for external services |
+| `lib/legion/cli/admin_command.rb` | `legion admin` subcommands (purge-topology) — ops tooling for v2.0 AMQP topology cleanup |
 | `completions/legion.bash` | Bash tab completion script |
 | `completions/_legion` | Zsh tab completion script |
 | `lib/legion/cli/theme.rb` | Purple palette, orbital ASCII banner, branded CLI output |
