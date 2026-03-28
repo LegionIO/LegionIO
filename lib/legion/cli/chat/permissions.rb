@@ -23,7 +23,7 @@ module Legion
         @extension_tiers = {}
 
         class << self
-          attr_accessor :mode
+          attr_accessor :mode, :before_prompt
 
           def auto_allow?
             %i[headless auto_approve].include?(mode)
@@ -37,6 +37,7 @@ module Legion
             return false if read_only?
             return true if auto_allow?
 
+            @before_prompt&.call
             $stderr.print "\e[33m#{description}\e[0m\n  Allow? [y/n] "
             response = $stdin.gets&.strip&.downcase
             %w[y yes].include?(response)

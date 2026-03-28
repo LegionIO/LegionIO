@@ -51,6 +51,7 @@ module Legion
           budget_usd: effective_budget
         )
         @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
+        Chat::Permissions.before_prompt = -> { @indicator&.pause } if @indicator
 
         restore_session(out) if options[:continue] || options[:resume] || options[:resume_latest] || options[:fork]
         load_memory_context
