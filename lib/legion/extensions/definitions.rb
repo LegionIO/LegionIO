@@ -27,7 +27,7 @@ module Legion
       end
 
       def definitions
-        if superclass.respond_to?(:definitions)
+        if respond_to?(:superclass) && superclass.respond_to?(:definitions)
           superclass.definitions.merge(own_definitions)
         else
           own_definitions.dup

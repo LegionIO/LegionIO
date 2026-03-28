@@ -57,7 +57,7 @@ module Legion
 
       # @api private
       def self.subscribe_reply(reply_queue, mutex, condition)
-        reply_queue.subscribe do |_delivery_info, _metadata, body|
+        reply_queue.subscribe(block: false) do |_delivery_info, _metadata, body|
           parsed = begin
             Legion::JSON.load(body)
           rescue StandardError

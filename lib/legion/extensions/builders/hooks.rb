@@ -47,6 +47,7 @@ module Legion
             hook_methods.each do |method_name|
               Legion::API.router.register_extension_route(
                 lex_name:       extension_name,
+                amqp_prefix:    respond_to?(:amqp_prefix) ? amqp_prefix : "lex.#{extension_name.to_s.tr('_', '.')}",
                 component_type: 'hooks',
                 component_name: hook_name,
                 method_name:    method_name.to_s,

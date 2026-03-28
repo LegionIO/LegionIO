@@ -36,18 +36,23 @@ module Legion
                                           })
             end
 
-            Legion::JSON.dump({
-                                extension:      params[:lex_name],
-                                component_type: params[:component_type],
-                                component:      params[:component_name],
-                                method:         params[:method_name],
-                                definition:     entry[:definition],
-                                hook_endpoint:  "/api/extensions/#{params[:lex_name]}/hooks/#{params[:component_name]}/#{params[:method_name]}",
-                                amqp:           {
-                                  exchange:    "lex.#{params[:lex_name]}",
-                                  routing_key: "lex.#{params[:lex_name]}.#{params[:component_type]}.#{params[:component_name]}.#{params[:method_name]}"
-                                }
-                              })
+            amqp_pfx = entry[:amqp_prefix].to_s.then { |p| p.empty? ? "lex.#{params[:lex_name]}" : p }
+            response = {
+              extension:      params[:lex_name],
+              component_type: params[:component_type],
+              component:      params[:component_name],
+              method:         params[:method_name],
+              definition:     entry[:definition],
+              amqp:           {
+                exchange:    amqp_pfx,
+                routing_key: "#{amqp_pfx}.#{params[:component_type]}.#{params[:component_name]}.#{params[:method_name]}"
+              }
+            }
+            if params[:component_type] == 'hooks'
+              response[:hook_endpoint] =
+                "/api/extensions/#{params[:lex_name]}/hooks/#{params[:component_name]}/#{params[:method_name]}"
+            end
+            Legion::JSON.dump(response)
           end
         end
 
@@ -104,8 +109,8 @@ module Legion
                                                   })
             end
 
-            exchange_name = "lex.#{entry[:lex_name]}"
-            routing_key   = "lex.#{entry[:lex_name]}.#{entry[:component_type]}.#{entry[:component_name]}.#{entry[:method_name]}"
+            exchange_name = entry[:amqp_prefix].to_s.then { |p| p.empty? ? "lex.#{entry[:lex_name]}" : p }
+            routing_key   = "#{exchange_name}.#{entry[:component_type]}.#{entry[:component_name]}.#{entry[:method_name]}"
 
             if request.env['HTTP_X_LEGION_SYNC'] == 'true'
               result = Legion::API::SyncDispatch.dispatch(exchange_name, routing_key, payload, envelope)

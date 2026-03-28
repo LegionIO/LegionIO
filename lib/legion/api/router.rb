@@ -43,6 +43,7 @@ module Legion
         key = "#{lex_name}/#{component_type}/#{component_name}/#{method_name}"
         @extension_routes[key] = {
           lex_name:       lex_name.to_s,
+          amqp_prefix:    opts[:amqp_prefix].to_s,
           component_type: component_type.to_s,
           component_name: component_name.to_s,
           method_name:    method_name.to_s,

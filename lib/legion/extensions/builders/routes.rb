@@ -44,6 +44,7 @@ module Legion
 
               Legion::API.router.register_extension_route(
                 lex_name:       extension_name,
+                amqp_prefix:    respond_to?(:amqp_prefix) ? amqp_prefix : "lex.#{extension_name.to_s.tr('_', '.')}",
                 component_type: 'runners',
                 component_name: runner_name,
                 method_name:    function.to_s,
