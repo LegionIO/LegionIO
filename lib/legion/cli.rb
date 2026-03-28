@@ -62,7 +62,7 @@ module Legion
     autoload :Failover,    'legion/cli/failover_command'
     autoload :AbsorbCommand,   'legion/cli/absorb_command'
     autoload :ConnectCommand,  'legion/cli/connect_command'
-    autoload :Apollo,        'legion/cli/apollo_command'
+    autoload :Apollo,          'legion/cli/apollo_command'
     autoload :TraceCommand, 'legion/cli/trace_command'
     autoload :Features,     'legion/cli/features_command'
     autoload :Debug,        'legion/cli/debug_command'

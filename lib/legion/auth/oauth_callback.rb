@@ -53,6 +53,9 @@ module Legion
         client.puts 'Connection: close'
         client.puts
         client.puts body
+      rescue Errno::ECONNRESET, Errno::EPIPE, IOError
+        nil
+      ensure
         client.close rescue nil # rubocop:disable Style/RescueModifier
       end
     end
