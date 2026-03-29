@@ -141,43 +141,49 @@ module Legion
         Legion::Telemetry.with_span("agent.#{name}", kind: :internal, attributes: attrs, &)
       end
 
-      def retriever_span(query: nil, &)
+      def retriever_span(name:, query: nil, top_k: nil, &)
         unless open_inference_enabled?
           return yield(nil) if block_given?
 
           return
         end
 
-        attrs = base_attrs('RETRIEVER')
-        attrs['retriever.query'] = truncate_value(query.to_s) if query && include_io?
+        attrs = base_attrs('RETRIEVER').merge('retriever.name' => name)
+        attrs['retriever.top_k'] = top_k if top_k
+        attrs['input.value'] = truncate_value(query.to_s) if query && include_io?
 
-        Legion::Telemetry.with_span('retriever', kind: :internal, attributes: attrs, &)
+        Legion::Telemetry.with_span("retriever.#{name}", kind: :client, attributes: attrs, &)
       end
 
-      def reranker_span(query: nil, model: nil, &)
+      def reranker_span(model:, query: nil, top_k: nil, &)
         unless open_inference_enabled?
           return yield(nil) if block_given?
 
           return
         end
 
-        attrs = base_attrs('RERANKER')
-        attrs['reranker.query'] = truncate_value(query.to_s) if query && include_io?
-        attrs['reranker.model_name'] = model if model
+        attrs = base_attrs('RERANKER').merge('reranker.model_name' => model)
+        attrs['reranker.top_k'] = top_k if top_k
+        attrs['input.value'] = truncate_value(query.to_s) if query && include_io?
 
-        Legion::Telemetry.with_span('reranker', kind: :internal, attributes: attrs, &)
+        Legion::Telemetry.with_span("reranker.#{model}", kind: :internal, attributes: attrs, &)
       end
 
-      def guardrail_span(name:, &)
+      def guardrail_span(name:, input: nil)
         unless open_inference_enabled?
           return yield(nil) if block_given?
 
           return
         end
 
-        attrs = base_attrs('GUARDRAIL').merge('guardrail.name' => truncate_value(name.to_s))
+        attrs = base_attrs('GUARDRAIL').merge('guardrail.name' => name)
+        attrs['input.value'] = truncate_value(input.to_s) if input && include_io?
 
-        Legion::Telemetry.with_span("guardrail.#{name}", kind: :internal, attributes: attrs, &)
+        Legion::Telemetry.with_span("guardrail.#{name}", kind: :internal, attributes: attrs) do |span|
+          result = yield(span)
+          annotate_guardrail_result(span, result) if span && result.is_a?(Hash)
+          result
+        end
       end
 
       def truncate_value(str, max: nil)
@@ -218,6 +224,17 @@ module Legion
         span.set_attribute('eval.explanation', result[:explanation]) if result[:explanation]
       rescue StandardError => e
         Legion::Logging.debug "OpenInference#annotate_eval_result failed: #{e.message}" if defined?(Legion::Logging)
+        nil
+      end
+
+      def annotate_guardrail_result(span, result)
+        return unless span.respond_to?(:set_attribute)
+
+        span.set_attribute('guardrail.passed', result[:passed]) unless result[:passed].nil?
+        span.set_attribute('guardrail.score', result[:score]) if result[:score]
+        span.set_attribute('output.value', truncate_value(result[:explanation].to_s)) if include_io? && result[:explanation]
+      rescue StandardError => e
+        Legion::Logging.debug "OpenInference#annotate_guardrail_result failed: #{e.message}" if defined?(Legion::Logging)
         nil
       end
     end
