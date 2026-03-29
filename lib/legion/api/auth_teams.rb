@@ -127,23 +127,25 @@ module Legion
           end
         end
 
-        def self.register_store_helper(app)
-          app.helpers do
-            def store_teams_token(token_body, scopes)
-              require 'legion/extensions/microsoft_teams/helpers/token_cache'
-              cache = Legion::Extensions::MicrosoftTeams::Helpers::TokenCache.new
-              cache.store_delegated_token(
-                access_token:  token_body[:access_token],
-                refresh_token: token_body[:refresh_token],
-                expires_in:    token_body[:expires_in] || 3600,
-                scopes:        scopes
-              )
-              cache.save_to_vault
-              Legion::Logging.info 'Teams delegated token stored' if defined?(Legion::Logging)
-            rescue StandardError => e
-              Legion::Logging.warn "Failed to store Teams token: #{e.message}" if defined?(Legion::Logging)
-            end
+        module TeamsTokenHelper
+          def store_teams_token(token_body, scopes)
+            require 'legion/extensions/microsoft_teams/helpers/token_cache'
+            cache = Legion::Extensions::MicrosoftTeams::Helpers::TokenCache.new
+            cache.store_delegated_token(
+              access_token:  token_body[:access_token],
+              refresh_token: token_body[:refresh_token],
+              expires_in:    token_body[:expires_in] || 3600,
+              scopes:        scopes
+            )
+            cache.save_to_vault
+            Legion::Logging.info 'Teams delegated token stored' if defined?(Legion::Logging)
+          rescue StandardError => e
+            Legion::Logging.warn "Failed to store Teams token: #{e.message}" if defined?(Legion::Logging)
           end
+        end
+
+        def self.register_store_helper(app)
+          app.helpers TeamsTokenHelper
         end
 
         class << self
