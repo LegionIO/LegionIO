@@ -29,7 +29,7 @@ module Legion
             next unless hook_class < Legion::Extensions::Hooks::Base
 
             route_path = "#{extension_name}/#{hook_name}"
-            runner = hook_class.respond_to?(:runner_class) ? hook_class.runner_class : nil
+            runner = resolve_hook_runner(hook_class)
 
             @hooks[hook_name.to_sym] = {
               extension:      lex_class.to_s.downcase,
@@ -60,6 +60,17 @@ module Legion
 
         def hook_files
           @hook_files ||= find_files('hooks')
+        end
+
+        private
+
+        def resolve_hook_runner(hook_class)
+          ref = hook_class.new.runner_class
+          if ref.is_a?(String)
+            Kernel.const_defined?(ref) ? Kernel.const_get(ref) : nil
+          elsif ref.is_a?(Class)
+            ref
+          end
         end
       end
     end

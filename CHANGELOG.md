@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.6.31] - 2026-03-28
+
+### Fixed
+- `build_hook_list` in `Builders::Hooks` now calls `runner_class` on a hook instance (instance method) instead of the class, preventing the `TypeError: no implicit conversion of nil into String` boot crash caused by `Helpers::Base#runner_class` being inherited at the class level and calling `sub!` on a string that contains no `'Actor'` substring
+- `Helpers::Base#runner_class` changed `sub!` to `sub` (non-destructive) as a defensive fix — `sub!` returns `nil` when no substitution is made, which caused `Kernel.const_get(nil)` to raise `TypeError`
+- Runner reference returned by `hook_class.new.runner_class` is now resolved safely: string class names are resolved via `Kernel.const_defined?` + `Kernel.const_get`; Class objects are used directly; `nil` falls back to `hook_class`
+
 ## [1.6.30] - 2026-03-28
 
 ### Fixed
