@@ -141,6 +141,44 @@ module Legion
         Legion::Telemetry.with_span("agent.#{name}", kind: :internal, attributes: attrs, &)
       end
 
+      def retriever_span(query:, limit: nil, &)
+        unless open_inference_enabled?
+          return yield(nil) if block_given?
+
+          return
+        end
+
+        attrs = base_attrs('RETRIEVER').merge('retriever.query' => truncate_value(query.to_s))
+        attrs['retriever.limit'] = limit if limit
+
+        Legion::Telemetry.with_span('retriever', kind: :internal, attributes: attrs, &)
+      end
+
+      def reranker_span(query:, model: nil, &)
+        unless open_inference_enabled?
+          return yield(nil) if block_given?
+
+          return
+        end
+
+        attrs = base_attrs('RERANKER').merge('reranker.query' => truncate_value(query.to_s))
+        attrs['reranker.model_name'] = model if model
+
+        Legion::Telemetry.with_span('reranker', kind: :internal, attributes: attrs, &)
+      end
+
+      def guardrail_span(name:, &)
+        unless open_inference_enabled?
+          return yield(nil) if block_given?
+
+          return
+        end
+
+        attrs = base_attrs('GUARDRAIL').merge('guardrail.name' => name)
+
+        Legion::Telemetry.with_span("guardrail.#{name}", kind: :internal, attributes: attrs, &)
+      end
+
       def truncate_value(str, max: nil)
         limit = max || truncate_limit
         str.length > limit ? str[0...limit] : str
