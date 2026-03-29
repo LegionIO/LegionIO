@@ -4,17 +4,14 @@ require 'spec_helper'
 require 'thor'
 require 'legion/cli/output'
 require 'legion/cli/error'
-require 'legion/extensions/absorbers'
-require 'legion/extensions/actors/absorber_dispatch'
 require 'legion/cli/absorb_command'
 
 RSpec.describe Legion::CLI::AbsorbCommand do
   let(:command) { described_class.new }
 
   before do
-    allow(Legion::Extensions::Absorbers::PatternMatcher).to receive(:list).and_return([])
-    allow(Legion::Extensions::Absorbers::PatternMatcher).to receive(:resolve).and_return(nil)
-    allow(Legion::Extensions::Actors::AbsorberDispatch).to receive(:dispatch).and_return(nil)
+    allow(command).to receive(:api_get).with('/api/absorbers').and_return([])
+    allow(command).to receive(:api_get).with(%r{/api/absorbers/resolve}).and_return({ match: false })
   end
 
   describe '.exit_on_failure?' do

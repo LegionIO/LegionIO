@@ -6,6 +6,7 @@ require 'legion/cli/error'
 require 'legion/cli/error_handler'
 require 'legion/cli/output'
 require 'legion/cli/connection'
+require 'legion/cli/error_forwarder'
 
 module Legion
   module CLI
@@ -92,12 +93,14 @@ module Legion
         Legion::Logging.error("CLI::Main.start CLI error: #{e.message}") if defined?(Legion::Logging)
         formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
         ErrorHandler.format_error(e, formatter)
+        ErrorForwarder.forward_error(e, command: given_args.join(' '))
         exit(1)
       rescue StandardError => e
         Legion::Logging.error("CLI::Main.start unexpected error: #{e.message}") if defined?(Legion::Logging)
         wrapped = ErrorHandler.wrap(e)
         formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
         ErrorHandler.format_error(wrapped, formatter)
+        ErrorForwarder.forward_error(e, command: given_args.join(' '))
         exit(1)
       end
 
@@ -281,6 +284,9 @@ module Legion
 
       desc 'absorb SUBCOMMAND', 'Absorb content from external sources'
       subcommand 'absorb', AbsorbCommand
+
+      desc 'auth SUBCOMMAND', 'Authenticate with external services (Teams, Kerberos)'
+      subcommand 'auth', Auth
 
       desc 'connect PROVIDER', 'Connect external accounts via OAuth2'
       subcommand 'connect', ConnectCommand

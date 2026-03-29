@@ -16,16 +16,8 @@ module Legion
                                  desc: 'OAuth2 scopes (space-separated)'
       method_option :no_browser, type: :boolean, default: false, desc: 'Print URL instead of launching browser'
       def microsoft
-        require 'legion/auth/token_manager'
-        manager = Legion::Auth::TokenManager.new(provider: :microsoft)
-
-        if manager.token_valid?
-          say 'Already connected to Microsoft. Use --force to reconnect.', :green
-          return
-        end
-
-        say 'Connecting to Microsoft...', :blue
-        say 'OAuth2 browser flow not yet implemented. Use `legion auth teams` for Teams-specific auth.', :yellow
+        say 'Delegating to Teams OAuth2 browser auth...', :blue
+        Legion::CLI::Auth.start(['teams'] + ARGV.select { |a| a.start_with?('--') })
       end
 
       desc 'github', 'Connect a GitHub account (OAuth2 device flow)'

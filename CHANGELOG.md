@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.6.32] - 2026-03-28
+
+### Added
+- `POST /api/logs` endpoint (`Routes::Logs`) — accepts `error`/`warn` level messages from CLI, normalizes with server-side metadata (timestamp, node, legion_versions, ruby_version, pid), computes `error_fingerprint` via `EventBuilder.fingerprint` when `exception_class` is present, and publishes to the `legion.logging` exchange with routing key `legion.logging.exception.{level}.cli.{source}` or `legion.logging.log.{level}.cli.{source}`
+- `Legion::CLI::ErrorForwarder` module — fire-and-forget HTTP helper that POSTs CLI errors/warnings to the daemon API; silently swallows all failures so daemon unavailability never crashes the CLI
+- `ErrorForwarder.forward_error` wired into both rescue blocks in `CLI::Main.start` (fires before `exit(1)`)
+
 ## [1.6.31] - 2026-03-28
 
 ### Fixed
