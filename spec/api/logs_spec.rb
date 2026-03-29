@@ -30,7 +30,8 @@ RSpec.describe 'Logs API' do
   end
 
   before do
-    allow(Legion::Transport::Messages::Dynamic).to receive(:new).and_return(double(publish: true))
+    logging_exchange = double('Logging Exchange', publish: nil)
+    allow(Legion::Transport::Exchanges::Logging).to receive(:cached_instance).and_return(logging_exchange)
     allow(Legion::Logging::EventBuilder).to receive(:send).with(:legion_versions).and_return({})
   end
 

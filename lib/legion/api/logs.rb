@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'legion/transport/exchanges/logging'
+
 module Legion
   class API < Sinatra::Base
     module Routes
@@ -20,9 +22,17 @@ module Legion
             payload = Legion::API::Routes::Logs.build_log_payload(body, level, source)
             key     = Legion::API::Routes::Logs.routing_key_for(body, level, source)
 
-            Legion::Transport::Messages::Dynamic.new(
-              exchange: 'legion.logging', routing_key: key, **payload
-            ).publish
+            exchange = Legion::Transport::Exchanges::Logging.cached_instance || Legion::Transport::Exchanges::Logging.new
+            exchange.publish(
+              Legion::JSON.dump(payload),
+              routing_key:      key,
+              content_type:     'application/json',
+              content_encoding: 'identity',
+              type:             'log',
+              persistent:       true,
+              app_id:           'legion',
+              headers:          { 'legion_protocol_version' => '2.0' }
+            )
 
             json_response({ published: true, routing_key: key }, status_code: 201)
           rescue StandardError => e

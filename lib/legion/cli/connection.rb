@@ -88,6 +88,17 @@ module Legion
           raise CLI::Error, 'legion-cache gem is not installed (gem install legion-cache)'
         end
 
+        def ensure_knowledge
+          return if @knowledge_ready
+
+          ensure_settings
+          spec = Gem::Specification.find_by_name('lex-knowledge')
+          require "#{spec.gem_dir}/lib/legion/extensions/knowledge"
+          @knowledge_ready = true
+        rescue Gem::MissingSpecError
+          raise CLI::Error, 'lex-knowledge gem is not installed (gem install lex-knowledge)'
+        end
+
         def ensure_llm
           return if @llm_ready
 

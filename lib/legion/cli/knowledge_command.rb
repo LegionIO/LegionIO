@@ -90,9 +90,7 @@ module Legion
         end
 
         def require_monitor!
-          return if defined?(Legion::Extensions::Knowledge::Runners::Monitor)
-
-          raise CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Monitor)
         end
       end
     end
@@ -120,15 +118,12 @@ module Legion
         content = "Git commit: #{sha}\nSubject: #{subject}\n\nDiff stat:\n#{diff_stat}"
         tags    = %w[git commit knowledge-capture]
 
-        result = if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-                   Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-                     content: content,
-                     tags:    tags,
-                     source:  "git:#{sha}"
-                   )
-                 else
-                   { success: false, error: 'lex-knowledge not loaded' }
-                 end
+        Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+        result = Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
+          content: content,
+          tags:    tags,
+          source:  "git:#{sha}"
+        )
 
         out = formatter
         if options[:json]
@@ -155,15 +150,12 @@ module Legion
         tags    = ['session', 'knowledge-capture', ::Time.now.strftime('%Y-%m-%d')]
         tags   << "repo:#{repo}" unless repo.empty?
 
-        result = if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-                   Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-                     content: content,
-                     tags:    tags,
-                     source:  "session:#{::Time.now.iso8601}"
-                   )
-                 else
-                   { success: false, error: 'lex-knowledge not loaded' }
-                 end
+        Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+        result = Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
+          content: content,
+          tags:    tags,
+          source:  "session:#{::Time.now.iso8601}"
+        )
 
         out = formatter
         if options[:json]
@@ -473,21 +465,15 @@ module Legion
         end
 
         def require_knowledge!
-          return if defined?(Legion::Extensions::Knowledge::Runners::Query)
-
-          raise CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Query)
         end
 
         def require_ingest!
-          return if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-
-          raise CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
         end
 
         def require_maintenance!
-          return if defined?(Legion::Extensions::Knowledge::Runners::Maintenance)
-
-          raise CLI::Error, 'lex-knowledge extension is not loaded. Install and enable it first.'
+          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Maintenance)
         end
 
         def knowledge_query

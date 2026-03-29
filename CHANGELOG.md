@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.6.34] - 2026-03-29
+
+### Fixed
+- `POST /api/logs` no longer raises `NoMethodError: undefined method 'values' for nil` — replaced `Legion::Transport::Messages::Dynamic.new(...).publish` with a direct `Legion::Transport::Exchanges::Logging` publish call; `Dynamic` requires a `function_id` for database lookup which log payloads do not have
+- `legion knowledge` CLI commands (`require_monitor!`, `require_knowledge!`, `require_ingest!`, `require_maintenance!`) now use `Connection.ensure_knowledge` to dynamically load `lex-knowledge` when not yet loaded, instead of raising a generic error
+
+### Added
+- `Connection.ensure_knowledge` — lazily loads the `lex-knowledge` gem on demand, consistent with `ensure_llm` and other lazy loaders
+
 ## [1.6.33] - 2026-03-28
 
 ### Added
