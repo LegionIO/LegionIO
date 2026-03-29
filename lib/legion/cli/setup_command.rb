@@ -350,8 +350,8 @@ module Legion
 
           hooks = existing['hooks'] || {}
 
-          has_commit     = Array(hooks['PostToolUse']).any? { |h| h['command']&.include?('knowledge capture commit') }
-          has_transcript = Array(hooks['Stop']).any? { |h| h['command']&.include?('knowledge capture transcript') }
+          has_commit     = Array(hooks['PostToolUse']).any? { |h| hook_commands(h).any? { |c| c.include?('knowledge capture commit') } }
+          has_transcript = Array(hooks['Stop']).any? { |h| hook_commands(h).any? { |c| c.include?('knowledge capture transcript') } }
           if has_commit && has_transcript && !options[:force]
             puts '  Write-back hooks already present (use --force to overwrite)' unless options[:json]
             return
@@ -363,15 +363,14 @@ module Legion
           unless has_commit
             hooks['PostToolUse'] << {
               'matcher' => 'Bash',
-              'command' => 'legionio knowledge capture commit',
-              'timeout' => 10_000
+              'hooks'   => [{ 'type' => 'command', 'command' => 'legionio knowledge capture commit', 'timeout' => 10_000 }]
             }
           end
 
           unless has_transcript
             hooks['Stop'] << {
-              'command' => 'legionio knowledge capture transcript',
-              'timeout' => 30_000
+              'matcher' => '',
+              'hooks'   => [{ 'type' => 'command', 'command' => 'legionio knowledge capture transcript', 'timeout' => 30_000 }]
             }
           end
 
@@ -379,6 +378,13 @@ module Legion
           write_json_file(settings_path, existing)
           installed << 'hooks'
           puts '  Installed write-back hooks for knowledge capture' unless options[:json]
+        end
+
+        def hook_commands(hook_entry)
+          # Support both old format (command at top level) and new format (hooks array)
+          cmds = Array(hook_entry['hooks']).filter_map { |h| h['command'] }
+          cmds << hook_entry['command'] if hook_entry['command']
+          cmds
         end
 
         def write_mcp_servers_json(_out, path, installed)
