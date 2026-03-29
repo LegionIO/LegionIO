@@ -52,6 +52,7 @@ require_relative 'api/router'
 require_relative 'api/library_routes'
 require_relative 'api/sync_dispatch'
 require_relative 'api/lex_dispatch'
+require_relative 'api/tbi_patterns'
 require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
@@ -176,6 +177,7 @@ module Legion
     register Routes::Absorbers
     register Routes::Codegen
     register Routes::Logs
+    register Routes::TbiPatterns
     register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger
