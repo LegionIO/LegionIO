@@ -254,6 +254,9 @@ module Legion
       subcommand 'init', Legion::CLI::Init
 
       # --- Interactive & shortcuts ---
+      desc 'knowledge SUBCOMMAND', 'Search and manage the document knowledge base'
+      subcommand 'knowledge', Legion::CLI::Knowledge
+
       desc 'codegen SUBCOMMAND', 'Manage self-generating functions'
       subcommand 'codegen', CodegenCommand
 
