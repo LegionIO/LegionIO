@@ -1,266 +1,226 @@
 # frozen_string_literal: true
 
-require 'securerandom'
+require 'digest'
 
 module Legion
   class API < Sinatra::Base
     module Routes
       module TbiPatterns
-        # Defined at module level so it is accessible from both module methods
-        # and the Helpers mixin without Sinatra constant-lookup context issues.
-        ANON_FIELDS = %i[worker_id instance_id node_id].freeze
-        MEMORY_MAX_SIZE = 500
-        VALID_TIERS = (0..6).to_a.freeze
-
-        # ---------------------------------------------------------------------------
-        # Class-level store — lazy initialization avoids parse-time mutation and
-        # prevents state bleed when the module is registered multiple times in tests.
-        # ---------------------------------------------------------------------------
-        class << self
-          def memory_mutex
-            @memory_mutex ||= Mutex.new
-          end
-
-          # Thread-safe read: returns a dup of the store.
-          def memory_patterns
-            memory_mutex.synchronize { (@memory_store ||= []).dup }
-          end
-
-          def persist_to_memory(pattern)
-            memory_mutex.synchronize do
-              @memory_store ||= []
-              @memory_store.shift if @memory_store.size >= MEMORY_MAX_SIZE
-              @memory_store << pattern
-            end
-          end
-
-          # Strips identifying fields for anonymous cross-instance sharing.
-          # Defined as a module method so it can be called from route blocks
-          # without relying on Sinatra's instance `self` for constant resolution.
-          def anonymize(pattern)
-            pattern.reject { |k, _| ANON_FIELDS.include?(k.to_sym) }
-          end
-
-          # Validate the shape of an incoming export payload.
-          def validate_payload_shape!(body)
-            raise ArgumentError, 'payload must be a Hash' unless body.is_a?(Hash)
-            if body.key?(:payload_shape) && !body[:payload_shape].is_a?(Hash)
-              raise ArgumentError, 'payload_shape must be a Hash'
-            end
-          end
-
-          # Server-side quality score — deliberately ignores caller-supplied
-          # invocation_count / success_rate to satisfy issue requirement #5.
-          def compute_quality_score(pattern)
-            score = 50 # baseline
-            score += 15 if pattern[:description].is_a?(String) && pattern[:description].length > 10
-            score += 10 if pattern[:payload_shape].is_a?(Hash) && !pattern[:payload_shape].empty?
-            score += 5  if VALID_TIERS.include?(pattern[:tier].to_i)
-
-            # Augment from stored DB usage data when available.
-            if defined?(Legion::Data::Model::TbiPattern) && pattern[:id]
-              begin
-                record = Legion::Data::Model::TbiPattern.first(id: pattern[:id].to_s)
-                if record
-                  stored_count = record.values[:invocation_count].to_i
-                  stored_rate  = record.values[:success_rate].to_f
-                  score += [stored_count / 100, 20].min
-                  score += (stored_rate * 10).to_i
-                end
-              rescue StandardError
-                nil
-              end
-            end
-
-            [[score, 0].max, 100].min
-          end
-
-          # ---------------------------------------------------------------------------
-          # Persistence helpers
-          # ---------------------------------------------------------------------------
-          def persist_pattern(pattern)
-            if defined?(Legion::Data::Model::TbiPattern)
-              begin
-                # Use the UUID string as the primary key — do NOT call .to_i.
-                record = Legion::Data::Model::TbiPattern.create(pattern)
-                record.values
-              rescue StandardError => e
-                Legion::Logging.warn("TbiPatterns persist_pattern DB failed, using memory: #{e.message}") if defined?(Legion::Logging)
-                persist_to_memory(pattern)
-                pattern
-              end
-            else
-              persist_to_memory(pattern)
-              pattern
-            end
-          end
-
-          def fetch_patterns(tier: nil)
-            if defined?(Legion::Data::Model::TbiPattern)
-              begin
-                ds = Legion::Data::Model::TbiPattern.order(Sequel.desc(:exported_at))
-                ds = ds.where(tier: tier.to_i) if tier
-                return ds.all.map(&:values)
-              rescue StandardError => e
-                Legion::Logging.warn("TbiPatterns fetch_patterns DB failed, using memory: #{e.message}") if defined?(Legion::Logging)
-              end
-            end
-            patterns = memory_patterns
-            tier ? patterns.select { |p| p[:tier].to_i == tier.to_i } : patterns
-          end
-
-          def find_pattern(id)
-            if defined?(Legion::Data::Model::TbiPattern)
-              begin
-                # Query by string UUID — no .to_i coercion.
-                record = Legion::Data::Model::TbiPattern.first(id: id.to_s)
-                return record.values if record
-              rescue StandardError => e
-                Legion::Logging.warn("TbiPatterns find_pattern DB failed, using memory: #{e.message}") if defined?(Legion::Logging)
-              end
-            end
-            memory_patterns.find { |p| p[:id] == id }
-          end
-
-          # ---------------------------------------------------------------------------
-          # Route registration helpers (private)
-          # ---------------------------------------------------------------------------
-          def register_export(app)
-            app.post '/api/tbi/patterns/export' do
-              content_type :json
-              body = parse_request_body
-
-              begin
-                Legion::API::Routes::TbiPatterns.validate_payload_shape!(body)
-              rescue ArgumentError => e
-                content_type :json
-                halt 422, Legion::JSON.dump({ error: { code: 'invalid_payload', message: e.message },
-                                              meta: response_meta })
-              end
-
-              tier = body[:tier].to_i
-              unless Legion::API::Routes::TbiPatterns::VALID_TIERS.include?(tier)
-                content_type :json
-                halt 422, Legion::JSON.dump({ error: { code: 'invalid_tier',
-                                                        message: 'tier must be an integer 0-6' },
-                                              meta: response_meta })
-              end
-
-              anon = Legion::API::Routes::TbiPatterns.anonymize(body)
-              pattern = anon.merge(
-                id:          SecureRandom.uuid,
-                tier:        tier,
-                exported_at: Time.now.utc.iso8601
-              )
-
-              saved = Legion::API::Routes::TbiPatterns.persist_pattern(pattern)
-              json_response(saved, status_code: 201)
-            rescue StandardError => e
-              Legion::Logging.error "API POST /api/tbi/patterns/export: #{e.class} — #{e.message}" if defined?(Legion::Logging)
-              json_error('export_error', e.message, status_code: 500)
-            end
-          end
-
-          def register_import(app)
-            app.get '/api/tbi/patterns' do
-              content_type :json
-              tier = params[:tier]
-              patterns = Legion::API::Routes::TbiPatterns.fetch_patterns(tier: tier)
-              json_response({ patterns: patterns, count: patterns.size })
-            rescue StandardError => e
-              Legion::Logging.error "API GET /api/tbi/patterns: #{e.class} — #{e.message}" if defined?(Legion::Logging)
-              json_error('fetch_error', e.message, status_code: 500)
-            end
-
-            app.get '/api/tbi/patterns/:id' do
-              content_type :json
-              pattern = Legion::API::Routes::TbiPatterns.find_pattern(params[:id])
-              if pattern.nil?
-                content_type :json
-                halt 404, Legion::JSON.dump({ error: { code: 'not_found',
-                                                        message: "Pattern #{params[:id]} not found" },
-                                              meta: response_meta })
-              end
-              json_response(pattern)
-            rescue StandardError => e
-              Legion::Logging.error "API GET /api/tbi/patterns/#{params[:id]}: #{e.class} — #{e.message}" if defined?(Legion::Logging)
-              json_error('fetch_error', e.message, status_code: 500)
-            end
-          end
-
-          def register_quality(app)
-            # Quality score is computed server-side only — caller-supplied metrics are ignored.
-            app.get '/api/tbi/patterns/:id/quality' do
-              content_type :json
-              pattern = Legion::API::Routes::TbiPatterns.find_pattern(params[:id])
-              if pattern.nil?
-                content_type :json
-                halt 404, Legion::JSON.dump({ error: { code: 'not_found',
-                                                        message: "Pattern #{params[:id]} not found" },
-                                              meta: response_meta })
-              end
-              score = Legion::API::Routes::TbiPatterns.compute_quality_score(pattern)
-              json_response({ id: params[:id], quality_score: score,
-                              note: 'server-computed from stored data only; caller-supplied metrics are ignored' })
-            rescue StandardError => e
-              Legion::Logging.error "API GET /api/tbi/patterns/#{params[:id]}/quality: #{e.class} — #{e.message}" if defined?(Legion::Logging)
-              json_error('quality_error', e.message, status_code: 500)
-            end
-          end
-
-          # Cross-instance pattern discovery.
-          # Implements the local-node side of federation. Peer instances are configured
-          # via settings[:tbi][:marketplace][:peers] (Array of URLs).
-          # TODO Phase 6: implement active peer pull once peer authentication is designed.
-          def register_discovery(app)
-            app.get '/api/tbi/patterns/discover' do
-              content_type :json
-              peers = []
-              begin
-                peers_cfg = Legion::Settings[:tbi]&.dig(:marketplace, :peers)
-                peers = Array(peers_cfg).map(&:to_s) if peers_cfg
-              rescue StandardError
-                peers = []
-              end
-
-              local_name = begin
-                             Legion::Settings[:client][:name]
-                           rescue StandardError
-                             'unknown'
-                           end
-
-              json_response({
-                              local_instance:    local_name,
-                              peers:             peers,
-                              federation_status: peers.empty? ? 'unconfigured' : 'configured',
-                              note:              'Configure tbi.marketplace.peers in settings to enable cross-instance discovery. ' \
-                                                 'Active peer pull is a Phase 6 feature (not yet implemented).'
-                            })
-            rescue StandardError => e
-              Legion::Logging.error "API GET /api/tbi/patterns/discover: #{e.class} — #{e.message}" if defined?(Legion::Logging)
-              json_error('discovery_error', e.message, status_code: 500)
-            end
-          end
-
-          private :register_export, :register_import, :register_quality, :register_discovery,
-                  :persist_to_memory, :persist_pattern, :fetch_patterns, :find_pattern,
-                  :validate_payload_shape!, :compute_quality_score, :anonymize, :memory_patterns
-        end
+        MAX_DESCRIPTION_BYTES  = 1024
+        MAX_PAYLOAD_SHAPE_BYTES = 65_536
+        VALID_TIERS = %w[tier1 tier2 tier3 tier4 tier5].freeze
 
         def self.registered(app)
-          # Authentication guard on write endpoints.
-          # Uses the same authenticate! helper available to other protected routes.
-          # The global Legion::Rbac::Middleware also applies; this guard provides an
-          # explicit layer in case RBAC middleware is not loaded.
-          app.before '/api/tbi/patterns/export' do
-            authenticate! if respond_to?(:authenticate!, true)
-          end
-
           register_export(app)
-          register_import(app)
-          register_quality(app)
-          register_discovery(app)
+          register_fetch(app)
+          register_all(app)
+          register_score(app)
+          register_discover(app)
         end
+
+        # POST /api/tbi/patterns/export — anonymously export a learned behavioral pattern
+        def self.register_export(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+          app.post '/api/tbi/patterns/export' do
+            require_data!
+            body = parse_request_body
+
+            unless body[:pattern_type]
+              Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: pattern_type is required' if defined?(Legion::Logging)
+              halt 422, json_error('missing_field', 'pattern_type is required', status_code: 422)
+            end
+            unless body[:description]
+              Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: description is required' if defined?(Legion::Logging)
+              halt 422, json_error('missing_field', 'description is required', status_code: 422)
+            end
+            unless body[:pattern_data]
+              Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: pattern_data is required' if defined?(Legion::Logging)
+              halt 422, json_error('missing_field', 'pattern_data is required', status_code: 422)
+            end
+            unless body[:tier]
+              Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: tier is required' if defined?(Legion::Logging)
+              halt 422, json_error('missing_field', 'tier is required', status_code: 422)
+            end
+
+            if body[:description].to_s.bytesize > MAX_DESCRIPTION_BYTES
+              halt 422, json_error('field_too_large', "description exceeds #{MAX_DESCRIPTION_BYTES} bytes", status_code: 422)
+            end
+
+            pattern_data_str = Routes::TbiPatterns.serialize_pattern_data(body[:pattern_data])
+            if pattern_data_str.bytesize > MAX_PAYLOAD_SHAPE_BYTES
+              halt 422, json_error('field_too_large', "pattern_data exceeds #{MAX_PAYLOAD_SHAPE_BYTES} bytes", status_code: 422)
+            end
+
+            unless VALID_TIERS.include?(body[:tier].to_s)
+              halt 422, json_error('invalid_field', "tier must be one of: #{VALID_TIERS.join(', ')}", status_code: 422)
+            end
+
+            # Anonymize: strip any identifying keys before persisting
+            anonymous_data = Routes::TbiPatterns.anonymize(body)
+
+            invocation_count = Routes::TbiPatterns.parse_integer(body[:invocation_count], 0)
+            success_rate     = Routes::TbiPatterns.parse_float(body[:success_rate], 0.0)
+            quality_score    = Routes::TbiPatterns.compute_quality(
+              invocation_count: invocation_count,
+              success_rate:     success_rate,
+              tier:             body[:tier].to_s
+            )
+
+            record = Legion::Data::Model::TbiPattern.create(
+              pattern_type:     body[:pattern_type].to_s,
+              description:      body[:description].to_s,
+              tier:             body[:tier].to_s,
+              pattern_data:     pattern_data_str,
+              quality_score:    quality_score,
+              invocation_count: invocation_count,
+              success_rate:     success_rate,
+              source_hash:      anonymous_data[:source_hash]
+            )
+            Legion::Logging.info "API: exported TBI pattern id=#{record.id} tier=#{record.tier}" if defined?(Legion::Logging)
+            json_response(record.values, status_code: 201)
+          rescue StandardError => e
+            Legion::Logging.error "API POST /api/tbi/patterns/export: #{e.class} — #{e.message}" if defined?(Legion::Logging)
+            json_error('export_error', e.message, status_code: 500)
+          end
+        end
+
+        # GET /api/tbi/patterns/:id — fetch a single pattern by integer ID
+        def self.register_fetch(app)
+          app.get '/api/tbi/patterns/:id' do
+            require_data!
+            id_val = params[:id].to_i
+            if id_val <= 0
+              halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422)
+            end
+
+            record = Legion::Data::Model::TbiPattern.first(id: id_val)
+            unless record
+              halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404)
+            end
+
+            json_response(record.values)
+          rescue StandardError => e
+            Legion::Logging.error "API GET /api/tbi/patterns/#{params[:id]}: #{e.class} — #{e.message}" if defined?(Legion::Logging)
+            json_error('fetch_error', e.message, status_code: 500)
+          end
+        end
+
+        # GET /api/tbi/patterns — list patterns with optional tier/type filter
+        def self.register_all(app)
+          app.get '/api/tbi/patterns' do
+            require_data!
+            dataset = Legion::Data::Model::TbiPattern.order(Sequel.desc(:quality_score))
+            dataset = dataset.where(tier: params[:tier])             if params[:tier]
+            dataset = dataset.where(pattern_type: params[:type])    if params[:type]
+            json_collection(dataset)
+          rescue StandardError => e
+            Legion::Logging.error "API GET /api/tbi/patterns: #{e.class} — #{e.message}" if defined?(Legion::Logging)
+            json_error('list_error', e.message, status_code: 500)
+          end
+        end
+
+        # PATCH /api/tbi/patterns/:id/score — update quality score with new usage metadata
+        def self.register_score(app) # rubocop:disable Metrics/AbcSize
+          app.patch '/api/tbi/patterns/:id/score' do
+            require_data!
+            id_val = params[:id].to_i
+            if id_val <= 0
+              halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422)
+            end
+
+            record = Legion::Data::Model::TbiPattern.first(id: id_val)
+            unless record
+              halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404)
+            end
+
+            body = parse_request_body
+            invocation_count = Routes::TbiPatterns.parse_integer(body[:invocation_count], record.invocation_count)
+            success_rate     = Routes::TbiPatterns.parse_float(body[:success_rate],     record.success_rate)
+            quality_score    = Routes::TbiPatterns.compute_quality(
+              invocation_count: invocation_count,
+              success_rate:     success_rate,
+              tier:             record.tier
+            )
+
+            record.update(
+              invocation_count: invocation_count,
+              success_rate:     success_rate,
+              quality_score:    quality_score
+            )
+            Legion::Logging.info "API: rescored TBI pattern id=#{record.id} quality=#{quality_score}" if defined?(Legion::Logging)
+            json_response(record.values)
+          rescue StandardError => e
+            Legion::Logging.error "API PATCH /api/tbi/patterns/#{params[:id]}/score: #{e.class} — #{e.message}" if defined?(Legion::Logging)
+            json_error('score_error', e.message, status_code: 500)
+          end
+        end
+
+        # GET /api/tbi/patterns/discover — cross-instance pattern discovery (P3/TBI Phase 6)
+        # TODO: implement cross-instance discovery per docs/work/completed/knowledge-pattern-marketplace.md
+        def self.register_discover(app)
+          app.get '/api/tbi/patterns/discover' do
+            halt 501, json_error('not_implemented', 'cross-instance pattern discovery is not yet available', status_code: 501)
+          end
+        end
+
+        # --- helpers ---
+
+        # Anonymize pattern export: remove instance-identifying fields, compute a
+        # one-way hash for deduplication without fingerprinting.
+        def self.anonymize(body)
+          identifying_keys = %i[node_id instance_id hostname ip_address worker_id]
+          sanitized = body.reject { |k, _v| identifying_keys.include?(k.to_sym) }
+          # Remove both string and symbol variants
+          sanitized = sanitized.reject { |k, _v| identifying_keys.map(&:to_s).include?(k.to_s) }
+
+          salt_source = "#{body[:pattern_type]}:#{body[:tier]}:#{body[:description]}"
+          source_hash = Digest::SHA256.hexdigest(salt_source)[0, 16]
+
+          sanitized.merge(source_hash: source_hash)
+        end
+
+        def self.serialize_pattern_data(pattern_data)
+          return pattern_data.to_s if pattern_data.is_a?(String)
+
+          Legion::JSON.dump(pattern_data)
+        rescue StandardError
+          pattern_data.to_s
+        end
+
+        def self.compute_quality(invocation_count:, success_rate:, tier:)
+          # tier weight: higher tiers (closer to tier5) earn a modest bonus
+          tier_num    = tier.to_s.gsub(/[^0-9]/, '').to_i.clamp(1, 5)
+          tier_weight = tier_num / 5.0
+
+          count_score   = [invocation_count.to_f / 100.0, 1.0].min
+          success_score = success_rate.to_f.clamp(0.0, 1.0)
+
+          ((count_score * 0.4) + (success_score * 0.5) + (tier_weight * 0.1)).round(4)
+        end
+
+        # Parse an integer from user input; return default if blank, zero on invalid string.
+        def self.parse_integer(value, default)
+          return default if value.nil?
+          return default if value.to_s.strip.empty?
+          raise ArgumentError, 'not numeric' unless value.to_s =~ /\A-?\d+\z/
+
+          value.to_i
+        rescue ArgumentError
+          0
+        end
+
+        # Parse a float from user input; return default if blank, raise on non-numeric.
+        def self.parse_float(value, default)
+          return default if value.nil?
+          return default if value.to_s.strip.empty?
+          raise ArgumentError, 'not numeric' unless value.to_s =~ /\A-?\d+(\.\d+)?\z/
+
+          value.to_f
+        rescue ArgumentError
+          0.0
+        end
+
+        private_class_method :register_export, :register_fetch, :register_all,
+                             :register_score, :register_discover
       end
     end
   end
