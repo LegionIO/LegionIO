@@ -20,58 +20,61 @@ module Legion
       method_option :scopes,     type: :string, desc: 'OAuth scopes to request'
       def teams
         out = formatter
-        require 'legion/settings'
-        Legion::Settings.load unless Legion::Settings.instance_variable_get(:@loader)
+        Connection.ensure_settings
 
-        auth_settings = Legion::Settings.dig(:microsoft_teams, :auth) || {}
-        delegated = auth_settings[:delegated] || {}
-
-        tenant_id = options[:tenant_id] || auth_settings[:tenant_id]
-        client_id = options[:client_id] || auth_settings[:client_id]
-        scopes    = options[:scopes] || delegated[:scopes] ||
-                    'OnlineMeetings.Read OnlineMeetingTranscript.Read.All offline_access'
-
-        unless tenant_id && client_id
-          out.error('Missing tenant_id or client_id. Set in settings or pass --tenant-id and --client-id')
-          raise SystemExit, 1
+        port = begin
+          Legion::Settings.dig(:api, :port) || 4567
+        rescue StandardError
+          4567
         end
-
-        require 'legion/extensions/microsoft_teams/helpers/browser_auth'
-        browser_auth = Legion::Extensions::MicrosoftTeams::Helpers::BrowserAuth.new(
-          tenant_id: tenant_id,
-          client_id: client_id,
-          scopes:    scopes
-        )
 
         out.header('Microsoft Teams Authentication')
-        result = browser_auth.authenticate
 
-        if result[:error]
-          out.error("Authentication failed: #{result[:error]} - #{result[:description]}")
+        require 'net/http'
+        require 'legion/json'
+
+        # Ask the daemon for the authorize URL
+        uri = ::URI.parse("http://127.0.0.1:#{port}/api/auth/teams/authorize")
+        params = {}
+        params[:scopes] = options[:scopes] if options[:scopes]
+        response = ::Net::HTTP.post(uri, Legion::JSON.dump(params), 'Content-Type' => 'application/json')
+        parsed = Legion::JSON.load(response.body)
+
+        unless response.code.to_i == 200 && parsed.dig(:data, :authorize_url)
+          error_msg = parsed.dig(:error, :message) || "HTTP #{response.code}"
+          out.error("Daemon returned: #{error_msg}")
           raise SystemExit, 1
         end
 
-        body = result[:result]
-        out.success('Authentication successful!')
+        url = parsed[:data][:authorize_url]
+        out.info('Opening browser for Microsoft login...')
+        system('open', url) || out.warn("Open this URL manually:\n  #{url}")
+        out.info('Waiting for callback on daemon...')
 
-        require 'legion/extensions/microsoft_teams/helpers/token_cache'
-        cache = Legion::Extensions::MicrosoftTeams::Helpers::TokenCache.new
-        cache.store_delegated_token(
-          access_token:  body['access_token'],
-          refresh_token: body['refresh_token'],
-          expires_in:    body['expires_in'] || 3600,
-          scopes:        scopes
-        )
+        # Poll daemon for auth result
+        poll_uri = ::URI.parse("http://127.0.0.1:#{port}/api/auth/teams/status?state=#{parsed.dig(:data, :state)}")
+        30.times do
+          sleep 2
+          poll_response = ::Net::HTTP.get_response(poll_uri)
+          poll_data = Legion::JSON.load(poll_response.body)
 
-        if cache.save_to_vault
-          out.success('Token saved to Vault')
-        else
-          out.warn('Could not save token to Vault (Vault may not be connected)')
+          if poll_data.dig(:data, :authenticated)
+            out.success('Authentication successful! Token stored by daemon.')
+            return
+          end
+
+          next unless poll_data.dig(:data, :error)
+
+          out.error("Authentication failed: #{poll_data[:data][:error]}")
+          raise SystemExit, 1
         end
 
-        return unless options[:json]
-
-        out.json({ authenticated: true, scopes: scopes, expires_in: body['expires_in'] })
+        out.error('Timed out waiting for authentication (60s)')
+        raise SystemExit, 1
+      rescue Errno::ECONNREFUSED
+        out = formatter
+        out.error('Daemon not running. Start it first: legionio start')
+        raise SystemExit, 1
       end
 
       desc 'kerberos', 'Authenticate using Kerberos TGT from your workstation'

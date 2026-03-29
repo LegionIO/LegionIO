@@ -26,6 +26,7 @@ require_relative 'api/gaia'
 require_relative 'api/openapi'
 require_relative 'api/rbac'
 require_relative 'api/auth'
+require_relative 'api/auth_teams'
 require_relative 'api/auth_worker'
 require_relative 'api/auth_human'
 require_relative 'api/auth_saml'
@@ -154,6 +155,7 @@ module Legion
     register Routes::Gaia unless router.library_names.include?('gaia')
     register Routes::Rbac unless router.library_names.include?('rbac')
     register Routes::Auth
+    register Routes::AuthTeams
     register Routes::AuthWorker
     register Routes::AuthHuman
     register Routes::AuthSaml
