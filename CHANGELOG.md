@@ -4,6 +4,9 @@
 
 ## [1.6.29] - 2026-03-28
 
+### Removed
+- `ClassMethods` module (`expose_as_mcp_tool`, `mcp_tool_prefix`) from `Legion::Extensions::Helpers::Lex` — deprecated since the definition DSL was introduced; zero extensions use them
+
 ### Fixed
 - Fallback route guards in `api.rb` now check `router.library_names.include?` instead of `defined?` — prevents 404s when gem modules are loaded but routes are not yet mounted (fixes #53)
 
