@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.30] - 2026-03-28
+
+### Fixed
+- `Legion::Extensions::Hooks::Base` now defines the `mount(path)` DSL method and `mount_path` reader — fixes `NoMethodError` boot crash in any extension hook that calls `mount` (e.g. `lex-microsoft_teams` `Hooks::Auth`)
+
 ## [1.6.29] - 2026-03-28
 
 ### Removed
