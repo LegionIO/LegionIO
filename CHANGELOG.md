@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.6.33] - 2026-03-28
+
+### Added
+- `knowledge` registered as top-level CLI subcommand (previously only accessible via `legionio ai knowledge`). Fixes knowledge capture hooks that call `legionio knowledge capture commit/transcript`.
+
+### Fixed
+- Claude Code hook format in `setup claude-code`: PostToolUse and Stop hooks now emit the new `hooks` array wrapper format with `type: command` entries. Detection supports both old and new formats via `hook_commands` helper.
+
 ## [1.6.32] - 2026-03-28
 
 ### Added
