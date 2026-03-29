@@ -12,9 +12,10 @@ require 'legion/service'
 require 'legion/extensions'
 
 module Legion
-  autoload :Region, 'legion/region'
-  autoload :Lock,   'legion/lock'
-  autoload :Leader, 'legion/leader'
+  autoload :Region,  'legion/region'
+  autoload :Lock,    'legion/lock'
+  autoload :Leader,  'legion/leader'
+  autoload :Prompts, 'legion/prompts'
 
   attr_reader :service
 
