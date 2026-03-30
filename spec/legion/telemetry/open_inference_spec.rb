@@ -103,6 +103,84 @@ RSpec.describe Legion::Telemetry::OpenInference do
     end
   end
 
+  describe '.retriever_span' do
+    it 'yields when telemetry is disabled' do
+      result = described_class.retriever_span(name: 'apollo-local') { 42 }
+      expect(result).to eq(42)
+    end
+
+    it 'sets RETRIEVER span kind with name and optional attributes' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      attrs = nil
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **kwargs, &block|
+        attrs = kwargs[:attributes]
+        block.call(nil)
+      end
+
+      described_class.retriever_span(name: 'apollo-local', query: 'what is legion?', top_k: 5) { :ok }
+      expect(attrs['openinference.span.kind']).to eq('RETRIEVER')
+      expect(attrs['retriever.name']).to eq('apollo-local')
+      expect(attrs['retriever.top_k']).to eq(5)
+    end
+  end
+
+  describe '.reranker_span' do
+    it 'yields when telemetry is disabled' do
+      result = described_class.reranker_span(model: 'cross-encoder') { 42 }
+      expect(result).to eq(42)
+    end
+
+    it 'sets RERANKER span kind with model and optional attributes' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      attrs = nil
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **kwargs, &block|
+        attrs = kwargs[:attributes]
+        block.call(nil)
+      end
+
+      described_class.reranker_span(model: 'cross-encoder', query: 'test query', top_k: 3) { :ok }
+      expect(attrs['openinference.span.kind']).to eq('RERANKER')
+      expect(attrs['reranker.model_name']).to eq('cross-encoder')
+      expect(attrs['reranker.top_k']).to eq(3)
+    end
+  end
+
+  describe '.guardrail_span' do
+    it 'yields when telemetry is disabled' do
+      result = described_class.guardrail_span(name: 'pii-filter') { 42 }
+      expect(result).to eq(42)
+    end
+
+    it 'sets GUARDRAIL span kind with name' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      attrs = nil
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **kwargs, &block|
+        attrs = kwargs[:attributes]
+        block.call(nil)
+      end
+
+      described_class.guardrail_span(name: 'pii-filter', input: 'some text') { { passed: true, score: 0.95 } }
+      expect(attrs['openinference.span.kind']).to eq('GUARDRAIL')
+      expect(attrs['guardrail.name']).to eq('pii-filter')
+    end
+
+    it 'records score of 0 via nil check' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      recorded_score = :not_set
+      fake_span = double('span')
+      allow(fake_span).to receive(:respond_to?).with(:set_attribute).and_return(true)
+      allow(fake_span).to receive(:set_attribute) do |key, val|
+        recorded_score = val if key == 'guardrail.score'
+      end
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **_kwargs, &block|
+        block.call(fake_span)
+      end
+
+      described_class.guardrail_span(name: 'pii-filter') { { passed: false, score: 0 } }
+      expect(recorded_score).to eq(0)
+    end
+  end
+
   describe '.truncate_value' do
     it 'truncates strings longer than limit' do
       long = 'a' * 5000
