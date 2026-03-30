@@ -15,10 +15,11 @@ module Legion
             # @param requested_by [String] identity requesting the promotion
             # @param context [Hash] optional metadata about why promotion is requested
             # @return [Hash]
-            def request_promotion(worker_id:, from_tier:, to_tier:, requested_by: 'system', context: {}, **)
-              unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
-                return { success: false, reason: :model_unavailable }
-              end
+            def request_promotion(worker_id:, from_tier:, to_tier:, **opts)
+              requested_by = opts.fetch(:requested_by, 'system')
+              context = opts.fetch(:context, {})
+
+              return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               existing = Legion::Extensions::Agentic::Consent::Models::ConsentMap
                          .pending_for_worker(worker_id).first
@@ -39,14 +40,16 @@ module Legion
                 updated_at:   Time.now.utc
               )
 
-              Legion::Events.emit('consent.promotion_requested', {
-                                    worker_id:      worker_id,
-                                    from_tier:      from_tier,
-                                    to_tier:        to_tier,
-                                    requested_by:   requested_by,
-                                    consent_map_id: record.id,
-                                    at:             Time.now.utc
-                                  }) if defined?(Legion::Events)
+              if defined?(Legion::Events)
+                Legion::Events.emit('consent.promotion_requested', {
+                                      worker_id:      worker_id,
+                                      from_tier:      from_tier,
+                                      to_tier:        to_tier,
+                                      requested_by:   requested_by,
+                                      consent_map_id: record.id,
+                                      at:             Time.now.utc
+                                    })
+              end
 
               Legion::Logging.info "[lex-consent] promotion requested worker=#{worker_id} #{from_tier}->#{to_tier} id=#{record.id}" if defined?(Legion::Logging)
 
@@ -63,9 +66,7 @@ module Legion
             # @param notes [String] optional approval notes
             # @return [Hash]
             def approve_promotion(consent_map_id:, approver:, notes: nil, **)
-              unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
-                return { success: false, reason: :model_unavailable }
-              end
+              return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               record = Legion::Extensions::Agentic::Consent::Models::ConsentMap[consent_map_id.to_i]
               return { success: false, reason: :not_found } unless record
@@ -75,14 +76,16 @@ module Legion
 
               apply_promotion(record)
 
-              Legion::Events.emit('consent.promotion_approved', {
-                                    consent_map_id: record.id,
-                                    worker_id:      record.worker_id,
-                                    from_tier:      record.from_tier,
-                                    to_tier:        record.to_tier,
-                                    approver:       approver,
-                                    at:             Time.now.utc
-                                  }) if defined?(Legion::Events)
+              if defined?(Legion::Events)
+                Legion::Events.emit('consent.promotion_approved', {
+                                      consent_map_id: record.id,
+                                      worker_id:      record.worker_id,
+                                      from_tier:      record.from_tier,
+                                      to_tier:        record.to_tier,
+                                      approver:       approver,
+                                      at:             Time.now.utc
+                                    })
+              end
 
               Legion::Logging.info "[lex-consent] approved consent_map_id=#{record.id} worker=#{record.worker_id} by=#{approver}" if defined?(Legion::Logging)
 
@@ -99,9 +102,7 @@ module Legion
             # @param reason [String] rejection reason (required)
             # @return [Hash]
             def reject_promotion(consent_map_id:, approver:, reason:, **)
-              unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
-                return { success: false, reason: :model_unavailable }
-              end
+              return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               return { success: false, reason: :missing_reason } if reason.nil? || reason.to_s.strip.empty?
 
@@ -111,15 +112,17 @@ module Legion
 
               record.reject!(approver: approver, reason: reason)
 
-              Legion::Events.emit('consent.promotion_rejected', {
-                                    consent_map_id: record.id,
-                                    worker_id:      record.worker_id,
-                                    from_tier:      record.from_tier,
-                                    to_tier:        record.to_tier,
-                                    approver:       approver,
-                                    reason:         reason,
-                                    at:             Time.now.utc
-                                  }) if defined?(Legion::Events)
+              if defined?(Legion::Events)
+                Legion::Events.emit('consent.promotion_rejected', {
+                                      consent_map_id: record.id,
+                                      worker_id:      record.worker_id,
+                                      from_tier:      record.from_tier,
+                                      to_tier:        record.to_tier,
+                                      approver:       approver,
+                                      reason:         reason,
+                                      at:             Time.now.utc
+                                    })
+              end
 
               Legion::Logging.info "[lex-consent] rejected consent_map_id=#{record.id} worker=#{record.worker_id} by=#{approver}" if defined?(Legion::Logging)
 
@@ -135,9 +138,7 @@ module Legion
             # @param ttl_hours [Integer] how many hours before a pending request expires (default 72)
             # @return [Hash]
             def expire_pending_approvals(ttl_hours: 72, **)
-              unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
-                return { success: false, reason: :model_unavailable }
-              end
+              return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               cutoff = Time.now.utc - (ttl_hours * 3600)
               expired_count = 0
@@ -149,13 +150,15 @@ module Legion
                   record.expire!
                   expired_count += 1
 
-                  Legion::Events.emit('consent.promotion_expired', {
-                                        consent_map_id: record.id,
-                                        worker_id:      record.worker_id,
-                                        from_tier:      record.from_tier,
-                                        to_tier:        record.to_tier,
-                                        at:             Time.now.utc
-                                      }) if defined?(Legion::Events)
+                  if defined?(Legion::Events)
+                    Legion::Events.emit('consent.promotion_expired', {
+                                          consent_map_id: record.id,
+                                          worker_id:      record.worker_id,
+                                          from_tier:      record.from_tier,
+                                          to_tier:        record.to_tier,
+                                          at:             Time.now.utc
+                                        })
+                  end
                 rescue StandardError => e
                   Legion::Logging.warn "[lex-consent] expire failed for id=#{record.id}: #{e.message}" if defined?(Legion::Logging)
                 end
@@ -173,9 +176,7 @@ module Legion
             # @param worker_id [String] optional filter by worker
             # @return [Hash]
             def list_pending(worker_id: nil, **)
-              unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
-                return { success: false, reason: :model_unavailable }
-              end
+              return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               ds = Legion::Extensions::Agentic::Consent::Models::ConsentMap.pending
               ds = ds.where(worker_id: worker_id) if worker_id
