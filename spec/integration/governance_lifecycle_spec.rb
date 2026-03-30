@@ -15,7 +15,7 @@ unless defined?(Legion::Data::Model::DigitalWorker)
   end
 end
 
-# Unconditionally define stub modules so SUT code that calls Legion::Logging,
+# Define stub modules when missing so SUT code that calls Legion::Logging,
 # Legion::Events, or Legion::Audit never raises NoMethodError regardless of
 # load order.
 unless defined?(Legion::Logging)
@@ -415,10 +415,13 @@ RSpec.describe 'Governance lifecycle integration' do
       end
 
       it 'emits a worker.ownership_transferred event through Legion::Events' do
-        Legion::Events.emit(
-          'worker.ownership_transferred',
-          worker_id:      worker.worker_id,
-          from_owner:     'alice@example.com',
+        # TODO: Replace with a call to the ownership-transfer production method once
+        # it exists (e.g. Legion::DigitalWorker::Lifecycle.transfer_ownership!).
+        # Until then this example is pending so it does not become tautological.
+        pending 'ownership-transfer workflow not yet implemented in production code'
+
+        Legion::DigitalWorker::Lifecycle.transfer_ownership!(
+          worker,
           to_owner:       'bob@example.com',
           transferred_by: 'alice@example.com'
         )
@@ -682,23 +685,27 @@ RSpec.describe 'Governance lifecycle integration' do
         call_order = []
 
         drain_mod = Module.new do
-          define_singleton_method(:drain_queue) do |worker_id:|, &_block|
+          define_singleton_method(:drain_queue) do |_worker_id:, &_block|
             call_order << :drain
           end
         end
         stub_const('Legion::Extensions::Queue::Drain', drain_mod)
 
-        # Wrap worker#update to record when the state update actually happens
-        allow(worker).to receive(:update).and_wrap_original do |orig, *args, **kwargs, &blk|
+        # TODO: Replace with a call to a production method (e.g.
+        # Lifecycle.retire_with_drain!) that internally calls
+        # Queue::Drain.drain_queue before worker.update, so this example
+        # catches regressions in SUT ordering rather than test-script ordering.
+        pending 'drain-then-retire production method not yet implemented'
+
+        # Stub worker#update to record when the state update actually happens.
+        # (Doubles have no original method to wrap, so we use a plain stub.)
+        allow(worker).to receive(:update) do |*_args, **_kwargs, &blk|
           call_order << :state_update
-          orig.call(*args, **kwargs, &blk)
+          blk ? blk.call : true
         end
 
-        # Simulate a drain-then-retire pattern as production code would do
-        Legion::Extensions::Queue::Drain.drain_queue(worker_id: worker.worker_id)
-        Legion::DigitalWorker::Lifecycle.transition!(
+        Legion::DigitalWorker::Lifecycle.retire_with_drain!(
           worker,
-          to_state:           'retired',
           by:                 'ops@example.com',
           reason:             'graceful shutdown after drain',
           authority_verified: true
@@ -788,23 +795,26 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
-  # 4. Azure AI Foundry E2E
-  #    Legion worker -> Grid gateway -> Azure AI Foundry -> response
+  # 4. Lifecycle transitions for Foundry-bound workers
+  #    Verifies that workers intended for Azure AI Foundry dispatch follow the
+  #    correct lifecycle path (bootstrap -> active) and that the governance
+  #    hooks (events, audit) fire correctly.
   #
-  #    These tests require a live staging environment with:
-  #      - A running Legion daemon with lex-azure-ai loaded
-  #      - AZURE_FOUNDRY_ENDPOINT, AZURE_FOUNDRY_API_KEY env vars set
-  #      - An active digital worker registered in staging
+  #    NOTE: These examples exercise Lifecycle.transition! with doubles only —
+  #    they do NOT dispatch tasks through the Grid gateway or talk to Azure AI
+  #    Foundry. Full E2E gateway/Foundry tests belong in a separate staging
+  #    suite that requires live infrastructure (AZURE_FOUNDRY_ENDPOINT,
+  #    AZURE_FOUNDRY_API_KEY, a running Legion daemon, and lex-azure-ai).
   #
-  #    They are tagged :staging so they are skipped in normal CI.
+  #    Tagged :staging so they are skipped in normal CI.
   #    Run them with: bundle exec rspec --tag staging
   # ===========================================================================
-  describe 'Azure AI Foundry E2E', :staging do
-    # The SUT for these tests is the real Lifecycle + Grid gateway integration.
-    # We call Lifecycle.transition! to put a worker in active state and then
-    # verify that a task dispatched through the Grid gateway reaches Foundry
-    # and returns a response. All assertions go through the real system, not
-    # through mocks called directly in the test body.
+  describe 'Lifecycle transitions for Foundry-bound workers', :staging do
+    before(:all) do
+      required_env_vars = %w[AZURE_FOUNDRY_ENDPOINT AZURE_FOUNDRY_API_KEY]
+      missing = required_env_vars.select { |key| ENV[key].to_s.empty? }
+      skip("Azure AI Foundry staging specs require env vars: #{missing.join(', ')}") if missing.any?
+    end
 
     let(:worker) { build_worker(lifecycle_state: 'bootstrap') }
 
@@ -845,9 +855,9 @@ RSpec.describe 'Governance lifecycle integration' do
       expect do
         Legion::DigitalWorker::Lifecycle.transition!(
           retired_worker,
-          to_state:           'active',
-          by:                 'staging-ci',
-          reason:             'attempt to reactivate retired worker'
+          to_state: 'active',
+          by:       'staging-ci',
+          reason:   'attempt to reactivate retired worker'
         )
       end.to raise_error(Legion::DigitalWorker::Lifecycle::InvalidTransition)
     end
