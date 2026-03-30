@@ -231,7 +231,7 @@ module Legion
         return unless span.respond_to?(:set_attribute)
 
         span.set_attribute('guardrail.passed', result[:passed]) unless result[:passed].nil?
-        span.set_attribute('guardrail.score', result[:score]) if result[:score]
+        span.set_attribute('guardrail.score', result[:score]) unless result[:score].nil?
         span.set_attribute('output.value', truncate_value(result[:explanation].to_s)) if include_io? && result[:explanation]
       rescue StandardError => e
         Legion::Logging.debug "OpenInference#annotate_guardrail_result failed: #{e.message}" if defined?(Legion::Logging)
