@@ -27,17 +27,17 @@ RSpec.describe Legion::Workflow::Loader do
     let(:manifest) do
       instance_double(
         Legion::Workflow::Manifest,
-        valid?: true,
-        name: 'test-workflow',
-        requires: ['lex-codegen'],
+        valid?:        true,
+        name:          'test-workflow',
+        requires:      ['lex-codegen'],
         relationships: [
           {
-            name: 'step-one',
-            trigger: { extension: 'codegen', runner: 'from_gap', function: 'generate' },
-            action: { extension: 'eval', runner: 'code_review', function: 'review_generated' },
-            conditions: { all: [{ fact: 'success', operator: 'equal', value: true }] },
-            transformation: nil,
-            delay: 0,
+            name:             'step-one',
+            trigger:          { extension: 'codegen', runner: 'from_gap', function: 'generate' },
+            action:           { extension: 'eval', runner: 'code_review', function: 'review_generated' },
+            conditions:       { all: [{ fact: 'success', operator: 'equal', value: true }] },
+            transformation:   nil,
+            delay:            0,
             allow_new_chains: false
           }
         ]
@@ -148,9 +148,9 @@ RSpec.describe Legion::Workflow::Loader do
   describe '#list' do
     before do
       allow(Legion::Data::Model::Chain).to receive(:all).and_return([
-        double(values: { id: 1, name: 'wf-one' }),
-        double(values: { id: 2, name: 'wf-two' })
-      ])
+                                                                      double(values: { id: 1, name: 'wf-one' }),
+                                                                      double(values: { id: 2, name: 'wf-two' })
+                                                                    ])
       allow(Legion::Data::Model::Relationship).to receive(:where).and_return(double(count: 3))
     end
 

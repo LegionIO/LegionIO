@@ -20,16 +20,16 @@ module Legion
           return { success: false, error: :action_not_found, relationship: rel[:name] || idx } unless action_id
 
           id = Legion::Data::Model::Relationship.insert(
-            trigger_id: trigger_id,
-            action_id: action_id,
-            name: rel[:name],
-            chain_id: chain_id,
-            conditions: rel[:conditions] ? Legion::JSON.dump(rel[:conditions]) : nil,
-            transformation: rel[:transformation] ? Legion::JSON.dump(rel[:transformation]) : nil,
-            delay: rel.fetch(:delay, 0),
-            allow_new_chains: idx.zero? || rel[:allow_new_chains],
-            active: true,
-            status: 'active',
+            trigger_id:        trigger_id,
+            action_id:         action_id,
+            name:              rel[:name],
+            chain_id:          chain_id,
+            conditions:        rel[:conditions] ? Legion::JSON.dump(rel[:conditions]) : nil,
+            transformation:    rel[:transformation] ? Legion::JSON.dump(rel[:transformation]) : nil,
+            delay:             rel.fetch(:delay, 0),
+            allow_new_chains:  idx.zero? || rel[:allow_new_chains],
+            active:            true,
+            status:            'active',
             relationship_type: 'chain'
           )
           ids << id
@@ -91,13 +91,13 @@ module Legion
 
         runner = Legion::Data::Model::Runner.where(
           extension_id: ext.values[:id],
-          name: ref[:runner].to_s
+          name:         ref[:runner].to_s
         ).first
         return nil unless runner
 
         func = Legion::Data::Model::Function.where(
           runner_id: runner.values[:id],
-          name: ref[:function].to_s
+          name:      ref[:function].to_s
         ).first
 
         func&.values&.[](:id)
@@ -109,12 +109,12 @@ module Legion
         action = v[:action_id] ? Legion::Data::Model::Function[v[:action_id]] : nil
 
         {
-          id: v[:id],
-          name: v[:name],
-          trigger: trigger&.values&.[](:name),
-          action: action&.values&.[](:name),
+          id:         v[:id],
+          name:       v[:name],
+          trigger:    trigger&.values&.[](:name),
+          action:     action&.values&.[](:name),
           conditions: !v[:conditions].nil?,
-          active: v[:active]
+          active:     v[:active]
         }
       end
     end

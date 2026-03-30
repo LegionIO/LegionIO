@@ -8,7 +8,7 @@ module Legion
       attr_reader :name, :version, :description, :requires, :relationships, :settings
 
       def initialize(path:)
-        raw = YAML.safe_load(File.read(path), symbolize_names: true)
+        raw = YAML.safe_load_file(path, symbolize_names: true)
         @name = raw[:name]
         @version = raw[:version]
         @description = raw[:description]
@@ -44,12 +44,12 @@ module Legion
       def parse_relationships(rels)
         rels.map do |rel|
           {
-            name: rel[:name],
-            trigger: rel[:trigger],
-            action: rel[:action],
-            conditions: rel[:conditions],
-            transformation: rel[:transformation],
-            delay: rel.fetch(:delay, 0),
+            name:             rel[:name],
+            trigger:          rel[:trigger],
+            action:           rel[:action],
+            conditions:       rel[:conditions],
+            transformation:   rel[:transformation],
+            delay:            rel.fetch(:delay, 0),
             allow_new_chains: rel.fetch(:allow_new_chains, false)
           }
         end

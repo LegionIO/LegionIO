@@ -106,17 +106,17 @@ module Legion
           def build_entry(resource:, expected:, actual:, drift_type:, severity:, reconciled_by:)
             require 'securerandom'
             {
-              drift_id:      SecureRandom.uuid,
-              resource:      resource.to_s,
-              expected:      safe_serialize(expected),
-              actual:        safe_serialize(actual),
-              drift_type:    drift_type.to_s,
-              severity:      SEVERITY_LEVELS.include?(severity.to_s) ? severity.to_s : 'medium',
-              status:        'open',
-              detected_by:   reconciled_by.to_s,
-              detected_at:   Time.now.utc,
-              resolved_by:   nil,
-              resolved_at:   nil
+              drift_id:    SecureRandom.uuid,
+              resource:    resource.to_s,
+              expected:    safe_serialize(expected),
+              actual:      safe_serialize(actual),
+              drift_type:  drift_type.to_s,
+              severity:    SEVERITY_LEVELS.include?(severity.to_s) ? severity.to_s : 'medium',
+              status:      'open',
+              detected_by: reconciled_by.to_s,
+              detected_at: Time.now.utc,
+              resolved_by: nil,
+              resolved_at: nil
             }
           end
 

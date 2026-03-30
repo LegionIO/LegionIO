@@ -6,15 +6,15 @@ require 'legion/workflow/manifest'
 RSpec.describe Legion::Workflow::Manifest do
   let(:valid_yaml) do
     {
-      name: 'test-workflow',
-      version: '0.1.0',
-      description: 'A test workflow',
-      requires: ['lex-codegen'],
+      name:          'test-workflow',
+      version:       '0.1.0',
+      description:   'A test workflow',
+      requires:      ['lex-codegen'],
       relationships: [
         {
-          name: 'step-one',
-          trigger: { extension: 'codegen', runner: 'from_gap', function: 'generate' },
-          action: { extension: 'eval', runner: 'code_review', function: 'review_generated' },
+          name:       'step-one',
+          trigger:    { extension: 'codegen', runner: 'from_gap', function: 'generate' },
+          action:     { extension: 'eval', runner: 'code_review', function: 'review_generated' },
           conditions: { all: [{ fact: 'success', operator: 'equal', value: true }] }
         }
       ]
@@ -25,7 +25,7 @@ RSpec.describe Legion::Workflow::Manifest do
     require 'tempfile'
     require 'json'
     f = Tempfile.new(['workflow', '.yml'])
-    f.write(YAML.dump(::JSON.parse(::JSON.generate(valid_yaml))))
+    f.write(YAML.dump(JSON.parse(JSON.generate(valid_yaml))))
     f.rewind
     f
   end
@@ -49,7 +49,9 @@ RSpec.describe Legion::Workflow::Manifest do
     end
 
     context 'with missing name' do
-      let(:valid_yaml) { { relationships: [{ trigger: { extension: 'a', runner: 'b', function: 'c' }, action: { extension: 'd', runner: 'e', function: 'f' } }] } }
+      let(:valid_yaml) do
+        { relationships: [{ trigger: { extension: 'a', runner: 'b', function: 'c' }, action: { extension: 'd', runner: 'e', function: 'f' } }] }
+      end
 
       it 'returns false' do
         manifest = described_class.new(path: tmpfile.path)

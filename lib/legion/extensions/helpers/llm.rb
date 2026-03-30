@@ -1,17 +1,20 @@
 # frozen_string_literal: true
 
+require 'legion/extensions/helpers/base'
+
+begin
+  require 'legion/llm/helper'
+rescue LoadError
+  # legion-llm not available; LLM helper methods will be absent.
+  # Extensions declaring llm_required? are skipped when the gem is missing.
+end
+
 module Legion
   module Extensions
     module Helpers
       module LLM
-        # Quick embed from any extension runner, forwarding all keyword arguments.
-        # Supports provider:, dimensions:, and any future parameters.
-        # @param text [String, Array<String>] text to embed
-        # @param kwargs [Hash] forwarded to Legion::LLM.embed (model:, provider:, dimensions:, etc.)
-        # @return [Hash] embedding result with :vector, :dimensions, :model, :provider
-        def llm_embed(text, **)
-          Legion::LLM.embed(text, **)
-        end
+        include Legion::Extensions::Helpers::Base
+        include Legion::LLM::Helper if defined?(Legion::LLM::Helper)
       end
     end
   end

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.6.35] - 2026-03-29
+
+### Added
+- `Legion::Workflow::Manifest` — YAML workflow manifest parser with validation
+- `Legion::Workflow::Loader` — installs/uninstalls workflow chains via lex-lex registry
+- `legion workflow` CLI — install, list, uninstall, status subcommands
+- `workflows/autonomous-github-lifecycle.yml` — sample workflow manifest for codegen pipeline
+
 ## [1.6.34] - 2026-03-29
 
 ### Fixed
