@@ -94,7 +94,7 @@ module Legion
 
             def pending_request_exists?(worker_id)
               Legion::Extensions::Agentic::Consent::Models::ConsentMap
-                .pending_for_worker(worker_id).count.positive?
+                .pending_for_worker(worker_id).any?
             end
 
             def runner_available?

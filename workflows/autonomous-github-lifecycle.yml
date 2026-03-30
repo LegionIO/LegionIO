@@ -1,0 +1,67 @@
+name: autonomous-github-lifecycle
+version: 0.1.0
+description: >
+  Autonomous extension generation pipeline. Gap detection generates code,
+  eval reviews it, and on approval lex-swarm-github creates a branch, PR,
+  and optionally merges. On rejection, retries generation.
+
+requires:
+  - lex-codegen
+  - lex-eval
+  - lex-github
+  - lex-swarm-github
+
+relationships:
+  - name: generation-to-review
+    trigger:
+      extension: codegen
+      runner: from_gap
+      function: generate
+    action:
+      extension: eval
+      runner: code_review
+      function: review_generated
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+
+  - name: review-approve-to-lifecycle
+    trigger:
+      extension: eval
+      runner: code_review
+      function: review_generated
+    action:
+      extension: swarm_github
+      runner: extension_lifecycle
+      function: run_lifecycle
+    conditions:
+      all:
+        - fact: verdict
+          operator: equal
+          value: approve
+
+  - name: review-reject-to-retry
+    trigger:
+      extension: eval
+      runner: code_review
+      function: review_generated
+    action:
+      extension: codegen
+      runner: from_gap
+      function: generate
+    conditions:
+      all:
+        - fact: verdict
+          operator: equal
+          value: reject
+
+settings:
+  codegen:
+    self_generate:
+      enabled: true
+      github:
+        enabled: true
+        target_repo: LegionIO/lex-generated
+        auto_merge: false

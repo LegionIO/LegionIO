@@ -1,0 +1,88 @@
+name: mind-growth-build
+version: 0.1.0
+description: >
+  Extension build pipeline: scaffold → implement → test → validate → register.
+  Runs locally on the build node. Task relationships provide observability
+  and conditional retry on test failure.
+
+requires:
+  - lex-mind-growth
+  - lex-codegen
+  - lex-eval
+  - lex-exec
+
+relationships:
+  - name: scaffold-to-implement
+    trigger:
+      extension: mind_growth
+      runner: builder
+      function: scaffold_stage
+    action:
+      extension: mind_growth
+      runner: builder
+      function: implement_stage
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+
+  - name: implement-to-test
+    trigger:
+      extension: mind_growth
+      runner: builder
+      function: implement_stage
+    action:
+      extension: mind_growth
+      runner: builder
+      function: test_stage
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+
+  - name: test-pass-to-validate
+    trigger:
+      extension: mind_growth
+      runner: builder
+      function: test_stage
+    action:
+      extension: mind_growth
+      runner: builder
+      function: validate_stage
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+
+  - name: test-fail-to-implement-retry
+    trigger:
+      extension: mind_growth
+      runner: builder
+      function: test_stage
+    action:
+      extension: mind_growth
+      runner: builder
+      function: implement_stage
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: false
+
+  - name: validate-to-register
+    trigger:
+      extension: mind_growth
+      runner: builder
+      function: validate_stage
+    action:
+      extension: mind_growth
+      runner: builder
+      function: register_stage
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true

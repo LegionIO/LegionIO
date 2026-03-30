@@ -49,12 +49,12 @@ RSpec.describe Legion::Extensions::Helpers::Logger do
       end
     end
 
-    context 'when the object does not respond to :segments (legacy)' do
+    context 'when the object has Base included (derives segments from class name)' do
       subject { legacy_class.new }
 
-      it 'builds a logger with lex: from lex_filename' do
+      it 'builds a logger with lex_segments: derived from Base' do
         logger_double = instance_double(Legion::Logging::Logger)
-        expect(Legion::Logging::Logger).to receive(:new).with(hash_including(lex: 'microsoft_teams')).and_return(logger_double)
+        expect(Legion::Logging::Logger).to receive(:new).with(hash_including(:lex_segments)).and_return(logger_double)
         subject.log
       end
     end
