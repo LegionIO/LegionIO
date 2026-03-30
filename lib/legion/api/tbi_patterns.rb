@@ -6,16 +6,16 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module TbiPatterns
-        MAX_DESCRIPTION_BYTES  = 1024
+        MAX_DESCRIPTION_BYTES = 1024
         MAX_PAYLOAD_SHAPE_BYTES = 65_536
         VALID_TIERS = %w[tier1 tier2 tier3 tier4 tier5].freeze
 
         def self.registered(app)
           register_export(app)
-          register_fetch(app)
+          register_discover(app)
           register_all(app)
           register_score(app)
-          register_discover(app)
+          register_fetch(app)
         end
 
         # POST /api/tbi/patterns/export — anonymously export a learned behavioral pattern
@@ -24,19 +24,19 @@ module Legion
             require_data!
             body = parse_request_body
 
-            unless body[:pattern_type]
+            if body[:pattern_type].to_s.strip.empty?
               Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: pattern_type is required' if defined?(Legion::Logging)
               halt 422, json_error('missing_field', 'pattern_type is required', status_code: 422)
             end
-            unless body[:description]
+            if body[:description].to_s.strip.empty?
               Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: description is required' if defined?(Legion::Logging)
               halt 422, json_error('missing_field', 'description is required', status_code: 422)
             end
-            unless body[:pattern_data]
+            if body[:pattern_data].to_s.strip.empty?
               Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: pattern_data is required' if defined?(Legion::Logging)
               halt 422, json_error('missing_field', 'pattern_data is required', status_code: 422)
             end
-            unless body[:tier]
+            if body[:tier].to_s.strip.empty?
               Legion::Logging.warn 'API POST /api/tbi/patterns/export returned 422: tier is required' if defined?(Legion::Logging)
               halt 422, json_error('missing_field', 'tier is required', status_code: 422)
             end
@@ -88,14 +88,10 @@ module Legion
           app.get '/api/tbi/patterns/:id' do
             require_data!
             id_val = params[:id].to_i
-            if id_val <= 0
-              halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422)
-            end
+            halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422) if id_val <= 0
 
             record = Legion::Data::Model::TbiPattern.first(id: id_val)
-            unless record
-              halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404)
-            end
+            halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404) unless record
 
             json_response(record.values)
           rescue StandardError => e
@@ -109,8 +105,8 @@ module Legion
           app.get '/api/tbi/patterns' do
             require_data!
             dataset = Legion::Data::Model::TbiPattern.order(Sequel.desc(:quality_score))
-            dataset = dataset.where(tier: params[:tier])             if params[:tier]
-            dataset = dataset.where(pattern_type: params[:type])    if params[:type]
+            dataset = dataset.where(tier: params[:tier]) if params[:tier]
+            dataset = dataset.where(pattern_type: params[:type]) if params[:type]
             json_collection(dataset)
           rescue StandardError => e
             Legion::Logging.error "API GET /api/tbi/patterns: #{e.class} — #{e.message}" if defined?(Legion::Logging)
@@ -119,22 +115,18 @@ module Legion
         end
 
         # PATCH /api/tbi/patterns/:id/score — update quality score with new usage metadata
-        def self.register_score(app) # rubocop:disable Metrics/AbcSize
+        def self.register_score(app)
           app.patch '/api/tbi/patterns/:id/score' do
             require_data!
             id_val = params[:id].to_i
-            if id_val <= 0
-              halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422)
-            end
+            halt 422, json_error('invalid_id', 'id must be a positive integer', status_code: 422) if id_val <= 0
 
             record = Legion::Data::Model::TbiPattern.first(id: id_val)
-            unless record
-              halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404)
-            end
+            halt 404, json_error('not_found', "TBI pattern #{params[:id]} not found", status_code: 404) unless record
 
             body = parse_request_body
             invocation_count = Routes::TbiPatterns.parse_integer(body[:invocation_count], record.invocation_count)
-            success_rate     = Routes::TbiPatterns.parse_float(body[:success_rate],     record.success_rate)
+            success_rate     = Routes::TbiPatterns.parse_float(body[:success_rate], record.success_rate)
             quality_score    = Routes::TbiPatterns.compute_quality(
               invocation_count: invocation_count,
               success_rate:     success_rate,
@@ -155,7 +147,7 @@ module Legion
         end
 
         # GET /api/tbi/patterns/discover — cross-instance pattern discovery (P3/TBI Phase 6)
-        # TODO: implement cross-instance discovery per docs/work/completed/knowledge-pattern-marketplace.md
+        # TODO: implement cross-instance discovery
         def self.register_discover(app)
           app.get '/api/tbi/patterns/discover' do
             halt 501, json_error('not_implemented', 'cross-instance pattern discovery is not yet available', status_code: 501)
@@ -183,7 +175,7 @@ module Legion
 
           Legion::JSON.dump(pattern_data)
         rescue StandardError
-          pattern_data.to_s
+          Legion::JSON.dump(pattern_data.to_s)
         end
 
         def self.compute_quality(invocation_count:, success_rate:, tier:)
@@ -197,7 +189,7 @@ module Legion
           ((count_score * 0.4) + (success_score * 0.5) + (tier_weight * 0.1)).round(4)
         end
 
-        # Parse an integer from user input; return default if blank, zero on invalid string.
+        # Parse an integer from user input; return default if blank or invalid.
         def self.parse_integer(value, default)
           return default if value.nil?
           return default if value.to_s.strip.empty?
@@ -205,10 +197,10 @@ module Legion
 
           value.to_i
         rescue ArgumentError
-          0
+          default
         end
 
-        # Parse a float from user input; return default if blank, raise on non-numeric.
+        # Parse a float from user input; return default if blank or invalid.
         def self.parse_float(value, default)
           return default if value.nil?
           return default if value.to_s.strip.empty?
@@ -216,7 +208,7 @@ module Legion
 
           value.to_f
         rescue ArgumentError
-          0.0
+          default
         end
 
         private_class_method :register_export, :register_fetch, :register_all,

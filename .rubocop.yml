@@ -29,7 +29,7 @@ Metrics/ModuleLength:
     - 'lib/legion/api/openapi.rb'
 
 Metrics/BlockLength:
-  Max: 40
+  Max: 52
   Exclude:
     - 'spec/**/*'
     - 'integration/**/*'
