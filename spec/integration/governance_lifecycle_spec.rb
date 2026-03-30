@@ -15,37 +15,52 @@ unless defined?(Legion::Data::Model::DigitalWorker)
   end
 end
 
-# Define stub modules when missing so SUT code that calls Legion::Logging,
-# Legion::Events, or Legion::Audit never raises NoMethodError regardless of
-# load order.
-unless defined?(Legion::Logging)
-  module Legion
-    module Logging
-      def self.info(*); end
-      def self.debug(*); end
-      def self.warn(*); end
-      def self.error(*); end
-    end
-  end
-end
-
-unless defined?(Legion::Events)
-  module Legion
-    module Events
-      def self.emit(*); end
-    end
-  end
-end
-
-unless defined?(Legion::Audit)
-  module Legion
-    module Audit
-      def self.record(**); end
-    end
-  end
-end
-
 RSpec.describe 'Governance lifecycle integration' do
+  # Define stub modules when missing so SUT code that calls Legion::Logging,
+  # Legion::Events, or Legion::Audit never raises NoMethodError regardless of
+  # load order. Scoped to this describe block via stub_const/before to avoid
+  # polluting other spec files.
+  before do
+    unless defined?(Legion::Logging)
+      stub_const(
+        'Legion::Logging',
+        Module.new do
+          def self.info(*); end
+
+          def self.debug(*); end
+
+          def self.warn(*); end
+
+          def self.error(*); end
+        end
+      )
+    end
+
+    unless defined?(Legion::Events)
+      stub_const(
+        'Legion::Events',
+        Module.new do
+          def self.emit(*); end
+        end
+      )
+    end
+
+    unless defined?(Legion::Audit)
+      stub_const(
+        'Legion::Audit',
+        Module.new do
+          def self.record(**); end
+        end
+      )
+    end
+
+    allow(Legion::Events).to receive(:emit)
+    allow(Legion::Audit).to receive(:record)
+    allow(Legion::Logging).to receive(:info)
+    allow(Legion::Logging).to receive(:debug)
+    allow(Legion::Logging).to receive(:warn)
+  end
+
   # ---------------------------------------------------------------------------
   # Shared worker double factory
   # ---------------------------------------------------------------------------
@@ -61,14 +76,6 @@ RSpec.describe 'Governance lifecycle integration' do
       update:          true
     }
     double('Worker', defaults.merge(overrides))
-  end
-
-  before do
-    allow(Legion::Events).to receive(:emit)
-    allow(Legion::Audit).to receive(:record)
-    allow(Legion::Logging).to receive(:info)
-    allow(Legion::Logging).to receive(:debug)
-    allow(Legion::Logging).to receive(:warn)
   end
 
   # ---------------------------------------------------------------------------
@@ -417,8 +424,9 @@ RSpec.describe 'Governance lifecycle integration' do
       it 'emits a worker.ownership_transferred event through Legion::Events' do
         # TODO: Replace with a call to the ownership-transfer production method once
         # it exists (e.g. Legion::DigitalWorker::Lifecycle.transfer_ownership!).
-        # Until then this example is pending so it does not become tautological.
-        pending 'ownership-transfer workflow not yet implemented in production code'
+        # Using skip (not pending) so this example does not execute and fail on
+        # the missing transfer_ownership! method.
+        skip 'ownership-transfer workflow not yet implemented in production code'
 
         Legion::DigitalWorker::Lifecycle.transfer_ownership!(
           worker,
@@ -695,7 +703,9 @@ RSpec.describe 'Governance lifecycle integration' do
         # Lifecycle.retire_with_drain!) that internally calls
         # Queue::Drain.drain_queue before worker.update, so this example
         # catches regressions in SUT ordering rather than test-script ordering.
-        pending 'drain-then-retire production method not yet implemented'
+        # Using skip (not pending) so this example does not execute and fail on
+        # the missing retire_with_drain! method.
+        skip 'drain-then-retire production method not yet implemented'
 
         # Stub worker#update to record when the state update actually happens.
         # (Doubles have no original method to wrap, so we use a plain stub.)
