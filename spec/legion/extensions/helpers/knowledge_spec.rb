@@ -287,9 +287,9 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
   # --- Layered defaults ---
 
   describe '#knowledge_default_scope' do
-    context 'when Settings.dig returns nil' do
+    context 'when Legion::Settings is not defined' do
       it 'returns :all' do
-        allow(Legion::Settings).to receive(:dig).with(:apollo, :local, :default_query_scope).and_return(nil)
+        hide_const('Legion::Settings')
         expect(runner.knowledge_default_scope).to eq(:all)
       end
     end
