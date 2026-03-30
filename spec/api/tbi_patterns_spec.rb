@@ -96,6 +96,11 @@ RSpec.describe 'TBI Patterns API' do
       it 'parses a numeric value directly' do
         expect(mod.parse_integer(10, 0)).to eq(10)
       end
+
+      it 'clamps negative values to 0' do
+        expect(mod.parse_integer('-5', 0)).to eq(0)
+        expect(mod.parse_integer(-3, 0)).to eq(0)
+      end
     end
 
     describe '.parse_float' do
@@ -117,6 +122,11 @@ RSpec.describe 'TBI Patterns API' do
 
       it 'parses a numeric value directly' do
         expect(mod.parse_float(0.5, 0.0)).to be_within(0.001).of(0.5)
+      end
+
+      it 'clamps values to 0.0..1.0 range' do
+        expect(mod.parse_float('-0.5', 0.0)).to eq(0.0)
+        expect(mod.parse_float('2.0', 0.0)).to eq(1.0)
       end
     end
 

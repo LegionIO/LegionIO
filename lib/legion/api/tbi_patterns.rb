@@ -195,7 +195,7 @@ module Legion
           return default if value.to_s.strip.empty?
           raise ArgumentError, 'not numeric' unless value.to_s =~ /\A-?\d+\z/
 
-          value.to_i
+          [value.to_i, 0].max
         rescue ArgumentError
           default
         end
@@ -206,7 +206,7 @@ module Legion
           return default if value.to_s.strip.empty?
           raise ArgumentError, 'not numeric' unless value.to_s =~ /\A-?\d+(\.\d+)?\z/
 
-          value.to_f
+          value.to_f.clamp(0.0, 1.0)
         rescue ArgumentError
           default
         end
