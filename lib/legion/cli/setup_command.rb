@@ -36,7 +36,7 @@ module Legion
             lex-agentic-language lex-agentic-learning lex-agentic-memory
             lex-agentic-self lex-agentic-social lex-apollo lex-audit lex-autofix
             lex-azure-ai lex-bedrock lex-claude lex-codegen lex-coldstart
-            lex-conditioner lex-cortex lex-cost-scanner lex-dataset lex-detect
+            lex-conditioner lex-cost-scanner lex-dataset lex-detect
             lex-eval lex-exec lex-extinction lex-factory lex-finops lex-foundry
             lex-gemini lex-governance lex-kerberos lex-knowledge lex-llm-gateway
             lex-metering lex-mesh lex-microsoft_teams lex-mind-growth lex-node
