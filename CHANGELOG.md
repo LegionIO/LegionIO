@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.38] - 2026-03-30
+
+### Removed
+- Remove deprecated `lex-cortex` from agentic setup pack (replaced by legion-gaia)
+
 ## [1.6.37] - 2026-03-30
 
 ### Added
