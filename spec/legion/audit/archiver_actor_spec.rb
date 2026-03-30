@@ -30,7 +30,8 @@ RSpec.describe Legion::Audit::ArchiverActor do
       # Build a real Time that matches the scheduled wday and hour
       now = Time.now.utc
       days_ahead = (target_day - now.wday) % 7
-      fake_time = Time.utc(now.year, now.month, now.day + days_ahead, target_hour, 0, 0)
+      target_date = (now.to_date + days_ahead)
+      fake_time = Time.utc(target_date.year, target_date.month, target_date.day, target_hour, 0, 0)
       allow(Time).to receive(:now).and_return(fake_time)
 
       actor = described_class.new

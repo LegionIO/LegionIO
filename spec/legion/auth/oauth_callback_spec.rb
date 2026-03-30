@@ -31,10 +31,12 @@ RSpec.describe Legion::Auth::OauthCallback do
       # Simulate browser redirect
       sleep 0.05
       s = TCPSocket.new('127.0.0.1', cb.port)
-      s.puts 'GET /callback?code=auth-code-123&state=xyz HTTP/1.1'
-      s.puts 'Host: localhost'
-      s.puts
-      s.close
+      s.write "GET /callback?code=auth-code-123&state=xyz HTTP/1.1\r\nHost: localhost\r\n\r\n"
+      begin
+        s.close
+      rescue Errno::ECONNRESET, Errno::EPIPE
+        nil # server may close first
+      end
 
       thread.join(5)
       expect(result[:code]).to eq('auth-code-123')

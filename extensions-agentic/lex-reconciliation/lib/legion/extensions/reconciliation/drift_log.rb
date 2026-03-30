@@ -20,14 +20,14 @@ module Legion
           # @param severity      [String] one of SEVERITY_LEVELS
           # @param reconciled_by [String] runner or actor that detected the drift
           # @return [Hash] the recorded drift entry
-          def record(resource:, expected:, actual:, drift_type: 'state', severity: 'medium', reconciled_by: 'drift_checker')
+          def record(resource:, expected:, actual:, **opts)
             entry = build_entry(
               resource:      resource,
               expected:      expected,
               actual:        actual,
-              drift_type:    drift_type,
-              severity:      severity,
-              reconciled_by: reconciled_by
+              drift_type:    opts.fetch(:drift_type, 'state'),
+              severity:      opts.fetch(:severity, 'medium'),
+              reconciled_by: opts.fetch(:reconciled_by, 'drift_checker')
             )
 
             persist(entry)
@@ -103,7 +103,7 @@ module Legion
 
           private
 
-          def build_entry(resource:, expected:, actual:, drift_type:, severity:, reconciled_by:)
+          def build_entry(resource:, expected:, actual:, drift_type:, severity:, reconciled_by:) # rubocop:disable Metrics/ParameterLists
             require 'securerandom'
             {
               drift_id:    SecureRandom.uuid,
