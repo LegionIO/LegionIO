@@ -1,0 +1,25 @@
+name: factory-develop-codegen
+version: 0.1.0
+description: >
+  Factory develop stage delegates code generation to lex-codegen.
+  Each spec requirement becomes a codegen task.
+
+requires:
+  - lex-factory
+  - lex-codegen
+
+relationships:
+  - name: develop-to-codegen
+    trigger:
+      extension: factory
+      runner: factory
+      function: run_pipeline
+    action:
+      extension: codegen
+      runner: from_gap
+      function: generate
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
