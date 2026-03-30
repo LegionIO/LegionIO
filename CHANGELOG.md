@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.6.36] - 2026-03-29
+
+### Added
+- Knowledge helper: `knowledge_connected?`, `knowledge_global_connected?`, `knowledge_local_connected?` status methods
+- Knowledge helper: `knowledge_default_scope` and `knowledge_default_tags` LEX-overridable layered defaults
+- LLM helper: now includes `Legion::LLM::Helper` following cache/transport pattern (with LoadError guard)
+- Wrapper specs for cache and data helpers
+
+### Fixed
+- Logger helper: add missing `include Base` (was relying on transitive inclusion via Lex)
+- Task helper: add missing `include Base`
+- Knowledge helper: add missing `include Base`, `knowledge_default_tags` auto-merged into `ingest_knowledge`
+
 ## [1.6.35] - 2026-03-29
 
 ### Added

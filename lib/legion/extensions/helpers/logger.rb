@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative 'base'
+
 module Legion
   module Extensions
     module Helpers
       module Logger
+        include Legion::Extensions::Helpers::Base
         include Legion::Logging::Helper
 
         def handle_exception(exception, task_id: nil, **opts)
