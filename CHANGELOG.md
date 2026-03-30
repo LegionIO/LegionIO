@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.6.37] - 2026-03-30
+
+### Added
+- TBI Patterns API: `POST /api/tbi/patterns/export`, `GET /api/tbi/patterns`, `GET /api/tbi/patterns/:id`, `PATCH /api/tbi/patterns/:id/score`, `GET /api/tbi/patterns/discover` (501 stub)
+- TBI Pattern model and local migration (`create_tbi_patterns`)
+- OpenInference telemetry integration (`Legion::Telemetry::OpenInference`)
+
+### Fixed
+- Governance lifecycle integration specs expanded and hardened
+
 ## [1.6.36] - 2026-03-29
 
 ### Added

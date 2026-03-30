@@ -26,7 +26,7 @@ module Legion
       end
     end
 
-    helpers do # rubocop:disable Metrics/BlockLength
+    helpers do
       def build_catalog_manifest(name, entry)
         {
           name:          name,

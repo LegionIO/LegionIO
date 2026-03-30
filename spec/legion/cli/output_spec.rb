@@ -138,7 +138,7 @@ RSpec.describe Legion::CLI::Output::Formatter do
     end
 
     it 'disables color when stdout is not a tty (e.g., StringIO in tests)' do
-      # In test environment $stdout is not a tty, so color_enabled must be false
+      allow($stdout).to receive(:tty?).and_return(false)
       formatter = described_class.new(json: false, color: true)
       expect(formatter.color_enabled).to be(false)
     end
