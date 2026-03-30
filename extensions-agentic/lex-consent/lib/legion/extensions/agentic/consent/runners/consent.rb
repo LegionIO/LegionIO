@@ -15,7 +15,10 @@ module Legion
             # @param requested_by [String] identity requesting the promotion
             # @param context [Hash] optional metadata about why promotion is requested
             # @return [Hash]
-            def request_promotion(worker_id:, from_tier:, to_tier:, requested_by: 'system', context: {}, **)
+            def request_promotion(worker_id:, from_tier:, to_tier:, **opts)
+              requested_by = opts.fetch(:requested_by, 'system')
+              context = opts.fetch(:context, {})
+
               return { success: false, reason: :model_unavailable } unless defined?(Legion::Extensions::Agentic::Consent::Models::ConsentMap)
 
               existing = Legion::Extensions::Agentic::Consent::Models::ConsentMap
