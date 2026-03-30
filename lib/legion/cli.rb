@@ -71,6 +71,7 @@ module Legion
     autoload :Bootstrap,      'legion/cli/bootstrap_command'
     autoload :Broker,         'legion/cli/broker_command'
     autoload :AdminCommand,   'legion/cli/admin_command'
+    autoload :Workflow,       'legion/cli/workflow_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'
@@ -296,6 +297,9 @@ module Legion
 
       desc 'broker SUBCOMMAND', 'RabbitMQ broker management (stats, cleanup)'
       subcommand 'broker', Legion::CLI::Broker
+
+      desc 'workflow SUBCOMMAND', 'Manage workflow bundles'
+      subcommand 'workflow', Legion::CLI::Workflow
 
       desc 'tree', 'Print a tree of all available commands'
       def tree
