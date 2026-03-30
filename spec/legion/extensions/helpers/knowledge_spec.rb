@@ -75,7 +75,6 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
 
       it 'merges knowledge_default_tags into the call' do
         allow(Legion::Apollo).to receive(:ingest).and_return({ success: true, mode: :async })
-        custom_runner.instance_variable_set(:@apollo_started, nil)
         allow(Legion::Apollo).to receive(:started?).and_return(true)
         custom_runner.ingest_knowledge('tagged text', tags: %w[explicit])
         expect(Legion::Apollo).to have_received(:ingest).with(
@@ -288,8 +287,9 @@ RSpec.describe Legion::Extensions::Helpers::Knowledge do
   # --- Layered defaults ---
 
   describe '#knowledge_default_scope' do
-    context 'when Legion::Settings is not defined' do
+    context 'when Settings.dig returns nil' do
       it 'returns :all' do
+        allow(Legion::Settings).to receive(:dig).with(:apollo, :local, :default_query_scope).and_return(nil)
         expect(runner.knowledge_default_scope).to eq(:all)
       end
     end

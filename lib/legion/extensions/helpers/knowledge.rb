@@ -16,7 +16,7 @@ module Legion
           return { success: false, error: :extraction_failed, detail: metadata } unless text
 
           extraction_tags = metadata_to_tags(metadata) if metadata
-          all_tags = Array(tags) + Array(extraction_tags) + knowledge_default_tags
+          all_tags = Array(tags) + Array(extraction_tags) + Array(knowledge_default_tags)
 
           target.ingest(
             content:        text,
