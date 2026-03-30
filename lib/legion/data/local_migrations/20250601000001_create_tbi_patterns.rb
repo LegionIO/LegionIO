@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Sequel.migration do
   change do
     create_table?(:tbi_patterns) do
@@ -10,10 +12,10 @@ Sequel.migration do
       Float       :quality_score,    null: false, default: 0.0
       Integer     :invocation_count, null: false, default: 0
       Float       :success_rate,     null: false, default: 0.0
-      # anonymous fingerprint-safe hash of the contributing instance
+      # one-way SHA-256 prefix derived from pattern_type+tier+description; not reversible to the submitting instance
       String      :source_hash
-      DateTime    :created_at,       null: false
-      DateTime    :updated_at,       null: false
+      Time        :created_at,       null: false
+      Time        :updated_at,       null: false
     end
   end
 end
