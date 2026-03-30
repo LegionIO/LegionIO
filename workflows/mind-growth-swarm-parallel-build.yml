@@ -1,0 +1,42 @@
+name: mind-growth-swarm-parallel-build
+version: 0.1.0
+description: >
+  Swarm-orchestrated parallel build: create swarm → build proposals → complete.
+
+requires:
+  - lex-mind-growth
+  - lex-swarm
+
+relationships:
+  - name: create-to-build
+    trigger:
+      extension: mind_growth
+      runner: swarm_builder
+      function: create_build_swarm
+    action:
+      extension: mind_growth
+      runner: swarm_builder
+      function: execute_parallel_build
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+        - fact: charter_type
+          operator: equal
+          value: parallel_build
+
+  - name: build-to-complete
+    trigger:
+      extension: mind_growth
+      runner: swarm_builder
+      function: execute_parallel_build
+    action:
+      extension: swarm
+      runner: swarm
+      function: complete_swarm
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
