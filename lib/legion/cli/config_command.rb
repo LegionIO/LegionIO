@@ -184,6 +184,43 @@ module Legion
         raise SystemExit, exit_code if exit_code != 0
       end
 
+      desc 'reset', 'Remove all JSON config files from the settings directory'
+      long_desc <<~DESC
+        Removes all *.json files from the settings directory (~/.legionio/settings/).
+        Prompts for confirmation unless --force is passed.
+      DESC
+      option :force, type: :boolean, default: false, desc: 'Skip confirmation prompt'
+      def reset
+        require_relative 'config_import'
+        out = formatter
+        dir = options[:config_dir] || ConfigImport::SETTINGS_DIR
+
+        files = Dir.glob(File.join(dir, '*.json'))
+        if files.empty?
+          out.warn("No JSON files found in #{dir}")
+          return
+        end
+
+        unless options[:force]
+          out.warn("This will remove #{files.size} JSON file(s) from #{dir}:")
+          files.each { |f| puts "    #{File.basename(f)}" }
+          print '  Continue? [y/N] '
+          answer = $stdin.gets&.strip
+          unless answer&.match?(/\Ay(es)?\z/i)
+            out.warn('Aborted.')
+            return
+          end
+        end
+
+        files.each { |f| FileUtils.rm_f(f) }
+
+        if options[:json]
+          out.json(removed: files, directory: dir)
+        else
+          out.success("Removed #{files.size} JSON file(s) from #{dir}")
+        end
+      end
+
       desc 'import SOURCE', 'Import configuration from a URL or local file'
       option :force, type: :boolean, default: false, desc: 'Overwrite existing imported config'
       def import(source)

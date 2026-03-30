@@ -21,6 +21,7 @@ module Legion
       class_option :skip_packs, type: :boolean, default: false, desc: 'Skip gem pack installation (config only)'
       class_option :start,      type: :boolean, default: false, desc: 'Start redis + legionio via brew services after bootstrap'
       class_option :force,      type: :boolean, default: false, desc: 'Overwrite existing config files'
+      class_option :clean,      type: :boolean, default: false, desc: 'Remove all existing config files before import'
 
       desc 'SOURCE', 'Bootstrap Legion from a URL or local config file (fetch config, scaffold, install packs)'
       long_desc <<~DESC
@@ -53,16 +54,19 @@ module Legion
         print_step(out, 'Pre-flight checks')
         results[:preflight] = run_preflight_checks(out, warns)
 
-        # 2. Fetch + parse config
+        # 2. Clean existing config (--clean)
+        results[:cleaned] = clean_settings(out) if options[:clean]
+
+        # 3. Fetch + parse config
         print_step(out, "Fetching config from #{source}")
         body   = ConfigImport.fetch_source(source)
         config = ConfigImport.parse_payload(body)
 
-        # 3. Extract packs before writing (bootstrap-only directive)
+        # 4. Extract packs before writing (bootstrap-only directive)
         pack_names = Array(config.delete(:packs)).map(&:to_s).reject(&:empty?)
         results[:packs_requested] = pack_names
 
-        # 4. Write config
+        # 5. Write config
         paths = ConfigImport.write_config(config, force: options[:force])
         results[:config_written] = paths
         unless options[:json]
@@ -73,18 +77,18 @@ module Legion
           end
         end
 
-        # 5. Scaffold missing subsystem files
-        results[:scaffold] = run_scaffold(out)
+        # 6. Scaffold missing subsystem files (skipped when source provided)
+        results[:scaffold] = :skipped
 
-        # 6. Install packs (unless --skip-packs)
+        # 7. Install packs (unless --skip-packs)
         results[:packs_installed] = install_packs_step(pack_names, out)
 
-        # 7. Post-bootstrap summary
+        # 8. Post-bootstrap summary
         summary = build_summary(config, results, warns)
         results[:summary] = summary
         print_summary(out, summary)
 
-        # 8. Optional --start
+        # 9. Optional --start
         if options[:start]
           print_step(out, 'Starting services')
           results[:services_started] = start_services(out)
@@ -205,6 +209,24 @@ module Legion
             print_step(out, "Installing packs: #{pack_names.join(', ')}") unless pack_names.empty?
             install_packs(pack_names, out)
           end
+        end
+
+        # -----------------------------------------------------------------------
+        # Clean settings (--clean)
+        # -----------------------------------------------------------------------
+
+        def clean_settings(out)
+          dir   = ConfigImport::SETTINGS_DIR
+          files = Dir.glob(File.join(dir, '*.json'))
+          if files.empty?
+            out.warn("No existing config files to clean in #{dir}") unless options[:json]
+            return []
+          end
+
+          print_step(out, "Cleaning #{files.size} config file(s) from #{dir}")
+          files.each { |f| FileUtils.rm_f(f) }
+          files.each { |f| out.success("Removed: #{File.basename(f)}") } unless options[:json]
+          files
         end
 
         # -----------------------------------------------------------------------

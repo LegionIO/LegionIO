@@ -51,6 +51,10 @@ RSpec.describe Legion::CLI::Bootstrap do
       expect(described_class.class_options).to have_key(:force)
     end
 
+    it 'declares --clean class option' do
+      expect(described_class.class_options).to have_key(:clean)
+    end
+
     it 'declares --json class option' do
       expect(described_class.class_options).to have_key(:json)
     end
@@ -270,7 +274,6 @@ RSpec.describe Legion::CLI::Bootstrap do
       .and_return(opts.fetch(:config, {}))
     allow(Legion::CLI::ConfigImport).to receive(:write_config)
       .and_return(opts.fetch(:paths, ['/tmp/bootstrapped_settings.json']))
-    allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
     allow(cli).to receive(:run_preflight_checks).and_return({})
     allow(cli).to receive(:install_packs).and_return([])
     allow(cli).to receive(:print_summary)
@@ -307,7 +310,6 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload).and_return({ llm: { enabled: true } })
       expect(Legion::CLI::ConfigImport).to receive(:write_config)
         .with({ llm: { enabled: true } }, force: true).and_return(['/tmp/llm.json'])
-      allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:install_packs).and_return([])
       allow(cli).to receive(:print_summary)
@@ -319,7 +321,6 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload).and_return({})
       expect(Legion::CLI::ConfigImport).to receive(:write_config)
         .with({}, force: false).and_return([])
-      allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:install_packs).and_return([])
       allow(cli).to receive(:print_summary)
@@ -338,7 +339,6 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(Legion::CLI::ConfigImport).to receive(:parse_payload)
         .and_return({ packs: ['agentic'], llm: { enabled: true } })
       allow(Legion::CLI::ConfigImport).to receive(:write_config).and_return(['/tmp/llm.json'])
-      allow(Legion::CLI::ConfigScaffold).to receive(:run).and_return(0)
       allow(cli).to receive(:run_preflight_checks).and_return({})
       allow(cli).to receive(:print_summary)
     end
@@ -524,6 +524,108 @@ RSpec.describe Legion::CLI::Bootstrap do
       allow(cli).to receive(:options).and_return(default_options.merge(start: false))
       expect(cli).not_to receive(:start_services)
       cli.execute('/tmp/bootstrap.json')
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # --clean flag
+  # ---------------------------------------------------------------------------
+
+  describe '--clean flag' do
+    let(:tmpdir) { Dir.mktmpdir('legion_bootstrap_clean') }
+
+    before do
+      stub_const('Legion::CLI::ConfigImport::SETTINGS_DIR', tmpdir)
+      File.write(File.join(tmpdir, 'transport.json'), '{}')
+      File.write(File.join(tmpdir, 'llm.json'), '{}')
+    end
+
+    after { FileUtils.rm_rf(tmpdir) }
+
+    context 'when --clean is set' do
+      before do
+        allow(cli).to receive(:options).and_return(default_options.merge(clean: true))
+        stub_happy_path
+      end
+
+      it 'removes existing json files before import' do
+        cli.execute('/tmp/bootstrap.json')
+        expect(Dir.glob(File.join(tmpdir, '*.json'))).to be_empty
+      end
+
+      it 'sets results[:cleaned] to the removed file list' do
+        results_captured = nil
+        allow(cli).to receive(:build_summary) do |_config, results, _warns|
+          results_captured = results
+          {}
+        end
+        cli.execute('/tmp/bootstrap.json')
+        expect(results_captured[:cleaned]).to be_an(Array)
+        expect(results_captured[:cleaned].size).to eq(2)
+      end
+    end
+
+    context 'when --clean is not set' do
+      before do
+        allow(cli).to receive(:options).and_return(default_options.merge(clean: false))
+        stub_happy_path
+      end
+
+      it 'does not remove existing files' do
+        cli.execute('/tmp/bootstrap.json')
+        expect(Dir.glob(File.join(tmpdir, '*.json')).size).to eq(2)
+      end
+
+      it 'does not set results[:cleaned]' do
+        results_captured = nil
+        allow(cli).to receive(:build_summary) do |_config, results, _warns|
+          results_captured = results
+          {}
+        end
+        cli.execute('/tmp/bootstrap.json')
+        expect(results_captured).not_to have_key(:cleaned)
+      end
+    end
+
+    context 'when --clean is set but no files exist' do
+      before do
+        FileUtils.rm_f(Dir.glob(File.join(tmpdir, '*.json')))
+        allow(cli).to receive(:options).and_return(default_options.merge(clean: true))
+        stub_happy_path
+      end
+
+      it 'returns an empty array' do
+        results_captured = nil
+        allow(cli).to receive(:build_summary) do |_config, results, _warns|
+          results_captured = results
+          {}
+        end
+        cli.execute('/tmp/bootstrap.json')
+        expect(results_captured[:cleaned]).to eq([])
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Scaffold skipping (source-provided bootstrap always skips scaffold)
+  # ---------------------------------------------------------------------------
+
+  describe 'scaffold skipping' do
+    before { stub_happy_path }
+
+    it 'does not call ConfigScaffold.run' do
+      expect(Legion::CLI::ConfigScaffold).not_to receive(:run)
+      cli.execute('/tmp/bootstrap.json')
+    end
+
+    it 'sets results[:scaffold] to :skipped' do
+      results_captured = nil
+      allow(cli).to receive(:build_summary) do |_config, results, _warns|
+        results_captured = results
+        {}
+      end
+      cli.execute('/tmp/bootstrap.json')
+      expect(results_captured[:scaffold]).to eq(:skipped)
     end
   end
 
