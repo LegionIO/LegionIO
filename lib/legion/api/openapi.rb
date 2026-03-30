@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'legion/json'
+require 'legion/api/events'
 
 module Legion
   class API < Sinatra::Base
@@ -922,7 +923,7 @@ module Legion
               summary:     'Get recent events from ring buffer',
               operationId: 'getRecentEvents',
               parameters:  [
-                { name: 'count', in: 'query', description: "Number of events (max #{Routes::Events::BUFFER_SIZE})",
+                { name: 'count', in: 'query', description: "Number of events (max #{Legion::API::Routes::Events::BUFFER_SIZE})",
                   required: false, schema: { type: 'integer', default: 25 } }
               ],
               responses:   {

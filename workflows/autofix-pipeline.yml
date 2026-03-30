@@ -1,0 +1,58 @@
+name: autofix-pipeline
+version: 0.1.0
+description: >
+  Log event triage → GitHub issue → LLM fix → PR creation.
+  Triggered by batched exception log events.
+
+requires:
+  - lex-autofix
+  - lex-github
+
+relationships:
+  - name: triage-to-diagnose
+    trigger:
+      extension: autofix
+      runner: triage
+      function: batch_triage
+    action:
+      extension: autofix
+      runner: diagnose
+      function: check_github
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+
+  - name: diagnose-to-fix
+    trigger:
+      extension: autofix
+      runner: diagnose
+      function: check_github
+    action:
+      extension: autofix
+      runner: fix
+      function: attempt_fix
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true
+        - fact: action
+          operator: not_equal
+          value: skipped
+
+  - name: fix-to-ship
+    trigger:
+      extension: autofix
+      runner: fix
+      function: attempt_fix
+    action:
+      extension: autofix
+      runner: ship
+      function: ship
+    conditions:
+      all:
+        - fact: success
+          operator: equal
+          value: true

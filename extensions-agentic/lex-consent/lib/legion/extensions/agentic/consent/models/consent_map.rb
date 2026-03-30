@@ -26,21 +26,21 @@ module Legion
 
             def approve!(approver:, notes: nil)
               update(
-                state:          'approved',
-                resolved_by:    approver,
-                resolved_at:    Time.now.utc,
-                notes:          notes,
-                updated_at:     Time.now.utc
+                state:       'approved',
+                resolved_by: approver,
+                resolved_at: Time.now.utc,
+                notes:       notes,
+                updated_at:  Time.now.utc
               )
             end
 
             def reject!(approver:, reason: nil)
               update(
-                state:          'rejected',
-                resolved_by:    approver,
-                resolved_at:    Time.now.utc,
-                notes:          reason,
-                updated_at:     Time.now.utc
+                state:       'rejected',
+                resolved_by: approver,
+                resolved_at: Time.now.utc,
+                notes:       reason,
+                updated_at:  Time.now.utc
               )
             end
 

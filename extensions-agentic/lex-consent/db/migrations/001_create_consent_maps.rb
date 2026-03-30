@@ -18,7 +18,7 @@ Sequel.migration do
 
       index :worker_id
       index :state
-      index [:worker_id, :state]
+      index %i[worker_id state]
     end
   end
 end
