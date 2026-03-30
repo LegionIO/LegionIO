@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.6.39] - 2026-03-30
+
+### Added
+- `legionio config reset` subcommand to wipe all JSON config files from settings directory (#88)
+- `legionio bootstrap --clean` flag to clear settings before import (#88)
+
+### Changed
+- `legionio bootstrap` no longer runs `ConfigScaffold` when a source is provided — scaffolded empty files were conflicting with imported config (#88)
+
 ## [1.6.38] - 2026-03-30
 
 ### Removed
