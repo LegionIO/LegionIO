@@ -33,6 +33,11 @@ Metrics/BlockLength:
   Exclude:
     - 'spec/**/*'
     - 'integration/**/*'
+    - 'extensions-agentic/**/spec/**/*'
+    - 'extensions-core/**/spec/**/*'
+    - 'extensions/**/spec/**/*'
+    - 'extensions-ai/**/spec/**/*'
+    - 'extensions-other/**/spec/**/*'
     - 'legionio.gemspec'
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/cli/plan_command.rb'
