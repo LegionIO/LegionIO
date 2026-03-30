@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require_relative '../definitions'
+require_relative '../helpers/lex'
 
 module Legion
   module Extensions
     module Absorbers
       class Base
         extend Legion::Extensions::Definitions
+        include Legion::Extensions::Helpers::Lex
 
         class TokenRevocationError < StandardError
         end
