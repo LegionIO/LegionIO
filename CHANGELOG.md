@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.6.40] - 2026-03-30
+
+### Fixed
+- `Helpers::Lex` now includes Cache, Transport, Task, and Data helpers so all actors, runners, absorbers, and hooks automatically get `cache_connected?`, `transport_connected?`, `data_connected?`, `generate_task_id`, and related methods
+- `Absorbers::Base` now includes `Helpers::Lex` (previously included zero helpers, causing `NoMethodError` for `log`, `cache_connected?`, etc.)
+
 ## [1.6.39] - 2026-03-30
 
 ### Added
