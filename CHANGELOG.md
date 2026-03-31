@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-03-31
+
+### Added
+- Wire `LexCliManifest.write_manifest` into extension autobuild pipeline (#97)
+- CLI manifest is auto-populated during extension loading so `legion lex exec` works out of the box
+- Staleness check skips writes when cached version matches installed gem version
+
 ## [1.7.0] - 2026-03-31
 
 ### Fixed
