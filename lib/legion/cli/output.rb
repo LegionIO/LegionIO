@@ -179,6 +179,14 @@ module Legion
           end
         end
 
+        def info(message)
+          if @json_mode
+            puts Output.encode_json(info: true, message: message)
+          else
+            puts "  #{colorize('»', :accent)} #{message}"
+          end
+        end
+
         def error(message)
           if @json_mode
             puts Output.encode_json(error: true, message: message)

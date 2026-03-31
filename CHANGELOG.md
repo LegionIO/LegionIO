@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.41] - 2026-03-30
+
+### Fixed
+- Add missing `info` method to `Legion::CLI::Output::Formatter` — `auth teams` command called `out.info(...)` but the method did not exist, raising `NoMethodError`
+
 ## [1.6.40] - 2026-03-30
 
 ### Fixed
