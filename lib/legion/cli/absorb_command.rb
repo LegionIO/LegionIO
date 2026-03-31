@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require 'net/http'
-require 'uri'
-require 'json'
+require_relative 'api_client'
 
 module Legion
   module CLI
@@ -66,58 +64,10 @@ module Legion
       end
 
       no_commands do
+        include ApiClient
+
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
-        end
-
-        def api_port
-          Connection.ensure_settings
-          api_settings = Legion::Settings[:api]
-          (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
-        rescue StandardError
-          4567
-        end
-
-        def api_post(path, **payload)
-          uri = URI("http://127.0.0.1:#{api_port}#{path}")
-          http = Net::HTTP.new(uri.host, uri.port)
-          http.read_timeout = 300
-          request = Net::HTTP::Post.new(uri.path, 'Content-Type' => 'application/json')
-          request.body = ::JSON.generate(payload)
-          response = http.request(request)
-          unless response.is_a?(Net::HTTPSuccess)
-            formatter.error("API returned #{response.code} for #{path}")
-            raise SystemExit, 1
-          end
-          body = ::JSON.parse(response.body, symbolize_names: true)
-          body[:data]
-        rescue Errno::ECONNREFUSED
-          formatter.error('Daemon not running. Start with: legionio start')
-          raise SystemExit, 1
-        rescue SystemExit
-          raise
-        rescue StandardError => e
-          formatter.error("API request failed: #{e.message}")
-          raise SystemExit, 1
-        end
-
-        def api_get(path)
-          uri = URI("http://127.0.0.1:#{api_port}#{path}")
-          response = Net::HTTP.get_response(uri)
-          unless response.is_a?(Net::HTTPSuccess)
-            formatter.error("API returned #{response.code} for #{path}")
-            raise SystemExit, 1
-          end
-          body = ::JSON.parse(response.body, symbolize_names: true)
-          body[:data]
-        rescue Errno::ECONNREFUSED
-          formatter.error('Daemon not running. Start with: legionio start')
-          raise SystemExit, 1
-        rescue SystemExit
-          raise
-        rescue StandardError => e
-          formatter.error("API request failed: #{e.message}")
-          raise SystemExit, 1
         end
 
         def fetch_absorbers

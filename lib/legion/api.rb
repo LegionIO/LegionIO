@@ -47,6 +47,7 @@ require_relative 'api/traces'
 require_relative 'api/stats'
 require_relative 'api/absorbers'
 require_relative 'api/codegen'
+require_relative 'api/knowledge'
 require_relative 'api/logs'
 require_relative 'api/router'
 require_relative 'api/library_routes'
@@ -176,6 +177,7 @@ module Legion
     register Routes::Stats
     register Routes::Absorbers
     register Routes::Codegen
+    register Routes::Knowledge
     register Routes::Logs
     register Routes::TbiPatterns
     register Routes::GraphQL if defined?(Routes::GraphQL)

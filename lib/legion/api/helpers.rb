@@ -52,6 +52,30 @@ module Legion
         halt 503, json_error('scheduler_unavailable', 'lex-scheduler is not loaded', status_code: 503)
       end
 
+      def require_knowledge_query!
+        return if defined?(Legion::Extensions::Knowledge::Runners::Query)
+
+        halt 503, json_error('knowledge_unavailable', 'lex-knowledge is not loaded', status_code: 503)
+      end
+
+      def require_knowledge_ingest!
+        return if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
+
+        halt 503, json_error('knowledge_unavailable', 'lex-knowledge is not loaded', status_code: 503)
+      end
+
+      def require_knowledge_maintenance!
+        return if defined?(Legion::Extensions::Knowledge::Runners::Maintenance)
+
+        halt 503, json_error('knowledge_unavailable', 'lex-knowledge is not loaded', status_code: 503)
+      end
+
+      def require_knowledge_monitor!
+        return if defined?(Legion::Extensions::Knowledge::Runners::Monitor)
+
+        halt 503, json_error('knowledge_unavailable', 'lex-knowledge is not loaded', status_code: 503)
+      end
+
       def require_trace_search!
         return if defined?(Legion::TraceSearch) && defined?(Legion::LLM)
 
