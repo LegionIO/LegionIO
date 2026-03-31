@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.6.45] - 2026-03-31
+
+### Added
+- `Legion::CLI::ApiClient` shared module — extracts api_get/api_post/api_put/api_delete helpers into a reusable mixin for all CLI commands that talk to the daemon API
+- `/api/knowledge/*` API routes — query, retrieve, ingest, status, health, maintain, quality, and monitor CRUD endpoints for lex-knowledge
+
+### Changed
+- `legionio knowledge` commands now route through the local API instead of loading extension classes directly (fixes NameError when daemon not running)
+- `legionio schedule` commands now route through the existing `/api/schedules/*` API instead of querying Sequel models directly
+- `legionio codegen` commands now route through the existing `/api/codegen/*` API instead of checking `defined?` guards that always fail in CLI context
+- `legionio absorb` commands now use the shared `ApiClient` module instead of inline HTTP helpers
+
 ## [1.6.44] - 2026-03-31
 
 ### Added

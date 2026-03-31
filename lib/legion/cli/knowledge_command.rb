@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require_relative 'api_client'
 
 module Legion
   module CLI
@@ -16,14 +17,10 @@ module Legion
       option :extensions, type: :string,  desc: 'Comma-separated file extensions to watch (e.g. md,rb)'
       option :label,      type: :string,  desc: 'Human-readable label for this monitor'
       def add(path)
-        require_monitor!
-        exts = options[:extensions]&.split(',')&.map(&:strip)
-        result = Legion::Extensions::Knowledge::Runners::Monitor.add_monitor(
-          path:       path,
-          extensions: exts,
-          label:      options[:label]
-        )
         out = formatter
+        exts = options[:extensions]&.split(',')&.map(&:strip)
+        result = api_post('/api/knowledge/monitors', path: path, extensions: exts, label: options[:label])
+
         if options[:json]
           out.json(result)
         elsif result[:success]
@@ -35,9 +32,9 @@ module Legion
 
       desc 'list', 'List registered corpus monitors'
       def list
-        require_monitor!
-        monitors = Legion::Extensions::Knowledge::Runners::Monitor.list_monitors
         out = formatter
+        monitors = api_get('/api/knowledge/monitors')
+
         if options[:json]
           out.json(monitors)
         elsif monitors.nil? || monitors.empty?
@@ -56,9 +53,9 @@ module Legion
 
       desc 'remove IDENTIFIER', 'Remove a corpus monitor by path or label'
       def remove(identifier)
-        require_monitor!
-        result = Legion::Extensions::Knowledge::Runners::Monitor.remove_monitor(identifier:)
         out = formatter
+        result = api_delete("/api/knowledge/monitors?identifier=#{URI.encode_www_form_component(identifier)}")
+
         if options[:json]
           out.json(result)
         elsif result[:success]
@@ -70,9 +67,9 @@ module Legion
 
       desc 'status', 'Show monitor status (counts)'
       def status
-        require_monitor!
-        result = Legion::Extensions::Knowledge::Runners::Monitor.monitor_status
         out = formatter
+        result = api_get('/api/knowledge/monitors/status')
+
         if options[:json]
           out.json(result)
         else
@@ -85,12 +82,10 @@ module Legion
       end
 
       no_commands do
+        include ApiClient
+
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
-        end
-
-        def require_monitor!
-          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Monitor)
         end
       end
     end
@@ -118,12 +113,7 @@ module Legion
         content = "Git commit: #{sha}\nSubject: #{subject}\n\nDiff stat:\n#{diff_stat}"
         tags    = %w[git commit knowledge-capture]
 
-        Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-        result = Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-          content: content,
-          tags:    tags,
-          source:  "git:#{sha}"
-        )
+        result = api_post('/api/knowledge/ingest', content: content, tags: tags, source: "git:#{sha}")
 
         out = formatter
         if options[:json]
@@ -150,12 +140,8 @@ module Legion
         tags    = ['session', 'knowledge-capture', ::Time.now.strftime('%Y-%m-%d')]
         tags   << "repo:#{repo}" unless repo.empty?
 
-        Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-        result = Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-          content: content,
-          tags:    tags,
-          source:  "session:#{::Time.now.iso8601}"
-        )
+        result = api_post('/api/knowledge/ingest',
+                          content: content, tags: tags, source: "session:#{::Time.now.iso8601}")
 
         out = formatter
         if options[:json]
@@ -201,11 +187,10 @@ module Legion
           content = format_turn(turn, idx + 1)
           next if content.strip.empty?
 
-          result = ingest_content(
-            content: content,
-            tags:    base_tags + ["turn:#{idx + 1}"],
-            source:  "claude-code:#{session_id}:turn-#{idx + 1}"
-          )
+          result = api_post('/api/knowledge/ingest',
+                            content: content,
+                            tags:    base_tags + ["turn:#{idx + 1}"],
+                            source:  "claude-code:#{session_id}:turn-#{idx + 1}")
           ingested += 1 if result[:success]
         end
 
@@ -217,7 +202,9 @@ module Legion
         end
       end
 
-      no_commands do # rubocop:disable Metrics/BlockLength
+      no_commands do
+        include ApiClient
+
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
         end
@@ -279,18 +266,6 @@ module Legion
 
           "#{text.byteslice(0, max_bytes - 20)}\n\n[truncated]"
         end
-
-        def ingest_content(content:, tags:, source:)
-          if defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-            Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-              content: content, tags: tags, source: source
-            )
-          elsif defined?(Legion::Apollo)
-            Legion::Apollo.ingest(content: content, tags: tags, source: source)
-          else
-            { success: false, error: 'neither lex-knowledge nor legion-apollo available' }
-          end
-        end
       end
     end
 
@@ -307,9 +282,8 @@ module Legion
       option :synthesize, type: :boolean, default: true,  desc: 'Synthesize an LLM answer'
       option :verbose,    type: :boolean, default: false, desc: 'Show full source metadata'
       def query(question)
-        require_knowledge!
-        result = knowledge_query.query(question: question, top_k: options[:top_k],
-                                       synthesize: options[:synthesize])
+        result = api_post('/api/knowledge/query',
+                          question: question, top_k: options[:top_k], synthesize: options[:synthesize])
         out = formatter
         if options[:json]
           out.json(result)
@@ -330,8 +304,7 @@ module Legion
       desc 'retrieve QUESTION', 'Retrieve source chunks without LLM synthesis'
       option :top_k, type: :numeric, default: 5, desc: 'Number of source chunks'
       def retrieve(question)
-        require_knowledge!
-        result = knowledge_query.retrieve(question: question, top_k: options[:top_k])
+        result = api_post('/api/knowledge/retrieve', question: question, top_k: options[:top_k])
         out = formatter
         if options[:json]
           out.json(result)
@@ -347,14 +320,8 @@ module Legion
       option :force,   type: :boolean, default: false, desc: 'Re-ingest even unchanged files'
       option :dry_run, type: :boolean, default: false, desc: 'Preview without writing'
       def ingest(path)
-        require_ingest!
-        result = if ::File.directory?(path)
-                   knowledge_ingest.ingest_corpus(path: path, force: options[:force],
-                                                  dry_run: options[:dry_run])
-                 else
-                   knowledge_ingest.ingest_file(file_path: path, force: options[:force],
-                                                dry_run: options[:dry_run])
-                 end
+        result = api_post('/api/knowledge/ingest',
+                          path: ::File.expand_path(path), force: options[:force], dry_run: options[:dry_run])
         out = formatter
         if options[:json]
           out.json(result)
@@ -368,8 +335,7 @@ module Legion
 
       desc 'status', 'Show knowledge base status'
       def status
-        require_ingest!
-        result = knowledge_ingest.scan_corpus(path: ::Dir.pwd)
+        result = api_post('/api/knowledge/status', path: ::Dir.pwd)
         out = formatter
         if options[:json]
           out.json(result)
@@ -386,9 +352,7 @@ module Legion
       desc 'health', 'Show knowledge base health report (local, Apollo, sync)'
       option :corpus_path, type: :string, desc: 'Path to corpus directory (falls back to settings)'
       def health
-        require_maintenance!
-        path = resolve_corpus_path
-        result = knowledge_maintenance.health(path: path)
+        result = api_post('/api/knowledge/health', path: options[:corpus_path])
         out = formatter
         if options[:json]
           out.json(result)
@@ -412,9 +376,8 @@ module Legion
       option :corpus_path, type: :string, desc: 'Path to corpus directory (falls back to settings)'
       option :dry_run, type: :boolean, default: true, desc: 'Preview without archiving (default: true)'
       def maintain
-        require_maintenance!
-        path = resolve_corpus_path
-        result = knowledge_maintenance.cleanup_orphans(path: path, dry_run: options[:dry_run])
+        result = api_post('/api/knowledge/maintain',
+                          path: options[:corpus_path], dry_run: options[:dry_run])
         out = formatter
         if options[:json]
           out.json(result)
@@ -434,8 +397,7 @@ module Legion
       desc 'quality', 'Show knowledge quality report (hot, cold, low-confidence chunks)'
       option :limit, type: :numeric, default: 10, desc: 'Max entries per category'
       def quality
-        require_maintenance!
-        result = knowledge_maintenance.quality_report(limit: options[:limit])
+        result = api_post('/api/knowledge/quality', limit: options[:limit])
         out = formatter
         if options[:json]
           out.json(result)
@@ -459,52 +421,11 @@ module Legion
       desc 'capture SUBCOMMAND', 'Capture knowledge from git commits or sessions'
       subcommand 'capture', CaptureCommand
 
-      no_commands do # rubocop:disable Metrics/BlockLength
+      no_commands do
+        include ApiClient
+
         def formatter
           @formatter ||= Output::Formatter.new(json: options[:json], color: !options[:no_color])
-        end
-
-        def require_knowledge!
-          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Query)
-        end
-
-        def require_ingest!
-          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Ingest)
-        end
-
-        def require_maintenance!
-          Connection.ensure_knowledge unless defined?(Legion::Extensions::Knowledge::Runners::Maintenance)
-        end
-
-        def knowledge_query
-          Legion::Extensions::Knowledge::Runners::Query
-        end
-
-        def knowledge_ingest
-          Legion::Extensions::Knowledge::Runners::Ingest
-        end
-
-        def knowledge_maintenance
-          Legion::Extensions::Knowledge::Runners::Maintenance
-        end
-
-        def resolve_corpus_path
-          if options[:corpus_path]
-            options[:corpus_path]
-          elsif defined?(Legion::Extensions::Knowledge::Runners::Monitor)
-            monitors = Legion::Extensions::Knowledge::Runners::Monitor.resolve_monitors
-            monitors.first&.dig(:path) || legacy_corpus_path || ::Dir.pwd
-          elsif defined?(Legion::Settings)
-            Legion::Settings.dig(:knowledge, :corpus_path) || ::Dir.pwd
-          else
-            ::Dir.pwd
-          end
-        end
-
-        def legacy_corpus_path
-          return unless defined?(Legion::Settings)
-
-          Legion::Settings.dig(:knowledge, :corpus_path)
         end
 
         def print_sources(sources, out, verbose:)

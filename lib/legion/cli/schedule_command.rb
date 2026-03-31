@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'api_client'
+
 module Legion
   module CLI
     class Schedule < Thor
@@ -17,22 +19,20 @@ module Legion
       option :limit, type: :numeric, default: 20, desc: 'Max results'
       def list
         out = formatter
-        with_data do
-          require_scheduler!
-          ds = Legion::Extensions::Scheduler::Data::Model::Schedule.dataset
-          ds = ds.where(active: true) if options[:active]
-          schedules = ds.limit(options[:limit]).all
+        query = "/api/schedules?limit=#{options[:limit]}"
+        query += '&active=true' if options[:active]
+        schedules = api_get(query)
+        schedules = [] if schedules.nil?
 
-          if options[:json]
-            out.json(schedules.map(&:values))
-          else
-            rows = schedules.map do |s|
-              [s[:id], s[:function_id] || '-', s[:cron] || s[:interval] || '-',
-               out.status(s[:active] ? 'active' : 'inactive'), s[:description] || '-']
-            end
-            out.table(%w[ID Function Schedule Status Description], rows)
-            puts "  #{schedules.size} schedule(s)"
+        if options[:json]
+          out.json(schedules)
+        else
+          rows = Array(schedules).map do |s|
+            [s[:id], s[:function_id] || '-', s[:cron] || s[:interval] || '-',
+             out.status(s[:active] ? 'active' : 'inactive'), s[:description] || '-']
           end
+          out.table(%w[ID Function Schedule Status Description], rows)
+          puts "  #{rows.size} schedule(s)"
         end
       end
       default_task :list
@@ -40,21 +40,14 @@ module Legion
       desc 'show ID', 'Show schedule details'
       def show(id)
         out = formatter
-        with_data do
-          require_scheduler!
-          schedule = Legion::Extensions::Scheduler::Data::Model::Schedule[id.to_i]
-          unless schedule
-            out.error("Schedule not found: #{id}")
-            return
-          end
+        schedule = api_get("/api/schedules/#{id}")
 
-          if options[:json]
-            out.json(schedule.values)
-          else
-            out.header("Schedule ##{id}")
-            out.spacer
-            out.detail(schedule.values.transform_keys(&:to_s))
-          end
+        if options[:json]
+          out.json(schedule)
+        else
+          out.header("Schedule ##{id}")
+          out.spacer
+          out.detail(schedule.transform_keys(&:to_s))
         end
       end
 
@@ -65,24 +58,22 @@ module Legion
       option :description, type: :string, desc: 'Schedule description'
       def add
         out = formatter
-        with_data do
-          require_scheduler!
-          attrs = { function_id: options[:function_id], active: true, created_at: Time.now.utc }
-          attrs[:cron] = options[:cron] if options[:cron]
-          attrs[:interval] = options[:interval] if options[:interval]
-          attrs[:description] = options[:description] if options[:description]
 
-          unless attrs[:cron] || attrs[:interval]
-            out.error('Either --cron or --interval is required')
-            return
-          end
+        unless options[:cron] || options[:interval]
+          out.error('Either --cron or --interval is required')
+          return
+        end
 
-          id = Legion::Extensions::Scheduler::Data::Model::Schedule.insert(attrs)
-          if options[:json]
-            out.json({ id: id, created: true })
-          else
-            out.success("Schedule ##{id} created")
-          end
+        payload = { function_id: options[:function_id], active: true }
+        payload[:cron] = options[:cron] if options[:cron]
+        payload[:interval] = options[:interval] if options[:interval]
+        payload[:description] = options[:description] if options[:description]
+
+        result = api_post('/api/schedules', **payload)
+        if options[:json]
+          out.json(result)
+        else
+          out.success("Schedule ##{result[:id]} created")
         end
       end
 
@@ -90,25 +81,17 @@ module Legion
       option :yes, type: :boolean, default: false, aliases: '-y', desc: 'Skip confirmation'
       def remove(id)
         out = formatter
-        with_data do
-          require_scheduler!
-          schedule = Legion::Extensions::Scheduler::Data::Model::Schedule[id.to_i]
-          unless schedule
-            out.error("Schedule not found: #{id}")
-            return
-          end
 
-          unless options[:yes]
-            print "Delete schedule ##{id}? [y/N] "
-            return unless $stdin.gets&.strip&.downcase == 'y'
-          end
+        unless options[:yes]
+          print "Delete schedule ##{id}? [y/N] "
+          return unless $stdin.gets&.strip&.downcase == 'y'
+        end
 
-          schedule.delete
-          if options[:json]
-            out.json({ id: id.to_i, deleted: true })
-          else
-            out.success("Schedule ##{id} deleted")
-          end
+        result = api_delete("/api/schedules/#{id}")
+        if options[:json]
+          out.json({ id: id.to_i, deleted: true }.merge(result || {}))
+        else
+          out.success("Schedule ##{id} deleted")
         end
       end
 
@@ -116,57 +99,32 @@ module Legion
       option :limit, type: :numeric, default: 20, desc: 'Max results'
       def logs(id)
         out = formatter
-        with_data do
-          require_scheduler!
-          schedule = Legion::Extensions::Scheduler::Data::Model::Schedule[id.to_i]
-          unless schedule
-            out.error("Schedule not found: #{id}")
-            return
-          end
+        log_entries = api_get("/api/schedules/#{id}/logs?limit=#{options[:limit]}")
+        log_entries = [] if log_entries.nil?
 
-          log_entries = Legion::Extensions::Scheduler::Data::Model::ScheduleLog
-                        .where(schedule_id: id.to_i)
-                        .order(Sequel.desc(:id))
-                        .limit(options[:limit]).all
-
-          if options[:json]
-            out.json(log_entries.map(&:values))
+        if options[:json]
+          out.json(log_entries)
+        else
+          out.header("Logs for Schedule ##{id}")
+          if Array(log_entries).empty?
+            puts '  No logs found.'
           else
-            out.header("Logs for Schedule ##{id}")
-            if log_entries.empty?
-              puts '  No logs found.'
-            else
-              rows = log_entries.map { |l| [l[:id], l[:status] || '-', l[:started_at]&.to_s || '-', l[:message] || '-'] }
-              out.table(%w[ID Status Started Message], rows)
+            rows = Array(log_entries).map do |l|
+              [l[:id], l[:status] || '-', l[:started_at]&.to_s || '-', l[:message] || '-']
             end
+            out.table(%w[ID Status Started Message], rows)
           end
         end
       end
 
       no_commands do
+        include ApiClient
+
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],
             color: !options[:no_color]
           )
-        end
-
-        def with_data
-          Connection.config_dir = options[:config_dir] if options[:config_dir]
-          Connection.log_level = options[:verbose] ? 'debug' : 'error'
-          Connection.ensure_data
-          yield
-        rescue CLI::Error => e
-          formatter.error(e.message)
-          raise SystemExit, 1
-        ensure
-          Connection.shutdown
-        end
-
-        def require_scheduler!
-          return if defined?(Legion::Extensions::Scheduler::Data::Model::Schedule)
-
-          raise CLI::Error, 'lex-scheduler extension is not loaded. Install and enable it first.'
         end
       end
     end
