@@ -301,7 +301,8 @@ module Legion
         def write_pack_marker(pack_name)
           marker_dir = File.expand_path('~/.legionio/.packs')
           FileUtils.mkdir_p(marker_dir)
-          FileUtils.touch(File.join(marker_dir, pack_name.to_s))
+          marker = File.join(marker_dir, pack_name.to_s)
+          File.write(marker, '') unless File.exist?(marker)
           update_packs_setting(pack_name)
         end
 

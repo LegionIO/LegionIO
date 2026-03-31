@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.46] - 2026-03-31
+
+### Fixed
+- `write_pack_marker` no longer uses `FileUtils.touch` — avoids `EPERM` (`Operation not permitted @ apply2files`) on macOS Sequoia when marker file already exists
+
 ## [1.6.45] - 2026-03-31
 
 ### Added
