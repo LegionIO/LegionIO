@@ -211,7 +211,10 @@ module Legion
           pack = PACKS[pack_name]
           installed, missing = partition_gems(pack[:gems])
 
-          return report_already_installed(pack_name, installed) if missing.empty?
+          if missing.empty?
+            write_pack_marker(pack_name)
+            return report_already_installed(pack_name, installed)
+          end
           return report_dry_run(pack_name, installed, missing) if options[:dry_run]
 
           execute_pack_install(pack_name, installed, missing)
@@ -255,6 +258,7 @@ module Legion
           else
             out.spacer
             if failures.empty?
+              write_pack_marker(pack_name)
               out.success("#{pack_name} pack installed (#{successes.size} gem(s))")
               suggest_next_steps(out, pack_name)
             else
@@ -292,6 +296,30 @@ module Legion
             out.error("  #{name} failed") unless options[:json]
             { name: name, status: 'failed', error: output.strip.lines.last&.strip }
           end
+        end
+
+        def write_pack_marker(pack_name)
+          marker_dir = File.expand_path('~/.legionio/.packs')
+          FileUtils.mkdir_p(marker_dir)
+          FileUtils.touch(File.join(marker_dir, pack_name.to_s))
+          update_packs_setting(pack_name)
+        end
+
+        def update_packs_setting(pack_name)
+          settings_file = File.expand_path('~/.legionio/settings/packs.json')
+          data = if File.exist?(settings_file)
+                   ::JSON.parse(File.read(settings_file))
+                 else
+                   {}
+                 end
+          packs = Array(data['packs'])
+          packs << pack_name.to_s unless packs.include?(pack_name.to_s)
+          data['packs'] = packs.sort
+          FileUtils.mkdir_p(File.dirname(settings_file))
+          File.write(settings_file, ::JSON.pretty_generate(data))
+        rescue ::JSON::ParserError
+          data = { 'packs' => [pack_name.to_s] }
+          File.write(settings_file, ::JSON.pretty_generate(data))
         end
 
         def suggest_next_steps(out, pack_name)
