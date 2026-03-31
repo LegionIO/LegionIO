@@ -310,6 +310,8 @@ module Legion
             Legion::Logging.error "Port #{port} still in use after #{max_retries} attempts, API disabled"
             Legion::Readiness.mark_not_ready(:api)
           end
+        ensure
+          Legion::Process.quit_flag&.make_true if !@shutdown && defined?(Legion::Process)
         end
       end
       Legion::Readiness.mark_ready(:api)

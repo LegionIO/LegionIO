@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-03-31
+
+### Fixed
+- Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown of extension actors (#91)
+- Quit flag uses `Concurrent::AtomicBoolean` for thread-safe signal handling
+- Persistent signal re-trap replaces one-shot `retrap_after_puma` to survive Puma's handler registration
+- API thread signals main loop to exit when Puma shuts down unexpectedly
+
 ## [1.6.47] - 2026-03-31
 
 ### Added
