@@ -24,6 +24,8 @@ module Legion
       class_option :max_budget_usd, type: :numeric, desc: 'Maximum estimated cost in USD (stops when exceeded)'
       class_option :incognito, type: :boolean, default: false,
                                desc: 'Disable automatic session history saving'
+      class_option :tui, type: :boolean, default: false, aliases: ['-t'],
+                         desc: 'Use split-pane TUI (fixed input/output/status regions)'
       class_option :continue, type: :boolean, default: false, aliases: ['-c'],
                               desc: 'Resume the most recent session'
       class_option :resume,         type: :string, desc: 'Resume a saved session by name'
@@ -50,8 +52,6 @@ module Legion
           chat: chat_obj, system_prompt: system_prompt,
           budget_usd: effective_budget
         )
-        @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
-
         restore_session(out) if options[:continue] || options[:resume] || options[:resume_latest] || options[:fork]
         load_memory_context
         load_custom_agents
@@ -63,14 +63,23 @@ module Legion
         @last_active_at = Time.now
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
-        out.banner(version: Legion::VERSION)
-        puts
-        puts out.dim("  Model: #{@session.model_id}")
-        puts out.dim('  Type /help for commands, /quit to exit. End a line with \\ for multiline.')
-        puts
 
         send_recovery_message(out) if @recovery_message
-        repl_loop(out)
+
+        if use_tui?
+          run_tui
+        else
+          @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
+          Chat::Permissions.before_prompt = -> { @indicator&.pause } if @indicator
+
+          out.banner(version: Legion::VERSION)
+          puts
+          puts out.dim("  Model: #{@session.model_id}")
+          puts out.dim('  Type /help for commands, /quit to exit. End a line with \\ for multiline.')
+          puts
+
+          repl_loop(out)
+        end
       rescue Interrupt
         Legion::Logging.debug('ChatCommand#interactive interrupted by user') if defined?(Legion::Logging)
         puts
@@ -325,6 +334,54 @@ module Legion
                                    else
                                      default
                                    end
+        end
+
+        def use_tui?
+          options[:tui] || chat_setting(:tui) == true
+        end
+
+        def run_tui
+          require 'legion/cli/chat/tui/app'
+
+          slash_completions = %w[/help /quit /exit /model /status /permissions /history /clear /edit /save /export]
+          banner = "Legion v#{Legion::VERSION}  |  Model: #{@session.model_id}  |  /help for commands, /quit to exit"
+
+          tui_app = Chat::TUI::App.new(
+            session: @session,
+            model_id: @session.model_id,
+            permissions_mode: Chat::Permissions.mode.to_s,
+            slash_handler: method(:handle_tui_slash),
+            completions: slash_completions,
+            banner: banner
+          )
+
+          tui_app.run
+          show_session_stats(formatter)
+        end
+
+        def handle_tui_slash(text)
+          cmd = text.strip.split(/\s+/, 2)
+          case cmd[0]
+          when '/help'
+            true # TODO: show help overlay
+          when '/model'
+            true # TODO: switch model
+          when '/status'
+            true # TODO: show status
+          when '/permissions'
+            if cmd[1]
+              sym = cmd[1].strip.to_sym
+              valid = %i[interactive auto_approve read_only]
+              if valid.include?(sym)
+                Chat::Permissions.mode = sym
+              end
+            end
+            true
+          when '/clear'
+            true # TODO: clear output
+          else
+            false # Not handled — send to LLM
+          end
         end
 
         def create_chat
