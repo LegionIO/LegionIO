@@ -55,6 +55,7 @@ module Legion
         load_custom_agents
 
         setup_notification_bridge
+        setup_gaia_observation
         setup_worktree(out) if options[:worktree]
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
@@ -193,6 +194,40 @@ module Legion
         rescue LoadError => e
           Legion::Logging.debug("ChatCommand#setup_notification_bridge notification_bridge not available: #{e.message}") if defined?(Legion::Logging)
           @notification_bridge = nil
+        end
+
+        def setup_gaia_observation
+          return unless defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?)
+          return unless Legion::Gaia.started?
+          return unless defined?(Legion::Gaia::InputFrame)
+
+          identity = chat_obj_identity
+          @session.on(:llm_complete) do |payload|
+            next unless Legion::Gaia.started?
+
+            content = payload[:user_message] || payload[:message] || ''
+            frame = Legion::Gaia::InputFrame.new(
+              content:      content,
+              channel_id:   :cli_chat,
+              auth_context: { identity: identity },
+              metadata:     { source_type:    :human_direct,
+                              direct_address: content.to_s.match?(/\bgaia\b/i) }
+            )
+            Legion::Gaia.ingest(frame)
+          rescue StandardError => e
+            Legion::Logging.debug("GAIA observation error: #{e.message}") if defined?(Legion::Logging)
+          end
+        rescue StandardError => e
+          Legion::Logging.debug("setup_gaia_observation failed: #{e.message}") if defined?(Legion::Logging)
+        end
+
+        def chat_obj_identity
+          return @session.chat.caller_context.dig(:requested_by, :identity) if @session.chat.respond_to?(:caller_context)
+
+          require 'etc'
+          Etc.getlogin || ENV.fetch('USER', 'unknown')
+        rescue StandardError
+          ENV.fetch('USER', 'unknown')
         end
 
         def display_pending_notifications

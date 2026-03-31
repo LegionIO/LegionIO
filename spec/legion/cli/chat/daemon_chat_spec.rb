@@ -53,6 +53,40 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
     end
   end
 
+  # ── identity and conversation ───────────────────────────────────────────────
+
+  describe 'identity wiring' do
+    it 'generates a stable conversation_id' do
+      expect(chat.conversation_id).to match(/\A[0-9a-f-]{36}\z/)
+    end
+
+    it 'keeps the same conversation_id across turns' do
+      id = chat.conversation_id
+      stub_inference
+      chat.ask('test')
+      expect(chat.conversation_id).to eq(id)
+    end
+
+    it 'builds a caller_context with identity' do
+      expect(chat.caller_context).to be_a(Hash)
+      expect(chat.caller_context[:requested_by]).to be_a(Hash)
+      expect(chat.caller_context[:requested_by][:type]).to eq(:human)
+      expect(chat.caller_context[:requested_by][:credential]).to eq(:local)
+      expect(chat.caller_context[:requested_by][:identity]).not_to be_nil
+    end
+
+    it 'passes caller and conversation_id to DaemonClient.inference' do
+      stub_inference
+      chat.ask('test')
+      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+        hash_including(
+          caller:          hash_including(requested_by: hash_including(type: :human)),
+          conversation_id: chat.conversation_id
+        )
+      )
+    end
+  end
+
   # ── with_instructions ──────────────────────────────────────────────────────
 
   describe '#with_instructions' do

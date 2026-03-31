@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.6.47] - 2026-03-31
+
+### Added
+- CLI chat identity wiring: `DaemonChat` generates stable `conversation_id` and resolves user identity into `caller_context` (Kerberos principal -> ENV['USER'] fallback)
+- `DaemonChat` forwards `caller` and `conversation_id` to daemon inference endpoint
+- GAIA observation hook in `chat_command.rb`: `setup_gaia_observation` registers an `:llm_complete` callback that ingests user messages into GAIA's observation pipeline
+- `:llm_complete` session event now includes `user_message` in payload
+
 ## [1.6.46] - 2026-03-31
 
 ### Fixed

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'securerandom'
 require 'legion/cli/chat_command'
 
 begin
@@ -31,7 +32,7 @@ module Legion
           end
         end
 
-        attr_reader :model
+        attr_reader :model, :conversation_id, :caller_context
 
         def initialize(model: nil, provider: nil)
           @model    = ModelInfo.new(id: model)
@@ -41,6 +42,8 @@ module Legion
           @instructions = nil
           @on_tool_call   = nil
           @on_tool_result = nil
+          @conversation_id = SecureRandom.uuid
+          @caller_context  = build_caller
         end
 
         # Sets the system prompt. Returns self for chaining.
@@ -112,10 +115,12 @@ module Legion
 
         def call_daemon_inference
           Legion::LLM::DaemonClient.inference(
-            messages: build_messages,
-            tools:    build_tool_schemas,
-            model:    @model.id,
-            provider: @provider
+            messages:        build_messages,
+            tools:           build_tool_schemas,
+            model:           @model.id,
+            provider:        @provider,
+            caller:          @caller_context,
+            conversation_id: @conversation_id
           )
         end
 
@@ -204,6 +209,23 @@ module Legion
           tool_class.call(**arguments)
         rescue StandardError => e
           "Tool error (#{name}): #{e.message}"
+        end
+
+        def build_caller
+          identity = resolve_identity
+          { requested_by: { identity: identity, type: :human, credential: :local } }
+        end
+
+        def resolve_identity
+          if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:kerberos_principal)
+            principal = Legion::Crypt.kerberos_principal
+            return principal if principal
+          end
+
+          require 'etc'
+          Etc.getlogin || ENV.fetch('USER', 'unknown')
+        rescue StandardError
+          ENV.fetch('USER', 'unknown')
         end
 
         def build_response(data)
