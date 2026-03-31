@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.44] - 2026-03-31
+
+### Added
+- `legionio setup <pack>` now writes `~/.legionio/.packs/<name>` marker file and `~/.legionio/settings/packs.json` on successful install, enabling automatic pack reinstall after `brew upgrade` (companion to homebrew-tap#19)
+
 ## [1.6.43] - 2026-03-31
 
 ### Added
