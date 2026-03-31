@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.6.43] - 2026-03-31
+
+### Added
+- `POST /api/absorbers/dispatch` API endpoint for async absorber dispatch — CLI no longer loads extension classes directly
+- Absorb dispatch runs in a background thread, returning job ID immediately
+
+### Changed
+- `legionio absorb url` now routes through the local API instead of loading extension classes in-process (fixes `NameError` when extensions not loaded in CLI context)
+- CLI absorb output updated to show async dispatch status with job ID
+
 ## [1.6.42] - 2026-03-31
 
 ### Fixed

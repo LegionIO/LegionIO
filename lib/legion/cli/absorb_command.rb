@@ -17,22 +17,16 @@ module Legion
       desc 'url URL', 'Absorb content from a URL'
       option :scope, type: :string, default: 'global', desc: 'Knowledge scope (global/local/all)'
       def url(input_url)
-        Connection.ensure_settings
-        require 'legion/extensions/absorbers'
-        require 'legion/extensions/absorbers/pattern_matcher'
-        require 'legion/extensions/actors/absorber_dispatch'
-
         out = formatter
-        result = Legion::Extensions::Actors::AbsorberDispatch.dispatch(
-          input:   input_url,
-          context: { scope: options[:scope]&.to_sym }
-        )
+        result = api_post('/api/absorbers/dispatch', url: input_url, context: { scope: options[:scope] })
 
         if options[:json]
           out.json(result)
         elsif result[:success]
-          out.success("Absorbed: #{input_url}")
-          out.detail(absorber: result[:absorber], job_id: result[:job_id])
+          out.success("Dispatched: #{input_url}")
+          puts "  absorber: #{result[:absorber]}"
+          puts "  job_id:   #{result[:job_id]}"
+          puts '  Processing in background. Check daemon logs for progress.'
         else
           out.warn("Failed: #{result[:error]}")
         end
@@ -82,6 +76,29 @@ module Legion
           (api_settings.is_a?(Hash) && api_settings[:port]) || 4567
         rescue StandardError
           4567
+        end
+
+        def api_post(path, **payload)
+          uri = URI("http://127.0.0.1:#{api_port}#{path}")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.read_timeout = 300
+          request = Net::HTTP::Post.new(uri.path, 'Content-Type' => 'application/json')
+          request.body = ::JSON.generate(payload)
+          response = http.request(request)
+          unless response.is_a?(Net::HTTPSuccess)
+            formatter.error("API returned #{response.code} for #{path}")
+            raise SystemExit, 1
+          end
+          body = ::JSON.parse(response.body, symbolize_names: true)
+          body[:data]
+        rescue Errno::ECONNREFUSED
+          formatter.error('Daemon not running. Start with: legionio start')
+          raise SystemExit, 1
+        rescue SystemExit
+          raise
+        rescue StandardError => e
+          formatter.error("API request failed: #{e.message}")
+          raise SystemExit, 1
         end
 
         def api_get(path)
