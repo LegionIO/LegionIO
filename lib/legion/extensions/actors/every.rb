@@ -17,12 +17,19 @@ module Legion
         define_dsl_accessor :run_now, default: false
 
         def initialize(**_opts)
+          @executing = Concurrent::AtomicBoolean.new(false)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            log.debug "[Every] tick: #{self.class}" if defined?(log)
-            begin
-              skip_or_run { use_runner? ? runner : manual }
-            rescue StandardError => e
-              log.log_exception(e, payload_summary: "[Every] tick failed for #{self.class}", component_type: :actor) if defined?(log)
+            if @executing.make_true
+              begin
+                log.debug "[Every] tick: #{self.class}" if defined?(log)
+                skip_or_run { use_runner? ? runner : manual }
+              rescue StandardError => e
+                log.log_exception(e, payload_summary: "[Every] tick failed for #{self.class}", component_type: :actor) if defined?(log)
+              ensure
+                @executing.make_false
+              end
+            elsif defined?(log)
+              log.debug "[Every] skipped (previous still running): #{self.class}"
             end
           end
 

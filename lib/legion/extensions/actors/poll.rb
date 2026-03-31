@@ -21,10 +21,19 @@ module Legion
         def initialize
           log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, run_now: run_now?,
 check_subtask: check_subtask? }}"
+          @executing = Concurrent::AtomicBoolean.new(false)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            skip_or_run { poll_cycle }
-          rescue StandardError => e
-            Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
+            if @executing.make_true
+              begin
+                skip_or_run { poll_cycle }
+              rescue StandardError => e
+                Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
+              ensure
+                @executing.make_false
+              end
+            else
+              Legion::Logging.debug "[Poll] skipped (previous still running): #{self.class}"
+            end
           end
           @timer.execute
         rescue StandardError => e

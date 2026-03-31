@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.6.42] - 2026-03-31
+
+### Fixed
+- `Every` and `Poll` actors now guard against overlapping executions using `Concurrent::AtomicBoolean` — if the previous tick is still running when the next interval fires, the new tick is skipped with a debug log instead of stacking up concurrent executions
+
 ## [1.6.41] - 2026-03-30
 
 ### Fixed
