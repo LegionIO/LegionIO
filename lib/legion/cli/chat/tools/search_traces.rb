@@ -31,7 +31,7 @@ module Legion
             ['Job', 'jobTitle', :jobTitle]
           ].freeze
 
-          def execute(query:, person: nil, domain: nil, trace_type: nil, limit: nil)
+          def execute(query:, person: nil, domain: nil, trace_type: nil, limit: nil, **) # rubocop:disable Metrics/ParameterLists
             return 'Memory trace system not available (lex-agentic-memory not loaded).' unless trace_store_available?
 
             limit = (limit || 20).clamp(1, 50)
