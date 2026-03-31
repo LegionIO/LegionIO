@@ -69,7 +69,7 @@ module Legion
             @stats[:output_tokens] = (@stats[:output_tokens] || 0) + (response.output_tokens || 0)
           end
 
-          emit(:llm_complete, { turn: current_turn })
+          emit(:llm_complete, { turn: current_turn, user_message: message })
 
           response
         end

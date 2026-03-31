@@ -142,6 +142,13 @@ RSpec.describe Legion::CLI::Chat::Session do
       expect(events).to eq([[:llm_start, 1], [:llm_complete, 1]])
     end
 
+    it 'includes user_message in :llm_complete payload' do
+      payload_received = nil
+      session.on(:llm_complete) { |p| payload_received = p }
+      session.send_message('tell me something')
+      expect(payload_received[:user_message]).to eq('tell me something')
+    end
+
     it 'emits :llm_first_token on first streaming chunk' do
       token_events = []
       session.on(:llm_first_token) { |p| token_events << p[:turn] }
