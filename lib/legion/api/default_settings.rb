@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'sinatra/base'
+
 module Legion
   class API < Sinatra::Base
     module Settings

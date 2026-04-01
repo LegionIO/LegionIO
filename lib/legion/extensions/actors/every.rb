@@ -24,6 +24,7 @@ module Legion
                 log.debug "[Every] tick: #{self.class}" if defined?(log)
                 skip_or_run { use_runner? ? runner : manual }
               rescue StandardError => e
+                log.error "[Every] tick failed for #{self.class}: #{e.class}: #{e.message}" if defined?(log)
                 handle_exception(e) if defined?(log)
               ensure
                 @executing.make_false

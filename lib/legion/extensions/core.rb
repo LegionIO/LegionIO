@@ -235,7 +235,7 @@ module Legion
           lex_class.const_set(:Data, Module.new { extend Legion::Extensions::Data })
         end
       rescue StandardError => e
-        handle_exception(e)
+        handle_exception(e, lex: lex_name, operation: 'auto_generate_data')
       end
     end
   end

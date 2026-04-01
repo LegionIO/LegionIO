@@ -25,7 +25,8 @@ module Legion
         auto_generate_messages
         log.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}"
       rescue StandardError => e
-        handle_exception(e)
+        log.error "[Transport] build failed for #{lex_name}"
+        handle_exception(e, lex: lex_name)
       end
 
       def generate_base_modules

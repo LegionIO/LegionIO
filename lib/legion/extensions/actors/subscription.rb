@@ -83,7 +83,7 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            handle_exception(e)
+            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"

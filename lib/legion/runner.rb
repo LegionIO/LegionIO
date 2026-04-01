@@ -46,14 +46,18 @@ module Legion
         rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
         status = 'task.exception'
         result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
-        runner_class.handle_runner_exception(e,
-                                             **opts,
-                                             runner_class:  runner_class,
-                                             args:          args,
-                                             function:      function,
-                                             task_id:       task_id,
-                                             generate_task: generate_task,
-                                             check_subtask: check_subtask)
+        begin
+          runner_class.handle_runner_exception(e,
+                                               **opts,
+                                               runner_class:  runner_class,
+                                               args:          args,
+                                               function:      function,
+                                               task_id:       task_id,
+                                               generate_task: generate_task,
+                                               check_subtask: check_subtask)
+        rescue Legion::Exception::HandledTask => handled
+          rlog.debug "[Runner] HandledTask raised while handling exception in #{runner_class}##{function}: #{handled.message}"
+        end
         raise e unless catch_exceptions
       end
     ensure

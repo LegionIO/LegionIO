@@ -142,7 +142,7 @@ module Legion
       setup_metrics
       setup_task_outcome_observer
 
-      api_settings = Legion::Settings[:api]
+      api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings[:enabled]
       setup_api if @api_enabled
       setup_network_watchdog
@@ -832,7 +832,7 @@ module Legion
     end
 
     def build_api_tls_config(api_settings)
-      tls = api_settings[:tls]
+      tls = api_settings[:tls] || {}
       tls = tls.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
       return nil unless tls[:enabled] == true
 
