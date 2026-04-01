@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.10] - 2026-03-31
+
+### Added
+- Provider factory pattern for boot lifecycle with DAG-ordered registry (#71)
+- `Legion::Provider` base class with `provides`, `depends_on`, and `adapters` DSL
+- `Legion::Provider::Registry` with topological sort for dependency-ordered boot
+- Cycle detection raises `CyclicDependencyError`, missing deps raise `MissingDependencyError`
+- `Registry.boot!` boots providers in order with per-provider timeout
+- `Registry.shutdown!` shuts down in reverse boot order
+
 ## [1.7.9] - 2026-03-31
 
 ### Added
