@@ -260,8 +260,9 @@ module Legion
 
         def check_api(_options)
           require 'legion/api'
-          port = (Legion::Settings[:api] || {})[:port] || 4567
-          bind = (Legion::Settings[:api] || {})[:bind] || '127.0.0.1'
+          api_settings = Legion::Settings[:api]
+          port = api_settings[:port]
+          bind = api_settings[:bind]
 
           Legion::API.set :port, port
           Legion::API.set :bind, bind
