@@ -646,7 +646,7 @@ module Legion
           out.detail({
                        '/help'                  => 'Show this help',
                        '/quit'                  => 'Exit chat',
-                       '/cost'                  => 'Show session stats',
+                       '/cost'                  => 'Show per-model cost breakdown and session stats',
                        '/status'                => 'Detailed session status (model, tokens, context, permissions)',
                        '/compact [STRATEGY]'    => 'Compress history (auto, dedup, summarize)',
                        '/context'               => 'Show context window stats',
@@ -1195,16 +1195,35 @@ module Legion
         def show_session_stats(out)
           s = @session.stats
           elapsed = @session.elapsed.round(1)
-          details = {
-            'Messages' => "#{s[:messages_sent]} sent, #{s[:messages_received]} received",
-            'Model'    => @session.model_id,
-            'Duration' => "#{elapsed}s"
-          }
-          details['Input tokens']  = s[:input_tokens].to_s  if s[:input_tokens]
-          details['Output tokens'] = s[:output_tokens].to_s if s[:output_tokens]
-          cost = @session.estimated_cost
-          details['Est. cost'] = format('$%.4f', cost) if cost.positive?
-          out.detail(details)
+          breakdown = @session.cost_breakdown
+
+          if breakdown.any?
+            out.header('Session Cost Summary')
+            rows = breakdown.map do |entry|
+              [entry[:model],
+               format_number(entry[:input_tokens]),
+               format_number(entry[:output_tokens]),
+               format('$%.4f', entry[:cost])]
+            end
+            total_cost = @session.estimated_cost
+            rows << ['Total',
+                     format_number(s[:input_tokens] || 0),
+                     format_number(s[:output_tokens] || 0),
+                     format('$%.4f', total_cost)]
+            out.table(['Model', 'Input Tokens', 'Output Tokens', 'Cost'], rows)
+          end
+
+          cache = @session.cache_hits_tokens
+          puts "  Cache hits: #{format_number(cache)} tokens saved" if cache.positive?
+
+          duration_min = (elapsed / 60.0).round(1)
+          label = duration_min >= 1.0 ? "#{duration_min} minutes" : "#{elapsed}s"
+          puts "  Session duration: #{label}"
+          puts "  Messages: #{s[:messages_sent]} sent, #{s[:messages_received]} received"
+        end
+
+        def format_number(num)
+          num.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
         end
 
         def restore_session(out)
