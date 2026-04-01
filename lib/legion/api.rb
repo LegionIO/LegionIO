@@ -4,6 +4,7 @@ require 'sinatra/base'
 require 'legion/json'
 require_relative 'events'
 require_relative 'readiness'
+require_relative 'api/default_settings'
 
 require_relative 'api/middleware/auth'
 require_relative 'api/middleware/body_limit'
