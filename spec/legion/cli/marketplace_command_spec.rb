@@ -282,20 +282,22 @@ RSpec.describe Legion::CLI::Marketplace do
       build_command.install('my-gem')
     end
 
-    it 'calls gem install for a valid lex name' do
-      allow(Kernel).to receive(:system).and_return(true)
-      expect(Kernel).to receive(:system).with('gem', 'install', 'lex-foo').and_return(true)
+    it 'calls GemSource.install_gem for a valid lex name' do
+      allow(Legion::Extensions::GemSource).to receive(:install_gem)
+        .with('lex-foo').and_return({ success: true, output: '', command: 'gem install lex-foo' })
       build_command.install('lex-foo')
     end
 
     it 'reports success when install succeeds' do
-      allow(Kernel).to receive(:system).and_return(true)
+      allow(Legion::Extensions::GemSource).to receive(:install_gem)
+        .and_return({ success: true, output: '', command: 'gem install lex-foo' })
       expect(out).to receive(:success).with(/'lex-foo' installed successfully/)
       build_command.install('lex-foo')
     end
 
     it 'reports error when install fails' do
-      allow(Kernel).to receive(:system).and_return(false)
+      allow(Legion::Extensions::GemSource).to receive(:install_gem)
+        .and_return({ success: false, output: 'ERROR: not found', command: 'gem install lex-foo' })
       expect(out).to receive(:error).with(/Failed to install/)
       build_command.install('lex-foo')
     end

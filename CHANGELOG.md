@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-03-31
+
+### Added
+- Dynamic gem sources for extension installs (#52)
+- `Legion::Extensions::GemSource` module centralizes source resolution, auth, and install
+- Configure custom sources via `extensions.sources` setting with URL + optional credentials
+- Auth supports literal tokens and `env:VAR_NAME` for environment variable resolution
+- `legionio marketplace install` now uses configured sources and accepts `--source` override
+- `legionio update gems` passes configured sources when installing outdated gems
+
 ## [1.7.4] - 2026-03-31
 
 ### Added
