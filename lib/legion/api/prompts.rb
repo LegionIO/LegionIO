@@ -16,7 +16,11 @@ module Legion
 
             define_method(:prompt_client) do
               require 'legion/extensions/prompt/client'
-              Legion::Extensions::Prompt::Client.new
+              db = Legion::Data.connection
+              unless db.table_exists?(:prompts)
+                halt 503, json_error('prompt_unavailable', 'prompts table does not exist — run lex-prompt migrations', status_code: 503)
+              end
+              Legion::Extensions::Prompt::Client.new(db: db)
             rescue LoadError => e
               Legion::Logging.warn "Prompts#prompt_client failed to load lex-prompt: #{e.message}" if defined?(Legion::Logging)
               halt 503, json_error('prompt_unavailable', 'lex-prompt is not loaded', status_code: 503)
@@ -34,7 +38,7 @@ module Legion
             result = client.list_prompts
             json_response(result)
           rescue StandardError => e
-            Legion::Logging.error "API GET /api/prompts: #{e.class} — #{e.message}"
+            Legion::Logging.log_exception(e, payload_summary: 'API GET /api/prompts', component_type: :api)
             json_error('execution_error', e.message, status_code: 500)
           end
         end
@@ -52,7 +56,7 @@ module Legion
 
             json_response(result)
           rescue StandardError => e
-            Legion::Logging.error "API GET /api/prompts/#{params[:name]}: #{e.class} — #{e.message}"
+            Legion::Logging.log_exception(e, payload_summary: "API GET /api/prompts/#{params[:name]}", component_type: :api)
             json_error('execution_error', e.message, status_code: 500)
           end
         end
@@ -100,7 +104,7 @@ module Legion
                             provider:        provider
                           })
           rescue StandardError => e
-            Legion::Logging.error "API POST /api/prompts/#{params[:name]}/run: #{e.class} — #{e.message}"
+            Legion::Logging.log_exception(e, payload_summary: "API POST /api/prompts/#{params[:name]}/run", component_type: :api)
             json_error('execution_error', e.message, status_code: 500)
           end
         end

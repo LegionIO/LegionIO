@@ -49,12 +49,15 @@ require_relative 'api/absorbers'
 require_relative 'api/codegen'
 require_relative 'api/knowledge'
 require_relative 'api/mesh'
+require_relative 'api/metering'
 require_relative 'api/logs'
 require_relative 'api/router'
 require_relative 'api/library_routes'
 require_relative 'api/sync_dispatch'
 require_relative 'api/lex_dispatch'
 require_relative 'api/tbi_patterns'
+require_relative 'api/webhooks'
+require_relative 'api/tenants'
 require_relative 'api/inbound_webhooks'
 require_relative 'api/graphql' if defined?(GraphQL)
 
@@ -186,8 +189,11 @@ module Legion
     register Routes::Codegen
     register Routes::Knowledge
     register Routes::Mesh
+    register Routes::Metering
     register Routes::Logs
     register Routes::TbiPatterns
+    register Routes::Webhooks
+    register Routes::Tenants
     register Routes::InboundWebhooks
     register Routes::GraphQL if defined?(Routes::GraphQL)
 

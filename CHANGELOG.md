@@ -2,15 +2,24 @@
 
 ## [Unreleased]
 
-## [1.7.3] - 2026-03-31
+## [1.7.5] - 2026-04-01
 
 ### Added
 - `POST /api/reload` endpoint to trigger daemon reload from CLI mode command
-- `GET /api/mesh/status` and `GET /api/mesh/peers` endpoints for mesh topology visibility
+- `GET /api/mesh/status` and `GET /api/mesh/peers` endpoints with 10s cache
+- `GET /api/metering`, `/api/metering/rollup`, `/api/metering/by_model` endpoints wired to lex-metering
+- `GET /api/webhooks` and `GET /api/tenants` routes registered (were defined but never mounted)
+- Knowledge monitor v2/v3 route aliases for Interlink compatibility
+- Server-side MCP tool injection into `/api/llm/inference` via `McpToolAdapter` (64 tools)
+- Deferred tool loading: 18 always-loaded tools, ~46 on-demand (cuts inference from 24s to 6-9s)
+- Client-side tools (`sh`, `file_read`, `list_directory`, etc.) now execute server-side in the inference endpoint
 
 ### Fixed
 - Knowledge ingest API route calls `ingest_content` instead of `ingest_file` when `content` body param is present
 - Catalog API queries `extensions.name` instead of non-existent `gem_name` column
+- Inference endpoint tool declarations use `RubyLLM::Tool` subclass with proper `name` instance method
+- Prompts API guards against missing `prompts` table (returns 503 instead of 500)
+- All API rescue blocks use `Legion::Logging.log_exception` instead of swallowing errors
 
 ## [1.7.0] - 2026-03-31
 

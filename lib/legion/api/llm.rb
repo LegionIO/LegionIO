@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require 'open3'
 
 begin
   require 'legion/cli/chat/tools/search_traces'
@@ -8,8 +9,29 @@ begin
     Legion::LLM::ToolRegistry.register(Legion::CLI::Chat::Tools::SearchTraces)
   end
 rescue LoadError => e
-  Legion::Logging.debug("SearchTraces not available for API: #{e.message}") if defined?(Legion::Logging)
+  Legion::Logging.log_exception(e, payload_summary: 'SearchTraces not available for API', component_type: :api) if defined?(Legion::Logging)
 end
+
+ALWAYS_LOADED_TOOLS = %w[
+  legion_do
+  legion_get_status
+  legion_run_task
+  legion_describe_runner
+  legion_list_extensions
+  legion_get_extension
+  legion_list_tasks
+  legion_get_task
+  legion_get_task_logs
+  legion_query_knowledge
+  legion_knowledge_health
+  legion_knowledge_context
+  legion_list_workers
+  legion_show_worker
+  legion_mesh_status
+  legion_list_peers
+  legion_tools
+  legion_search_sessions
+].freeze
 
 module Legion
   class API < Sinatra::Base
@@ -36,16 +58,110 @@ module Legion
             define_method(:gateway_available?) do
               defined?(Legion::Extensions::LLM::Gateway::Runners::Inference)
             end
+
+            define_method(:cached_mcp_tools) do
+              @cached_mcp_tools ||= begin
+                all = []
+                begin
+                  require 'legion/mcp' unless defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
+                rescue LoadError => e
+                  Legion::Logging.log_exception(e, payload_summary: 'cached_mcp_tools: failed to require legion/mcp', component_type: :api)
+                end
+                if defined?(Legion::MCP::Server) && Legion::MCP::Server.respond_to?(:tool_registry)
+                  require 'legion/llm/pipeline/mcp_tool_adapter' unless defined?(Legion::LLM::Pipeline::McpToolAdapter)
+                  Legion::MCP::Server.tool_registry.each do |tc|
+                    all << Legion::LLM::Pipeline::McpToolAdapter.new(tc)
+                  rescue StandardError => e
+                    Legion::Logging.log_exception(e, payload_summary: "cached_mcp_tools: failed to adapt #{tc}", component_type: :api)
+                  end
+                end
+                {
+                  always:   all.select { |t| ALWAYS_LOADED_TOOLS.include?(t.name) }.freeze,
+                  deferred: all.reject { |t| ALWAYS_LOADED_TOOLS.include?(t.name) }.freeze,
+                  all:      all.freeze
+                }.freeze
+              end
+            end
+
+            define_method(:inject_mcp_tools) do |session, requested_tools: []|
+              cache = cached_mcp_tools
+              cache[:always].each { |t| session.with_tool(t) }
+
+              return if requested_tools.empty?
+
+              requested = requested_tools.map { |n| n.to_s.tr('.', '_') }
+              cache[:deferred].each do |t|
+                session.with_tool(t) if requested.include?(t.name)
+              end
+            end
+
+            define_method(:build_client_tool) do |tname, tdesc, tschema|
+              klass = Class.new(RubyLLM::Tool) do
+                description tdesc
+                define_method(:name) { tname }
+                tool_ref = tname
+                define_method(:execute) do |**kwargs|
+                  case tool_ref
+                  when 'sh'
+                    cmd = kwargs[:command] || kwargs[:cmd] || kwargs.values.first.to_s
+                    output, status = ::Open3.capture2e(cmd, chdir: Dir.pwd)
+                    "exit=#{status.exitstatus}\n#{output}"
+                  when 'file_read'
+                    path = kwargs[:path] || kwargs[:file_path] || kwargs.values.first.to_s
+                    ::File.exist?(path) ? ::File.read(path, encoding: 'utf-8') : "File not found: #{path}"
+                  when 'file_write'
+                    path = kwargs[:path] || kwargs[:file_path]
+                    content = kwargs[:content] || kwargs[:contents]
+                    ::File.write(path, content)
+                    "Written #{content.to_s.bytesize} bytes to #{path}"
+                  when 'file_edit'
+                    path = kwargs[:path] || kwargs[:file_path]
+                    old_text = kwargs[:old_text] || kwargs[:search]
+                    new_text = kwargs[:new_text] || kwargs[:replace]
+                    content = ::File.read(path, encoding: 'utf-8')
+                    content.sub!(old_text, new_text)
+                    ::File.write(path, content)
+                    "Edited #{path}"
+                  when 'list_directory'
+                    path = kwargs[:path] || kwargs[:dir] || Dir.pwd
+                    Dir.entries(path).reject { |e| e.start_with?('.') }.sort.join("\n")
+                  when 'grep'
+                    pattern = kwargs[:pattern] || kwargs[:query] || kwargs.values.first.to_s
+                    path = kwargs[:path] || Dir.pwd
+                    output, = ::Open3.capture2e('grep', '-rn', '--include=*.rb', pattern, path)
+                    output.lines.first(50).join
+                  when 'glob'
+                    pattern = kwargs[:pattern] || kwargs.values.first.to_s
+                    Dir.glob(pattern).first(100).join("\n")
+                  when 'web_fetch'
+                    url = kwargs[:url] || kwargs.values.first.to_s
+                    require 'net/http'
+                    uri = URI(url)
+                    Net::HTTP.get(uri)
+                  else
+                    "Tool #{tool_ref} is not executable server-side. Use a legion_ prefixed tool instead."
+                  end
+                rescue StandardError => e
+                  Legion::Logging.log_exception(e, payload_summary: "client tool #{tool_ref} failed", component_type: :api)
+                  "Tool error: #{e.message}"
+                end
+              end
+              klass.params(tschema) if tschema.is_a?(Hash) && tschema[:properties]
+              klass.new
+            rescue StandardError => e
+              Legion::Logging.log_exception(e, payload_summary: "build_client_tool failed for #{tname}", component_type: :api)
+              nil
+            end
           end
 
           register_chat(app)
           register_providers(app)
         end
 
-        def self.register_chat(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        def self.register_chat(app)
           register_inference(app)
 
-          app.post '/api/llm/chat' do # rubocop:disable Metrics/BlockLength
+          app.post '/api/llm/chat' do
             Legion::Logging.debug "API: POST /api/llm/chat params=#{params.keys}"
             require_llm!
 
@@ -138,7 +254,7 @@ module Legion
                   }
                 )
               rescue StandardError => e
-                Legion::Logging.error "API POST /api/llm/chat async: #{e.class} — #{e.message}"
+                Legion::Logging.log_exception(e, payload_summary: 'api/llm/chat async failed', component_type: :api)
                 rc.fail_request(request_id, code: 'llm_error', message: e.message)
               end
 
@@ -165,16 +281,17 @@ module Legion
           end
         end
 
-        def self.register_inference(app) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-          app.post '/api/llm/inference' do # rubocop:disable Metrics/BlockLength
+        def self.register_inference(app)
+          app.post '/api/llm/inference' do
             require_llm!
             body = parse_request_body
             validate_required!(body, :messages)
 
-            messages = body[:messages]
-            tools    = body[:tools] || []
-            model    = body[:model]
-            provider = body[:provider]
+            messages        = body[:messages]
+            tools           = body[:tools] || []
+            model           = body[:model]
+            provider        = body[:provider]
+            requested_tools = body[:requested_tools] || []
 
             unless messages.is_a?(Array)
               halt 400, { 'Content-Type' => 'application/json' },
@@ -187,21 +304,17 @@ module Legion
               caller:   { source: 'api', path: request.path }
             )
 
+            # Inject client-side tools (from Interlink) with server-side execution
             unless tools.empty?
-              tool_declarations = tools.map do |t|
+              tools.each do |t|
                 ts = t.respond_to?(:transform_keys) ? t.transform_keys(&:to_sym) : t
-                tname = ts[:name].to_s
-                tdesc = ts[:description].to_s
-                tparams = ts[:parameters] || {}
-                Class.new do
-                  define_singleton_method(:tool_name) { tname }
-                  define_singleton_method(:description)  { tdesc }
-                  define_singleton_method(:parameters)   { tparams }
-                  define_method(:call) { |**_| raise NotImplementedError, "#{tname} executes client-side only" }
-                end
+                inst = build_client_tool(ts[:name].to_s, ts[:description].to_s, ts[:parameters] || ts[:input_schema])
+                session.with_tool(inst) if inst
               end
-              session.with_tools(*tool_declarations)
             end
+
+            # Inject server-side Legion MCP tools (always + requested deferred)
+            inject_mcp_tools(session, requested_tools: requested_tools)
 
             messages.each { |m| session.add_message(m) }
 
@@ -229,7 +342,7 @@ module Legion
                             output_tokens: response.respond_to?(:output_tokens) ? response.output_tokens : nil
                           }, status_code: 200)
           rescue StandardError => e
-            Legion::Logging.error "[api/llm/inference] #{e.class}: #{e.message}" if defined?(Legion::Logging)
+            Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference failed', component_type: :api)
             json_response({ error: { code: 'inference_error', message: e.message } }, status_code: 500)
           end
         end

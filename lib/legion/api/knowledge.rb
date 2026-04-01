@@ -103,13 +103,13 @@ module Legion
         end
 
         def self.register_monitor_routes(app)
-          app.get '/api/knowledge/monitors' do
+          monitor_list = lambda do
             require_knowledge_monitor!
             monitors = Legion::Extensions::Knowledge::Runners::Monitor.list_monitors
             json_response(monitors)
           end
 
-          app.post '/api/knowledge/monitors' do
+          monitor_add = lambda do
             require_knowledge_monitor!
             body = parse_request_body
             result = Legion::Extensions::Knowledge::Runners::Monitor.add_monitor(
@@ -120,7 +120,7 @@ module Legion
             json_response(result, status_code: 201)
           end
 
-          app.delete '/api/knowledge/monitors' do
+          monitor_remove = lambda do
             require_knowledge_monitor!
             body = parse_request_body
             result = Legion::Extensions::Knowledge::Runners::Monitor.remove_monitor(
@@ -128,6 +128,21 @@ module Legion
             )
             json_response(result)
           end
+
+          # Primary routes
+          app.get('/api/knowledge/monitors', &monitor_list)
+          app.post('/api/knowledge/monitors', &monitor_add)
+          app.delete('/api/knowledge/monitors', &monitor_remove)
+
+          # Interlink v3 aliases
+          app.get('/api/extensions/knowledge/runners/monitors/list', &monitor_list)
+          app.post('/api/extensions/knowledge/runners/monitors/create', &monitor_add)
+          app.delete('/api/extensions/knowledge/runners/monitors/delete', &monitor_remove)
+
+          # Interlink v2 aliases
+          app.get('/api/lex/knowledge/monitors', &monitor_list)
+          app.post('/api/lex/knowledge/monitors', &monitor_add)
+          app.delete('/api/lex/knowledge/monitors', &monitor_remove)
 
           app.get '/api/knowledge/monitors/status' do
             require_knowledge_monitor!

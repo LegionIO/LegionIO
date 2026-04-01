@@ -61,6 +61,7 @@ RSpec.describe 'LLM inference API route' do
     model_obj = double('ModelObj', to_s: model_name)
 
     fake_session = double('ChatSession', model: model_obj)
+    allow(fake_session).to receive(:with_tool)
     allow(fake_session).to receive(:with_tools)
     allow(fake_session).to receive(:add_message)
     allow(fake_session).to receive(:ask).and_return(fake_response)
@@ -171,7 +172,7 @@ RSpec.describe 'LLM inference API route' do
     it 'registers tool declarations when tools are provided' do
       fake_session, = stub_llm_chat_session
       tools_received = []
-      allow(fake_session).to receive(:with_tools) { |*args| tools_received.concat(args) }
+      allow(fake_session).to receive(:with_tool) { |t| tools_received << t }
 
       tools = [{ name: 'read_file', description: 'Reads a file', parameters: { type: 'object' } }]
 
@@ -184,7 +185,7 @@ RSpec.describe 'LLM inference API route' do
 
       expect(last_response.status).to eq(200)
       expect(tools_received.length).to eq(1)
-      expect(tools_received.first.tool_name).to eq('read_file')
+      expect(tools_received.first.name).to eq('read_file')
     end
 
     it 'does not call with_tools when tools array is empty' do

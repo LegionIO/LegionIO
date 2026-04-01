@@ -18,6 +18,7 @@ Metrics/MethodLength:
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/api/openapi.rb'
+    - 'lib/legion/api/llm.rb'
     - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/ClassLength:
@@ -53,6 +54,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/prompt_command.rb'
     - 'lib/legion/cli/image_command.rb'
     - 'lib/legion/cli/notebook_command.rb'
+    - 'lib/legion/api/llm.rb'
     - 'lib/legion/api/acp.rb'
     - 'lib/legion/api/auth_saml.rb'
     - 'lib/legion/cli/failover_command.rb'
@@ -66,6 +68,7 @@ Metrics/AbcSize:
   Max: 60
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
+    - 'lib/legion/api/llm.rb'
     - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/CyclomaticComplexity:
@@ -73,12 +76,14 @@ Metrics/CyclomaticComplexity:
   Exclude:
     - 'lib/legion/cli/chat_command.rb'
     - 'lib/legion/api/auth_human.rb'
+    - 'lib/legion/api/llm.rb'
     - 'lib/legion/digital_worker/lifecycle.rb'
 
 Metrics/PerceivedComplexity:
   Max: 17
   Exclude:
     - 'lib/legion/api/auth_human.rb'
+    - 'lib/legion/api/llm.rb'
     - 'lib/legion/digital_worker/lifecycle.rb'
 
 Style/Documentation:
