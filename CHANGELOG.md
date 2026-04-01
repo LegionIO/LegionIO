@@ -19,6 +19,7 @@
 - Interrupt detection and session recovery for chat resume (#98)
 - Configurable output styles for LLM responses via `.legionio/output-styles/` (#103)
 - Route RunCommand through lex-exec sandbox when `chat.sandboxed_commands.enabled` is true (#96)
+- Cross-session memory consolidation with 3-gate trigger system (#99)
 
 ### Fixed
 - Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)

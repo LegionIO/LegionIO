@@ -100,6 +100,65 @@ module Legion
         end
       end
 
+      desc 'consolidate', 'Consolidate cross-session learnings into global memory'
+      option :force, type: :boolean, default: false, aliases: ['-f'],
+                     desc: 'Skip gate checks (time, sessions, lock)'
+      def consolidate
+        out = formatter
+        require 'legion/memory/consolidator'
+
+        out.header('Cross-Session Memory Consolidation')
+
+        unless Legion::Memory::Consolidator.enabled?
+          out.warn('Consolidation is disabled. Enable with memory.consolidation.enabled: true')
+          return
+        end
+
+        unless options[:force]
+          gates = Legion::Memory::Consolidator.gate_status
+          out.detail({
+                       'Time gate'    => gates[:time_gate] ? 'pass' : 'fail',
+                       'Session gate' => gates[:session_gate] ? 'pass' : 'fail',
+                       'Lock gate'    => gates[:lock_gate] ? 'pass' : 'fail'
+                     })
+        end
+
+        result = Legion::Memory::Consolidator.run(force: options[:force])
+
+        if options[:json]
+          out.json(result)
+          return
+        end
+
+        if result[:success]
+          out.success("Consolidated #{result[:insights_count]} insights from #{result[:transcripts_scanned]} sessions")
+        else
+          out.warn("Consolidation skipped: #{result[:reason]}")
+        end
+      end
+
+      desc 'status', 'Show consolidation gate status'
+      def status
+        out = formatter
+        require 'legion/memory/consolidator'
+
+        gates = Legion::Memory::Consolidator.gate_status
+        settings = Legion::Memory::Consolidator.consolidation_settings
+
+        if options[:json]
+          out.json({ gates: gates, settings: settings, enabled: Legion::Memory::Consolidator.enabled? })
+          return
+        end
+
+        out.header('Consolidation Status')
+        out.detail({
+                     'Enabled'      => Legion::Memory::Consolidator.enabled?.to_s,
+                     'Time gate'    => gates[:time_gate] ? 'pass' : "fail (< #{settings[:min_hours]}h since last run)",
+                     'Session gate' => gates[:session_gate] ? 'pass' : "fail (< #{settings[:min_sessions]} new sessions)",
+                     'Lock gate'    => gates[:lock_gate] ? 'pass' : 'fail (consolidation in progress)'
+                   })
+      end
+
       no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
