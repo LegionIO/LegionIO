@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-03-31
+
+### Added
+- `legionio mode` CLI command for profile switching (#72)
+- `legionio mode show` displays current process role and extension profile
+- `legionio mode list` shows all profiles with extension counts and process roles with subsystems
+- `legionio mode set PROFILE` writes config to `~/.legionio/settings/role.json` with validation
+- `--dry-run` preview, `--reload` live reload via daemon API, `--extensions` for custom profile
+- Validates profile and process role names with clear error messages
+
 ## [1.7.3] - 2026-03-31
 
 ### Added
