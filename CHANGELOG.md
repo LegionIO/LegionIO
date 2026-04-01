@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.9] - 2026-03-31
+
+### Added
+- Wire task completion to reflection and learning persistence (#70)
+- `TaskOutcomeObserver` subscribes to `task.completed` and `task.failed` events
+- Records learning episodes to MetaLearning when lex-agentic-learning is loaded
+- Publishes structured lessons to Apollo with operational domain tags
+- Auto-installs LLM reflection hook when `llm.reflection.enabled` is true
+- Toggleable via `task_outcome_observer.enabled` setting (default: true)
+
 ## [1.7.8] - 2026-03-31
 
 ### Added

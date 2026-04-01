@@ -140,6 +140,7 @@ module Legion
 
       setup_alerts
       setup_metrics
+      setup_task_outcome_observer
 
       api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings.fetch(:enabled, true)
@@ -461,6 +462,15 @@ module Legion
       Legion::Logging.debug 'Legion::Metrics initialized'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Metrics setup failed: #{e.message}"
+    end
+
+    def setup_task_outcome_observer
+      require_relative 'task_outcome_observer'
+      return unless Legion::TaskOutcomeObserver.enabled?
+
+      Legion::TaskOutcomeObserver.setup
+    rescue StandardError => e
+      Legion::Logging.warn "TaskOutcomeObserver setup failed: #{e.message}"
     end
 
     def setup_telemetry
