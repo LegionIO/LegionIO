@@ -59,6 +59,7 @@ module Legion
         attrs['llm.provider'] = provider if provider
         attrs['llm.invocation_parameters'] = invocation_params.to_json unless invocation_params.empty?
         attrs['input.value'] = truncate_value(input.to_s) if input && include_io?
+        attrs.merge!(genai_attrs(model: model, provider: provider))
 
         Legion::Telemetry.with_span("llm.#{model}", kind: :client, attributes: attrs) do |span|
           result = yield(span)
@@ -76,6 +77,7 @@ module Legion
 
         attrs = base_attrs('EMBEDDING').merge('embedding.model_name' => model)
         attrs['embedding.dimensions'] = dimensions if dimensions
+        attrs.merge!(genai_attrs(model: model, provider: 'embedding'))
 
         Legion::Telemetry.with_span("embedding.#{model}", kind: :client, attributes: attrs, &)
       end
@@ -191,6 +193,12 @@ module Legion
         str.length > limit ? str[0...limit] : str
       end
 
+      def genai_attrs(model:, provider: nil)
+        h = { 'gen_ai.request.model' => model }
+        h['gen_ai.system'] = provider if provider
+        h
+      end
+
       def base_attrs(kind)
         { 'openinference.span.kind' => kind }
       end
@@ -198,9 +206,16 @@ module Legion
       def annotate_llm_result(span, result)
         return unless span.respond_to?(:set_attribute) && result.is_a?(Hash)
 
+        # OpenInference attributes
         span.set_attribute('llm.token_count.prompt', result[:input_tokens]) if result[:input_tokens]
         span.set_attribute('llm.token_count.completion', result[:output_tokens]) if result[:output_tokens]
         span.set_attribute('output.value', truncate_value(result[:content].to_s)) if include_io? && result[:content]
+
+        # GenAI semantic convention attributes
+        span.set_attribute('gen_ai.usage.input_tokens', result[:input_tokens]) if result[:input_tokens]
+        span.set_attribute('gen_ai.usage.output_tokens', result[:output_tokens]) if result[:output_tokens]
+        span.set_attribute('gen_ai.response.finish_reason', result[:stop_reason].to_s) if result[:stop_reason]
+        span.set_attribute('gen_ai.response.model', result[:model].to_s) if result[:model]
       rescue StandardError => e
         Legion::Logging.debug "OpenInference#annotate_llm_result failed: #{e.message}" if defined?(Legion::Logging)
         nil

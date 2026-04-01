@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.8] - 2026-03-31
+
+### Added
+- GenAI semantic convention attributes (`gen_ai.*`) on OpenInference spans (#69)
+- `llm_span` emits `gen_ai.request.model` and `gen_ai.system` alongside OpenInference attrs
+- `annotate_llm_result` emits `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reason`, `gen_ai.response.model`
+- `embedding_span` emits `gen_ai.request.model` and `gen_ai.system`
+- `genai_attrs` helper for consistent GenAI attribute construction
+
 ## [1.7.7] - 2026-03-31
 
 ### Changed
