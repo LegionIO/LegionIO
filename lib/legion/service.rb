@@ -142,8 +142,8 @@ module Legion
       setup_metrics
       setup_task_outcome_observer
 
-      api_settings = Legion::Settings[:api] || {}
-      @api_enabled = api && api_settings.fetch(:enabled, true)
+      api_settings = Legion::Settings[:api]
+      @api_enabled = api && api_settings[:enabled]
       setup_api if @api_enabled
       setup_network_watchdog
       Legion::Settings[:client][:ready] = true
@@ -271,31 +271,41 @@ module Legion
       end
 
       require 'legion/api'
-      api_settings = Legion::Settings[:api] || {}
-      port = api_settings[:port] || 4567
-      bind = api_settings[:bind] || '0.0.0.0'
+      api_settings = Legion::Settings[:api]
+      port = api_settings[:port]
+      bind = api_settings[:bind]
 
       Legion::API.set :port, port
       Legion::API.set :bind, bind
       Legion::API.set :server, :puma
       Legion::API.set :environment, :production
 
+      puma_cfg    = api_settings[:puma]
+      min_threads = puma_cfg[:min_threads]
+      max_threads = puma_cfg[:max_threads]
+      thread_spec = "#{min_threads}:#{max_threads}"
+      puma_timeouts = {
+        persistent_timeout: puma_cfg[:persistent_timeout],
+        first_data_timeout: puma_cfg[:first_data_timeout]
+      }.compact
+
       tls_cfg = build_api_tls_config(api_settings)
       if tls_cfg
         Legion::API.set :ssl_bind_options, tls_cfg
-        Legion::API.set :server_settings, { quiet: true, **ssl_server_settings(tls_cfg, bind, port) }
+        Legion::API.set :server_settings, { quiet: true, Threads: thread_spec, **puma_timeouts,
+                                            **ssl_server_settings(tls_cfg, bind, port) }
         Legion::Logging.info "Starting Legion API (TLS) on #{bind}:#{port}"
       else
         require 'puma'
         puma_log = ::Puma::LogWriter.new(StringIO.new, StringIO.new)
-        Legion::API.set :server_settings, { log_writer: puma_log, quiet: true }
+        Legion::API.set :server_settings, { log_writer: puma_log, quiet: true, Threads: thread_spec, **puma_timeouts }
         Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
       end
 
       @api_thread = Thread.new do
         retries = 0
-        max_retries = api_settings.fetch(:bind_retries, 3)
-        retry_wait  = api_settings.fetch(:bind_retry_wait, 2)
+        max_retries = api_settings[:bind_retries]
+        retry_wait  = api_settings[:bind_retry_wait]
 
         begin
           raise Errno::EADDRINUSE, "port #{port} already bound" if port_in_use?(bind, port)
@@ -822,7 +832,7 @@ module Legion
     end
 
     def build_api_tls_config(api_settings)
-      tls = api_settings[:tls] || {}
+      tls = api_settings[:tls]
       tls = tls.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
       return nil unless tls[:enabled] == true
 
