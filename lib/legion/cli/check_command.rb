@@ -263,7 +263,7 @@ module Legion
           api_settings = Legion::Settings[:api]
           port = api_settings[:port]
           configured_bind = api_settings[:bind]
-          bind = %w[127.0.0.1 localhost].include?(configured_bind) ? configured_bind : '127.0.0.1'
+          bind = %w[127.0.0.1 localhost ::1].include?(configured_bind) ? configured_bind : '127.0.0.1'
 
           Legion::API.set :port, port
           Legion::API.set :bind, bind

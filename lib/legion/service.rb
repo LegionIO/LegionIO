@@ -142,7 +142,9 @@ module Legion
       setup_metrics
       setup_task_outcome_observer
 
-      api_settings = Legion::Settings[:api] || {}
+      require 'sinatra/base'
+      require 'legion/api/default_settings'
+      api_settings = Legion::Settings[:api]
       @api_enabled = api && api_settings[:enabled]
       setup_api if @api_enabled
       setup_network_watchdog

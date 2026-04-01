@@ -35,9 +35,11 @@ module Legion
       result = nil
       status = nil
       Legion::Context.with_task_context(opts.merge(task_id: task_id, function: function, runner_class: runner_class.to_s)) do
-        result = runner_class.with_log_context(function) do
-          runner_class.send(function, **args)
-        end
+        result = if runner_class.respond_to?(:with_log_context)
+                   runner_class.with_log_context(function) { runner_class.send(function, **args) }
+                 else
+                   runner_class.send(function, **args)
+                 end
       rescue Legion::Exception::HandledTask => e
         rlog.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}"
         status = 'task.exception'
@@ -46,17 +48,19 @@ module Legion
         rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
         status = 'task.exception'
         result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
-        begin
-          runner_class.handle_runner_exception(e,
-                                               **opts,
-                                               runner_class:  runner_class,
-                                               args:          args,
-                                               function:      function,
-                                               task_id:       task_id,
-                                               generate_task: generate_task,
-                                               check_subtask: check_subtask)
-        rescue Legion::Exception::HandledTask => handled
-          rlog.debug "[Runner] HandledTask raised while handling exception in #{runner_class}##{function}: #{handled.message}"
+        if runner_class.respond_to?(:handle_runner_exception)
+          begin
+            runner_class.handle_runner_exception(e,
+                                                 **opts,
+                                                 runner_class:  runner_class,
+                                                 args:          args,
+                                                 function:      function,
+                                                 task_id:       task_id,
+                                                 generate_task: generate_task,
+                                                 check_subtask: check_subtask)
+          rescue Legion::Exception::HandledTask => handled
+            rlog.debug "[Runner] HandledTask raised while handling exception in #{runner_class}##{function}: #{handled.message}"
+          end
         end
         raise e unless catch_exceptions
       end
