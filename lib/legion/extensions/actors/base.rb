@@ -16,9 +16,12 @@ module Legion
         define_dsl_accessor :remote_invocable, default: true
 
         def runner
-          Legion::Runner.run(runner_class: runner_class, function: function, check_subtask: check_subtask?, generate_task: generate_task?)
+          with_log_context(function) do
+            Legion::Runner.run(runner_class: runner_class, function: function,
+                               check_subtask: check_subtask?, generate_task: generate_task?)
+          end
         rescue StandardError => e
-          Legion::Logging.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
 
         def manual
@@ -31,7 +34,7 @@ module Legion
             klass.send(func, **args)
           end
         rescue StandardError => e
-          Legion::Logging.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
 
         def function

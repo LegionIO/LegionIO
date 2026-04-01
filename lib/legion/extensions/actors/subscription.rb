@@ -207,11 +207,13 @@ module Legion
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
           run_block = lambda {
-            Legion::Runner.run(**message,
-                               runner_class:  runner_cls,
-                               function:      function,
-                               check_subtask: check_subtask,
-                               generate_task: generate_task)
+            Legion::Context.with_task_context(message) do
+              Legion::Runner.run(**message,
+                                 runner_class:  runner_cls,
+                                 function:      function,
+                                 check_subtask: check_subtask,
+                                 generate_task: generate_task)
+            end
           }
 
           if defined?(Legion::Telemetry::OpenInference)
