@@ -40,10 +40,10 @@ module Legion
             body = parse_request_body
 
             result = if body[:content]
-                       Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
-                         content: body[:content],
-                         tags:    body[:tags] || [],
-                         source:  body[:source]
+                       Legion::Extensions::Knowledge::Runners::Ingest.ingest_content(
+                         content:     body[:content],
+                         source_type: body[:source] || :text,
+                         metadata:    { tags: body[:tags] || [] }
                        )
                      elsif body[:path]
                        if File.directory?(body[:path])

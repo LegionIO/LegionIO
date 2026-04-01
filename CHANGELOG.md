@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-03-31
+
+### Fixed
+- Knowledge ingest API route calls `ingest_content` instead of `ingest_file` when `content` body param is present
+
 ## [1.7.0] - 2026-03-31
 
 ### Added
