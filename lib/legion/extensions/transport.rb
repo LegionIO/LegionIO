@@ -175,7 +175,7 @@ module Legion
         to = to.is_a?(String) ? Kernel.const_get(to).new : to.new
         to.bind(from, routing_key: routing_key)
       rescue StandardError => e
-        handle_exception(e, level: :fatal)
+        handle_exception(e, level: :fatal, from: from, to: to, routing_key: routing_key)
       end
 
       def e_to_q

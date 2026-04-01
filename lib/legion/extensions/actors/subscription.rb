@@ -207,7 +207,8 @@ module Legion
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
           run_block = lambda {
-            Legion::Context.with_task_context(message) do
+            ctx = message.merge(runner_class: runner_cls.to_s, function: function.to_s)
+            Legion::Context.with_task_context(ctx) do
               Legion::Runner.run(**message,
                                  runner_class:  runner_cls,
                                  function:      function,

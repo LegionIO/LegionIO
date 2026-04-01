@@ -32,28 +32,30 @@ module Legion
       # result = Fiber.new { Fiber.yield runner_class.send(function, **args) }
       raise 'No Function defined' if function.nil?
 
-      result = Legion::Context.with_task_context(opts.merge(task_id: task_id, function: function, runner_class: runner_class.to_s)) do
-        runner_class.with_log_context(function) do
+      result = nil
+      status = nil
+      Legion::Context.with_task_context(opts.merge(task_id: task_id, function: function, runner_class: runner_class.to_s)) do
+        result = runner_class.with_log_context(function) do
           runner_class.send(function, **args)
         end
+      rescue Legion::Exception::HandledTask => e
+        rlog.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}"
+        status = 'task.exception'
+        result = { error: {} }
+      rescue StandardError => e
+        rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
+        status = 'task.exception'
+        result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
+        runner_class.handle_runner_exception(e,
+                                             **opts,
+                                             runner_class:  runner_class,
+                                             args:          args,
+                                             function:      function,
+                                             task_id:       task_id,
+                                             generate_task: generate_task,
+                                             check_subtask: check_subtask)
+        raise e unless catch_exceptions
       end
-    rescue Legion::Exception::HandledTask => e
-      rlog.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}"
-      status = 'task.exception'
-      result = { error: {} }
-    rescue StandardError => e
-      rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
-      status = 'task.exception'
-      result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
-      runner_class.handle_runner_exception(e,
-                                           **opts,
-                                           runner_class:  runner_class,
-                                           args:          args,
-                                           function:      function,
-                                           task_id:       task_id,
-                                           generate_task: generate_task,
-                                           check_subtask: check_subtask)
-      raise e unless catch_exceptions
     ensure
       status = 'task.completed' if status.nil?
       duration_ms = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started_at) * 1000).round

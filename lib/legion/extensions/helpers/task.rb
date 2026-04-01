@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative 'logger'
 require 'legion/transport'
 require 'legion/transport/messages/task_update'
 require 'legion/transport/messages/task_log'
@@ -10,6 +11,7 @@ module Legion
     module Helpers
       module Task
         include Legion::Extensions::Helpers::Base
+        include Legion::Extensions::Helpers::Logger
 
         def generate_task_log(task_id:, function:, runner_class: to_s, **payload)
           begin

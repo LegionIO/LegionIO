@@ -82,11 +82,13 @@ module Legion
         if local_runner?(rc)
           Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
           klass = rc.is_a?(String) ? Kernel.const_get(rc) : rc
-          return Legion::Context.with_task_context(message) { klass.send(fn.to_sym, **message) }
+          ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
+          return Legion::Context.with_task_context(ctx) { klass.send(fn.to_sym, **message) }
         end
 
         runner_block = lambda {
-          Legion::Context.with_task_context(message) do
+          ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
+          Legion::Context.with_task_context(ctx) do
             Legion::Runner.run(
               runner_class:  rc,
               function:      fn,
