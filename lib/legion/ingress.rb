@@ -82,17 +82,19 @@ module Legion
         if local_runner?(rc)
           Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
           klass = rc.is_a?(String) ? Kernel.const_get(rc) : rc
-          return klass.send(fn.to_sym, **message)
+          return Legion::Context.with_task_context(message) { klass.send(fn.to_sym, **message) }
         end
 
         runner_block = lambda {
-          Legion::Runner.run(
-            runner_class:  rc,
-            function:      fn,
-            check_subtask: check_subtask,
-            generate_task: generate_task,
-            **message
-          )
+          Legion::Context.with_task_context(message) do
+            Legion::Runner.run(
+              runner_class:  rc,
+              function:      fn,
+              check_subtask: check_subtask,
+              generate_task: generate_task,
+              **message
+            )
+          end
         }
 
         if defined?(Legion::Telemetry::OpenInference)
