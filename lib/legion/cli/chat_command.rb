@@ -343,6 +343,10 @@ module Legion
           when 'educational' then prompt += "\n\nBe educational. Explain concepts, provide context, teach as you help."
           end
 
+          require 'legion/cli/chat/output_styles'
+          style_injection = Chat::OutputStyles.system_prompt_injection
+          prompt += "\n\n#{style_injection}" if style_injection
+
           prompt
         end
 
@@ -561,6 +565,8 @@ module Legion
             handle_new_conversation(out)
           when '/personality'
             handle_personality(args.first, out)
+          when '/style'
+            handle_style(args, out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -638,35 +644,36 @@ module Legion
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-                       '/help'                => 'Show this help',
-                       '/quit'                => 'Exit chat',
-                       '/cost'                => 'Show session stats',
-                       '/status'              => 'Detailed session status (model, tokens, context, permissions)',
-                       '/compact [STRATEGY]'  => 'Compress history (auto, dedup, summarize)',
-                       '/context'             => 'Show context window stats',
-                       '/clear'               => 'Clear conversation history',
-                       '/new'                 => 'Start new conversation (same session)',
-                       '/copy'                => 'Copy last response to clipboard',
-                       '/diff'                => 'Show git diff of working directory',
-                       '/save NAME'           => 'Save session to disk',
-                       '/load NAME'           => 'Load a saved session',
-                       '/fetch URL'           => 'Fetch a web page into context',
-                       '/search QUERY'        => 'Web search and inject results into context',
-                       '/rewind [N|FILE]'     => 'Undo file edits (last, N steps, or specific file)',
-                       '/memory [add TEXT]'   => 'View or add persistent memory',
-                       '/agent TASK'          => 'Spawn a background subagent',
-                       '/agents'              => 'Show running subagents',
-                       '/plan'                => 'Toggle plan mode (read-only)',
-                       '/review [SCOPE]'      => 'Code review (staged, uncommitted, or branch)',
-                       '/permissions [MODE]'  => 'View or switch permission mode (interactive, auto_approve, read_only)',
-                       '/personality [STYLE]' => 'Set communication style (concise, verbose, educational)',
-                       '/swarm NAME|PROMPT'   => 'Run a swarm workflow or auto-generate one',
-                       '/sessions'            => 'List saved sessions',
-                       '/model X'             => 'Switch model',
-                       '/edit'                => 'Open $EDITOR for long prompts',
-                       '/commit'              => 'Generate AI commit message and commit staged changes',
-                       '/workers'             => 'List digital workers from running daemon',
-                       '/dream'               => 'Trigger dream cycle on running daemon'
+                       '/help'                  => 'Show this help',
+                       '/quit'                  => 'Exit chat',
+                       '/cost'                  => 'Show session stats',
+                       '/status'                => 'Detailed session status (model, tokens, context, permissions)',
+                       '/compact [STRATEGY]'    => 'Compress history (auto, dedup, summarize)',
+                       '/context'               => 'Show context window stats',
+                       '/clear'                 => 'Clear conversation history',
+                       '/new'                   => 'Start new conversation (same session)',
+                       '/copy'                  => 'Copy last response to clipboard',
+                       '/diff'                  => 'Show git diff of working directory',
+                       '/save NAME'             => 'Save session to disk',
+                       '/load NAME'             => 'Load a saved session',
+                       '/fetch URL'             => 'Fetch a web page into context',
+                       '/search QUERY'          => 'Web search and inject results into context',
+                       '/rewind [N|FILE]'       => 'Undo file edits (last, N steps, or specific file)',
+                       '/memory [add TEXT]'     => 'View or add persistent memory',
+                       '/agent TASK'            => 'Spawn a background subagent',
+                       '/agents'                => 'Show running subagents',
+                       '/plan'                  => 'Toggle plan mode (read-only)',
+                       '/review [SCOPE]'        => 'Code review (staged, uncommitted, or branch)',
+                       '/permissions [MODE]'    => 'View or switch permission mode (interactive, auto_approve, read_only)',
+                       '/personality [STYLE]'   => 'Set communication style (concise, verbose, educational)',
+                       '/style [list|set|show]' => 'Manage output styles from .legionio/output-styles/',
+                       '/swarm NAME|PROMPT'     => 'Run a swarm workflow or auto-generate one',
+                       '/sessions'              => 'List saved sessions',
+                       '/model X'               => 'Switch model',
+                       '/edit'                  => 'Open $EDITOR for long prompts',
+                       '/commit'                => 'Generate AI commit message and commit staged changes',
+                       '/workers'               => 'List digital workers from running daemon',
+                       '/dream'                 => 'Trigger dream cycle on running daemon'
                      })
           puts
           puts out.dim('  End a line with \\ for multiline input. !command runs a shell command inline.')
@@ -1134,6 +1141,55 @@ module Legion
 
           chat_log.info "personality_switch to=#{style}"
           out.success("Personality: #{style}")
+        end
+
+        def handle_style(args, out)
+          require 'legion/cli/chat/output_styles'
+          subcmd = args.first
+
+          case subcmd
+          when 'list', nil
+            styles = Chat::OutputStyles.discover
+            if styles.empty?
+              puts '  No output styles found. Create .md files in .legionio/output-styles/ or ~/.legionio/output-styles/'
+              return
+            end
+            styles.each do |s|
+              active = s[:active] ? '*' : ' '
+              puts "  #{active} #{s[:name]} — #{s[:description]}"
+            end
+          when 'show'
+            name = args[1]
+            unless name
+              out.error('Usage: /style show <name>')
+              return
+            end
+            style = Chat::OutputStyles.find(name)
+            if style
+              puts "  Name: #{style[:name]}"
+              puts "  Description: #{style[:description]}"
+              puts "  Active: #{style[:active]}"
+              puts "  Path: #{style[:path]}"
+              puts "\n#{style[:content]}"
+            else
+              out.error("Style '#{name}' not found")
+            end
+          when 'set'
+            name = args[1]
+            unless name
+              out.error('Usage: /style set <name>')
+              return
+            end
+            if Chat::OutputStyles.activate(name)
+              instruction = Chat::OutputStyles.find(name)&.dig(:content)
+              @session.chat.add_message(role: :user, content: "Style instruction: #{instruction}") if instruction
+              out.success("Output style set to: #{name}")
+            else
+              out.error("Style '#{name}' not found")
+            end
+          else
+            out.error("Unknown /style subcommand: #{subcmd}. Use: list, show, set")
+          end
         end
 
         def show_session_stats(out)
