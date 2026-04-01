@@ -19,7 +19,7 @@ module Legion
               return true if Legion::Data::Model::TaskLog.insert(task_id: task_id, function_id: function_id, entry: Legion::JSON.dump(payload))
             end
           rescue StandardError => e
-            log.log_exception(e, level: :warn, payload_summary: 'generate_task_log failed, reverting to rmq message', component_type: :helper)
+            handle_exception(e, level: :warn)
           end
           Legion::Transport::Messages::TaskLog.new(task_id: task_id, runner_class: runner_class, function: function, entry: payload).publish
         end
@@ -43,7 +43,7 @@ module Legion
           end
           Legion::Transport::Messages::TaskUpdate.new(**update_hash).publish
         rescue StandardError => e
-          log.log_exception(e, level: :fatal, component_type: :helper)
+          handle_exception(e, level: :fatal)
           raise e
         end
 
