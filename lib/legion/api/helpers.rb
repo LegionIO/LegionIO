@@ -76,6 +76,12 @@ module Legion
         halt 503, json_error('knowledge_unavailable', 'lex-knowledge is not loaded', status_code: 503)
       end
 
+      def require_mesh!
+        return if defined?(Legion::Extensions::Mesh)
+
+        halt 503, json_error('mesh_unavailable', 'lex-mesh is not loaded', status_code: 503)
+      end
+
       def require_trace_search!
         return if defined?(Legion::TraceSearch) && defined?(Legion::LLM)
 

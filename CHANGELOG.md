@@ -2,10 +2,11 @@
 
 ## [Unreleased]
 
-## [1.7.2] - 2026-03-31
+## [1.7.3] - 2026-03-31
 
 ### Added
 - `POST /api/reload` endpoint to trigger daemon reload from CLI mode command
+- `GET /api/mesh/status` and `GET /api/mesh/peers` endpoints for mesh topology visibility
 
 ### Fixed
 - Knowledge ingest API route calls `ingest_content` instead of `ingest_file` when `content` body param is present
