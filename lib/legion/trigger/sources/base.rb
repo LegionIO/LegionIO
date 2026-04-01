@@ -51,11 +51,7 @@ module Legion
         end
 
         def secure_compare(provided, expected)
-          return false unless provided.bytesize == expected.bytesize
-
-          left = provided.unpack('C*')
-          right = expected.unpack('C*')
-          left.zip(right).reduce(0) { |acc, (lhs, rhs)| acc | (lhs ^ rhs) }.zero?
+          OpenSSL.secure_compare(provided, expected)
         end
       end
     end

@@ -191,7 +191,10 @@ module Legion
         if min_version.is_a?(String)
           begin
             gem_spec = Gem::Specification.find_by_name(entry[:gem_name])
-            Legion::Logging.fatal entry if Gem::Version.new(gem_spec.version.to_s) >= Gem::Version.new(min_version)
+            if Gem::Version.new(gem_spec.version.to_s) < Gem::Version.new(min_version)
+              Legion::Logging.warn "#{entry[:gem_name]} v#{gem_spec.version} below min_version #{min_version}, skipping"
+              return false
+            end
           rescue Gem::MissingSpecError
             Legion::Logging.warn "Could not find gem spec for #{entry[:gem_name]}, skipping min_version check"
           end

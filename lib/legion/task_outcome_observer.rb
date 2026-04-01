@@ -4,6 +4,8 @@ module Legion
   module TaskOutcomeObserver
     class << self
       def setup
+        return unless enabled?
+
         Legion::Events.on('task.completed') do |payload|
           handle_outcome(payload, success: true)
         end

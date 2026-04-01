@@ -22,7 +22,7 @@ module Legion
     end
 
     def quit
-      @quit.is_a?(Concurrent::AtomicBoolean) ? @quit.true? : @quit
+      @quit.is_a?(Concurrent::AtomicBoolean) ? @quit.true? : !!@quit
     end
 
     def daemonize?
@@ -64,6 +64,7 @@ module Legion
         sleep(1)
         @quit.make_true if @options.key?(:time_limit) && Time.now - start_time > @options[:time_limit]
       end
+      @retrap_thread&.kill
       Legion::Logging.info('Legion is shutting down!')
       Legion.shutdown
       Legion::Logging.info('Legion has shutdown. Goodbye!')

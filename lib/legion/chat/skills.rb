@@ -97,12 +97,21 @@ module Legion
         end
 
         def execute_rb(skill, input: nil)
-          # Ruby skills must define a module-level self.call method.
-          # The file is loaded via Kernel.load in a clean binding for isolation.
-          mod = Module.new # — skill files are user-authored local files,
-          # equivalent to requiring a gem. Only files from trusted skill directories
-          # (.legion/skills/, ~/.legionio/skills/) are loaded.
-          mod.module_eval(File.read(skill[:path]), skill[:path])
+          begin
+            real_path = File.realpath(skill[:path])
+          rescue Errno::ENOENT
+            return { success: false, error: "skill file not found: #{skill[:path]}" }
+          end
+          allowed = SKILL_DIRS.filter_map do |dir|
+            expanded = File.expand_path(dir)
+            File.realpath(expanded) if Dir.exist?(expanded)
+          end
+          unless allowed.any? { |dir| real_path.start_with?("#{dir}/") }
+            return { success: false, error: "skill path outside allowed directories: #{real_path}" }
+          end
+
+          mod = Module.new
+          mod.module_eval(File.read(real_path), real_path)
           return { success: false, error: "#{skill[:name]}.rb must define a module-level `self.call` method" } unless mod.respond_to?(:call)
 
           result = mod.call(input: input)

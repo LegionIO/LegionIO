@@ -255,10 +255,7 @@ module Legion
         end
 
         result = if options[:source]
-                   source_args = "--source #{options[:source]} --clear-sources"
-                   gem_bin = File.join(RbConfig::CONFIG['bindir'], 'gem')
-                   output = `#{gem_bin} install #{name} --no-document #{source_args} 2>&1`
-                   { success: $CHILD_STATUS.success?, output: output }
+                   Legion::Extensions::GemSource.install_gem(name, source_override: options[:source])
                  else
                    Legion::Extensions::GemSource.install_gem(name)
                  end

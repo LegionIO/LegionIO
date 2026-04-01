@@ -39,8 +39,10 @@ module Legion
 
         return { success: false, reason: :duplicate, delivery_id: envelope.delivery_id } if duplicate?(envelope)
 
-        mark_seen(envelope)
+        return { success: false, reason: :unverified } if !verified && require_verified?(source_name)
+
         bridge(envelope)
+        mark_seen(envelope)
 
         { success: true, correlation_id: envelope.correlation_id, routing_key: envelope.routing_key }
       rescue ArgumentError => e
@@ -76,6 +78,12 @@ module Legion
         Legion::Settings.dig(:trigger, :sources, source_name.to_sym, :secret)
       rescue StandardError
         nil
+      end
+
+      def require_verified?(source_name)
+        Legion::Settings.dig(:trigger, :sources, source_name.to_sym, :require_verified) != false
+      rescue StandardError
+        true
       end
 
       def duplicate?(envelope)

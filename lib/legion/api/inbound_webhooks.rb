@@ -13,7 +13,7 @@ module Legion
             body = begin
               Legion::JSON.load(body_raw)
             rescue StandardError
-              body_raw
+              halt 400, json_error('invalid_body', 'request body must be valid JSON', status_code: 400)
             end
 
             headers = request.env.select { |k, _| k.start_with?('HTTP_') }

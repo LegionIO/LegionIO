@@ -19,6 +19,9 @@ module Legion
             case role
             when 'user' then :interrupted_prompt
             when 'tool_result', 'tool' then :interrupted_turn
+            when 'assistant'
+              tool_calls = last.is_a?(Hash) ? (last[:tool_calls] || last['tool_calls']) : nil
+              tool_calls.is_a?(Array) && tool_calls.any? ? :interrupted_turn : :none
             else :none
             end
           end
@@ -110,9 +113,14 @@ module Legion
             last = messages.last
             role = msg_role(last)
 
-            return messages unless %w[tool_result tool].include?(role)
+            return messages[0...-1] if %w[tool_result tool].include?(role)
 
-            messages[0...-1]
+            if role == 'assistant'
+              tool_calls = last.is_a?(Hash) ? (last[:tool_calls] || last['tool_calls']) : nil
+              return messages[0...-1] if tool_calls.is_a?(Array) && tool_calls.any?
+            end
+
+            messages
           end
         end
       end

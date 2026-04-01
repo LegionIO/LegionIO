@@ -25,6 +25,7 @@ module Legion
         def verify_signature(headers:, body_raw:, secret:)
           timestamp = headers['HTTP_X_SLACK_REQUEST_TIMESTAMP']
           return false unless timestamp
+          return false if (Time.now.to_i - timestamp.to_i).abs > 300
 
           sig_basestring = "v0:#{timestamp}:#{body_raw}"
           digest = OpenSSL::HMAC.hexdigest('SHA256', secret, sig_basestring)

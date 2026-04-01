@@ -28,9 +28,9 @@ RSpec.describe Legion::Process do
       expect(process.quit).to be true
     end
 
-    it 'falls back to raw value when not AtomicBoolean' do
+    it 'falls back to false when not AtomicBoolean' do
       process.instance_variable_set(:@quit, nil)
-      expect(process.quit).to be_nil
+      expect(process.quit).to be false
     end
   end
 

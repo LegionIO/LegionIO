@@ -10,6 +10,7 @@ RSpec.describe 'Inbound Webhooks' do
     allow(Legion::Logging).to receive(:warn)
     allow(Legion::Logging).to receive(:error)
     allow(Legion::Settings).to receive(:dig).and_return(nil)
+    allow(Legion::Settings).to receive(:dig).with(:trigger, :sources, anything, :require_verified).and_return(false)
     hide_const('Legion::Cache') if defined?(Legion::Cache)
   end
 

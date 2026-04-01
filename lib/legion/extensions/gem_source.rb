@@ -28,13 +28,24 @@ module Legion
           "#{urls.map { |url| "--source #{url}" }.join(' ')} --clear-sources"
         end
 
-        def install_gem(name, version: nil, gem_bin: nil)
+        def install_gem(name, version: nil, gem_bin: nil, source_override: nil)
+          require 'open3'
           gem_bin ||= File.join(RbConfig::CONFIG['bindir'], 'gem')
-          sources = source_args_for_cli
-          version_arg = version ? "-v #{version}" : ''
-          cmd = "#{gem_bin} install #{name} #{version_arg} --no-document #{sources}".strip.squeeze(' ')
-          output = `#{cmd} 2>&1`
-          { success: $CHILD_STATUS.success?, output: output, command: cmd }
+          args = [gem_bin, 'install', name, '--no-document']
+          args.push('-v', version) if version
+
+          if source_override
+            args.push('--source', source_override, '--clear-sources')
+          else
+            urls = source_urls
+            unless urls.empty? || urls == [DEFAULT_SOURCE]
+              urls.each { |url| args.push('--source', url) }
+              args.push('--clear-sources')
+            end
+          end
+
+          stdout, stderr, status = Open3.capture3(*args)
+          { success: status.success?, output: "#{stdout}\n#{stderr}".strip, command: args.join(' ') }
         end
 
         def apply_credentials!

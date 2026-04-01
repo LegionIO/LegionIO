@@ -137,6 +137,7 @@ RSpec.describe Legion::Chat::Skills do
 
     it 'executes a ruby skill with self.call' do
       Dir.mktmpdir do |dir|
+        stub_const('Legion::Chat::Skills::SKILL_DIRS', [dir])
         path = File.join(dir, 'adder.rb')
         File.write(path, "def self.call(input:)\n  \"got: \#{input}\"\nend")
         skill = { type: :ruby, name: 'adder', path: path }
@@ -148,12 +149,27 @@ RSpec.describe Legion::Chat::Skills do
 
     it 'returns error when ruby skill has no self.call' do
       Dir.mktmpdir do |dir|
+        stub_const('Legion::Chat::Skills::SKILL_DIRS', [dir])
         path = File.join(dir, 'nocall.rb')
         File.write(path, "HELLO = 'world'")
         skill = { type: :ruby, name: 'nocall', path: path }
         result = described_class.execute(skill)
         expect(result[:success]).to be false
         expect(result[:error]).to include('self.call')
+      end
+    end
+
+    it 'rejects skill paths outside allowed directories' do
+      Dir.mktmpdir do |dir|
+        stub_const('Legion::Chat::Skills::SKILL_DIRS', [dir])
+        other_dir = Dir.mktmpdir
+        path = File.join(other_dir, 'evil.rb')
+        File.write(path, "def self.call(input:)\n  'pwned'\nend")
+        skill = { type: :ruby, name: 'evil', path: path }
+        result = described_class.execute(skill)
+        expect(result[:success]).to be false
+        expect(result[:error]).to include('outside allowed directories')
+        FileUtils.remove_entry(other_dir)
       end
     end
   end

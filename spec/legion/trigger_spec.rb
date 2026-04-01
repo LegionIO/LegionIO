@@ -44,6 +44,7 @@ RSpec.describe Legion::Trigger do
 
     before do
       allow(Legion::Settings).to receive(:dig).and_return(nil)
+      allow(Legion::Settings).to receive(:dig).with(:trigger, :sources, anything, :require_verified).and_return(false)
       # Ensure no cache interference from other tests
       hide_const('Legion::Cache') if defined?(Legion::Cache)
     end

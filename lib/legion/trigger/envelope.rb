@@ -19,7 +19,8 @@ module Legion
       end
 
       def routing_key
-        parts = ['trigger', source, event_type].compact
+        safe_event = event_type.to_s.gsub(/[^a-zA-Z0-9_-]/, '_')[0, 64]
+        parts = ['trigger', source, safe_event].reject { |p| p.nil? || p.empty? }
         parts.join('.')
       end
 

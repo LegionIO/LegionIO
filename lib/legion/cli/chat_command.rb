@@ -251,15 +251,25 @@ module Legion
           summary_input = messages.map { |m| "#{m.role}: #{m.content.to_s[0..500]}" }.join("\n")
           idle_minutes = ((Time.now - @last_active_at) / 60).round(1)
 
-          session = Legion::LLM.chat_direct(model: nil, provider: nil)
-          response = session.ask(
-            "You are a concise assistant. The user has been away for #{idle_minutes} minutes. " \
-            'In 1-3 sentences, summarize what happened in this conversation for a returning user. ' \
-            'Focus on: what task was in progress, what was accomplished, what needs attention next. ' \
-            "Skip status reports and commit recaps.\n\nRecent conversation:\n#{summary_input}"
-          )
+          prompt = "You are a concise assistant. The user has been away for #{idle_minutes} minutes. " \
+                   'In 1-3 sentences, summarize what happened in this conversation for a returning user. ' \
+                   'Focus on: what task was in progress, what was accomplished, what needs attention next. ' \
+                   "Skip status reports and commit recaps.\n\nRecent conversation:\n#{summary_input}"
 
-          text = response.respond_to?(:content) ? response.content : response.to_s
+          response = if Legion::LLM.respond_to?(:ask_direct)
+                       Legion::LLM.ask_direct(message: prompt, model: nil, provider: nil)
+                     else
+                       session = Legion::LLM.chat_direct(model: nil, provider: nil)
+                       session.ask(prompt)
+                     end
+
+          text = if response.is_a?(Hash)
+                   response[:response] || response[:content]
+                 elsif response.respond_to?(:content)
+                   response.content
+                 else
+                   response.to_s
+                 end
           return if text.to_s.strip.empty?
 
           puts
@@ -270,7 +280,7 @@ module Legion
         end
 
         def display_pending_notifications
-          return unless @notification_bridge&.has_urgent? || @notification_bridge
+          return unless @notification_bridge
 
           notes = @notification_bridge.pending_notifications
           return if notes.empty?

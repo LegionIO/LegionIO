@@ -88,10 +88,12 @@ module Legion
 
         def acquire_lock
           FileUtils.mkdir_p(File.dirname(LOCK_FILE))
-          return false if File.exist?("#{LOCK_FILE}.active")
-
-          File.write("#{LOCK_FILE}.active", ::Process.pid.to_s)
+          File.open("#{LOCK_FILE}.active", File::WRONLY | File::CREAT | File::EXCL) do |f|
+            f.write(::Process.pid.to_s)
+          end
           true
+        rescue Errno::EEXIST
+          false
         rescue StandardError => e
           Legion::Logging.debug "[Consolidator] acquire_lock failed: #{e.message}" if defined?(Legion::Logging)
           false

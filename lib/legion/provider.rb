@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'tsort'
+require 'timeout'
 
 module Legion
   class Provider
@@ -82,15 +83,25 @@ module Legion
         end
 
         def boot!(mode: :full, timeout: 30)
-          boot_order.map do |key|
+          booted = []
+          boot_order.each do |key|
             klass = providers[key]
             instance = klass.new(mode: mode)
             instance.select_adapter(mode)
 
             Timeout.timeout(timeout) { instance.boot }
             Legion::Readiness.mark_ready(key) if defined?(Legion::Readiness)
-            instance
+            booted << instance
+          rescue Timeout::Error => e
+            Legion::Logging.error "Provider :#{key} boot timed out (#{timeout}s)" if defined?(Legion::Logging)
+            shutdown!(booted)
+            raise Provider::MissingDependencyError, "provider :#{key} timed out during boot: #{e.message}"
+          rescue StandardError => e
+            Legion::Logging.error "Provider :#{key} boot failed: #{e.message}" if defined?(Legion::Logging)
+            shutdown!(booted)
+            raise
           end
+          booted
         end
 
         def shutdown!(instances)
