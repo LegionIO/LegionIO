@@ -24,7 +24,7 @@ module Legion
                 log.debug "[Every] tick: #{self.class}" if defined?(log)
                 skip_or_run { use_runner? ? runner : manual }
               rescue StandardError => e
-                log.log_exception(e, payload_summary: "[Every] tick failed for #{self.class}", component_type: :actor) if defined?(log)
+                handle_exception(e) if defined?(log)
               ensure
                 @executing.make_false
               end
@@ -35,7 +35,7 @@ module Legion
 
           @timer.execute
         rescue StandardError => e
-          log.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
 
         def run_now?
@@ -52,7 +52,7 @@ module Legion
 
           @timer.shutdown
         rescue StandardError => e
-          log.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
       end
     end
