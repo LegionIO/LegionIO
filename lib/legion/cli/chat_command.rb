@@ -58,6 +58,8 @@ module Legion
         setup_gaia_observation
         setup_worktree(out) if options[:worktree]
 
+        @last_active_at = Time.now
+
         chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
         out.banner(version: Legion::VERSION)
         puts
@@ -230,6 +232,40 @@ module Legion
           ENV.fetch('USER', 'unknown')
         end
 
+        def away?
+          return false unless @last_active_at
+
+          threshold = chat_setting(:away_summary_threshold_seconds) || 120
+          Time.now - @last_active_at > threshold
+        end
+
+        def show_away_summary(out)
+          return unless defined?(Legion::LLM) && Legion::LLM.respond_to?(:chat_direct)
+
+          messages = @session.chat.messages.last(30).select { |m| m.respond_to?(:role) }
+          return if messages.length < 2
+
+          summary_input = messages.map { |m| "#{m.role}: #{m.content.to_s[0..500]}" }.join("\n")
+          idle_minutes = ((Time.now - @last_active_at) / 60).round(1)
+
+          session = Legion::LLM.chat_direct(model: nil, provider: nil)
+          response = session.ask(
+            "You are a concise assistant. The user has been away for #{idle_minutes} minutes. " \
+            'In 1-3 sentences, summarize what happened in this conversation for a returning user. ' \
+            'Focus on: what task was in progress, what was accomplished, what needs attention next. ' \
+            "Skip status reports and commit recaps.\n\nRecent conversation:\n#{summary_input}"
+          )
+
+          text = response.respond_to?(:content) ? response.content : response.to_s
+          return if text.to_s.strip.empty?
+
+          puts
+          puts out.colorize("  [away #{idle_minutes}m] ", :gray) + text.strip
+          puts
+        rescue StandardError => e
+          Legion::Logging.debug "away_summary failed: #{e.message}" if defined?(Legion::Logging)
+        end
+
         def display_pending_notifications
           return unless @notification_bridge&.has_urgent? || @notification_bridge
 
@@ -314,6 +350,9 @@ module Legion
             display_pending_notifications
             input = read_user_input
             break if input.nil? # Ctrl+D
+
+            show_away_summary(out) if away?
+            @last_active_at = Time.now
 
             stripped = input.strip
 

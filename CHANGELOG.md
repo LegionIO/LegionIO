@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-03-31
+
+### Added
+- Away summary recap when user returns after idle period in CLI chat (#100)
+- Configurable via `chat.away_summary_threshold_seconds` setting (default: 120s)
+- Uses LLM to generate 1-3 sentence recap of recent conversation context
+
 ## [1.7.1] - 2026-03-31
 
 ### Added
