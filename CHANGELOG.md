@@ -15,6 +15,7 @@
 - Cross-project session resume with CWD context and `--resume-latest` flag (#105)
 - Away summary recap via LLM when user returns after idle period (#100)
 - Wire `LexCliManifest.write_manifest` into extension autobuild pipeline (#97)
+- Inbound webhook normalizer and HTTP-to-AMQP event bridge (`Legion::Trigger`) (#74)
 
 ### Fixed
 - Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)
