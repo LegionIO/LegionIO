@@ -8,12 +8,11 @@ require 'legion/api/default_settings'
 RSpec.describe Legion::Service do
   describe '#setup_api' do
     let(:service) { described_class.allocate }
-    let(:api_defaults) do
-      { enabled: true, port: 4567, bind: '0.0.0.0', puma: { min_threads: 10, max_threads: 16, persistent_timeout: 20, first_data_timeout: 30 }, bind_retries: 3,
-     bind_retry_wait: 2, tls: { enabled: false } }
-    end
+    let(:api_defaults) { Legion::API::Settings.default }
 
     before do
+      # Evaluate api_defaults before stub_const replaces Legion::API
+      api_defaults
       stub_const('Legion::API', Class.new do
         def self.set(*); end
 
