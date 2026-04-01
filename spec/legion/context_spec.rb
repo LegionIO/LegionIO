@@ -44,4 +44,50 @@ RSpec.describe Legion::Context do
       expect(described_class.current_session).to be_nil
     end
   end
+
+  describe '.with_task_context' do
+    after { Thread.current[:legion_context] = nil }
+
+    it 'sets thread-local context from message hash' do
+      message = { task_id: 42, conversation_id: 'conv-1', chain_id: 7, function: 'get', runner_class: 'Foo' }
+      captured = nil
+      described_class.with_task_context(message) { captured = Thread.current[:legion_context] }
+      expect(captured).to eq(message.slice(:task_id, :conversation_id, :chain_id, :function, :runner_class))
+    end
+
+    it 'compacts nil values' do
+      described_class.with_task_context({ task_id: nil, function: 'get' }) do
+        expect(Thread.current[:legion_context]).to eq({ function: 'get' })
+      end
+    end
+
+    it 'restores previous context in ensure' do
+      Thread.current[:legion_context] = { task_id: 99 }
+      described_class.with_task_context({ task_id: 1 }) do
+        expect(Thread.current[:legion_context][:task_id]).to eq(1)
+      end
+      expect(Thread.current[:legion_context][:task_id]).to eq(99)
+    end
+
+    it 'restores on exception' do
+      described_class.with_task_context({ task_id: 1 }) { raise 'boom' }
+    rescue RuntimeError
+      nil
+    ensure
+      expect(Thread.current[:legion_context]).to be_nil
+    end
+  end
+
+  describe '.current_task_context' do
+    it 'returns nil when no context set' do
+      expect(described_class.current_task_context).to be_nil
+    end
+
+    it 'returns the current task context' do
+      Thread.current[:legion_context] = { task_id: 5 }
+      expect(described_class.current_task_context).to eq({ task_id: 5 })
+    ensure
+      Thread.current[:legion_context] = nil
+    end
+  end
 end
