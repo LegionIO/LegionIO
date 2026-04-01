@@ -2,103 +2,22 @@
 
 ## [Unreleased]
 
-## [1.7.10] - 2026-03-31
-
-### Added
-- Provider factory pattern for boot lifecycle with DAG-ordered registry (#71)
-- `Legion::Provider` base class with `provides`, `depends_on`, and `adapters` DSL
-- `Legion::Provider::Registry` with topological sort for dependency-ordered boot
-- Cycle detection raises `CyclicDependencyError`, missing deps raise `MissingDependencyError`
-- `Registry.boot!` boots providers in order with per-provider timeout
-- `Registry.shutdown!` shuts down in reverse boot order
-
-## [1.7.9] - 2026-03-31
-
-### Added
-- Wire task completion to reflection and learning persistence (#70)
-- `TaskOutcomeObserver` subscribes to `task.completed` and `task.failed` events
-- Records learning episodes to MetaLearning when lex-agentic-learning is loaded
-- Publishes structured lessons to Apollo with operational domain tags
-- Auto-installs LLM reflection hook when `llm.reflection.enabled` is true
-- Toggleable via `task_outcome_observer.enabled` setting (default: true)
-
-## [1.7.8] - 2026-03-31
-
-### Added
-- GenAI semantic convention attributes (`gen_ai.*`) on OpenInference spans (#69)
-- `llm_span` emits `gen_ai.request.model` and `gen_ai.system` alongside OpenInference attrs
-- `annotate_llm_result` emits `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reason`, `gen_ai.response.model`
-- `embedding_span` emits `gen_ai.request.model` and `gen_ai.system`
-- `genai_attrs` helper for consistent GenAI attribute construction
-
-## [1.7.7] - 2026-03-31
-
-### Changed
-- Expand `legionio doctor` to scored audit report (#77)
-- Each check produces a score (pass=1.0, warn=0.5, fail=0.0) with configurable weights
-- Security checks weighted highest (TLS=3.0, Vault=3.0), convenience lowest (PID=0.5)
-- Weighted aggregate produces health percentage and letter grade (A-F)
-- `--json` output includes `health_score` and `grade` in summary for CI integration
-
-## [1.7.6] - 2026-03-31
-
-### Added
-- Local skill drop-in directory with .rb support and execution (#76)
-- Skills discover .rb files alongside .md in `.legion/skills/` and `~/.legionio/skills/`
-- Ruby skills define `self.call(input:)` and are executed directly
-- Prompt skills are executed via `Legion::LLM.chat_direct`
-- `legionio skill run NAME` now executes skills instead of printing a stub message
-
-## [1.7.5] - 2026-03-31
-
-### Added
-- Dynamic gem sources for extension installs (#52)
-- `Legion::Extensions::GemSource` module centralizes source resolution, auth, and install
-- Configure custom sources via `extensions.sources` setting with URL + optional credentials
-- Auth supports literal tokens and `env:VAR_NAME` for environment variable resolution
-- `legionio marketplace install` now uses configured sources and accepts `--source` override
-- `legionio update gems` passes configured sources when installing outdated gems
-
-## [1.7.4] - 2026-03-31
-
-### Added
-- `legionio mode` CLI command for profile switching (#72)
-- `legionio mode show` displays current process role and extension profile
-- `legionio mode list` shows all profiles with extension counts and process roles with subsystems
-- `legionio mode set PROFILE` writes config to `~/.legionio/settings/role.json` with validation
-- `--dry-run` preview, `--reload` live reload via daemon API, `--extensions` for custom profile
-- Validates profile and process role names with clear error messages
-
-## [1.7.3] - 2026-03-31
-
-### Added
-- Cross-project session resume with CWD context (#105)
-- Sessions now store `cwd` (working directory) at save time
-- `/sessions` shows CWD, message count, and relative timestamps for each session
-- `--resume-latest` flag auto-resumes the most recent session regardless of CWD
-- Resume output shows the original working directory for cross-project context
-
-## [1.7.2] - 2026-03-31
-
-### Added
-- Away summary recap when user returns after idle period in CLI chat (#100)
-- Configurable via `chat.away_summary_threshold_seconds` setting (default: 120s)
-- Uses LLM to generate 1-3 sentence recap of recent conversation context
-
-## [1.7.1] - 2026-03-31
-
-### Added
-- Wire `LexCliManifest.write_manifest` into extension autobuild pipeline (#97)
-- CLI manifest is auto-populated during extension loading so `legion lex exec` works out of the box
-- Staleness check skips writes when cached version matches installed gem version
-
 ## [1.7.0] - 2026-03-31
 
+### Added
+- `Legion::Provider` base class with DAG-ordered registry for boot lifecycle (#71)
+- `TaskOutcomeObserver` wires task completion to reflection and learning persistence (#70)
+- GenAI semantic convention attributes (`gen_ai.*`) on OpenInference spans (#69)
+- `legionio doctor` scored audit report with weighted health score and letter grades (#77)
+- Local skill drop-in directory with `.rb` and `.md` support and execution (#76)
+- Dynamic gem sources for extension installs via `extensions.sources` setting (#52)
+- `legionio mode` CLI command for profile and process role switching (#72)
+- Cross-project session resume with CWD context and `--resume-latest` flag (#105)
+- Away summary recap via LLM when user returns after idle period (#100)
+- Wire `LexCliManifest.write_manifest` into extension autobuild pipeline (#97)
+
 ### Fixed
-- Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown of extension actors (#91)
-- Quit flag uses `Concurrent::AtomicBoolean` for thread-safe signal handling
-- Persistent signal re-trap replaces one-shot `retrap_after_puma` to survive Puma's handler registration
-- API thread signals main loop to exit when Puma shuts down unexpectedly
+- Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)
 
 ## [1.6.47] - 2026-03-31
 
