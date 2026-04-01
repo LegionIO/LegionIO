@@ -60,6 +60,7 @@ Metrics/BlockLength:
     - 'lib/legion/cli/trace_command.rb'
     - 'lib/legion/cli/features_command.rb'
     - 'lib/legion/cli/absorb_command.rb'
+    - 'lib/legion/cli/mode_command.rb'
 
 Metrics/AbcSize:
   Max: 60

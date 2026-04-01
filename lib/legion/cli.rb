@@ -72,6 +72,7 @@ module Legion
     autoload :Broker,         'legion/cli/broker_command'
     autoload :AdminCommand,   'legion/cli/admin_command'
     autoload :Workflow,       'legion/cli/workflow_command'
+    autoload :Mode,           'legion/cli/mode_command'
 
     module Groups
       autoload :Ai,       'legion/cli/groups/ai_group'
@@ -300,6 +301,9 @@ module Legion
 
       desc 'workflow SUBCOMMAND', 'Manage workflow bundles'
       subcommand 'workflow', Legion::CLI::Workflow
+
+      desc 'mode SUBCOMMAND', 'View and switch extension profiles and process roles'
+      subcommand 'mode', Legion::CLI::Mode
 
       desc 'tree', 'Print a tree of all available commands'
       def tree

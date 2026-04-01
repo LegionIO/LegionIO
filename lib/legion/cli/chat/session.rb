@@ -13,7 +13,7 @@ module Legion
         INPUT_RATE  = 0.003 / 1000.0  # $3 per million input tokens
         OUTPUT_RATE = 0.015 / 1000.0  # $15 per million output tokens
 
-        attr_reader :chat, :stats
+        attr_reader :chat, :stats, :cache_hits_tokens
         attr_accessor :budget_usd
 
         def initialize(chat:, system_prompt: nil, budget_usd: nil)
@@ -25,6 +25,8 @@ module Legion
             messages_received: 0,
             started_at:        Time.now
           }
+          @model_usage = Hash.new { |h, k| h[k] = { input_tokens: 0, output_tokens: 0, requests: 0 } }
+          @cache_hits_tokens = 0
           @callbacks = Hash.new { |h, k| h[k] = [] }
           @turn = 0
         end
@@ -65,8 +67,18 @@ module Legion
           @stats[:messages_received] += 1
 
           if response.respond_to?(:input_tokens)
-            @stats[:input_tokens]  = (@stats[:input_tokens] || 0) + (response.input_tokens || 0)
-            @stats[:output_tokens] = (@stats[:output_tokens] || 0) + (response.output_tokens || 0)
+            in_tok  = response.input_tokens || 0
+            out_tok = response.output_tokens || 0
+            @stats[:input_tokens]  = (@stats[:input_tokens] || 0) + in_tok
+            @stats[:output_tokens] = (@stats[:output_tokens] || 0) + out_tok
+
+            resp_model = response.respond_to?(:model_id) ? response.model_id : model_id
+            entry = @model_usage[resp_model.to_s]
+            entry[:input_tokens]  += in_tok
+            entry[:output_tokens] += out_tok
+            entry[:requests]      += 1
+
+            @cache_hits_tokens += response.cache_read_input_tokens.to_i if response.respond_to?(:cache_read_input_tokens) && response.cache_read_input_tokens
           end
 
           emit(:llm_complete, { turn: current_turn, user_message: message })
@@ -75,9 +87,35 @@ module Legion
         end
 
         def estimated_cost
-          input  = (@stats[:input_tokens] || 0) * INPUT_RATE
-          output = (@stats[:output_tokens] || 0) * OUTPUT_RATE
-          input + output
+          if cost_estimator_available? && @model_usage.any?
+            @model_usage.sum do |model, usage|
+              Legion::LLM::CostEstimator.estimate(
+                model_id: model, input_tokens: usage[:input_tokens], output_tokens: usage[:output_tokens]
+              )
+            end
+          else
+            input  = (@stats[:input_tokens] || 0) * INPUT_RATE
+            output = (@stats[:output_tokens] || 0) * OUTPUT_RATE
+            input + output
+          end
+        end
+
+        def model_usage
+          @model_usage.transform_values(&:dup)
+        end
+
+        def cost_breakdown
+          @model_usage.map do |model, usage|
+            cost = if cost_estimator_available?
+                     Legion::LLM::CostEstimator.estimate(
+                       model_id: model, input_tokens: usage[:input_tokens], output_tokens: usage[:output_tokens]
+                     )
+                   else
+                     (usage[:input_tokens] * INPUT_RATE) + (usage[:output_tokens] * OUTPUT_RATE)
+                   end
+            { model: model, input_tokens: usage[:input_tokens], output_tokens: usage[:output_tokens],
+              requests: usage[:requests], cost: cost }
+          end
         end
 
         def model_id
@@ -92,6 +130,10 @@ module Legion
         end
 
         private
+
+        def cost_estimator_available?
+          defined?(Legion::LLM::CostEstimator)
+        end
 
         def check_budget!
           return unless @budget_usd

@@ -26,7 +26,9 @@ module Legion
                                desc: 'Disable automatic session history saving'
       class_option :continue, type: :boolean, default: false, aliases: ['-c'],
                               desc: 'Resume the most recent session'
-      class_option :resume,   type: :string, desc: 'Resume a saved session by name'
+      class_option :resume,         type: :string, desc: 'Resume a saved session by name'
+      class_option :resume_latest,  type: :boolean, default: false,
+                                    desc: 'Auto-resume most recent session regardless of CWD'
       class_option :fork,     type: :string, desc: 'Fork a saved session (load but save as new)'
       class_option :add_dir,  type: :array, default: [], desc: 'Additional directories to include in context'
       class_option :personality, type: :string, desc: 'Communication style (concise, verbose, educational)'
@@ -50,13 +52,15 @@ module Legion
         )
         @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
 
-        restore_session(out) if options[:continue] || options[:resume] || options[:fork]
+        restore_session(out) if options[:continue] || options[:resume] || options[:resume_latest] || options[:fork]
         load_memory_context
         load_custom_agents
 
         setup_notification_bridge
         setup_gaia_observation
         setup_worktree(out) if options[:worktree]
+
+        @last_active_at = Time.now
 
         chat_log.info "session started model=#{@session.model_id} incognito=#{incognito?}"
         out.banner(version: Legion::VERSION)
@@ -65,6 +69,7 @@ module Legion
         puts out.dim('  Type /help for commands, /quit to exit. End a line with \\ for multiline.')
         puts
 
+        send_recovery_message(out) if @recovery_message
         repl_loop(out)
       rescue Interrupt
         Legion::Logging.debug('ChatCommand#interactive interrupted by user') if defined?(Legion::Logging)
@@ -230,8 +235,52 @@ module Legion
           ENV.fetch('USER', 'unknown')
         end
 
+        def away?
+          return false unless @last_active_at
+
+          threshold = chat_setting(:away_summary_threshold_seconds) || 120
+          Time.now - @last_active_at > threshold
+        end
+
+        def show_away_summary(out)
+          return unless defined?(Legion::LLM) && Legion::LLM.respond_to?(:chat_direct)
+
+          messages = @session.chat.messages.last(30).select { |m| m.respond_to?(:role) }
+          return if messages.length < 2
+
+          summary_input = messages.map { |m| "#{m.role}: #{m.content.to_s[0..500]}" }.join("\n")
+          idle_minutes = ((Time.now - @last_active_at) / 60).round(1)
+
+          prompt = "You are a concise assistant. The user has been away for #{idle_minutes} minutes. " \
+                   'In 1-3 sentences, summarize what happened in this conversation for a returning user. ' \
+                   'Focus on: what task was in progress, what was accomplished, what needs attention next. ' \
+                   "Skip status reports and commit recaps.\n\nRecent conversation:\n#{summary_input}"
+
+          response = if Legion::LLM.respond_to?(:ask_direct)
+                       Legion::LLM.ask_direct(message: prompt, model: nil, provider: nil)
+                     else
+                       session = Legion::LLM.chat_direct(model: nil, provider: nil)
+                       session.ask(prompt)
+                     end
+
+          text = if response.is_a?(Hash)
+                   response[:response] || response[:content]
+                 elsif response.respond_to?(:content)
+                   response.content
+                 else
+                   response.to_s
+                 end
+          return if text.to_s.strip.empty?
+
+          puts
+          puts out.colorize("  [away #{idle_minutes}m] ", :gray) + text.strip
+          puts
+        rescue StandardError => e
+          Legion::Logging.debug "away_summary failed: #{e.message}" if defined?(Legion::Logging)
+        end
+
         def display_pending_notifications
-          return unless @notification_bridge&.has_urgent? || @notification_bridge
+          return unless @notification_bridge
 
           notes = @notification_bridge.pending_notifications
           return if notes.empty?
@@ -304,6 +353,10 @@ module Legion
           when 'educational' then prompt += "\n\nBe educational. Explain concepts, provide context, teach as you help."
           end
 
+          require 'legion/cli/chat/output_styles'
+          style_injection = Chat::OutputStyles.system_prompt_injection
+          prompt += "\n\n#{style_injection}" if style_injection
+
           prompt
         end
 
@@ -314,6 +367,9 @@ module Legion
             display_pending_notifications
             input = read_user_input
             break if input.nil? # Ctrl+D
+
+            show_away_summary(out) if away?
+            @last_active_at = Time.now
 
             stripped = input.strip
 
@@ -519,6 +575,8 @@ module Legion
             handle_new_conversation(out)
           when '/personality'
             handle_personality(args.first, out)
+          when '/style'
+            handle_style(args, out)
           when '/model'
             if args.first
               @session.chat.with_model(args.first)
@@ -576,45 +634,56 @@ module Legion
             puts '  No saved sessions.'
             return
           end
-          sessions.each do |s|
+          puts '  Recent Sessions:'
+          sessions.first(10).each_with_index do |s, idx|
             age = Time.now - s[:modified]
-            ago = age < 3600 ? "#{(age / 60).round}m ago" : "#{(age / 3600).round}h ago"
-            puts "  #{s[:name]}  (#{ago})"
+            ago = if age < 3600
+                    "#{(age / 60).round}m ago"
+                  elsif age < 86_400
+                    "#{(age / 3600).round}h ago"
+                  else
+                    "#{(age / 86_400).round}d ago"
+                  end
+            cwd = s[:cwd] ? abbreviate_path(s[:cwd]) : '?'
+            msgs = s[:message_count] || '?'
+            puts format('    %<idx>d. [%<ago>s] %-24<name>s %<cwd>s  (%<msgs>s messages)',
+                        idx: idx + 1, ago: ago, name: s[:name], cwd: cwd, msgs: msgs)
           end
         end
 
         def show_help(out)
           out.header('Chat Commands')
           out.detail({
-                       '/help'                => 'Show this help',
-                       '/quit'                => 'Exit chat',
-                       '/cost'                => 'Show session stats',
-                       '/status'              => 'Detailed session status (model, tokens, context, permissions)',
-                       '/compact [STRATEGY]'  => 'Compress history (auto, dedup, summarize)',
-                       '/context'             => 'Show context window stats',
-                       '/clear'               => 'Clear conversation history',
-                       '/new'                 => 'Start new conversation (same session)',
-                       '/copy'                => 'Copy last response to clipboard',
-                       '/diff'                => 'Show git diff of working directory',
-                       '/save NAME'           => 'Save session to disk',
-                       '/load NAME'           => 'Load a saved session',
-                       '/fetch URL'           => 'Fetch a web page into context',
-                       '/search QUERY'        => 'Web search and inject results into context',
-                       '/rewind [N|FILE]'     => 'Undo file edits (last, N steps, or specific file)',
-                       '/memory [add TEXT]'   => 'View or add persistent memory',
-                       '/agent TASK'          => 'Spawn a background subagent',
-                       '/agents'              => 'Show running subagents',
-                       '/plan'                => 'Toggle plan mode (read-only)',
-                       '/review [SCOPE]'      => 'Code review (staged, uncommitted, or branch)',
-                       '/permissions [MODE]'  => 'View or switch permission mode (interactive, auto_approve, read_only)',
-                       '/personality [STYLE]' => 'Set communication style (concise, verbose, educational)',
-                       '/swarm NAME|PROMPT'   => 'Run a swarm workflow or auto-generate one',
-                       '/sessions'            => 'List saved sessions',
-                       '/model X'             => 'Switch model',
-                       '/edit'                => 'Open $EDITOR for long prompts',
-                       '/commit'              => 'Generate AI commit message and commit staged changes',
-                       '/workers'             => 'List digital workers from running daemon',
-                       '/dream'               => 'Trigger dream cycle on running daemon'
+                       '/help'                  => 'Show this help',
+                       '/quit'                  => 'Exit chat',
+                       '/cost'                  => 'Show per-model cost breakdown and session stats',
+                       '/status'                => 'Detailed session status (model, tokens, context, permissions)',
+                       '/compact [STRATEGY]'    => 'Compress history (auto, dedup, summarize)',
+                       '/context'               => 'Show context window stats',
+                       '/clear'                 => 'Clear conversation history',
+                       '/new'                   => 'Start new conversation (same session)',
+                       '/copy'                  => 'Copy last response to clipboard',
+                       '/diff'                  => 'Show git diff of working directory',
+                       '/save NAME'             => 'Save session to disk',
+                       '/load NAME'             => 'Load a saved session',
+                       '/fetch URL'             => 'Fetch a web page into context',
+                       '/search QUERY'          => 'Web search and inject results into context',
+                       '/rewind [N|FILE]'       => 'Undo file edits (last, N steps, or specific file)',
+                       '/memory [add TEXT]'     => 'View or add persistent memory',
+                       '/agent TASK'            => 'Spawn a background subagent',
+                       '/agents'                => 'Show running subagents',
+                       '/plan'                  => 'Toggle plan mode (read-only)',
+                       '/review [SCOPE]'        => 'Code review (staged, uncommitted, or branch)',
+                       '/permissions [MODE]'    => 'View or switch permission mode (interactive, auto_approve, read_only)',
+                       '/personality [STYLE]'   => 'Set communication style (concise, verbose, educational)',
+                       '/style [list|set|show]' => 'Manage output styles from .legionio/output-styles/',
+                       '/swarm NAME|PROMPT'     => 'Run a swarm workflow or auto-generate one',
+                       '/sessions'              => 'List saved sessions',
+                       '/model X'               => 'Switch model',
+                       '/edit'                  => 'Open $EDITOR for long prompts',
+                       '/commit'                => 'Generate AI commit message and commit staged changes',
+                       '/workers'               => 'List digital workers from running daemon',
+                       '/dream'                 => 'Trigger dream cycle on running daemon'
                      })
           puts
           puts out.dim('  End a line with \\ for multiline input. !command runs a shell command inline.')
@@ -841,12 +910,20 @@ module Legion
 
         def load_memory_context
           require 'legion/cli/chat/memory_store'
+          parts = []
+
           context = Chat::MemoryStore.load_context
-          return unless context
+          parts << context if context
+
+          require 'legion/cli/chat/team_memory'
+          team_context = Chat::TeamMemory.load_context
+          parts << team_context if team_context
+
+          return if parts.empty?
 
           @session.chat.add_message(
             role:    :user,
-            content: "The following is persistent memory from previous sessions:\n\n#{context}\n\nUse this context as needed."
+            content: "The following is persistent memory from previous sessions:\n\n#{parts.join("\n\n---\n\n")}\n\nUse this context as needed."
           )
         end
 
@@ -1084,24 +1161,92 @@ module Legion
           out.success("Personality: #{style}")
         end
 
+        def handle_style(args, out)
+          require 'legion/cli/chat/output_styles'
+          subcmd = args.first
+
+          case subcmd
+          when 'list', nil
+            styles = Chat::OutputStyles.discover
+            if styles.empty?
+              puts '  No output styles found. Create .md files in .legionio/output-styles/ or ~/.legionio/output-styles/'
+              return
+            end
+            styles.each do |s|
+              active = s[:active] ? '*' : ' '
+              puts "  #{active} #{s[:name]} — #{s[:description]}"
+            end
+          when 'show'
+            name = args[1]
+            unless name
+              out.error('Usage: /style show <name>')
+              return
+            end
+            style = Chat::OutputStyles.find(name)
+            if style
+              puts "  Name: #{style[:name]}"
+              puts "  Description: #{style[:description]}"
+              puts "  Active: #{style[:active]}"
+              puts "  Path: #{style[:path]}"
+              puts "\n#{style[:content]}"
+            else
+              out.error("Style '#{name}' not found")
+            end
+          when 'set'
+            name = args[1]
+            unless name
+              out.error('Usage: /style set <name>')
+              return
+            end
+            if Chat::OutputStyles.activate(name)
+              instruction = Chat::OutputStyles.find(name)&.dig(:content)
+              @session.chat.add_message(role: :user, content: "Style instruction: #{instruction}") if instruction
+              out.success("Output style set to: #{name}")
+            else
+              out.error("Style '#{name}' not found")
+            end
+          else
+            out.error("Unknown /style subcommand: #{subcmd}. Use: list, show, set")
+          end
+        end
+
         def show_session_stats(out)
           s = @session.stats
           elapsed = @session.elapsed.round(1)
-          details = {
-            'Messages' => "#{s[:messages_sent]} sent, #{s[:messages_received]} received",
-            'Model'    => @session.model_id,
-            'Duration' => "#{elapsed}s"
-          }
-          details['Input tokens']  = s[:input_tokens].to_s  if s[:input_tokens]
-          details['Output tokens'] = s[:output_tokens].to_s if s[:output_tokens]
-          cost = @session.estimated_cost
-          details['Est. cost'] = format('$%.4f', cost) if cost.positive?
-          out.detail(details)
+          breakdown = @session.cost_breakdown
+
+          if breakdown.any?
+            out.header('Session Cost Summary')
+            rows = breakdown.map do |entry|
+              [entry[:model],
+               format_number(entry[:input_tokens]),
+               format_number(entry[:output_tokens]),
+               format('$%.4f', entry[:cost])]
+            end
+            total_cost = @session.estimated_cost
+            rows << ['Total',
+                     format_number(s[:input_tokens] || 0),
+                     format_number(s[:output_tokens] || 0),
+                     format('$%.4f', total_cost)]
+            out.table(['Model', 'Input Tokens', 'Output Tokens', 'Cost'], rows)
+          end
+
+          cache = @session.cache_hits_tokens
+          puts "  Cache hits: #{format_number(cache)} tokens saved" if cache.positive?
+
+          duration_min = (elapsed / 60.0).round(1)
+          label = duration_min >= 1.0 ? "#{duration_min} minutes" : "#{elapsed}s"
+          puts "  Session duration: #{label}"
+          puts "  Messages: #{s[:messages_sent]} sent, #{s[:messages_received]} received"
+        end
+
+        def format_number(num)
+          num.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
         end
 
         def restore_session(out)
           require 'legion/cli/chat/session_store'
-          if options[:continue]
+          if options[:continue] || options[:resume_latest]
             name = Chat::SessionStore.latest
             @session_name = name
           elsif options[:resume]
@@ -1115,9 +1260,35 @@ module Legion
           data = Chat::SessionStore.load(name)
           Chat::SessionStore.restore(@session, data)
           msg_count = data[:messages]&.length || 0
+          cwd_info = data[:cwd] ? " from #{abbreviate_path(data[:cwd])}" : ''
           label = options[:fork] ? 'Forked from' : 'Resumed'
-          out.success("#{label} session: #{name} (#{msg_count} messages)")
-          chat_log.info "session_restore name=#{name} messages=#{msg_count} mode=#{options[:fork] ? 'fork' : 'resume'}"
+          out.success("#{label} session: #{name}#{cwd_info} (#{msg_count} messages)")
+
+          if data[:recovery_state] && data[:recovery_state] != :none
+            out.warn("Session was interrupted (#{data[:recovery_state]}). Auto-recovering.")
+            @recovery_message = data[:recovery_message]
+          end
+
+          chat_log.info "session_restore name=#{name} messages=#{msg_count} recovery=#{data[:recovery_state]} mode=#{options[:fork] ? 'fork' : 'resume'}"
+        end
+
+        def send_recovery_message(out)
+          return unless @recovery_message
+
+          chat_log.info "sending recovery message: #{@recovery_message}"
+          buffer = String.new
+          @session.send_message(@recovery_message) { |chunk| buffer << chunk.content if chunk.content }
+          print render_response(buffer, out)
+          puts
+          puts
+          @recovery_message = nil
+        rescue StandardError => e
+          chat_log.warn "recovery message failed: #{e.message}"
+        end
+
+        def abbreviate_path(path)
+          home = Dir.home
+          path.start_with?(home) ? path.sub(home, '~') : path
         end
 
         def auto_save_session(out)

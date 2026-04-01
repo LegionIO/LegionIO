@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-03-31
+
+### Added
+- `Legion::Provider` base class with DAG-ordered registry for boot lifecycle (#71)
+- `TaskOutcomeObserver` wires task completion to reflection and learning persistence (#70)
+- GenAI semantic convention attributes (`gen_ai.*`) on OpenInference spans (#69)
+- `legionio doctor` scored audit report with weighted health score and letter grades (#77)
+- Local skill drop-in directory with `.rb` and `.md` support and execution (#76)
+- Dynamic gem sources for extension installs via `extensions.sources` setting (#52)
+- `legionio mode` CLI command for profile and process role switching (#72)
+- Cross-project session resume with CWD context and `--resume-latest` flag (#105)
+- Away summary recap via LLM when user returns after idle period (#100)
+- Wire `LexCliManifest.write_manifest` into extension autobuild pipeline (#97)
+- Inbound webhook normalizer and HTTP-to-AMQP event bridge (`Legion::Trigger`) (#74)
+- Interrupt detection and session recovery for chat resume (#98)
+- Configurable output styles for LLM responses via `.legionio/output-styles/` (#103)
+- Route RunCommand through lex-exec sandbox when `chat.sandboxed_commands.enabled` is true (#96)
+- Cross-session memory consolidation with 3-gate trigger system (#99)
+- Per-model `/cost` breakdown with token counts, cache hits, and `CostEstimator` pricing (#102)
+- Team memory sync via Apollo knowledge store with repo-scoped tags (#104)
+
+### Fixed
+- Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)
+
 ## [1.6.47] - 2026-03-31
 
 ### Added

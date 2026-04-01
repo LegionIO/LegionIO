@@ -28,6 +28,19 @@ RSpec.describe Legion::Telemetry::OpenInference do
       expect(attrs['llm.model_name']).to eq('gpt-4o')
       expect(attrs['llm.provider']).to eq('openai')
     end
+
+    it 'includes GenAI semantic convention attributes' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      attrs = nil
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **kwargs, &block|
+        attrs = kwargs[:attributes]
+        block.call(nil)
+      end
+
+      described_class.llm_span(model: 'claude-sonnet-4-20250514', provider: 'anthropic') { :ok }
+      expect(attrs['gen_ai.request.model']).to eq('claude-sonnet-4-20250514')
+      expect(attrs['gen_ai.system']).to eq('anthropic')
+    end
   end
 
   describe '.embedding_span' do
@@ -41,6 +54,62 @@ RSpec.describe Legion::Telemetry::OpenInference do
 
       described_class.embedding_span(model: 'text-embedding-3-small') { :ok }
       expect(attrs['openinference.span.kind']).to eq('EMBEDDING')
+    end
+
+    it 'includes GenAI attributes for embeddings' do
+      allow(Legion::Telemetry).to receive(:enabled?).and_return(true)
+      attrs = nil
+      allow(Legion::Telemetry).to receive(:with_span) do |_name, **kwargs, &block|
+        attrs = kwargs[:attributes]
+        block.call(nil)
+      end
+
+      described_class.embedding_span(model: 'text-embedding-3-small') { :ok }
+      expect(attrs['gen_ai.request.model']).to eq('text-embedding-3-small')
+      expect(attrs['gen_ai.system']).to eq('embedding')
+    end
+  end
+
+  describe '.annotate_llm_result' do
+    let(:span) { double('span', set_attribute: nil) }
+
+    before { allow(span).to receive(:respond_to?).with(:set_attribute).and_return(true) }
+
+    it 'sets GenAI usage attributes' do
+      result = { input_tokens: 100, output_tokens: 50, stop_reason: 'end_turn', model: 'claude-sonnet-4-20250514' }
+      described_class.annotate_llm_result(span, result)
+
+      expect(span).to have_received(:set_attribute).with('gen_ai.usage.input_tokens', 100)
+      expect(span).to have_received(:set_attribute).with('gen_ai.usage.output_tokens', 50)
+      expect(span).to have_received(:set_attribute).with('gen_ai.response.finish_reason', 'end_turn')
+      expect(span).to have_received(:set_attribute).with('gen_ai.response.model', 'claude-sonnet-4-20250514')
+    end
+
+    it 'preserves OpenInference attributes alongside GenAI' do
+      result = { input_tokens: 100, output_tokens: 50 }
+      described_class.annotate_llm_result(span, result)
+
+      expect(span).to have_received(:set_attribute).with('llm.token_count.prompt', 100)
+      expect(span).to have_received(:set_attribute).with('llm.token_count.completion', 50)
+      expect(span).to have_received(:set_attribute).with('gen_ai.usage.input_tokens', 100)
+      expect(span).to have_received(:set_attribute).with('gen_ai.usage.output_tokens', 50)
+    end
+  end
+
+  describe '.genai_attrs' do
+    it 'returns model attribute' do
+      result = described_class.genai_attrs(model: 'gpt-4o')
+      expect(result['gen_ai.request.model']).to eq('gpt-4o')
+    end
+
+    it 'includes system when provider given' do
+      result = described_class.genai_attrs(model: 'gpt-4o', provider: 'openai')
+      expect(result['gen_ai.system']).to eq('openai')
+    end
+
+    it 'omits system when provider is nil' do
+      result = described_class.genai_attrs(model: 'gpt-4o')
+      expect(result).not_to have_key('gen_ai.system')
     end
   end
 

@@ -140,6 +140,7 @@ module Legion
 
       setup_alerts
       setup_metrics
+      setup_task_outcome_observer
 
       api_settings = Legion::Settings[:api] || {}
       @api_enabled = api && api_settings.fetch(:enabled, true)
@@ -310,6 +311,8 @@ module Legion
             Legion::Logging.error "Port #{port} still in use after #{max_retries} attempts, API disabled"
             Legion::Readiness.mark_not_ready(:api)
           end
+        ensure
+          Legion::Process.quit_flag&.make_true if !@shutdown && defined?(Legion::Process)
         end
       end
       Legion::Readiness.mark_ready(:api)
@@ -459,6 +462,15 @@ module Legion
       Legion::Logging.debug 'Legion::Metrics initialized'
     rescue StandardError => e
       Legion::Logging.warn "Legion::Metrics setup failed: #{e.message}"
+    end
+
+    def setup_task_outcome_observer
+      require_relative 'task_outcome_observer'
+      return unless Legion::TaskOutcomeObserver.enabled?
+
+      Legion::TaskOutcomeObserver.setup
+    rescue StandardError => e
+      Legion::Logging.warn "TaskOutcomeObserver setup failed: #{e.message}"
     end
 
     def setup_telemetry

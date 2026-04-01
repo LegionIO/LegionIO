@@ -1,19 +1,28 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'concurrent/atomic/atomic_boolean'
 
 module Legion
   class Process
+    class << self
+      attr_accessor :quit_flag
+    end
+
     def self.run!(options)
       Legion::Process.new(options).run!
     end
 
-    attr_reader :options, :quit, :service
+    attr_reader :options, :service
 
     def initialize(options)
       @options = options
       options[:logfile] = File.expand_path(logfile) if logfile?
       options[:pidfile] = File.expand_path(pidfile) if pidfile?
+    end
+
+    def quit
+      @quit.is_a?(Concurrent::AtomicBoolean) ? @quit.true? : !!@quit
     end
 
     def daemonize?
@@ -43,7 +52,8 @@ module Legion
     def run!
       start_time = Time.now
       @options[:time_limit] = @options[:time_limit].to_i if @options.key? :time_limit
-      @quit = false
+      @quit = Concurrent::AtomicBoolean.new(false)
+      self.class.quit_flag = @quit
       check_pid
       daemonize if daemonize?
       write_pid
@@ -52,8 +62,9 @@ module Legion
 
       until quit
         sleep(1)
-        @quit = true if @options.key?(:time_limit) && Time.now - start_time > @options[:time_limit]
+        @quit.make_true if @options.key?(:time_limit) && Time.now - start_time > @options[:time_limit]
       end
+      @retrap_thread&.kill
       Legion::Logging.info('Legion is shutting down!')
       Legion.shutdown
       Legion::Logging.info('Legion has shutdown. Goodbye!')
@@ -117,7 +128,7 @@ module Legion
     def trap_signals
       trap('SIGTERM') do
         Legion::Logging.info '[Process] received SIGTERM, shutting down' if defined?(Legion::Logging)
-        @quit = true
+        @quit.make_true
       end
 
       trap('SIGHUP') do
@@ -128,15 +139,17 @@ module Legion
 
       trap('SIGINT') do
         Legion::Logging.info '[Process] received SIGINT, shutting down' if defined?(Legion::Logging)
-        @quit = true
+        @quit.make_true
       end
     end
 
     def retrap_after_puma
-      Thread.new do
-        sleep 2
-        trap('SIGINT') { @quit = true }
-        trap('SIGTERM') { @quit = true }
+      @retrap_thread = Thread.new do
+        15.times do
+          sleep 1
+          trap('SIGINT') { @quit.make_true }
+          trap('SIGTERM') { @quit.make_true }
+        end
       end
     end
   end

@@ -4,6 +4,7 @@ require 'English'
 require 'thor'
 require 'rbconfig'
 require 'rubygems/uninstaller'
+require 'legion/extensions/gem_source'
 
 module Legion
   module CLI
@@ -29,6 +30,9 @@ module Legion
           out.error("Gem binary not found at #{gem_bin}")
           raise SystemExit, 1
         end
+
+        Connection.ensure_settings
+        Legion::Extensions::GemSource.setup!
 
         target_gems = discover_legion_gems
         out.header('Checking for updates') unless options[:json]
@@ -116,7 +120,8 @@ module Legion
 
         def install_outdated(gem_bin, pending, results)
           names = pending.map { |r| r[:name] }
-          `#{gem_bin} install #{names.join(' ')} --no-document 2>&1`
+          source_args = Legion::Extensions::GemSource.source_args_for_cli
+          `#{gem_bin} install #{names.join(' ')} --no-document #{source_args} 2>&1`
           success = $CHILD_STATUS.success?
           pending_set = names.to_set
           results.each do |r|

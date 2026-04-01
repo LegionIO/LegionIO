@@ -29,6 +29,7 @@ group :test do
   gem 'rake'
   gem 'rspec'
   gem 'rubocop'
+  gem 'rubocop-legion'
   gem 'rubocop-rspec'
   gem 'ruby_llm'
   gem 'simplecov'

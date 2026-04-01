@@ -15,13 +15,16 @@ module Legion
 
             messages = session.chat.messages.map(&:to_h)
             data = {
-              name:          name,
-              model:         session.model_id,
-              stats:         session.stats,
-              saved_at:      Time.now.iso8601,
-              message_count: messages.size,
-              summary:       generate_summary(messages),
-              messages:      messages
+              name:              name,
+              model:             session.model_id,
+              stats:             session.stats,
+              saved_at:          Time.now.iso8601,
+              cwd:               Dir.pwd,
+              message_count:     messages.size,
+              summary:           generate_summary(messages),
+              model_usage:       session.respond_to?(:model_usage) ? session.model_usage : {},
+              cache_hits_tokens: session.respond_to?(:cache_hits_tokens) ? session.cache_hits_tokens : 0,
+              messages:          messages
             }
 
             path = session_path(name)
@@ -37,10 +40,16 @@ module Legion
           end
 
           def restore(session, data)
+            require 'legion/cli/chat/session_recovery'
+
+            recovery = Chat::SessionRecovery.recover(data[:messages] || [])
             session.chat.reset_messages!
-            data[:messages].each do |msg|
+            recovery[:messages].each do |msg|
               session.chat.add_message(msg)
             end
+
+            data[:recovery_state]   = recovery[:state]
+            data[:recovery_message] = recovery[:recovery_message]
             data
           end
 
@@ -57,7 +66,8 @@ module Legion
                 modified:      stat.mtime,
                 message_count: meta[:message_count],
                 summary:       meta[:summary],
-                model:         meta[:model]
+                model:         meta[:model],
+                cwd:           meta[:cwd]
               }
             end
             sessions.sort_by { |s| s[:modified] }.reverse
@@ -101,11 +111,12 @@ module Legion
             {
               message_count: data[:message_count] || data[:messages]&.size,
               summary:       data[:summary],
-              model:         data[:model]
+              model:         data[:model],
+              cwd:           data[:cwd]
             }
           rescue StandardError => e
             Legion::Logging.debug("SessionStore#read_session_meta failed: #{e.message}") if defined?(Legion::Logging)
-            { message_count: nil, summary: nil, model: nil }
+            { message_count: nil, summary: nil, model: nil, cwd: nil }
           end
         end
       end

@@ -236,8 +236,10 @@ module Legion
       # ──────────────────────────────────────────────────────────
 
       desc 'install NAME', 'Install a lex extension gem'
+      option :source, type: :string, desc: 'Gem source URL (overrides configured sources)'
       def install(name)
         require 'legion/registry'
+        require 'legion/extensions/gem_source'
         out = formatter
 
         unless name.start_with?('lex-')
@@ -245,12 +247,26 @@ module Legion
           return
         end
 
-        if Kernel.system('gem', 'install', name)
+        begin
+          Connection.ensure_settings
+          Legion::Extensions::GemSource.setup!
+        rescue StandardError => e
+          Legion::Logging.debug("marketplace install: settings not available: #{e.message}") if defined?(Legion::Logging)
+        end
+
+        result = if options[:source]
+                   Legion::Extensions::GemSource.install_gem(name, source_override: options[:source])
+                 else
+                   Legion::Extensions::GemSource.install_gem(name)
+                 end
+
+        if result[:success]
           entry = Legion::Registry::Entry.new(name: name, status: :active, airb_status: 'pending')
           Legion::Registry.register(entry)
           out.success("'#{name}' installed successfully")
         else
           out.error("Failed to install '#{name}'")
+          puts result[:output] if result[:output]
         end
       end
 

@@ -191,7 +191,10 @@ module Legion
         if min_version.is_a?(String)
           begin
             gem_spec = Gem::Specification.find_by_name(entry[:gem_name])
-            Legion::Logging.fatal entry if Gem::Version.new(gem_spec.version.to_s) >= Gem::Version.new(min_version)
+            if Gem::Version.new(gem_spec.version.to_s) < Gem::Version.new(min_version)
+              Legion::Logging.warn "#{entry[:gem_name]} v#{gem_spec.version} below min_version #{min_version}, skipping"
+              return false
+            end
           rescue Gem::MissingSpecError
             Legion::Logging.warn "Could not find gem spec for #{entry[:gem_name]}, skipping min_version check"
           end
@@ -229,6 +232,7 @@ module Legion
         Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners).publish
 
         register_capabilities(entry[:gem_name], extension.runners) if extension.respond_to?(:runners)
+        write_lex_cli_manifest(entry, extension)
         register_absorber_capabilities(entry[:gem_name], extension.absorbers) if extension.respond_to?(:absorbers)
 
         if extension.respond_to?(:meta_actors) && extension.meta_actors.is_a?(Hash)
@@ -367,6 +371,42 @@ module Legion
       end
 
       private
+
+      def write_lex_cli_manifest(entry, extension)
+        require 'legion/cli/lex_cli_manifest'
+
+        gem_name = entry[:gem_name]
+        gem_version = extension.const_defined?(:VERSION) ? extension::VERSION : '0.0.0'
+
+        manifest = Legion::CLI::LexCliManifest.new
+        return unless manifest.stale?(gem_name, gem_version)
+
+        alias_name = gem_name.delete_prefix('lex-')
+        commands = build_manifest_commands(extension)
+        manifest.write_manifest(gem_name: gem_name, gem_version: gem_version,
+                                alias_name: alias_name, commands: commands)
+      rescue StandardError => e
+        Legion::Logging.debug "LexCliManifest write failed for #{gem_name}: #{e.message}" if defined?(Legion::Logging)
+      end
+
+      def build_manifest_commands(extension)
+        return {} unless extension.respond_to?(:runners)
+
+        extension.runners.each_with_object({}) do |(runner_name, meta), cmds|
+          runner_mod = meta[:runner_module]
+          next unless runner_mod
+
+          methods = (meta[:class_methods] || {}).each_with_object({}) do |(fn_name, fn_meta), meths|
+            next if fn_name.to_s.start_with?('_')
+
+            args = (fn_meta[:args] || []).map { |type, name| "#{name}:#{type}" }
+            meths[fn_name.to_s] = { desc: fn_name.to_s.tr('_', ' '), args: args }
+          end
+          next if methods.empty?
+
+          cmds[runner_name.to_s] = { class_name: runner_mod.to_s, methods: methods }
+        end
+      end
 
       def read_gemspec_capabilities(gem_name)
         spec = Gem::Specification.find_by_name(gem_name)

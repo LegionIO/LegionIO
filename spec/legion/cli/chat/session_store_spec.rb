@@ -112,6 +112,12 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
       expect(data[:summary]).to end_with('...')
     end
 
+    it 'includes cwd in saved data' do
+      described_class.save(session, 'test-session')
+      data = Legion::JSON.load(File.read(described_class.session_path('test-session')))
+      expect(data[:cwd]).to eq(Dir.pwd)
+    end
+
     it 'creates sessions directory if missing' do
       FileUtils.rm_rf(tmpdir)
       described_class.save(session, 'test-session')
@@ -166,12 +172,13 @@ RSpec.describe Legion::CLI::Chat::SessionStore do
       expect(sessions[1][:name]).to eq('older')
     end
 
-    it 'includes summary and message count in listing' do
+    it 'includes summary, message count, and cwd in listing' do
       described_class.save(session, 'with-meta')
       sessions = described_class.list
       expect(sessions[0][:message_count]).to eq(2)
       expect(sessions[0][:summary]).to eq('hello')
       expect(sessions[0][:model]).to eq('test-model')
+      expect(sessions[0][:cwd]).to eq(Dir.pwd)
     end
   end
 
