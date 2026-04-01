@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'legion/cli/doctor_command'
 require 'legion/cli/output'
+require 'legion/cli/connection'
 require 'json'
 
 RSpec.describe Legion::CLI::Doctor do
@@ -22,6 +23,9 @@ RSpec.describe Legion::CLI::Doctor do
   end
 
   before do
+    allow(Legion::CLI::Connection).to receive(:ensure_settings)
+    allow(Legion::CLI::Connection).to receive(:shutdown)
+
     described_class::CHECKS.each do |check_sym|
       check_class = Legion::CLI::Doctor.const_get(check_sym)
       allow_any_instance_of(check_class).to receive(:run).and_return(
@@ -138,6 +142,52 @@ RSpec.describe Legion::CLI::Doctor do
         failed = parsed['results'].find { |r| r['status'] == 'fail' }
         expect(failed).not_to be_nil
         expect(failed['message']).to include('unexpected boom')
+      end
+    end
+
+    context 'scoring and grading' do
+      it 'includes health_score and grade in JSON output when all pass' do
+        output = run_diagnose
+        parsed = JSON.parse(output)
+        expect(parsed['summary']['health_score']).to eq(1.0)
+        expect(parsed['summary']['grade']).to eq('A')
+      end
+
+      it 'returns grade F when all checks fail' do
+        described_class::CHECKS.each do |check_sym|
+          check_class = Legion::CLI::Doctor.const_get(check_sym)
+          allow_any_instance_of(check_class).to receive(:run).and_return(
+            Legion::CLI::Doctor::Result.new(name: check_class.new.name, status: :fail, message: 'bad')
+          )
+        end
+
+        output = run_diagnose
+        parsed = JSON.parse(output)
+        expect(parsed['summary']['health_score']).to eq(0.0)
+        expect(parsed['summary']['grade']).to eq('F')
+      end
+
+      it 'returns intermediate grade for mixed results' do
+        described_class::CHECKS.each do |check_sym|
+          check_class = Legion::CLI::Doctor.const_get(check_sym)
+          allow_any_instance_of(check_class).to receive(:run).and_return(
+            Legion::CLI::Doctor::Result.new(name: check_class.new.name, status: :warn, message: 'meh')
+          )
+        end
+
+        output = run_diagnose
+        parsed = JSON.parse(output)
+        expect(parsed['summary']['health_score']).to eq(0.5)
+        expect(parsed['summary']['grade']).to eq('D')
+      end
+
+      it 'includes score and weight in each result' do
+        output = run_diagnose
+        parsed = JSON.parse(output)
+        first = parsed['results'].first
+        expect(first).to have_key('score')
+        expect(first).to have_key('weight')
+        expect(first['score']).to eq(1.0)
       end
     end
   end

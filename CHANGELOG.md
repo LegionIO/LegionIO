@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.7] - 2026-03-31
+
+### Changed
+- Expand `legionio doctor` to scored audit report (#77)
+- Each check produces a score (pass=1.0, warn=0.5, fail=0.0) with configurable weights
+- Security checks weighted highest (TLS=3.0, Vault=3.0), convenience lowest (PID=0.5)
+- Weighted aggregate produces health percentage and letter grade (A-F)
+- `--json` output includes `health_score` and `grade` in summary for CI integration
+
 ## [1.7.6] - 2026-03-31
 
 ### Added

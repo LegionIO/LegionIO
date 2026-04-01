@@ -39,6 +39,28 @@ module Legion
         TlsCheck
       ].freeze
 
+      # Weights: security > connectivity > convenience
+      WEIGHTS = {
+        'TLS'                 => 3.0,
+        'Vault connection'    => 3.0,
+        'Permissions'         => 2.5,
+        'Ruby version'        => 2.0,
+        'RabbitMQ connection' => 2.0,
+        'Database connection' => 2.0,
+        'Cache connection'    => 1.5,
+        'Bundle'              => 1.5,
+        'Config'              => 1.0,
+        'Extensions'          => 1.0,
+        'PID files'           => 0.5
+      }.freeze
+
+      GRADE_THRESHOLDS = [
+        [0.95, 'A'],
+        [0.85, 'B'],
+        [0.70, 'C'],
+        [0.50, 'D']
+      ].freeze
+
       desc 'diagnose', 'Check environment health and suggest fixes'
       method_option :fix, type: :boolean, default: false, desc: 'Auto-fix issues where possible'
       def diagnose
@@ -82,7 +104,8 @@ module Legion
 
       def run_all_checks
         check_classes.map do |check_class|
-          check_class.new.run
+          result = check_class.new.run
+          inject_weight(result)
         rescue StandardError => e
           Legion::Logging.error("DoctorCommand#run_all_checks unexpected error in #{check_class}: #{e.message}") if defined?(Legion::Logging)
           Doctor::Result.new(
@@ -91,6 +114,12 @@ module Legion
             message: "Unexpected error: #{e.message}"
           )
         end
+      end
+
+      def inject_weight(result)
+        weight = WEIGHTS[result.name] || 1.0
+        result.instance_variable_set(:@weight, weight)
+        result
       end
 
       def output_text(out, results)
@@ -105,17 +134,18 @@ module Legion
 
       def print_result(out, result)
         label = result.name.ljust(24)
+        score_label = result.score ? format('%.1f', result.score) : ' - '
         case result.status
         when :pass
-          puts "  #{out.colorize('pass', :green)} #{label} #{out.colorize(result.message.to_s, :muted)}"
+          puts "  #{out.colorize('pass', :green)} #{score_label}  #{label} #{out.colorize(result.message.to_s, :muted)}"
         when :fail
-          puts "  #{out.colorize('FAIL', :red)} #{label} #{out.colorize(result.message.to_s, :critical)}"
+          puts "  #{out.colorize('FAIL', :red)} #{score_label}  #{label} #{out.colorize(result.message.to_s, :critical)}"
           puts "    #{out.colorize('->', :yellow)} #{result.prescription}" if result.prescription
         when :warn
-          puts "  #{out.colorize('WARN', :yellow)} #{label} #{out.colorize(result.message.to_s, :caution)}"
+          puts "  #{out.colorize('WARN', :yellow)} #{score_label}  #{label} #{out.colorize(result.message.to_s, :caution)}"
           puts "    #{out.colorize('->', :yellow)} #{result.prescription}" if result.prescription
         when :skip
-          puts "  #{out.colorize('skip', :muted)} #{label} #{out.colorize(result.message.to_s, :disabled)}"
+          puts "  #{out.colorize('skip', :muted)} #{score_label}  #{label} #{out.colorize(result.message.to_s, :disabled)}"
         end
       end
 
@@ -126,7 +156,15 @@ module Legion
         skipped      = results.count(&:skip?)
         auto_fixable = results.count { |r| (r.fail? || r.warn?) && r.auto_fixable }
 
+        agg = aggregate_score(results)
+        grade = letter_grade(agg)
+
         msg = build_summary_message(passed, failed, warned, skipped, auto_fixable)
+
+        out.spacer
+        grade_color = grade_color_for(grade)
+        puts "  Health Score: #{out.colorize(format('%.0f%%', agg * 100), grade_color)}  Grade: #{out.colorize(grade, grade_color)}"
+        out.spacer
 
         if failed.positive?
           out.error(msg)
@@ -146,12 +184,40 @@ module Legion
         msg
       end
 
+      def aggregate_score(results)
+        scored = results.reject(&:skip?)
+        return 0.0 if scored.empty?
+
+        weighted_sum = scored.sum { |r| r.score * r.weight }
+        total_weight = scored.sum(&:weight)
+        total_weight.zero? ? 0.0 : weighted_sum / total_weight
+      end
+
+      def letter_grade(score)
+        GRADE_THRESHOLDS.each do |threshold, grade|
+          return grade if score >= threshold
+        end
+        'F'
+      end
+
+      def grade_color_for(grade)
+        case grade
+        when 'A' then :green
+        when 'B' then :cyan
+        when 'C' then :yellow
+        when 'D' then :caution
+        else          :red
+        end
+      end
+
       def output_json(out, results)
         passed       = results.count(&:pass?)
         failed       = results.count(&:fail?)
         warned       = results.count(&:warn?)
         skipped      = results.count(&:skip?)
         auto_fixable = results.count { |r| (r.fail? || r.warn?) && r.auto_fixable }
+        agg          = aggregate_score(results)
+        grade        = letter_grade(agg)
 
         out.json({
                    results: results.map(&:to_h),
@@ -160,7 +226,9 @@ module Legion
                      failed:       failed,
                      warnings:     warned,
                      skipped:      skipped,
-                     auto_fixable: auto_fixable
+                     auto_fixable: auto_fixable,
+                     health_score: agg.round(4),
+                     grade:        grade
                    }
                  })
       end
