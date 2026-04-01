@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.8] - 2026-04-01
+
+### Added
+- `Legion::API::Settings` module with registered defaults via `merge_settings('api', ...)`, matching the pattern used by all other LegionIO gems
+- Puma `persistent_timeout` (20s) and `first_data_timeout` (30s) now configurable via `Settings[:api][:puma]`
+
+### Changed
+- Removed all inline `||` and `.fetch(..., default)` fallbacks for API settings in `service.rb` and `check_command.rb` — defaults now guaranteed by `merge_settings`
+
 ## [1.7.7] - 2026-04-01
 
 ### Changed

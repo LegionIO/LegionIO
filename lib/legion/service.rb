@@ -264,7 +264,7 @@ module Legion
       )
     end
 
-    def setup_api
+    def setup_api # rubocop:disable Metrics/MethodLength
       if @api_thread&.alive?
         Legion::Logging.warn 'API already running, skipping duplicate setup_api call'
         return
