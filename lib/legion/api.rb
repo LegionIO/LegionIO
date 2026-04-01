@@ -105,6 +105,11 @@ module Legion
       json_response({ ready: ready, components: Legion::Readiness.to_h }, status_code: ready ? 200 : 503)
     end
 
+    post '/api/reload' do
+      Thread.new { Legion.reload }
+      json_response({ status: 'reloading' })
+    end
+
     # Global error handlers
     not_found do
       content_type :json
