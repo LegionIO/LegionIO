@@ -15,7 +15,11 @@ module TestRunners
       raise StandardError, 'boom'
     end
 
-    def self.handle_exception(exception, **_opts); end
+    def self.with_log_context(_method_name)
+      yield
+    end
+
+    def self.handle_runner_exception(exception, **_opts); end
   end
 end
 

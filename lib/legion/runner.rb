@@ -2,6 +2,7 @@
 
 require_relative 'runner/log'
 require_relative 'runner/status'
+require_relative 'context'
 require 'legion/transport'
 require 'legion/transport/messages/check_subtask'
 
@@ -31,7 +32,11 @@ module Legion
       # result = Fiber.new { Fiber.yield runner_class.send(function, **args) }
       raise 'No Function defined' if function.nil?
 
-      result = runner_class.send(function, **args)
+      result = Legion::Context.with_task_context(opts.merge(task_id: task_id, function: function, runner_class: runner_class.to_s)) do
+        runner_class.with_log_context(function) do
+          runner_class.send(function, **args)
+        end
+      end
     rescue Legion::Exception::HandledTask => e
       rlog.debug "[Runner] HandledTask raised in #{runner_class}##{function}: #{e.message}"
       status = 'task.exception'
@@ -40,7 +45,7 @@ module Legion
       rlog.error "[Runner] exception in #{runner_class}##{function}: #{e.message}"
       status = 'task.exception'
       result = { success: false, status: status, error: { message: e.message, backtrace: e.backtrace } }
-      runner_class.handle_exception(e,
+      runner_class.handle_runner_exception(e,
                                     **opts,
                                     runner_class:  runner_class,
                                     args:          args,
