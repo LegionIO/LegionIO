@@ -53,7 +53,7 @@ module Legion
       def build_catalog_runners(name)
         return {} unless defined?(Legion::Data) && Legion::Data.respond_to?(:connected?) && Legion::Data.connected?
 
-        ext = Legion::Data::Model::Extension.where(gem_name: name).first
+        ext = Legion::Data::Model::Extension.where(name: name).first
         return {} unless ext
 
         ext.runners.to_h do |runner|

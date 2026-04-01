@@ -10,6 +10,7 @@
 
 ### Fixed
 - Knowledge ingest API route calls `ingest_content` instead of `ingest_file` when `content` body param is present
+- Catalog API queries `extensions.name` instead of non-existent `gem_name` column
 
 ## [1.7.0] - 2026-03-31
 
