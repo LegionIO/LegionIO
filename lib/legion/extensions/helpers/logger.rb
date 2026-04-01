@@ -9,8 +9,8 @@ module Legion
         include Legion::Extensions::Helpers::Base
         include Legion::Logging::Helper
 
-        def handle_runner_exception(exception, task_id: nil, **opts)
-          handle_exception(exception, task_id: task_id, **opts)
+        def handle_runner_exception(exception, task_id: nil, **opts) # rubocop:disable Style/ArgumentsForwarding
+          handle_exception(exception, task_id: task_id, **opts) # rubocop:disable Style/ArgumentsForwarding
 
           unless task_id.nil?
             Legion::Transport::Messages::TaskLog.new(
