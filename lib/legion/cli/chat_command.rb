@@ -900,12 +900,20 @@ module Legion
 
         def load_memory_context
           require 'legion/cli/chat/memory_store'
+          parts = []
+
           context = Chat::MemoryStore.load_context
-          return unless context
+          parts << context if context
+
+          require 'legion/cli/chat/team_memory'
+          team_context = Chat::TeamMemory.load_context
+          parts << team_context if team_context
+
+          return if parts.empty?
 
           @session.chat.add_message(
             role:    :user,
-            content: "The following is persistent memory from previous sessions:\n\n#{context}\n\nUse this context as needed."
+            content: "The following is persistent memory from previous sessions:\n\n#{parts.join("\n\n---\n\n")}\n\nUse this context as needed."
           )
         end
 

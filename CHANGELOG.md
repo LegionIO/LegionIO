@@ -21,6 +21,7 @@
 - Route RunCommand through lex-exec sandbox when `chat.sandboxed_commands.enabled` is true (#96)
 - Cross-session memory consolidation with 3-gate trigger system (#99)
 - Per-model `/cost` breakdown with token counts, cache hits, and `CostEstimator` pricing (#102)
+- Team memory sync via Apollo knowledge store with repo-scoped tags (#104)
 
 ### Fixed
 - Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)

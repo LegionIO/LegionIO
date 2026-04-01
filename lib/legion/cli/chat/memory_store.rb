@@ -54,6 +54,8 @@ module Legion
             header = scope == :global ? "# Global Memory\n" : "# Project Memory\n"
             File.write(path, "#{header}#{entry}", encoding: 'utf-8')
           end
+
+          sync_to_team(text)
           path
         end
 
@@ -102,6 +104,14 @@ module Legion
           FileUtils.mkdir_p(File.dirname(path))
         end
         private_class_method :ensure_dir
+
+        def sync_to_team(text)
+          require 'legion/cli/chat/team_memory'
+          Chat::TeamMemory.sync_add(text)
+        rescue StandardError => e
+          Legion::Logging.debug("MemoryStore#sync_to_team failed: #{e.message}") if defined?(Legion::Logging)
+        end
+        private_class_method :sync_to_team
       end
     end
   end
