@@ -99,16 +99,16 @@ RSpec.describe Legion::CLI::Skill do
   end
 
   describe '#execute' do
-    it 'shows skill name' do
-      expect { described_class.start(%w[run review some-input]) }.to output(/Skill: review/).to_stdout
+    it 'executes skill and shows output on success' do
+      allow(Legion::Chat::Skills).to receive(:execute)
+        .and_return({ success: true, output: 'skill result here' })
+      expect { described_class.start(%w[run review some-input]) }.to output(/skill result here/).to_stdout
     end
 
-    it 'shows input' do
-      expect { described_class.start(%w[run review fix the bug]) }.to output(/fix the bug/).to_stdout
-    end
-
-    it 'shows note about chat session' do
-      expect { described_class.start(%w[run review test]) }.to output(/active chat session/).to_stdout
+    it 'shows error when skill fails' do
+      allow(Legion::Chat::Skills).to receive(:execute)
+        .and_return({ success: false, error: 'something broke' })
+      expect { described_class.start(%w[run review test]) }.to output(/something broke/).to_stdout
     end
 
     context 'with nonexistent skill' do

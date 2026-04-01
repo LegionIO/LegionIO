@@ -19,7 +19,8 @@ module Legion
         end
 
         skills.each do |s|
-          say "  /#{s[:name]} — #{s[:description]}", :green
+          type_label = s[:type] == :ruby ? '[rb]' : '[md]'
+          say "  /#{s[:name]} #{type_label} — #{s[:description]}", :green
           say "    model: #{s[:model] || 'default'}, tools: #{s[:tools].empty? ? 'none' : s[:tools].join(', ')}"
         end
       end
@@ -76,10 +77,14 @@ module Legion
           return
         end
 
-        say "Skill: #{skill[:name]}", :green
-        say "Prompt: #{skill[:prompt]&.slice(0, 80)}..."
-        say "Input: #{input.join(' ')}"
-        say "\nNote: Full skill execution requires an active chat session. Use `/#{name}` in `legion chat`."
+        user_input = input.empty? ? nil : input.join(' ')
+        result = Legion::Chat::Skills.execute(skill, input: user_input)
+
+        if result[:success]
+          say result[:output].to_s
+        else
+          say "Skill failed: #{result[:error]}", :red
+        end
       end
     end
   end

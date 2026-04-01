@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-03-31
+
+### Added
+- Local skill drop-in directory with .rb support and execution (#76)
+- Skills discover .rb files alongside .md in `.legion/skills/` and `~/.legionio/skills/`
+- Ruby skills define `self.call(input:)` and are executed directly
+- Prompt skills are executed via `Legion::LLM.chat_direct`
+- `legionio skill run NAME` now executes skills instead of printing a stub message
+
 ## [1.7.5] - 2026-03-31
 
 ### Added
