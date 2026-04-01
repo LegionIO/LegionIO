@@ -18,6 +18,7 @@
 - Inbound webhook normalizer and HTTP-to-AMQP event bridge (`Legion::Trigger`) (#74)
 - Interrupt detection and session recovery for chat resume (#98)
 - Configurable output styles for LLM responses via `.legionio/output-styles/` (#103)
+- Route RunCommand through lex-exec sandbox when `chat.sandboxed_commands.enabled` is true (#96)
 
 ### Fixed
 - Puma no longer steals SIGINT/SIGTERM traps, preventing graceful shutdown (#91)
