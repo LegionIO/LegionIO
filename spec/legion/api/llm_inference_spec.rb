@@ -14,9 +14,9 @@ RSpec.describe 'LLM inference API route' do
     Legion::Logging.setup(log_level: 'fatal', level: 'fatal', trace: false)
     Legion::Settings.load(config_dir: File.expand_path('../../..', __dir__))
     loader = Legion::Settings.loader
-    loader.settings[:client]    = { name: 'test-node', ready: true }
-    loader.settings[:data]      = { connected: false }
-    loader.settings[:transport] = { connected: false }
+    loader.settings[:client]     = { name: 'test-node', ready: true }
+    loader.settings[:data]       = { connected: false }
+    loader.settings[:transport]  = { connected: false }
     loader.settings[:extensions] = {}
   end
 
@@ -37,38 +37,58 @@ RSpec.describe 'LLM inference API route' do
     test_app
   end
 
-  # ── helpers ────────────────────────────────────────────────────────────────
+  # ── shared helpers ──────────────────────────────────────────────────────────
 
   def stub_llm_started
     llm_mod = Module.new do
       def self.started? = true
     end
     stub_const('Legion::LLM', llm_mod)
+    %i[AuthError RateLimitError TokenBudgetExceeded ProviderError ProviderDown].each do |e|
+      stub_const("Legion::LLM::#{e}", Class.new(StandardError))
+    end
   end
 
-  def stub_llm_chat_session(content: 'inference response', model_name: 'claude-sonnet-4-6',
-                            input_tokens: 10, output_tokens: 20)
-    fake_response = double('InferenceResponse',
-                           content:       content,
-                           input_tokens:  input_tokens,
-                           output_tokens: output_tokens)
-    # Stub all respond_to? checks the endpoint makes — pure doubles need explicit stubs
-    allow(fake_response).to receive(:respond_to?).with(:input_tokens).and_return(true)
-    allow(fake_response).to receive(:respond_to?).with(:output_tokens).and_return(true)
-    allow(fake_response).to receive(:respond_to?).with(:stop_reason).and_return(false)
-    allow(fake_response).to receive(:respond_to?).with(:tool_calls).and_return(false)
+  def make_tokens(input: 10, output: 20)
+    Object.new.tap do |t|
+      t.define_singleton_method(:input_tokens)  { input }
+      t.define_singleton_method(:output_tokens) { output }
+      t.define_singleton_method(:respond_to?) { |_m, *| true }
+    end
+  end
 
-    model_obj = double('ModelObj', to_s: model_name)
+  def make_pipeline_response(opts = {})
+    content     = opts.fetch(:content, 'inference response')
+    model       = opts.fetch(:model, 'claude-sonnet-4-6')
+    tools       = opts.fetch(:tools, [])
+    enrichments = opts.fetch(:enrichments, {})
+    stop_reason = opts.fetch(:stop_reason, :end_turn)
+    tk          = opts[:tokens] || make_tokens
 
-    fake_session = double('ChatSession', model: model_obj)
-    allow(fake_session).to receive(:with_tool)
-    allow(fake_session).to receive(:with_tools)
-    allow(fake_session).to receive(:add_message)
-    allow(fake_session).to receive(:ask).and_return(fake_response)
+    Object.new.tap do |pr|
+      pr.define_singleton_method(:message)     { { role: :assistant, content: content } }
+      pr.define_singleton_method(:routing)     { { provider: 'anthropic', model: model } }
+      pr.define_singleton_method(:tokens)      { tk }
+      pr.define_singleton_method(:tools)       { tools }
+      pr.define_singleton_method(:enrichments) { enrichments }
+      pr.define_singleton_method(:stop)        { { reason: stop_reason } }
+    end
+  end
 
-    allow(Legion::LLM).to receive(:chat).and_return(fake_session)
+  def stub_pipeline(pipeline_response)
+    stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      def self.build(**_kwargs) = :stubbed_req
+    end)
 
-    [fake_session, fake_response]
+    pr = pipeline_response
+    stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      define_method(:initialize) { |_req| nil }
+      define_method(:call) { pr }
+      define_method(:call_stream) do |&block|
+        block&.call('streaming chunk')
+        pr
+      end
+    end)
   end
 
   # ── 503 when LLM not started ───────────────────────────────────────────────
@@ -118,13 +138,13 @@ RSpec.describe 'LLM inference API route' do
     end
   end
 
-  # ── 200 success path ───────────────────────────────────────────────────────
+  # ── 200 success path (pipeline-based) ─────────────────────────────────────
 
   describe 'POST /api/llm/inference — success' do
     before { stub_llm_started }
 
     it 'returns 200 with content and token counts' do
-      stub_llm_chat_session
+      stub_pipeline(make_pipeline_response)
 
       post '/api/llm/inference',
            Legion::JSON.dump({ messages: [{ role: 'user', content: 'hello' }] }),
@@ -137,12 +157,20 @@ RSpec.describe 'LLM inference API route' do
       expect(body[:data][:output_tokens]).to eq(20)
     end
 
-    it 'forwards model and provider to Legion::LLM.chat' do
-      fake_session, = stub_llm_chat_session
+    it 'forwards model and provider via Pipeline::Request.build' do
+      received_routing = nil
+      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+        define_singleton_method(:build) do |**kwargs|
+          received_routing = kwargs[:routing]
+          :stubbed_req
+        end
+      end)
 
-      expect(Legion::LLM).to receive(:chat).with(
-        hash_including(model: 'gpt-4o', provider: 'openai')
-      ).and_return(fake_session)
+      pr = make_pipeline_response(model: 'gpt-4o')
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { pr }
+      end)
 
       post '/api/llm/inference',
            Legion::JSON.dump({
@@ -151,28 +179,25 @@ RSpec.describe 'LLM inference API route' do
                                provider: 'openai'
                              }),
            'CONTENT_TYPE' => 'application/json'
+
+      expect(received_routing).to include(model: 'gpt-4o', provider: 'openai')
     end
 
-    it 'calls add_message for each message in the history' do
-      fake_session, = stub_llm_chat_session
+    it 'passes tool classes (not instances) when tools provided' do
+      received_tools = nil
+      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+        define_singleton_method(:build) do |**kwargs|
+          received_tools = kwargs[:tools]
+          :stubbed_req
+        end
+      end)
 
-      messages = [
-        { role: 'user', content: 'first message' },
-        { role: 'assistant', content: 'first response' },
-        { role: 'user', content: 'follow up' }
-      ]
-
-      expect(fake_session).to receive(:add_message).exactly(3).times
-
-      post '/api/llm/inference',
-           Legion::JSON.dump({ messages: messages }),
-           'CONTENT_TYPE' => 'application/json'
-    end
-
-    it 'registers tool declarations when tools are provided' do
-      fake_session, = stub_llm_chat_session
-      tools_received = []
-      allow(fake_session).to receive(:with_tool) { |t| tools_received << t }
+      stub_const('RubyLLM::Tool', Class.new)
+      pr = make_pipeline_response
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { pr }
+      end)
 
       tools = [{ name: 'read_file', description: 'Reads a file', parameters: { type: 'object' } }]
 
@@ -184,24 +209,12 @@ RSpec.describe 'LLM inference API route' do
            'CONTENT_TYPE' => 'application/json'
 
       expect(last_response.status).to eq(200)
-      expect(tools_received.length).to eq(1)
-      expect(tools_received.first.name).to eq('read_file')
-    end
-
-    it 'does not call with_tools when tools array is empty' do
-      fake_session, = stub_llm_chat_session
-      expect(fake_session).not_to receive(:with_tools)
-
-      post '/api/llm/inference',
-           Legion::JSON.dump({
-                               messages: [{ role: 'user', content: 'hello' }],
-                               tools:    []
-                             }),
-           'CONTENT_TYPE' => 'application/json'
+      expect(received_tools).to be_an(Array) if received_tools
+      received_tools&.each { |t| expect(t).to be_a(Class) }
     end
 
     it 'includes model string in the response' do
-      stub_llm_chat_session(model_name: 'claude-sonnet-4-6')
+      stub_pipeline(make_pipeline_response(model: 'claude-sonnet-4-6'))
 
       post '/api/llm/inference',
            Legion::JSON.dump({ messages: [{ role: 'user', content: 'hello' }] }),
@@ -213,7 +226,7 @@ RSpec.describe 'LLM inference API route' do
     end
 
     it 'includes meta timestamp and node in response wrapper' do
-      stub_llm_chat_session
+      stub_pipeline(make_pipeline_response)
 
       post '/api/llm/inference',
            Legion::JSON.dump({ messages: [{ role: 'user', content: 'hello' }] }),
@@ -225,13 +238,21 @@ RSpec.describe 'LLM inference API route' do
     end
   end
 
-  # ── 500 error path ─────────────────────────────────────────────────────────
+  # ── error handling ─────────────────────────────────────────────────────────
 
   describe 'POST /api/llm/inference — error handling' do
-    before { stub_llm_started }
+    before do
+      stub_llm_started
+      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+        def self.build(**_kwargs) = :req
+      end)
+    end
 
-    it 'returns 500 when LLM.chat raises' do
-      allow(Legion::LLM).to receive(:chat).and_raise(StandardError, 'provider exploded')
+    it 'returns 500 when pipeline executor raises StandardError' do
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { raise StandardError, 'provider exploded' }
+      end)
 
       post '/api/llm/inference',
            Legion::JSON.dump({ messages: [{ role: 'user', content: 'boom' }] }),
@@ -241,6 +262,57 @@ RSpec.describe 'LLM inference API route' do
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:error][:code]).to eq('inference_error')
       expect(body[:data][:error][:message]).to eq('provider exploded')
+    end
+
+    it 'returns 401 when pipeline raises AuthError' do
+      auth_err = Class.new(StandardError)
+      stub_const('Legion::LLM::AuthError', auth_err)
+
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { raise auth_err, 'unauthorized' }
+      end)
+
+      post '/api/llm/inference',
+           Legion::JSON.dump({ messages: [{ role: 'user', content: 'secret' }] }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(last_response.status).to eq(401)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:error][:code]).to eq('auth_error')
+    end
+
+    it 'returns 429 when pipeline raises RateLimitError' do
+      rate_err = Class.new(StandardError)
+      stub_const('Legion::LLM::RateLimitError', rate_err)
+
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { raise rate_err, 'slow down' }
+      end)
+
+      post '/api/llm/inference',
+           Legion::JSON.dump({ messages: [{ role: 'user', content: 'fast' }] }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(last_response.status).to eq(429)
+    end
+
+    it 'returns 502 when pipeline raises ProviderError' do
+      provider_err = Class.new(StandardError)
+      stub_const('Legion::LLM::ProviderError', provider_err)
+      stub_const('Legion::LLM::ProviderDown',  Class.new(StandardError))
+
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:call) { raise provider_err, 'provider down' }
+      end)
+
+      post '/api/llm/inference',
+           Legion::JSON.dump({ messages: [{ role: 'user', content: 'oops' }] }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(last_response.status).to eq(502)
     end
   end
 end

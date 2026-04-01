@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-04-01
+
+### Changed
+- `POST /api/llm/inference` now routes through `Legion::LLM::Pipeline::Executor` instead of raw `Legion::LLM.chat` session, enabling the full 18-step pipeline (RBAC, RAG context, MCP discovery, metering, audit, knowledge capture)
+- GAIA bridge added: user prompt from `/api/llm/inference` is pushed as an `InputFrame` to the GAIA sensory buffer when GAIA is started
+- SSE streaming support added: `stream: true` + `Accept: text/event-stream` returns `text/event-stream` with `text-delta`, `tool-call`, `enrichment`, and `done` events
+- `build_client_tool` renamed to `build_client_tool_class`; now returns a `Class` (not an instance) so the pipeline can inject it correctly via `tool.is_a?(Class)` check
+- Typed error mapping added: `AuthError` → 401, `RateLimitError` → 429, `TokenBudgetExceeded` → 413, `ProviderDown`/`ProviderError` → 502
+
 ## [1.7.5] - 2026-04-01
 
 ### Added

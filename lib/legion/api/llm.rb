@@ -95,7 +95,7 @@ module Legion
               end
             end
 
-            define_method(:build_client_tool) do |tname, tdesc, tschema|
+            define_method(:build_client_tool_class) do |tname, tdesc, tschema|
               klass = Class.new(RubyLLM::Tool) do
                 description tdesc
                 define_method(:name) { tname }
@@ -147,10 +147,23 @@ module Legion
                 end
               end
               klass.params(tschema) if tschema.is_a?(Hash) && tschema[:properties]
-              klass.new
+              klass
             rescue StandardError => e
-              Legion::Logging.log_exception(e, payload_summary: "build_client_tool failed for #{tname}", component_type: :api)
+              Legion::Logging.log_exception(e, payload_summary: "build_client_tool_class failed for #{tname}", component_type: :api)
               nil
+            end
+
+            define_method(:extract_tool_calls) do |pipeline_response|
+              tools_data = pipeline_response.tools
+              return nil unless tools_data.is_a?(Array) && !tools_data.empty?
+
+              tools_data.map do |tc|
+                {
+                  id:        tc.respond_to?(:id) ? tc.id : nil,
+                  name:      tc.respond_to?(:name) ? tc.name : tc.to_s,
+                  arguments: tc.respond_to?(:arguments) ? tc.arguments : {}
+                }
+              end
             end
           end
 
@@ -298,49 +311,114 @@ module Legion
                    Legion::JSON.dump({ error: { code: 'invalid_messages', message: 'messages must be an array' } })
             end
 
-            session = Legion::LLM.chat(
-              model:    model,
-              provider: provider,
-              caller:   { source: 'api', path: request.path }
-            )
+            caller_identity = env['legion.tenant_id'] || 'api:inference'
 
-            # Inject client-side tools (from Interlink) with server-side execution
-            unless tools.empty?
-              tools.each do |t|
-                ts = t.respond_to?(:transform_keys) ? t.transform_keys(&:to_sym) : t
-                inst = build_client_tool(ts[:name].to_s, ts[:description].to_s, ts[:parameters] || ts[:input_schema])
-                session.with_tool(inst) if inst
-              end
-            end
-
-            # Inject server-side Legion MCP tools (always + requested deferred)
-            inject_mcp_tools(session, requested_tools: requested_tools)
-
-            messages.each { |m| session.add_message(m) }
-
+            # GAIA bridge — push InputFrame to sensory buffer
             last_user = messages.select { |m| (m[:role] || m['role']).to_s == 'user' }.last
             prompt    = (last_user || {})[:content] || (last_user || {})['content'] || ''
 
-            response = session.ask(prompt)
+            if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started? && prompt.length.positive?
+              begin
+                frame = Legion::Gaia::InputFrame.new(
+                  content:      prompt,
+                  channel_id:   :api,
+                  content_type: :text,
+                  auth_context: { identity: caller_identity },
+                  metadata:     { source_type: :human_direct, salience: 0.5 }
+                )
+                Legion::Gaia.ingest(frame)
+              rescue StandardError => e
+                Legion::Logging.log_exception(e, payload_summary: 'gaia ingest failed in inference', component_type: :api)
+              end
+            end
 
-            tc_list = if response.respond_to?(:tool_calls) && response.tool_calls
-                        Array(response.tool_calls).map do |tc|
-                          {
-                            id:        tc.respond_to?(:id) ? tc.id : nil,
-                            name:      tc.respond_to?(:name) ? tc.name : tc.to_s,
-                            arguments: tc.respond_to?(:arguments) ? tc.arguments : {}
-                          }
-                        end
-                      end
+            # Build client-side tool classes from Interlink definitions
+            tool_classes = tools.filter_map do |t|
+              ts = t.respond_to?(:transform_keys) ? t.transform_keys(&:to_sym) : t
+              build_client_tool_class(ts[:name].to_s, ts[:description].to_s, ts[:parameters] || ts[:input_schema])
+            end
 
-            json_response({
-                            content:       response.content,
-                            tool_calls:    tc_list,
-                            stop_reason:   response.respond_to?(:stop_reason) ? response.stop_reason : nil,
-                            model:         session.model.to_s,
-                            input_tokens:  response.respond_to?(:input_tokens) ? response.input_tokens : nil,
-                            output_tokens: response.respond_to?(:output_tokens) ? response.output_tokens : nil
-                          }, status_code: 200)
+            # Detect streaming mode
+            streaming = body[:stream] == true && env['HTTP_ACCEPT']&.include?('text/event-stream')
+
+            # Build pipeline request
+            require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
+            require 'legion/llm/pipeline/executor' unless defined?(Legion::LLM::Pipeline::Executor)
+
+            req = Legion::LLM::Pipeline::Request.build(
+              messages:        messages,
+              system:          body[:system],
+              routing:         { provider: provider, model: model },
+              tools:           tool_classes,
+              caller:          { requested_by: { identity: caller_identity, type: :user, credential: :api } },
+              conversation_id: body[:conversation_id],
+              metadata:        { requested_tools: requested_tools },
+              stream:          streaming,
+              cache:           { strategy: :default, cacheable: true }
+            )
+            executor = Legion::LLM::Pipeline::Executor.new(req)
+
+            if streaming
+              content_type 'text/event-stream'
+              headers 'Cache-Control' => 'no-cache', 'Connection' => 'keep-alive',
+                      'X-Accel-Buffering' => 'no'
+
+              stream do |out|
+                full_text = +''
+                pipeline_response = executor.call_stream do |chunk|
+                  full_text << chunk
+                  out << "event: text-delta\ndata: #{Legion::JSON.dump({ delta: chunk })}\n\n"
+                end
+
+                if pipeline_response.tools.is_a?(Array) && !pipeline_response.tools.empty?
+                  pipeline_response.tools.each do |tc|
+                    out << "event: tool-call\ndata: #{Legion::JSON.dump({
+                                                                          id:        tc.respond_to?(:id) ? tc.id : nil,
+                                                                          name:      tc.respond_to?(:name) ? tc.name : tc.to_s,
+                                                                          arguments: tc.respond_to?(:arguments) ? tc.arguments : {}
+                                                                        })}\n\n"
+                  end
+                end
+
+                enrichments = pipeline_response.enrichments
+                out << "event: enrichment\ndata: #{Legion::JSON.dump(enrichments)}\n\n" if enrichments.is_a?(Hash) && !enrichments.empty?
+
+                tokens = pipeline_response.tokens
+                out << "event: done\ndata: #{Legion::JSON.dump({
+                                                                 content:       full_text,
+                                                                 model:         pipeline_response.routing&.dig(:model),
+                                                                 input_tokens:  tokens.respond_to?(:input_tokens) ? tokens.input_tokens : nil,
+                                                                 output_tokens: tokens.respond_to?(:output_tokens) ? tokens.output_tokens : nil
+                                                               })}\n\n"
+              rescue StandardError => e
+                Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference stream failed', component_type: :api)
+                out << "event: error\ndata: #{Legion::JSON.dump({ code: 'stream_error', message: e.message })}\n\n"
+              end
+            else
+              pipeline_response = executor.call
+              tokens = pipeline_response.tokens
+
+              json_response({
+                              content:       pipeline_response.message&.dig(:content),
+                              tool_calls:    extract_tool_calls(pipeline_response),
+                              stop_reason:   pipeline_response.stop&.dig(:reason),
+                              model:         pipeline_response.routing&.dig(:model) || model,
+                              input_tokens:  tokens.respond_to?(:input_tokens) ? tokens.input_tokens : nil,
+                              output_tokens: tokens.respond_to?(:output_tokens) ? tokens.output_tokens : nil
+                            }, status_code: 200)
+            end
+          rescue Legion::LLM::AuthError => e
+            Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference auth failed', component_type: :api)
+            json_response({ error: { code: 'auth_error', message: e.message } }, status_code: 401)
+          rescue Legion::LLM::RateLimitError => e
+            Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference rate limited', component_type: :api)
+            json_response({ error: { code: 'rate_limit', message: e.message } }, status_code: 429)
+          rescue Legion::LLM::TokenBudgetExceeded => e
+            Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference token budget exceeded', component_type: :api)
+            json_response({ error: { code: 'token_budget_exceeded', message: e.message } }, status_code: 413)
+          rescue Legion::LLM::ProviderDown, Legion::LLM::ProviderError => e
+            Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference provider error', component_type: :api)
+            json_response({ error: { code: 'provider_error', message: e.message } }, status_code: 502)
           rescue StandardError => e
             Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference failed', component_type: :api)
             json_response({ error: { code: 'inference_error', message: e.message } }, status_code: 500)
