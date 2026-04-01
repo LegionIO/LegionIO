@@ -27,7 +27,7 @@ check_subtask: check_subtask? }}"
               begin
                 skip_or_run { poll_cycle }
               rescue StandardError => e
-                Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
+                handle_exception(e, level: :fatal)
               ensure
                 @executing.make_false
               end
@@ -37,7 +37,7 @@ check_subtask: check_subtask? }}"
           end
           @timer.execute
         rescue StandardError => e
-          Legion::Logging.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
 
         def poll_cycle
@@ -69,7 +69,7 @@ check_subtask: check_subtask? }}"
           log.debug("#{self.class} result: #{results}")
           results
         rescue StandardError => e
-          Legion::Logging.log_exception(e, level: :fatal, component_type: :actor)
+          handle_exception(e, level: :fatal)
         end
 
         def cache_name
@@ -92,7 +92,7 @@ check_subtask: check_subtask? }}"
           Legion::Logging.debug 'Cancelling Legion Poller'
           @timer.shutdown
         rescue StandardError => e
-          Legion::Logging.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
       end
     end

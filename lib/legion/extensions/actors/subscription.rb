@@ -25,7 +25,7 @@ module Legion
           @queue = queue.new
           @queue.channel.prefetch(prefetch) if defined? prefetch
         rescue StandardError => e
-          log.log_exception(e, level: :fatal, component_type: :actor)
+          handle_exception(e, level: :fatal)
         end
 
         def create_queue
@@ -83,12 +83,12 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            log.log_exception(e, payload_summary: "[Subscription] message processing failed: #{lex_name}/#{fn}", component_type: :actor)
+            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
         rescue StandardError => e
-          log.log_exception(e, level: :fatal, payload_summary: 'Subscription#prepare failed', component_type: :actor)
+          handle_exception(e, level: :fatal)
         end
 
         def activate
@@ -175,7 +175,7 @@ module Legion
 
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
-            log.log_exception(e, payload_summary: "[Subscription] message processing failed: #{lex_name}/#{fn}", component_type: :actor)
+            handle_exception(e)
             log.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
             @queue.reject(delivery_info.delivery_tag) if manual_ack
           end
@@ -207,11 +207,14 @@ module Legion
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
           run_block = lambda {
-            Legion::Runner.run(**message,
-                               runner_class:  runner_cls,
-                               function:      function,
-                               check_subtask: check_subtask,
-                               generate_task: generate_task)
+            ctx = message.merge(runner_class: runner_cls.to_s, function: function.to_s)
+            Legion::Context.with_task_context(ctx) do
+              Legion::Runner.run(**message,
+                                 runner_class:  runner_cls,
+                                 function:      function,
+                                 check_subtask: check_subtask,
+                                 generate_task: generate_task)
+            end
           }
 
           if defined?(Legion::Telemetry::OpenInference)

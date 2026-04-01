@@ -13,7 +13,7 @@ module Legion
           @loop = true
           async.run
         rescue StandardError => e
-          Legion::Logging.log_exception(e, component_type: :actor)
+          handle_exception(e)
         end
 
         def run

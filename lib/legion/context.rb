@@ -51,6 +51,24 @@ module Legion
         Legion::Logging.debug "[Context] session cleared: #{ctx&.session_id}" if defined?(Legion::Logging)
         Thread.current[:legion_session_context] = nil
       end
+
+      def current_task_context
+        Thread.current[:legion_context]
+      end
+
+      def with_task_context(message)
+        previous = Thread.current[:legion_context]
+        Thread.current[:legion_context] = {
+          task_id:         message[:task_id],
+          conversation_id: message[:conversation_id],
+          chain_id:        message[:chain_id],
+          function:        message[:function],
+          runner_class:    message[:runner_class]
+        }.compact
+        yield
+      ensure
+        Thread.current[:legion_context] = previous
+      end
     end
   end
 end

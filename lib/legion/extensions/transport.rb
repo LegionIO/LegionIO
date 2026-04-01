@@ -25,7 +25,8 @@ module Legion
         auto_generate_messages
         log.info "[Transport] built exchanges=#{@exchanges.count} queues=#{@queues.count} for #{lex_name}"
       rescue StandardError => e
-        log.log_exception(e, payload_summary: "[Transport] build failed for #{lex_name}", component_type: :transport)
+        log.error "[Transport] build failed for #{lex_name}"
+        handle_exception(e, lex: lex_name)
       end
 
       def generate_base_modules
@@ -175,7 +176,7 @@ module Legion
         to = to.is_a?(String) ? Kernel.const_get(to).new : to.new
         to.bind(from, routing_key: routing_key)
       rescue StandardError => e
-        log.log_exception(e, level: :fatal, payload_summary: { from: from, to: to, routing_key: routing_key }, component_type: :transport)
+        handle_exception(e, level: :fatal, from: from, to: to, routing_key: routing_key)
       end
 
       def e_to_q

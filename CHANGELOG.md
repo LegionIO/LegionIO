@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.7.8] - 2026-04-01
+
+### Added
+- `Legion::API::Settings` module with registered defaults via `merge_settings('api', ...)`, matching the pattern used by all other LegionIO gems
+- Puma `persistent_timeout` (20s) and `first_data_timeout` (30s) now configurable via `Settings[:api][:puma]`
+
+### Changed
+- Removed all inline `||` and `.fetch(..., default)` fallbacks for API settings in `service.rb` and `check_command.rb` — defaults now guaranteed by `merge_settings`
+
+## [1.7.7] - 2026-04-01
+
+### Changed
+- Integrated legion-logging 1.4.3 Helper refactor: all log output now uses structured segment tagging, colored exception output, and thread-local task context
+- Slimmed `Extensions::Helpers::Logger` to thin override; `derive_component_type`, `lex_gem_name`, `gem_spec_for_lex`, `log_lex_name` now live in legion-logging gem
+- Added `handle_runner_exception` for runner-specific exception handling (TaskLog publish + HandledTask raise)
+- Added `Legion::Context.with_task_context` and `.current_task_context` for thread-local task propagation
+- Wrapped all 5 dispatch paths (Runner.run, Subscription#dispatch_runner, Base#runner, Ingress local/remote) with context propagation
+- Migrated 13 `log.log_exception` call sites to `handle_exception` across actors, core, transport, and task helpers
+
 ## [1.7.6] - 2026-04-01
 
 ### Changed

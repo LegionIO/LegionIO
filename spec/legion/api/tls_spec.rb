@@ -1,12 +1,18 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'sinatra/base'
+require 'puma'
+require 'legion/api/default_settings'
 
 RSpec.describe Legion::Service do
   describe '#setup_api' do
     let(:service) { described_class.allocate }
+    let(:api_defaults) { Legion::API::Settings.default }
 
     before do
+      # Evaluate api_defaults before stub_const replaces Legion::API
+      api_defaults
       stub_const('Legion::API', Class.new do
         def self.set(*); end
 
@@ -20,7 +26,7 @@ RSpec.describe Legion::Service do
     context 'when api.tls.enabled is false (default)' do
       before do
         allow(Legion::Settings).to receive(:[]).with(:api).and_return(
-          { port: 4567, bind: '0.0.0.0', tls: { enabled: false } }
+          api_defaults.merge(tls: { enabled: false })
         )
       end
 
@@ -38,17 +44,9 @@ RSpec.describe Legion::Service do
 
       before do
         allow(Legion::Settings).to receive(:[]).with(:api).and_return(
-          {
-            port: 4567,
-            bind: '0.0.0.0',
-            tls:  {
-              enabled: true,
-              cert:    cert_path,
-              key:     key_path,
-              ca:      nil,
-              verify:  'peer'
-            }
-          }
+          api_defaults.merge(
+            tls: { enabled: true, cert: cert_path, key: key_path, ca: nil, verify: 'peer' }
+          )
         )
       end
 
@@ -76,7 +74,7 @@ RSpec.describe Legion::Service do
     context 'when api.tls.enabled is true but cert is missing' do
       before do
         allow(Legion::Settings).to receive(:[]).with(:api).and_return(
-          { port: 4567, bind: '0.0.0.0', tls: { enabled: true, cert: nil, key: nil } }
+          api_defaults.merge(tls: { enabled: true, cert: nil, key: nil })
         )
         allow(Legion::Logging).to receive(:warn)
         allow(Legion::Logging).to receive(:error)
