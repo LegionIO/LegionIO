@@ -69,6 +69,7 @@ module Legion
         puts out.dim('  Type /help for commands, /quit to exit. End a line with \\ for multiline.')
         puts
 
+        send_recovery_message(out) if @recovery_message
         repl_loop(out)
       rescue Interrupt
         Legion::Logging.debug('ChatCommand#interactive interrupted by user') if defined?(Legion::Logging)
@@ -1169,7 +1170,27 @@ module Legion
           cwd_info = data[:cwd] ? " from #{abbreviate_path(data[:cwd])}" : ''
           label = options[:fork] ? 'Forked from' : 'Resumed'
           out.success("#{label} session: #{name}#{cwd_info} (#{msg_count} messages)")
-          chat_log.info "session_restore name=#{name} messages=#{msg_count} mode=#{options[:fork] ? 'fork' : 'resume'}"
+
+          if data[:recovery_state] && data[:recovery_state] != :none
+            out.warn("Session was interrupted (#{data[:recovery_state]}). Auto-recovering.")
+            @recovery_message = data[:recovery_message]
+          end
+
+          chat_log.info "session_restore name=#{name} messages=#{msg_count} recovery=#{data[:recovery_state]} mode=#{options[:fork] ? 'fork' : 'resume'}"
+        end
+
+        def send_recovery_message(out)
+          return unless @recovery_message
+
+          chat_log.info "sending recovery message: #{@recovery_message}"
+          buffer = String.new
+          @session.send_message(@recovery_message) { |chunk| buffer << chunk.content if chunk.content }
+          print render_response(buffer, out)
+          puts
+          puts
+          @recovery_message = nil
+        rescue StandardError => e
+          chat_log.warn "recovery message failed: #{e.message}"
         end
 
         def abbreviate_path(path)

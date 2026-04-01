@@ -38,10 +38,16 @@ module Legion
           end
 
           def restore(session, data)
+            require 'legion/cli/chat/session_recovery'
+
+            recovery = Chat::SessionRecovery.recover(data[:messages] || [])
             session.chat.reset_messages!
-            data[:messages].each do |msg|
+            recovery[:messages].each do |msg|
               session.chat.add_message(msg)
             end
+
+            data[:recovery_state]   = recovery[:state]
+            data[:recovery_message] = recovery[:recovery_message]
             data
           end
 
