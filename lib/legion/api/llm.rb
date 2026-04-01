@@ -366,8 +366,11 @@ module Legion
               stream do |out|
                 full_text = +''
                 pipeline_response = executor.call_stream do |chunk|
-                  full_text << chunk
-                  out << "event: text-delta\ndata: #{Legion::JSON.dump({ delta: chunk })}\n\n"
+                  text = chunk.respond_to?(:content) ? chunk.content.to_s : chunk.to_s
+                  next if text.empty?
+
+                  full_text << text
+                  out << "event: text-delta\ndata: #{Legion::JSON.dump({ delta: text })}\n\n"
                 end
 
                 if pipeline_response.tools.is_a?(Array) && !pipeline_response.tools.empty?
