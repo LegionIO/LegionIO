@@ -26,7 +26,9 @@ module Legion
                                desc: 'Disable automatic session history saving'
       class_option :continue, type: :boolean, default: false, aliases: ['-c'],
                               desc: 'Resume the most recent session'
-      class_option :resume,   type: :string, desc: 'Resume a saved session by name'
+      class_option :resume,         type: :string, desc: 'Resume a saved session by name'
+      class_option :resume_latest,  type: :boolean, default: false,
+                                    desc: 'Auto-resume most recent session regardless of CWD'
       class_option :fork,     type: :string, desc: 'Fork a saved session (load but save as new)'
       class_option :add_dir,  type: :array, default: [], desc: 'Additional directories to include in context'
       class_option :personality, type: :string, desc: 'Communication style (concise, verbose, educational)'
@@ -50,7 +52,7 @@ module Legion
         )
         @indicator = Chat::StatusIndicator.new(@session) unless options[:json]
 
-        restore_session(out) if options[:continue] || options[:resume] || options[:fork]
+        restore_session(out) if options[:continue] || options[:resume] || options[:resume_latest] || options[:fork]
         load_memory_context
         load_custom_agents
 
@@ -615,10 +617,20 @@ module Legion
             puts '  No saved sessions.'
             return
           end
-          sessions.each do |s|
+          puts '  Recent Sessions:'
+          sessions.first(10).each_with_index do |s, idx|
             age = Time.now - s[:modified]
-            ago = age < 3600 ? "#{(age / 60).round}m ago" : "#{(age / 3600).round}h ago"
-            puts "  #{s[:name]}  (#{ago})"
+            ago = if age < 3600
+                    "#{(age / 60).round}m ago"
+                  elsif age < 86_400
+                    "#{(age / 3600).round}h ago"
+                  else
+                    "#{(age / 86_400).round}d ago"
+                  end
+            cwd = s[:cwd] ? abbreviate_path(s[:cwd]) : '?'
+            msgs = s[:message_count] || '?'
+            puts format('    %<idx>d. [%<ago>s] %-24<name>s %<cwd>s  (%<msgs>s messages)',
+                        idx: idx + 1, ago: ago, name: s[:name], cwd: cwd, msgs: msgs)
           end
         end
 
@@ -1140,7 +1152,7 @@ module Legion
 
         def restore_session(out)
           require 'legion/cli/chat/session_store'
-          if options[:continue]
+          if options[:continue] || options[:resume_latest]
             name = Chat::SessionStore.latest
             @session_name = name
           elsif options[:resume]
@@ -1154,9 +1166,15 @@ module Legion
           data = Chat::SessionStore.load(name)
           Chat::SessionStore.restore(@session, data)
           msg_count = data[:messages]&.length || 0
+          cwd_info = data[:cwd] ? " from #{abbreviate_path(data[:cwd])}" : ''
           label = options[:fork] ? 'Forked from' : 'Resumed'
-          out.success("#{label} session: #{name} (#{msg_count} messages)")
+          out.success("#{label} session: #{name}#{cwd_info} (#{msg_count} messages)")
           chat_log.info "session_restore name=#{name} messages=#{msg_count} mode=#{options[:fork] ? 'fork' : 'resume'}"
+        end
+
+        def abbreviate_path(path)
+          home = Dir.home
+          path.start_with?(home) ? path.sub(home, '~') : path
         end
 
         def auto_save_session(out)

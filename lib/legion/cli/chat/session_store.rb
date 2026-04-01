@@ -19,6 +19,7 @@ module Legion
               model:         session.model_id,
               stats:         session.stats,
               saved_at:      Time.now.iso8601,
+              cwd:           Dir.pwd,
               message_count: messages.size,
               summary:       generate_summary(messages),
               messages:      messages
@@ -57,7 +58,8 @@ module Legion
                 modified:      stat.mtime,
                 message_count: meta[:message_count],
                 summary:       meta[:summary],
-                model:         meta[:model]
+                model:         meta[:model],
+                cwd:           meta[:cwd]
               }
             end
             sessions.sort_by { |s| s[:modified] }.reverse
@@ -101,11 +103,12 @@ module Legion
             {
               message_count: data[:message_count] || data[:messages]&.size,
               summary:       data[:summary],
-              model:         data[:model]
+              model:         data[:model],
+              cwd:           data[:cwd]
             }
           rescue StandardError => e
             Legion::Logging.debug("SessionStore#read_session_meta failed: #{e.message}") if defined?(Legion::Logging)
-            { message_count: nil, summary: nil, model: nil }
+            { message_count: nil, summary: nil, model: nil, cwd: nil }
           end
         end
       end

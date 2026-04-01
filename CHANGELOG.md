@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-03-31
+
+### Added
+- Cross-project session resume with CWD context (#105)
+- Sessions now store `cwd` (working directory) at save time
+- `/sessions` shows CWD, message count, and relative timestamps for each session
+- `--resume-latest` flag auto-resumes the most recent session regardless of CWD
+- Resume output shows the original working directory for cross-project context
+
 ## [1.7.2] - 2026-03-31
 
 ### Added
