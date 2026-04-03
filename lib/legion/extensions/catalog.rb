@@ -56,6 +56,9 @@ module Legion
 
         def reset!
           @entries = {}
+          @extension_catalog_available = nil
+          @extension_catalog_connection_id = nil
+          @warned_missing_extension_catalog = false
         end
 
         private
@@ -69,19 +72,26 @@ module Legion
                         Legion::Transport::Connection.respond_to?(:session_open?) &&
                         Legion::Transport::Connection.session_open?
 
-          Legion::Transport::Messages::Dynamic.new(
-            function:    'catalog_transition',
-            routing_key: "legion.catalog.#{lex_name}.#{new_state}",
-            args:        { lex_name: lex_name, state: new_state.to_s, timestamp: Time.now.to_i }
-          ).publish
+          payload = Legion::JSON.dump(
+            lex_name:  lex_name,
+            state:     new_state.to_s,
+            timestamp: Time.now.to_i
+          )
+
+          exchange = Legion::Transport::Exchange.new('legion.catalog')
+          exchange.publish(payload, routing_key: "legion.catalog.#{lex_name}.#{new_state}",
+                                    content_type: 'application/json', persistent: true)
         rescue StandardError => e
-          Legion::Logging.debug { "Catalog publish failed: #{e.message}" } if defined?(Legion::Logging)
+          Legion::Logging.warn { "Catalog publish failed for #{lex_name}=#{new_state}: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
         end
 
         def persist_transition(lex_name, new_state)
           return unless defined?(Legion::Data::Local) &&
                         Legion::Data::Local.respond_to?(:connected?) &&
                         Legion::Data::Local.connected?
+
+          ensure_local_migration_registered!
+          return warn_missing_extension_catalog_once unless extension_catalog_table_available?
 
           model = Legion::Data::Local.model(:extension_catalog)
           existing = model.where(lex_name: lex_name).first
@@ -91,14 +101,64 @@ module Legion
             model.insert(lex_name: lex_name, state: new_state.to_s, created_at: Time.now, updated_at: Time.now)
           end
         rescue StandardError => e
-          Legion::Logging.debug { "Catalog persist failed: #{e.message}" } if defined?(Legion::Logging)
+          Legion::Logging.warn { "Catalog persist failed for #{lex_name}=#{new_state}: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
+        end
+
+        def extension_catalog_table_available?
+          connection = Legion::Data::Local.connection
+          return false unless connection
+
+          connection_id = connection.object_id
+          return @extension_catalog_available if @extension_catalog_connection_id == connection_id && !@extension_catalog_available.nil?
+
+          @extension_catalog_connection_id = connection_id
+          @extension_catalog_available =
+            if connection.respond_to?(:tables)
+              connection.tables.include?(:extension_catalog)
+            else
+              connection.respond_to?(:table_exists?) && connection.table_exists?(:extension_catalog)
+            end
+
+          @extension_catalog_available
+        rescue StandardError => e
+          Legion::Logging.warn { "Catalog table availability check failed: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
+          @extension_catalog_available = false
+          false
+        end
+
+        def ensure_local_migration_registered!
+          return unless defined?(Legion::Data::Local) &&
+                        Legion::Data::Local.respond_to?(:register_migrations)
+
+          path = extension_catalog_migrations_path
+          return unless Dir.exist?(path)
+
+          registered = if Legion::Data::Local.respond_to?(:registered_migrations)
+                         Legion::Data::Local.registered_migrations
+                       else
+                         {}
+                       end
+          return if registered.is_a?(Hash) && registered.key?(:extension_catalog)
+
+          Legion::Data::Local.register_migrations(name: :extension_catalog, path: path)
+        rescue StandardError => e
+          Legion::Logging.warn { "Catalog migration registration failed: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
+        end
+
+        def extension_catalog_migrations_path
+          File.expand_path('../data/local_migrations', __dir__)
+        end
+
+        def warn_missing_extension_catalog_once
+          return false if @warned_missing_extension_catalog
+
+          @warned_missing_extension_catalog = true
+          Legion::Logging.warn('Catalog persist skipped: extension_catalog table is missing in Legion::Data::Local') if defined?(Legion::Logging)
+          false
         end
       end
 
-      if defined?(Legion::Data::Local)
-        migrations_path = File.expand_path('../../data/local_migrations', __dir__)
-        Legion::Data::Local.register_migrations(name: :extension_catalog, path: migrations_path) if Dir.exist?(migrations_path)
-      end
+      send(:ensure_local_migration_registered!) if defined?(Legion::Data::Local)
     end
   end
 end

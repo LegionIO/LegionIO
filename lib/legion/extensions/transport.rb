@@ -48,7 +48,7 @@ module Legion
         end
       end
 
-      def auto_create_exchange(exchange, default_exchange = false) # rubocop:disable Style/OptionalBooleanParameter
+      def auto_create_exchange(exchange, default_exchange: false)
         if Object.const_defined? exchange
           log.warn "#{exchange} is already defined"
           return
@@ -107,7 +107,7 @@ module Legion
       end
 
       def auto_generate_runner_messages(runner_info, messages_mod, ext_amqp)
-        runner_name   = runner_info[:runner_name]
+        runner_name = runner_info[:runner_name]
         runner_module = runner_info[:runner_module]
         return if runner_module.nil?
         return unless runner_module.respond_to?(:definition_for)
@@ -137,10 +137,14 @@ module Legion
           binding[:to] = nil unless binding.key?(:to)
           binding[:from] = default_exchange if !binding.key?(:from) || binding[:from].nil?
           bind_e_to_q(**binding)
+        rescue StandardError => e
+          handle_exception(e, handled: false, level: :warn)
+          raise e
         end
       end
 
       def bind_e_to_q(to:, from: default_exchange, routing_key: nil, **)
+        log.debug "[transport] building auto binding exchange: #{from}, routing_key: #{routing_key}, to: #{to}"
         if from.is_a? String
           from = "#{transport_class}::Exchanges::#{from.tr('.', '_').split('_').collect(&:capitalize).join}" unless from.include?('::')
           auto_create_exchange(from) unless Object.const_defined? from
@@ -153,6 +157,9 @@ module Legion
 
         routing_key = to.to_s.split('::').last.downcase if routing_key.nil?
         bind(from, to, routing_key: routing_key)
+      rescue StandardError => e
+        handle_exception(e, handled: false, level: :warn)
+        raise e
       end
 
       def build_e_to_e
@@ -168,6 +175,9 @@ module Legion
           end
 
           bind(binding[:from], binding[:to], binding)
+        rescue StandardError => e
+          handle_exception(e, handled: false, level: :warn)
+          raise e
         end
       end
 
