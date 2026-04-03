@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.bindir        = 'exe'
   spec.executables   = %w[legion legionio]
 
-  spec.add_dependency 'legion-mcp', '>= 0.5.1'
+  spec.add_dependency 'legion-mcp', '>= 0.7.1'
 
   spec.add_dependency 'kramdown', '>= 2.0'
 
@@ -52,15 +52,15 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'thor', '>= 1.3'
   spec.add_dependency 'tty-spinner', '~> 0.9'
 
-  spec.add_dependency 'legion-cache', '>= 1.3.16'
-  spec.add_dependency 'legion-crypt', '>= 1.4.17'
-  spec.add_dependency 'legion-data', '>= 1.6.7'
+  spec.add_dependency 'legion-cache', '>= 1.3.21'
+  spec.add_dependency 'legion-crypt', '>= 1.5.0'
+  spec.add_dependency 'legion-data', '>= 1.6.19'
   spec.add_dependency 'legion-json', '>= 1.2.1'
-  spec.add_dependency 'legion-logging', '>= 1.4.0'
-  spec.add_dependency 'legion-settings', '>= 1.3.19'
-  spec.add_dependency 'legion-transport', '>= 1.4.4'
+  spec.add_dependency 'legion-logging', '>= 1.5.0'
+  spec.add_dependency 'legion-settings', '>= 1.3.25'
+  spec.add_dependency 'legion-transport', '>= 1.4.13'
 
-  spec.add_dependency 'legion-apollo', '>= 0.3.1'
+  spec.add_dependency 'legion-apollo', '>= 0.4.0'
   spec.add_dependency 'legion-gaia', '>= 0.9.26'
   spec.add_dependency 'legion-llm', '>= 0.5.8'
   spec.add_dependency 'legion-tty', '>= 0.4.35'

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.7.10] - 2026-04-02
+
+### Changed
+- Bumped minimum dependency floors for Legion core gems, including `legion-logging >= 1.5.0`, `legion-settings >= 1.3.25`, and updated transport, data, cache, crypt, Apollo, and MCP minimums
+- Stabilized the `LegionIO` spec suite by fixing the OAuth callback, catalog, and service shutdown regression specs
+
 ## [1.7.8] - 2026-04-01
 
 ### Added
