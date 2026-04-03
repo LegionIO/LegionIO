@@ -8,8 +8,14 @@ module Legion
   module CLI
     class Chat
       module ChatLogger
-        LOG_DIR  = File.expand_path('~/.legion')
+        LOG_DIR = File.expand_path('~/.legion')
         LOG_FILE = File.join(LOG_DIR, 'legion-chat.log')
+        LEVELS = {
+          'debug' => ::Logger::DEBUG,
+          'info'  => ::Logger::INFO,
+          'warn'  => ::Logger::WARN,
+          'error' => ::Logger::ERROR
+        }.freeze
 
         class << self
           attr_reader :logger
@@ -22,20 +28,18 @@ module Legion
             @logger
           end
 
-          def debug(msg)  = logger&.debug(msg)
-          def info(msg)   = logger&.info(msg)
-          def warn(msg)   = logger&.warn(msg)
-          def error(msg)  = logger&.error(msg)
+          def debug(msg) = logger&.debug(msg)
+
+          def info(msg) = logger&.info(msg)
+
+          def warn(msg) = logger&.warn(msg)
+
+          def error(msg) = logger&.error(msg)
 
           private
 
-          def parse_level(level)
-            case level.to_s
-            when 'debug' then ::Logger::DEBUG
-            when 'warn'  then ::Logger::WARN
-            when 'error' then ::Logger::ERROR
-            else ::Logger::INFO
-            end
+          def parse_level(level = 'debug')
+            LEVELS.fetch(level.to_s, ::Logger::DEBUG)
           end
 
           def format_entry(severity, datetime, _progname, msg)

@@ -10,7 +10,7 @@ module Legion
             ENV['LEGION_LOCAL'] = 'true'
           end
 
-          log_level = options[:log_level] || 'info'
+          log_level = options[:log_level]
 
           # Load settings early, before any legion-* gem requires can trigger auto-load.
           # This ensures DNS bootstrap and config file loading happen exactly once.
@@ -26,7 +26,8 @@ module Legion
           clear_log_file unless options[:daemonize]
 
           api = options.fetch(:api, true)
-          service_opts = { log_level: log_level, api: api }
+          service_opts = { api: api }
+          service_opts[:log_level] = log_level if log_level
           service_opts[:http_port] = options[:http_port] if options[:http_port]
           service_opts[:role] = :lite if options[:lite]
           Legion.instance_variable_set(:@service, Legion::Service.new(**service_opts))
