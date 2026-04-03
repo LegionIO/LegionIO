@@ -19,7 +19,8 @@ RSpec.describe Legion::API::Middleware::RequestLogger do
   end
 
   it 'logs request with method, path, status, and duration' do
-    expect(Legion::Logging).to receive(:info).with(%r{\[api\] GET /api/tasks 200 \d+(\.\d+)?ms})
+    expect(Legion::Logging).to receive(:info).with(%r{\[api\]\[request-start\] GET /api/tasks}).ordered
+    expect(Legion::Logging).to receive(:info).with(%r{\[api\] GET /api/tasks 200 \d+(\.\d+)?ms}).ordered
     app.call(Rack::MockRequest.env_for('/api/tasks'))
   end
 
@@ -32,11 +33,8 @@ RSpec.describe Legion::API::Middleware::RequestLogger do
   end
 
   it 'reports duration in milliseconds' do
-    expect(Legion::Logging).to receive(:info) do |msg|
-      match = msg.match(/(\d+\.\d+)ms/)
-      expect(match).not_to be_nil
-      expect(match[1].to_f).to be >= 0
-    end
+    allow(Legion::Logging).to receive(:info)
     app.call(Rack::MockRequest.env_for('/api/tasks'))
+    expect(Legion::Logging).to have_received(:info).with(/\d+\.\d+ms/)
   end
 end

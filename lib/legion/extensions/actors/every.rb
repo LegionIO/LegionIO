@@ -34,7 +34,12 @@ module Legion
             end
           end
 
-          @timer.execute
+          initial_delay = respond_to?(:delay) ? delay.to_f : 0
+          if initial_delay.positive?
+            Concurrent::ScheduledTask.execute(initial_delay) { @timer.execute }
+          else
+            @timer.execute
+          end
         rescue StandardError => e
           handle_exception(e)
         end

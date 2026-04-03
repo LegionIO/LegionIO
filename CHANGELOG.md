@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.7.15] - 2026-04-03
+
+### Added
+- Every actors now support `delay` method to defer timer start (used by lex-microsoft_teams)
+- Request logger emits `[api][request-start]` on inbound, warns on responses > 5s
+
+### Changed
+- `/api/reload` disabled (returns 418) to prevent accidental full-restart loops
+
 ## [1.7.14] - 2026-04-03
 
 ### Fixed

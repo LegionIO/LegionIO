@@ -111,8 +111,9 @@ module Legion
     end
 
     post '/api/reload' do
-      Thread.new { Legion.reload }
-      json_response({ status: 'reloading' })
+      log.error "[api] reload attempted by #{request.ip} — blocked"
+      halt 418, { 'Content-Type' => 'application/json' },
+           Legion::JSON.dump({ error: 'reload is disabled', status: 418 })
     end
 
     # Global error handlers
