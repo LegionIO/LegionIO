@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.7.11] - 2026-04-02
+
+### Fixed
+- Fixes #113: webhook deliveries now retry non-2xx responses and transport exceptions up to `max_retries`, record per-attempt delivery rows, dead-letter terminal failures, and cache active webhook pattern matching to reduce per-event dispatch overhead
+
 ## [1.7.10] - 2026-04-02
 
 ### Changed
