@@ -210,7 +210,7 @@ RSpec.describe 'LLM inference API route' do
 
       expect(last_response.status).to eq(200)
       expect(received_tools).to be_an(Array) if received_tools
-      received_tools&.each { |t| expect(t).to be_a(Class) }
+      received_tools&.each { |t| expect(t).to be_a(Class).or respond_to(:name) }
     end
 
     it 'includes model string in the response' do

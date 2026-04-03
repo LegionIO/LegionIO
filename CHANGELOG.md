@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.7.16] - 2026-04-03
+
+### Fixed
+- Inference endpoint now injects daemon MCP tools alongside client tools via class-level cached adapters
+- MCP server pre-warmed in background thread during boot to avoid blocking first inference
+- Gaia ticks route added to fallback API routes
+- Reload endpoint disabled (418) to prevent accidental restart loops
+
 ## [1.7.15] - 2026-04-03
 
 ### Added

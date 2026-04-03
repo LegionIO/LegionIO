@@ -6,10 +6,21 @@ module Legion
       module Gaia
         def self.registered(app)
           register_status_route(app)
+          register_ticks_route(app)
           register_channels_route(app)
           register_buffer_route(app)
           register_sessions_route(app)
           register_teams_webhook_route(app)
+        end
+
+        def self.register_ticks_route(app)
+          app.get '/api/gaia/ticks' do
+            halt 503, json_error('gaia_unavailable', 'gaia is not started', status_code: 503) unless gaia_available?
+
+            limit = (params[:limit] || 50).to_i.clamp(1, 200)
+            events = defined?(Legion::Gaia) ? Legion::Gaia.tick_history&.recent(limit: limit) : []
+            json_response({ events: events || [] })
+          end
         end
 
         def self.register_status_route(app)

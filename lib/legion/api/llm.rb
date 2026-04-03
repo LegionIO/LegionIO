@@ -60,15 +60,17 @@ module Legion
             end
 
             define_method(:cached_mcp_tools) do
-              @cached_mcp_tools ||= begin
+              @@cached_mcp_tools ||= begin # rubocop:disable Style/ClassVars
                 all = []
                 begin
                   require 'legion/mcp' unless defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
+                  Legion::MCP.server if defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
                 rescue LoadError => e
                   Legion::Logging.log_exception(e, payload_summary: 'cached_mcp_tools: failed to require legion/mcp', component_type: :api)
                 end
                 if defined?(Legion::MCP::Server) && Legion::MCP::Server.respond_to?(:tool_registry)
                   require 'legion/llm/pipeline/mcp_tool_adapter' unless defined?(Legion::LLM::Pipeline::McpToolAdapter)
+                  Legion::Logging.info "[llm][api] cached_mcp_tools building from #{Legion::MCP::Server.tool_registry.size} MCP tools"
                   Legion::MCP::Server.tool_registry.each do |tc|
                     all << Legion::LLM::Pipeline::McpToolAdapter.new(tc)
                   rescue StandardError => e
@@ -338,8 +340,21 @@ module Legion
               build_client_tool_class(ts[:name].to_s, ts[:description].to_s, ts[:parameters] || ts[:input_schema])
             end
 
+            Legion::Logging.debug "[llm][api] inference inbound client_tools=#{tool_classes.size} requested_tools=#{requested_tools.size}"
+
             # Detect streaming mode
             streaming = body[:stream] == true && env['HTTP_ACCEPT']&.include?('text/event-stream')
+
+            # Inject MCP tools from daemon alongside client tools
+            all_tools = tool_classes.dup
+            begin
+              mcp_cache = cached_mcp_tools
+              mcp_to_inject = requested_tools.empty? ? mcp_cache[:always] : mcp_cache[:all]
+              all_tools.concat(mcp_to_inject) if mcp_to_inject&.any?
+              Legion::Logging.debug "[llm][api] inference mcp_injected=#{mcp_to_inject&.size || 0} total_tools=#{all_tools.size}"
+            rescue StandardError => e
+              Legion::Logging.log_exception(e, payload_summary: 'mcp tool injection failed', component_type: :api)
+            end
 
             # Build pipeline request
             require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
@@ -349,7 +364,7 @@ module Legion
               messages:        messages,
               system:          body[:system],
               routing:         { provider: provider, model: model },
-              tools:           tool_classes,
+              tools:           all_tools,
               caller:          { requested_by: { identity: caller_identity, type: :user, credential: :api } },
               conversation_id: body[:conversation_id],
               metadata:        { requested_tools: requested_tools },

@@ -159,6 +159,14 @@ module Legion
       setup_metrics
       setup_task_outcome_observer
 
+      # Pre-warm MCP server in background so first inference isn't blocked by 837-tool build
+      Thread.new do
+        require 'legion/mcp' if defined?(Legion::Settings) && !defined?(Legion::MCP)
+        Legion::MCP.server if defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
+      rescue StandardError => e
+        log.warn("MCP pre-warm failed: #{e.message}")
+      end
+
       require 'sinatra/base'
       require 'legion/api/default_settings'
       api_settings = Legion::Settings[:api]

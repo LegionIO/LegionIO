@@ -169,7 +169,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
       expect(received_tools).to be_an(Array)
       received_tools&.each do |t|
-        expect(t).to be_a(Class)
+        expect(t).to be_a(Class).or respond_to(:name)
       end
     end
 
@@ -480,7 +480,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
       unless received_tools.empty?
         received_tools.each do |t|
-          expect(t).to be_a(Class)
+          expect(t).to be_a(Class).or respond_to(:name)
         end
       end
     end
