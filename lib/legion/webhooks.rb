@@ -118,11 +118,21 @@ module Legion
 
       def event_patterns_for(webhook, event_name:)
         @pattern_cache ||= {}
-        cache_key = [webhook[:id], webhook[:updated_at], webhook[:event_types]]
-        return @pattern_cache[cache_key] if @pattern_cache.key?(cache_key)
+        cached_entry = @pattern_cache[webhook[:id]]
+
+        if cached_entry &&
+           cached_entry[:updated_at] == webhook[:updated_at] &&
+           cached_entry[:event_types] == webhook[:event_types]
+          return cached_entry[:patterns]
+        end
 
         patterns = parse_event_patterns(webhook[:event_types], webhook_id: webhook[:id], event_name: event_name)
-        @pattern_cache[cache_key] = patterns
+        @pattern_cache[webhook[:id]] = {
+          updated_at:  webhook[:updated_at],
+          event_types: webhook[:event_types],
+          patterns:    patterns
+        }
+        patterns
       end
 
       def parse_event_patterns(raw_event_types, webhook_id:, event_name:)

@@ -41,7 +41,7 @@ module Legion
       llm = role_opts[:llm] if llm.nil?
       gaia = role_opts[:gaia] if gaia.nil?
 
-      setup_logging(log_level: bootstrap_log_level(log_level), color: true)
+      setup_logging(log_level: bootstrap_log_level(log_level))
       log.debug('Starting Legion::Service')
       setup_settings
       apply_cli_overrides(http_port: http_port)

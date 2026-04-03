@@ -138,6 +138,9 @@ module Legion
           binding[:from] = default_exchange if !binding.key?(:from) || binding[:from].nil?
           bind_e_to_q(**binding)
         rescue StandardError => e
+          log.warn '[transport] failed to build exchange-to-queue binding ' \
+                   "from=#{binding[:from].inspect} to=#{binding[:to].inspect} " \
+                   "routing_key=#{binding[:routing_key].inspect} binding=#{binding.inspect}"
           handle_exception(e, handled: false, level: :warn)
           raise e
         end
@@ -158,7 +161,7 @@ module Legion
         routing_key = to.to_s.split('::').last.downcase if routing_key.nil?
         bind(from, to, routing_key: routing_key)
       rescue StandardError => e
-        handle_exception(e, handled: false, level: :warn)
+        handle_exception(e, handled: false, level: :warn, from: from, to: to, routing_key: routing_key)
         raise e
       end
 
