@@ -46,4 +46,51 @@ RSpec.describe Legion::Service do
       service.send(:setup_settings)
     end
   end
+
+  describe 'logging level resolution' do
+    let(:service) { described_class.allocate }
+
+    before do
+      allow(Legion::Logging).to receive(:setup)
+    end
+
+    it 'uses configured logging level when no CLI override is provided' do
+      allow(Legion::Settings).to receive(:[]).with(:logging).and_return({ level: 'info' })
+
+      expect(service.send(:bootstrap_log_level, nil)).to eq('info')
+    end
+
+    it 'uses CLI log level when one is provided' do
+      allow(Legion::Settings).to receive(:[]).with(:logging).and_return({ level: 'info' })
+
+      expect(service.send(:bootstrap_log_level, 'debug')).to eq('debug')
+    end
+
+    it 'reconfigures to the settings level when CLI override is nil' do
+      allow(Legion::Settings).to receive(:[]).with(:logging).and_return(
+        {
+          level:       'info',
+          format:      'text',
+          log_file:    nil,
+          log_stdout:  true,
+          trace:       true,
+          async:       true,
+          include_pid: false
+        }
+      )
+
+      expect(Legion::Logging).to receive(:setup).with(
+        level:       'info',
+        format:      :text,
+        log_file:    nil,
+        log_stdout:  true,
+        trace:       true,
+        async:       true,
+        include_pid: false,
+        color:       true
+      )
+
+      service.send(:reconfigure_logging, nil)
+    end
+  end
 end

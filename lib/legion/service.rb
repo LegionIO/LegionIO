@@ -1,11 +1,25 @@
 # frozen_string_literal: true
 
 require 'timeout'
+require 'legion/logging'
 require_relative 'readiness'
 require_relative 'process_role'
 
 module Legion
   class Service
+    include Legion::Logging::Helper
+
+    class << self
+      include Legion::Logging::Helper
+
+      private
+
+      def resolve_logger_settings
+        raw_logging = (Legion::Settings[:logging] if defined?(Legion::Settings) && Legion::Settings.respond_to?(:[]))
+        raw_logging.is_a?(Hash) ? raw_logging : Legion::Logging::Settings.default
+      end
+    end
+
     def modules
       base = [Legion::Crypt, Legion::Transport, Legion::Cache, Legion::Data, Legion::Supervision]
       base << Legion::LLM if defined?(Legion::LLM)
@@ -14,27 +28,27 @@ module Legion
     end
 
     def initialize(transport: nil, cache: nil, data: nil, supervision: nil, extensions: nil, # rubocop:disable Metrics/CyclomaticComplexity,Metrics/ParameterLists,Metrics/MethodLength,Metrics/PerceivedComplexity,Metrics/AbcSize
-                   crypt: nil, api: nil, llm: nil, gaia: nil, log_level: 'info', http_port: nil,
+                   crypt: nil, api: nil, llm: nil, gaia: nil, log_level: nil, http_port: nil,
                    role: nil)
       role_opts = Legion::ProcessRole.resolve(role || Legion::ProcessRole.current)
-      transport  = role_opts[:transport] if transport.nil?
-      cache      = role_opts[:cache] if cache.nil?
-      data       = role_opts[:data] if data.nil?
+      transport = role_opts[:transport] if transport.nil?
+      cache = role_opts[:cache] if cache.nil?
+      data = role_opts[:data] if data.nil?
       supervision = role_opts[:supervision] if supervision.nil?
       extensions = role_opts[:extensions] if extensions.nil?
-      crypt      = role_opts[:crypt] if crypt.nil?
-      api        = role_opts[:api] if api.nil?
-      llm        = role_opts[:llm] if llm.nil?
-      gaia       = role_opts[:gaia] if gaia.nil?
+      crypt = role_opts[:crypt] if crypt.nil?
+      api = role_opts[:api] if api.nil?
+      llm = role_opts[:llm] if llm.nil?
+      gaia = role_opts[:gaia] if gaia.nil?
 
-      setup_logging(log_level: log_level)
-      Legion::Logging.debug('Starting Legion::Service')
+      setup_logging(log_level: bootstrap_log_level(log_level), color: true)
+      log.debug('Starting Legion::Service')
       setup_settings
       apply_cli_overrides(http_port: http_port)
       setup_compliance
       setup_local_mode
       reconfigure_logging(log_level)
-      Legion::Logging.info("node name: #{Legion::Settings[:client][:name]}")
+      log.info("node name: #{Legion::Settings[:client][:name]}")
 
       if crypt
         require 'legion/crypt'
@@ -59,12 +73,12 @@ module Legion
           Legion::Cache.setup
           Legion::Readiness.mark_ready(:cache)
         rescue StandardError => e
-          Legion::Logging.warn "Legion::Cache remote failed: #{e.message}, falling back to Cache::Local"
+          handle_exception(e, level: :warn, operation: 'service.initialize.cache', fallback: 'cache_local')
           begin
             Legion::Cache::Local.setup
-            Legion::Logging.info 'Legion::Cache::Local connected (fallback)'
+            log.info 'Legion::Cache::Local connected (fallback)'
           rescue StandardError => e2
-            Legion::Logging.warn "Legion::Cache::Local also failed: #{e2.message}"
+            handle_exception(e2, level: :warn, operation: 'service.initialize.cache_local')
           end
           Legion::Readiness.mark_ready(:cache)
         end
@@ -75,13 +89,13 @@ module Legion
           setup_data
           Legion::Readiness.mark_ready(:data)
         rescue StandardError => e
-          Legion::Logging.warn "Legion::Data remote failed: #{e.message}, falling back to Data::Local"
+          handle_exception(e, level: :warn, operation: 'service.initialize.data', fallback: 'data_local')
           begin
             require 'legion/data'
             Legion::Data::Local.setup if defined?(Legion::Data::Local)
-            Legion::Logging.info 'Legion::Data::Local connected (fallback)'
+            log.info 'Legion::Data::Local connected (fallback)'
           rescue StandardError => e2
-            Legion::Logging.warn "Legion::Data::Local also failed: #{e2.message}"
+            handle_exception(e2, level: :warn, operation: 'service.initialize.data_local')
           end
           Legion::Readiness.mark_ready(:data)
         end
@@ -94,30 +108,33 @@ module Legion
         begin
           setup_llm
           Legion::Readiness.mark_ready(:llm)
-        rescue LoadError
-          Legion::Logging.info 'Legion::LLM gem is not installed'
+        rescue LoadError => e
+          handle_exception(e, level: :debug, operation: 'service.initialize.llm', availability: 'missing')
+          log.info 'Legion::LLM gem is not installed'
         rescue StandardError => e
-          Legion::Logging.warn "Legion::LLM failed: #{e.message}"
+          handle_exception(e, level: :warn, operation: 'service.initialize.llm')
         end
       end
 
       begin
         setup_apollo
         Legion::Readiness.mark_ready(:apollo)
-      rescue LoadError
-        Legion::Logging.info 'Legion::Apollo gem is not installed, starting without Apollo'
+      rescue LoadError => e
+        handle_exception(e, level: :debug, operation: 'service.initialize.apollo', availability: 'missing')
+        log.info 'Legion::Apollo gem is not installed, starting without Apollo'
       rescue StandardError => e
-        Legion::Logging.warn "Legion::Apollo failed to load: #{e.message}"
+        handle_exception(e, level: :warn, operation: 'service.initialize.apollo')
       end
 
       if gaia
         begin
           setup_gaia
           Legion::Readiness.mark_ready(:gaia)
-        rescue LoadError
-          Legion::Logging.info 'Legion::Gaia gem is not installed'
+        rescue LoadError => e
+          handle_exception(e, level: :debug, operation: 'service.initialize.gaia', availability: 'missing')
+          log.info 'Legion::Gaia gem is not installed'
         rescue StandardError => e
-          Legion::Logging.warn "Legion::Gaia failed: #{e.message}"
+          handle_exception(e, level: :warn, operation: 'service.initialize.gaia')
         end
       end
 
@@ -154,7 +171,7 @@ module Legion
 
     def setup_local_mode
       if lite_mode?
-        Legion::Logging.info 'Starting in lite mode (zero infrastructure)'
+        log.info 'Starting in lite mode (zero infrastructure)'
         Legion::Settings[:dev] = true
         require 'legion/transport/local'
         require 'legion/crypt/mock_vault' if defined?(Legion::Crypt)
@@ -163,7 +180,7 @@ module Legion
 
       return unless local_mode?
 
-      Legion::Logging.info 'Starting in local development mode'
+      log.info 'Starting in local development mode'
       Legion::Settings[:dev] = true
 
       require 'legion/transport/local'
@@ -181,26 +198,28 @@ module Legion
     end
 
     def setup_data
-      Legion::Logging.info 'Setting up Legion::Data'
+      log.info 'Setting up Legion::Data'
       require 'legion/data'
       Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
       Legion::Data.setup
-      Legion::Logging.info 'Legion::Data connected'
-    rescue LoadError
-      Legion::Logging.info 'Legion::Data gem is not installed, please install it manually with gem install legion-data'
+      log.info 'Legion::Data connected'
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_data', availability: 'missing')
+      log.info 'Legion::Data gem is not installed, please install it manually with gem install legion-data'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::Data failed to load, starting without it. e: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_data')
     end
 
     def setup_rbac
       require 'legion/rbac'
       Legion::Rbac.setup
       Legion::Readiness.mark_ready(:rbac)
-      Legion::Logging.info 'Legion::Rbac loaded'
-    rescue LoadError
-      Legion::Logging.debug 'Legion::Rbac gem is not installed, starting without RBAC'
+      log.info 'Legion::Rbac loaded'
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_rbac', availability: 'missing')
+      log.debug 'Legion::Rbac gem is not installed, starting without RBAC'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::Rbac failed to load: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_rbac')
     end
 
     def setup_cluster
@@ -212,20 +231,20 @@ module Legion
 
       @cluster_leader = Legion::Cluster::Leader.new
       @cluster_leader.start
-      Legion::Logging.info('Cluster leader election started')
+      log.info('Cluster leader election started')
     rescue StandardError => e
-      Legion::Logging.warn("Cluster leader setup failed: #{e.message}")
+      handle_exception(e, level: :warn, operation: 'service.setup_cluster')
     end
 
     def setup_settings
       require 'legion/settings'
       directories = Legion::Settings::Loader.default_directories
       existing = directories.select { |d| Dir.exist?(d) }
-      Legion::Logging.info "Settings search directories: #{directories.inspect}"
-      existing.each { |d| Legion::Logging.info "Settings: will load from #{d}" }
+      log.info "Settings search directories: #{directories.inspect}"
+      existing.each { |d| log.info "Settings: will load from #{d}" }
       Legion::Settings.load(config_dirs: existing)
       Legion::Readiness.mark_ready(:settings)
-      Legion::Logging.info('Legion::Settings Loaded')
+      log.info('Legion::Settings Loaded')
       self.class.log_privacy_mode_status
     end
 
@@ -233,9 +252,9 @@ module Legion
       require 'legion/compliance'
       Legion::Compliance.setup
     rescue LoadError => e
-      Legion::Logging.debug "Compliance module not available: #{e.message}"
+      handle_exception(e, level: :debug, operation: 'service.setup_compliance', availability: 'missing')
     rescue StandardError => e
-      Legion::Logging.warn "Compliance setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_compliance')
     end
 
     def apply_cli_overrides(http_port: nil)
@@ -243,7 +262,7 @@ module Legion
 
       Legion::Settings[:api] ||= {}
       Legion::Settings[:api][:port] = http_port
-      Legion::Logging.info "CLI override: API port set to #{http_port}"
+      log.info "CLI override: API port set to #{http_port}"
     end
 
     def setup_logging(log_level: 'info', **_opts)
@@ -253,7 +272,12 @@ module Legion
 
     def reconfigure_logging(cli_level = nil)
       ls = Legion::Settings[:logging] || {}
-      level = cli_level || ls[:level] || 'info'
+      level = if cli_level.respond_to?(:empty?) && cli_level.empty?
+                nil
+              else
+                cli_level
+              end
+      level ||= ls[:level] || 'info'
 
       Legion::Logging.setup(
         level:       level,
@@ -262,13 +286,14 @@ module Legion
         log_stdout:  ls.fetch(:log_stdout, true),
         trace:       ls.fetch(:trace, true),
         async:       ls.fetch(:async, true),
-        include_pid: ls.fetch(:include_pid, false)
+        include_pid: ls.fetch(:include_pid, false),
+        color:       true
       )
     end
 
     def setup_api # rubocop:disable Metrics/MethodLength
       if @api_thread&.alive?
-        Legion::Logging.warn 'API already running, skipping duplicate setup_api call'
+        log.warn 'API already running, skipping duplicate setup_api call'
         return
       end
 
@@ -282,7 +307,7 @@ module Legion
       Legion::API.set :server, :puma
       Legion::API.set :environment, :production
 
-      puma_cfg    = api_settings[:puma]
+      puma_cfg = api_settings[:puma]
       min_threads = puma_cfg[:min_threads]
       max_threads = puma_cfg[:max_threads]
       thread_spec = "#{min_threads}:#{max_threads}"
@@ -296,18 +321,18 @@ module Legion
         Legion::API.set :ssl_bind_options, tls_cfg
         Legion::API.set :server_settings, { quiet: true, Threads: thread_spec, **puma_timeouts,
                                             **ssl_server_settings(tls_cfg, bind, port) }
-        Legion::Logging.info "Starting Legion API (TLS) on #{bind}:#{port}"
+        log.info "Starting Legion API (TLS) on #{bind}:#{port}"
       else
         require 'puma'
         puma_log = ::Puma::LogWriter.new(StringIO.new, StringIO.new)
         Legion::API.set :server_settings, { log_writer: puma_log, quiet: true, Threads: thread_spec, **puma_timeouts }
-        Legion::Logging.info "Starting Legion API on #{bind}:#{port}"
+        log.info "Starting Legion API on #{bind}:#{port}"
       end
 
       @api_thread = Thread.new do
         retries = 0
         max_retries = api_settings[:bind_retries]
-        retry_wait  = api_settings[:bind_retry_wait]
+        retry_wait = api_settings[:bind_retry_wait]
 
         begin
           raise Errno::EADDRINUSE, "port #{port} already bound" if port_in_use?(bind, port)
@@ -316,11 +341,11 @@ module Legion
         rescue Errno::EADDRINUSE
           retries += 1
           if retries <= max_retries
-            Legion::Logging.warn "Port #{port} in use, retrying in #{retry_wait}s (attempt #{retries}/#{max_retries})"
+            log.warn "Port #{port} in use, retrying in #{retry_wait}s (attempt #{retries}/#{max_retries})"
             sleep retry_wait
             retry
           else
-            Legion::Logging.error "Port #{port} still in use after #{max_retries} attempts, API disabled"
+            log.error "Port #{port} still in use after #{max_retries} attempts, API disabled"
             Legion::Readiness.mark_not_ready(:api)
           end
         ensure
@@ -329,59 +354,62 @@ module Legion
       end
       Legion::Readiness.mark_ready(:api)
     rescue LoadError => e
-      Legion::Logging.warn "Legion API dependencies not available: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_api', dependency: 'api')
     rescue StandardError => e
-      Legion::Logging.warn "Legion API failed to start: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_api')
     end
 
     def setup_llm
-      Legion::Logging.info 'Setting up Legion::LLM'
+      log.info 'Setting up Legion::LLM'
       require 'legion/llm'
       Legion::Settings.merge_settings('llm', Legion::LLM::Settings.default)
       Legion::LLM.start
-      Legion::Logging.info 'Legion::LLM started'
-    rescue LoadError
-      Legion::Logging.info 'Legion::LLM gem is not installed, starting without LLM support'
+      log.info 'Legion::LLM started'
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_llm', availability: 'missing')
+      log.info 'Legion::LLM gem is not installed, starting without LLM support'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::LLM failed to load: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_llm')
     end
 
     def setup_gaia
-      Legion::Logging.info 'Setting up Legion::Gaia'
+      log.info 'Setting up Legion::Gaia'
       require 'legion/gaia'
       Legion::Settings.merge_settings('gaia', Legion::Gaia::Settings.default)
       Legion::Gaia.boot
-      Legion::Logging.info 'Legion::Gaia booted'
-    rescue LoadError
-      Legion::Logging.info 'Legion::Gaia gem is not installed, starting without cognitive layer'
+      log.info 'Legion::Gaia booted'
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_gaia', availability: 'missing')
+      log.info 'Legion::Gaia gem is not installed, starting without cognitive layer'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::Gaia failed to load: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_gaia')
     end
 
     def setup_apollo
-      Legion::Logging.info 'Setting up Legion::Apollo'
+      log.info 'Setting up Legion::Apollo'
       require 'legion/apollo'
       Legion::Apollo.start
       Legion::Apollo::Local.start if defined?(Legion::Apollo::Local)
-      Legion::Logging.info 'Legion::Apollo started'
-    rescue LoadError
-      Legion::Logging.info 'Legion::Apollo gem is not installed, starting without Apollo'
+      log.info 'Legion::Apollo started'
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_apollo', availability: 'missing')
+      log.info 'Legion::Apollo gem is not installed, starting without Apollo'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::Apollo failed to load: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_apollo')
     end
 
     def setup_dispatch
       require 'legion/dispatch'
       Legion::Dispatch.dispatcher.start
-      Legion::Logging.info "[Service] Dispatch started (strategy: #{Legion::Dispatch.dispatcher.class.name})"
+      log.info "[Service] Dispatch started (strategy: #{Legion::Dispatch.dispatcher.class.name})"
     end
 
     def setup_transport
-      Legion::Logging.info 'Setting up Legion::Transport'
+      log.info 'Setting up Legion::Transport'
       require 'legion/transport'
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
       Legion::Transport::Connection.setup
-      Legion::Logging.info 'Legion::Transport connected'
+      log.info 'Legion::Transport connected'
     end
 
     def setup_logging_transport # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -390,12 +418,13 @@ module Legion
 
       lt_settings = begin
         Legion::Settings.dig(:logging, :transport) || {}
-      rescue StandardError
+      rescue StandardError => e
+        handle_exception(e, level: :debug, operation: 'service.setup_logging_transport.read_settings')
         {}
       end
       return unless lt_settings[:enabled] == true
 
-      forward_logs       = lt_settings.fetch(:forward_logs, true)
+      forward_logs = lt_settings.fetch(:forward_logs, true)
       forward_exceptions = lt_settings.fetch(:forward_exceptions, true)
       return unless forward_logs || forward_exceptions
 
@@ -437,9 +466,9 @@ module Legion
       modes = []
       modes << 'logs' if forward_logs
       modes << 'exceptions' if forward_exceptions
-      Legion::Logging.info("Logging transport wired: #{modes.join(' + ')} (dedicated session)")
+      log.info("Logging transport wired: #{modes.join(' + ')} (dedicated session)")
     rescue StandardError => e
-      Legion::Logging.warn "Logging transport setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_logging_transport')
       teardown_logging_transport
     end
 
@@ -449,31 +478,28 @@ module Legion
       @log_session&.close if @log_session.respond_to?(:close) &&
                              (!@log_session.respond_to?(:open?) || @log_session.open?)
       @log_session = nil
-    rescue StandardError
+    rescue StandardError => e
+      handle_exception(e, level: :debug, operation: 'service.teardown_logging_transport')
       nil
     end
 
     def setup_alerts
-      enabled = begin
-        Legion::Settings[:alerts][:enabled]
-      rescue StandardError => e
-        Legion::Logging.debug "Service#setup_alerts failed to read alerts.enabled: #{e.message}" if defined?(Legion::Logging)
-        false
-      end
+      alerts_settings = Legion::Settings[:alerts]
+      enabled = alerts_settings.is_a?(Hash) ? alerts_settings[:enabled] : false
       return unless enabled
 
       require 'legion/alerts'
       Legion::Alerts.setup
     rescue StandardError => e
-      Legion::Logging.warn "Alerts setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_alerts')
     end
 
     def setup_metrics
       require 'legion/metrics'
       Legion::Metrics.setup
-      Legion::Logging.debug 'Legion::Metrics initialized'
+      log.debug 'Legion::Metrics initialized'
     rescue StandardError => e
-      Legion::Logging.warn "Legion::Metrics setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_metrics')
     end
 
     def setup_task_outcome_observer
@@ -482,14 +508,14 @@ module Legion
 
       Legion::TaskOutcomeObserver.setup
     rescue StandardError => e
-      Legion::Logging.warn "TaskOutcomeObserver setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_task_outcome_observer')
     end
 
     def setup_telemetry
       return unless begin
         Legion::Settings.dig(:telemetry, :enabled)
       rescue StandardError => e
-        Legion::Logging.debug "Service#setup_telemetry failed to read telemetry.enabled: #{e.message}" if defined?(Legion::Logging)
+        handle_exception(e, level: :debug, operation: 'service.setup_telemetry.read_enabled')
         false
       end
 
@@ -510,11 +536,12 @@ module Legion
         )
       end
 
-      Legion::Logging.info "OpenTelemetry initialized: endpoint=#{endpoint} service=#{service_name}"
-    rescue LoadError
-      Legion::Logging.info 'OpenTelemetry gems not installed, starting without telemetry'
+      log.info "OpenTelemetry initialized: endpoint=#{endpoint} service=#{service_name}"
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_telemetry', availability: 'missing')
+      log.info 'OpenTelemetry gems not installed, starting without telemetry'
     rescue StandardError => e
-      Legion::Logging.warn "OpenTelemetry setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_telemetry', endpoint: endpoint, service_name: service_name)
     end
 
     def setup_audit_archiver
@@ -525,15 +552,15 @@ module Legion
         loop do
           Legion::Audit::ArchiverActor.new.run_archival
         rescue StandardError => e
-          Legion::Logging.error "[Audit::ArchiverActor] error: #{e.message}" if defined?(Legion::Logging)
+          handle_exception(e, level: :error, operation: 'service.audit_archiver.run')
         ensure
           sleep Legion::Audit::ArchiverActor::INTERVAL_SECONDS
         end
       end
       @audit_archiver_thread.abort_on_exception = false
-      Legion::Logging.info 'Audit archiver actor started' if defined?(Legion::Logging)
+      log.info 'Audit archiver actor started'
     rescue StandardError => e
-      Legion::Logging.warn "Audit archiver setup failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :warn, operation: 'service.setup_audit_archiver')
     end
 
     def shutdown_audit_archiver
@@ -545,16 +572,16 @@ module Legion
       require_relative 'telemetry/safety_metrics'
       Legion::Telemetry::SafetyMetrics.start
     rescue LoadError => e
-      Legion::Logging.debug "Service#setup_safety_metrics: safety_metrics not available: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'service.setup_safety_metrics', availability: 'missing')
     rescue StandardError => e
-      Legion::Logging.debug "[safety_metrics] setup skipped: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'service.setup_safety_metrics')
     end
 
     def setup_supervision
-      Legion::Logging.info 'Setting up Legion::Supervision'
+      log.info 'Setting up Legion::Supervision'
       require 'legion/supervision'
       @supervision = Legion::Supervision.setup
-      Legion::Logging.info 'Legion::Supervision started'
+      log.info 'Legion::Supervision started'
     end
 
     def shutdown_api
@@ -565,11 +592,11 @@ module Legion
       @api_thread = nil
       Legion::Readiness.mark_not_ready(:api)
     rescue StandardError => e
-      Legion::Logging.warn "API shutdown error: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
     def shutdown
-      Legion::Logging.info('Legion::Service.shutdown was called')
+      log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
       Legion::Events.emit('service.shutting_down')
@@ -630,7 +657,7 @@ module Legion
       return if @reloading
 
       @reloading = true
-      Legion::Logging.info 'Legion::Service.reload was called'
+      log.info 'Legion::Service.reload was called'
       Legion::Settings[:client][:ready] = false
 
       shutdown_network_watchdog
@@ -693,7 +720,7 @@ module Legion
       setup_network_watchdog
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
-      Legion::Logging.info 'Legion has been reloaded'
+      log.info 'Legion has been reloaded'
     ensure
       @reloading = false
     end
@@ -707,9 +734,9 @@ module Legion
       return unless defined?(Legion::Extensions::Codegen::Helpers::GeneratedRegistry)
 
       loaded = Legion::Extensions::Codegen::Helpers::GeneratedRegistry.load_on_boot
-      Legion::Logging.info("Loaded #{loaded} generated functions") if defined?(Legion::Logging) && loaded.to_i.positive?
+      log.info("Loaded #{loaded} generated functions") if loaded.to_i.positive?
     rescue StandardError => e
-      Legion::Logging.warn("setup_generated_functions failed: #{e.message}") if defined?(Legion::Logging)
+      handle_exception(e, level: :warn, operation: 'service.setup_generated_functions')
     end
 
     def setup_mtls_rotation
@@ -724,11 +751,11 @@ module Legion
 
       @cert_rotation = Legion::Crypt::CertRotation.new
       @cert_rotation.start
-      Legion::Logging.info '[mTLS] CertRotation started'
+      log.info '[mTLS] CertRotation started'
     rescue LoadError => e
-      Legion::Logging.warn "mTLS rotation skipped: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_mtls_rotation', availability: 'missing')
     rescue StandardError => e
-      Legion::Logging.warn "mTLS rotation setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_mtls_rotation')
     end
 
     def shutdown_mtls_rotation
@@ -737,7 +764,7 @@ module Legion
       @cert_rotation.stop
       @cert_rotation = nil
     rescue StandardError => e
-      Legion::Logging.warn "mTLS rotation shutdown error: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.shutdown_mtls_rotation')
     end
 
     def self.log_privacy_mode_status
@@ -754,21 +781,21 @@ module Legion
                 end
 
       if Legion.const_defined?('Logging')
-        Legion::Logging.info(message)
+        log.info(message)
       else
         $stdout.puts "[Legion] #{message}"
       end
     rescue StandardError => e
-      Legion::Logging.debug "Service#log_privacy_mode_status failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'service.log_privacy_mode_status') if defined?(Legion::Logging)
       nil
     end
 
     def shutdown_component(name, timeout: 5, &)
       Timeout.timeout(timeout, &)
     rescue Timeout::Error
-      Legion::Logging.warn "#{name} shutdown timed out after #{timeout}s, forcing"
+      log.warn "#{name} shutdown timed out after #{timeout}s, forcing"
     rescue StandardError => e
-      Legion::Logging.warn "#{name} shutdown error: #{e.class}: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.shutdown_component', component: name, timeout: timeout)
     end
 
     def setup_network_watchdog
@@ -783,24 +810,24 @@ module Legion
           prev = @consecutive_failures.value
           @consecutive_failures.value = 0
           if prev >= threshold
-            Legion::Logging.info '[Watchdog] Network restored, triggering reload'
+            log.info '[Watchdog] Network restored, triggering reload'
             Thread.new { Legion.reload } unless @reloading
           end
         else
           count = @consecutive_failures.increment
-          Legion::Logging.warn "[Watchdog] Network check failed (#{count}/#{threshold})"
+          log.warn "[Watchdog] Network check failed (#{count}/#{threshold})"
           if count == threshold
-            Legion::Logging.error '[Watchdog] Network failure threshold reached, pausing actors'
+            log.error '[Watchdog] Network failure threshold reached, pausing actors'
             Legion::Extensions.pause_actors if Legion::Extensions.respond_to?(:pause_actors)
           end
         end
       rescue StandardError => e
-        Legion::Logging.debug "[Watchdog] check error: #{e.message}"
+        handle_exception(e, level: :debug, operation: 'service.network_watchdog.check')
       end
       @network_watchdog.execute
-      Legion::Logging.info "[Watchdog] Network watchdog started (interval=#{interval}s, threshold=#{threshold})"
+      log.info "[Watchdog] Network watchdog started (interval=#{interval}s, threshold=#{threshold})"
     rescue StandardError => e
-      Legion::Logging.warn "Network watchdog setup failed: #{e.message}"
+      handle_exception(e, level: :warn, operation: 'service.setup_network_watchdog')
     end
 
     def shutdown_network_watchdog
@@ -820,11 +847,27 @@ module Legion
       return true if checks.empty?
 
       checks.any?
-    rescue StandardError
+    rescue StandardError => e
+      handle_exception(e, level: :debug, operation: 'service.network_healthy?')
       false
     end
 
     private
+
+    def bootstrap_log_level(cli_level)
+      cli_level = nil if cli_level.respond_to?(:empty?) && cli_level.empty?
+      return cli_level if cli_level
+
+      raw_logging = (Legion::Settings[:logging] if defined?(Legion::Settings) && Legion::Settings.respond_to?(:[]))
+
+      level = raw_logging[:level] if raw_logging.is_a?(Hash)
+      level || Legion::Logging::Settings.default[:level] || 'info'
+    end
+
+    def resolve_logger_settings
+      raw_logging = (Legion::Settings[:logging] if defined?(Legion::Settings) && Legion::Settings.respond_to?(:[]))
+      raw_logging.is_a?(Hash) ? raw_logging : Legion::Logging::Settings.default
+    end
 
     def port_in_use?(bind, port)
       TCPServer.new(bind, port).close
@@ -839,10 +882,10 @@ module Legion
       return nil unless tls[:enabled] == true
 
       cert = tls[:cert]
-      key  = tls[:key]
+      key = tls[:key]
 
       unless cert && !cert.to_s.empty? && key && !key.to_s.empty?
-        Legion::Logging.warn 'api.tls enabled but cert or key is missing — falling back to plain HTTP'
+        log.warn 'api.tls enabled but cert or key is missing — falling back to plain HTTP'
         return nil
       end
 
@@ -862,9 +905,9 @@ module Legion
 
     def verify_mode_for(verify)
       case verify.to_s
-      when 'none'   then 'none'
+      when 'none' then 'none'
       when 'mutual' then 'force_peer'
-      else               'peer'
+      else 'peer'
       end
     end
   end

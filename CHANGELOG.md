@@ -8,6 +8,7 @@
 - Bumped minimum dependency floors for Legion core gems, including `legion-logging >= 1.5.0`, `legion-settings >= 1.3.25`, and updated transport, data, cache, crypt, Apollo, and MCP minimums
 - Stabilized the `LegionIO` spec suite by fixing the OAuth callback, catalog, and service shutdown regression specs
 - CLI startup now honors settings-driven log levels, normalizes `start --help` into the standard Thor help flow, and routes chat/error logging through the newer helper-backed logger path
+- `Legion::Service`, telemetry, and webhook runtime paths now use structured helper logging more consistently, respect configured logging when no CLI override is passed, and avoid brittle settings reads during boot
 
 ## [1.7.8] - 2026-04-01
 

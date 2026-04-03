@@ -3,10 +3,13 @@
 require 'openssl'
 require 'net/http'
 require 'uri'
+require 'legion/logging/helper'
 
 module Legion
   module Webhooks
     class << self
+      include Legion::Logging::Helper
+
       def register(url:, secret:, event_types: ['*'], max_retries: 5, **)
         return { error: 'data_unavailable' } unless db_available?
 
@@ -43,17 +46,19 @@ module Legion
           patterns = begin
             Legion::JSON.load(wh[:event_types])
           rescue StandardError => e
-            Legion::Logging.debug("Webhooks#dispatch event_types parse failed: #{e.message}") if defined?(Legion::Logging)
+            handle_exception(e, level: :debug, operation: 'webhooks.dispatch.parse_event_types',
+                                event_name: event_name, webhook_id: wh[:id])
             ['*']
           end
           next unless patterns.any? { |p| File.fnmatch?(p, event_name) }
 
+          log.debug { "[Webhooks] dispatching event=#{event_name} webhook_id=#{wh[:id]} patterns=#{patterns.size}" }
           deliver(wh, event_name, payload)
         end
       end
 
       def deliver(webhook, event_name, payload, attempt: 1)
-        Legion::Logging.info "[Webhooks] delivery attempt #{attempt} for event=#{event_name} url=#{webhook[:url]}" if defined?(Legion::Logging)
+        log.info "[Webhooks] delivery attempt #{attempt} for event=#{event_name} url=#{webhook[:url]}"
         body = Legion::JSON.dump({ event: event_name, payload: payload, timestamp: Time.now.utc.iso8601 })
         signature = compute_signature(webhook[:secret], body)
 
@@ -73,18 +78,26 @@ module Legion
         success = response.code.to_i < 400
 
         if success
-          Legion::Logging.info "[Webhooks] delivered event=#{event_name} status=#{response.code}" if defined?(Legion::Logging)
-        elsif defined?(Legion::Logging)
-          Legion::Logging.error "[Webhooks] delivery failed event=#{event_name} status=#{response.code} url=#{webhook[:url]}"
+          log.info "[Webhooks] delivered event=#{event_name} status=#{response.code}"
+        else
+          log.warn "[Webhooks] delivery failed event=#{event_name} status=#{response.code} url=#{webhook[:url]}"
         end
 
         record_delivery(webhook[:id], event_name, response.code.to_i, success)
         { delivered: success, status: response.code.to_i }
       rescue StandardError => e
-        Legion::Logging.error "[Webhooks] delivery error event=#{event_name}: #{e.message}" if defined?(Legion::Logging)
+        handle_exception(
+          e,
+          level:      :error,
+          operation:  'webhooks.deliver',
+          event_name: event_name,
+          webhook_id: webhook[:id],
+          attempt:    attempt,
+          url:        webhook[:url]
+        )
         record_delivery(webhook[:id], event_name, nil, false, error: e.message)
         if attempt < (webhook[:max_retries] || 5)
-          Legion::Logging.warn "[Webhooks] will retry event=#{event_name} attempt=#{attempt}" if defined?(Legion::Logging)
+          log.warn "[Webhooks] will retry event=#{event_name} attempt=#{attempt}"
           { delivered: false, error: e.message, will_retry: true }
         else
           dead_letter(webhook[:id], event_name, payload, attempt, e.message)
@@ -101,7 +114,7 @@ module Legion
       def db_available?
         defined?(Legion::Data) && Legion::Data.respond_to?(:connection) && Legion::Data.connection
       rescue StandardError => e
-        Legion::Logging.debug("Webhooks#db_available? failed: #{e.message}") if defined?(Legion::Logging)
+        handle_exception(e, level: :debug, operation: 'webhooks.db_available?')
         false
       end
 
@@ -115,7 +128,8 @@ module Legion
           delivered_at:    Time.now.utc
         )
       rescue StandardError => e
-        Legion::Logging.debug("Webhooks#record_delivery failed: #{e.message}") if defined?(Legion::Logging)
+        handle_exception(e, level: :debug, operation: 'webhooks.record_delivery',
+                            webhook_id: webhook_id, event_name: event_name, status: status, success: success)
         nil
       end
 
@@ -129,7 +143,8 @@ module Legion
           created_at: Time.now.utc
         )
       rescue StandardError => e
-        Legion::Logging.debug("Webhooks#dead_letter failed: #{e.message}") if defined?(Legion::Logging)
+        handle_exception(e, level: :debug, operation: 'webhooks.dead_letter',
+                            webhook_id: webhook_id, event_name: event_name, attempts: attempts)
         nil
       end
     end
