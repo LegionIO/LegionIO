@@ -109,20 +109,26 @@ module Legion
           return false unless connection
 
           connection_id = connection.object_id
-          return @extension_catalog_available if @extension_catalog_connection_id == connection_id && !@extension_catalog_available.nil?
+          return true if @extension_catalog_connection_id == connection_id && @extension_catalog_available == true
 
-          @extension_catalog_connection_id = connection_id
-          @extension_catalog_available =
+          available =
             if connection.respond_to?(:tables)
               connection.tables.include?(:extension_catalog)
             else
               connection.respond_to?(:table_exists?) && connection.table_exists?(:extension_catalog)
             end
 
-          @extension_catalog_available
+          if available
+            @extension_catalog_connection_id = connection_id
+            @extension_catalog_available = true
+          else
+            @extension_catalog_connection_id = nil if @extension_catalog_connection_id == connection_id
+            @extension_catalog_available = nil
+          end
+
+          available
         rescue StandardError => e
           Legion::Logging.warn { "Catalog table availability check failed: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
-          @extension_catalog_available = false
           false
         end
 

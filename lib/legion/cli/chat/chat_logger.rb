@@ -38,8 +38,11 @@ module Legion
 
           private
 
-          def parse_level(level = 'debug')
-            LEVELS.fetch(level.to_s, ::Logger::DEBUG)
+          def parse_level(level = 'info')
+            normalized_level = level.to_s.strip.downcase
+            return ::Logger::INFO if normalized_level.empty?
+
+            LEVELS.fetch(normalized_level, ::Logger::INFO)
           end
 
           def format_entry(severity, datetime, _progname, msg)
