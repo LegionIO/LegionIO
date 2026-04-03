@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.7.13] - 2026-04-03
+
+### Changed
+- Bump legion-crypt >= 1.5.1, legion-transport >= 1.4.14, legion-cache >= 1.3.22
+
 ## [1.7.12] - 2026-04-03
 
 ### Fixed
