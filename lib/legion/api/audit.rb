@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module Audit
-        def self.registered(app) # rubocop:disable Metrics/AbcSize
+        def self.registered(app)
           app.get '/api/audit' do
             require_data!
             dataset = Legion::Data::Model::AuditLog.order(Sequel.desc(:id))

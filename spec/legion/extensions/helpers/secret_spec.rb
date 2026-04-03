@@ -80,6 +80,25 @@ RSpec.describe Legion::Extensions::Helpers::SecretAccessor do
   end
 
   describe '#[]' do
+    it 'uses Legion::Crypt.vault_connected? when available' do
+      crypt = Module.new do
+        extend self
+
+        def vault_connected?
+          true
+        end
+
+        def get(path)
+          { token: 'abc123' } if path == 'users/testuser/github/api_key'
+        end
+
+        def kerberos_principal = nil
+      end
+      stub_const('Legion::Crypt', crypt)
+
+      expect(accessor[:api_key]).to eq({ token: 'abc123' })
+    end
+
     it 'reads from per-user vault path' do
       stub_const('Legion::Crypt', Module.new do
         extend self

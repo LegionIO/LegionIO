@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require 'legion/logging/helper'
+
 module Legion
   module Telemetry
+    extend Legion::Logging::Helper
+
     autoload :OpenInference, 'legion/telemetry/open_inference'
     autoload :SafetyMetrics, 'legion/telemetry/safety_metrics'
 
@@ -11,14 +15,14 @@ module Legion
       defined?(OpenTelemetry::Trace) &&
         OpenTelemetry::Trace.current_span != OpenTelemetry::Trace::Span::INVALID
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#otel_available? failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.otel_available')
       false
     end
 
     def enabled?
       defined?(OpenTelemetry::SDK) ? true : false
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#enabled? failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.enabled')
       false
     end
 
@@ -29,13 +33,13 @@ module Legion
         return
       end
 
-      Legion::Logging.debug "[Telemetry] span: #{name}" if defined?(Legion::Logging)
+      log.debug { "[Telemetry] starting span=#{name} kind=#{kind}" }
       tracer = OpenTelemetry.tracer_provider.tracer('legion', Legion::VERSION)
       tracer.in_span(name, kind: kind, attributes: sanitize_attributes(attributes), &)
     rescue StandardError => e
       raise if block_given? && !otel_init_error?(e)
 
-      Legion::Logging.debug "[Telemetry] span error for #{name}: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.with_span', span_name: name, kind: kind)
       yield(nil) if block_given?
     end
 
@@ -45,7 +49,7 @@ module Legion
       span.record_exception(exception)
       span.status = OpenTelemetry::Trace::Status.error(exception.message)
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#record_exception failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.record_exception')
       nil
     end
 
@@ -60,7 +64,7 @@ module Legion
         [k.to_s, val]
       end
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#sanitize_attributes failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.sanitize_attributes')
       {}
     end
 
@@ -82,14 +86,14 @@ module Legion
       tracing = telemetry[:tracing]
       tracing.is_a?(Hash) ? tracing : {}
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#tracing_settings failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.tracing_settings')
       {}
     end
 
     def otel_init_error?(error)
       error.message.include?('OpenTelemetry') || error.message.include?('tracer')
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#otel_init_error? check failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.otel_init_error?')
       false
     end
 
@@ -111,10 +115,13 @@ module Legion
       )
 
       OpenTelemetry.tracer_provider.add_span_processor(processor)
-      Legion::Logging.info "OTLP exporter configured: #{endpoint}"
+      log.info "OTLP exporter configured: #{endpoint}"
       true
     rescue LoadError
-      Legion::Logging.warn 'opentelemetry-exporter-otlp gem not available'
+      log.warn 'opentelemetry-exporter-otlp gem not available'
+      false
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'telemetry.configure_otlp', endpoint: endpoint)
       false
     end
 
@@ -124,9 +131,10 @@ module Legion
       exporter = OpenTelemetry::SDK::Trace::Export::ConsoleSpanExporter.new
       processor = OpenTelemetry::SDK::Trace::Export::SimpleSpanProcessor.new(exporter)
       OpenTelemetry.tracer_provider.add_span_processor(processor)
+      log.info 'Console telemetry exporter configured'
       true
     rescue StandardError => e
-      Legion::Logging.debug "Telemetry#configure_console failed: #{e.message}" if defined?(Legion::Logging)
+      handle_exception(e, level: :debug, operation: 'telemetry.configure_console')
       false
     end
   end

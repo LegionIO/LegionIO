@@ -189,23 +189,25 @@ module Legion
       end
 
       def build_settings
+        defaults = deep_dup_settings_value(Legion::Settings[:default_extension_settings] || {})
+
         if Legion::Settings[:extensions].key?(lex_name.to_sym)
-          Legion::Settings[:default_extension_settings].each do |key, value|
+          defaults.each do |key, value|
             Legion::Settings[:extensions][lex_name.to_sym][key.to_sym] = if Legion::Settings[:extensions][lex_name.to_sym].key?(key.to_sym)
-                                                                           value.merge(Legion::Settings[:extensions][lex_name.to_sym][key.to_sym])
+                                                                           deep_dup_settings_value(value).merge(Legion::Settings[:extensions][lex_name.to_sym][key.to_sym])
                                                                          else
-                                                                           value
+                                                                           deep_dup_settings_value(value)
                                                                          end
           end
         else
-          Legion::Settings[:extensions][lex_name.to_sym] = Legion::Settings[:default_extension_settings]
+          Legion::Settings[:extensions][lex_name.to_sym] = defaults
         end
 
         default_settings.each do |key, value|
           Legion::Settings[:extensions][lex_name.to_sym][key.to_sym] = if Legion::Settings[:extensions][lex_name.to_sym].key?(key.to_sym)
-                                                                         value.merge(Legion::Settings[:extensions][lex_name.to_sym][key.to_sym])
+                                                                         deep_dup_settings_value(value).merge(Legion::Settings[:extensions][lex_name.to_sym][key.to_sym])
                                                                        else
-                                                                         value
+                                                                         deep_dup_settings_value(value)
                                                                        end
         end
       end
@@ -236,6 +238,21 @@ module Legion
         end
       rescue StandardError => e
         handle_exception(e, lex: lex_name, operation: 'auto_generate_data')
+      end
+
+      def deep_dup_settings_value(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, nested), duplicated|
+            duplicated[key.to_sym] = deep_dup_settings_value(nested)
+          end
+        when Array
+          value.map { |item| deep_dup_settings_value(item) }
+        else
+          value.dup
+        end
+      rescue TypeError
+        value
       end
     end
   end

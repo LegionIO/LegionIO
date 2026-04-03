@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [1.7.12] - 2026-04-03
+
+### Fixed
+- Fixes #110: normal daemon boot now prefers library-owned LLM and Apollo API routes, `/api/tenants` uses canonical JSON parsing with correct status codes, SSE listeners drain worker threads on disconnect, paginated collections avoid unconditional `COUNT(*)` unless explicitly requested, and service startup skips duplicate settings loads once configuration is already bootstrapped
+
+## [1.7.11] - 2026-04-02
+
+### Fixed
+- Fixes #113: webhook deliveries now retry non-2xx responses and transport exceptions up to `max_retries`, record per-attempt delivery rows, dead-letter terminal failures, and cache active webhook pattern matching to reduce per-event dispatch overhead
+
+## [1.7.10] - 2026-04-02
+
+### Changed
+- Bumped minimum dependency floors for Legion core gems, including `legion-logging >= 1.5.0`, `legion-settings >= 1.3.25`, and updated transport, data, cache, crypt, Apollo, and MCP minimums
+- Stabilized the `LegionIO` spec suite by fixing the OAuth callback, catalog, and service shutdown regression specs
+- CLI startup now honors settings-driven log levels, normalizes `start --help` into the standard Thor help flow, and routes chat/error logging through the newer helper-backed logger path
+- `Legion::Service`, telemetry, and webhook runtime paths now use structured helper logging more consistently, respect configured logging when no CLI override is passed, and avoid brittle settings reads during boot
+- Extension runtime wiring now deep-dups merged settings, lazily registers the local `extension_catalog` migration, publishes catalog transitions directly to transport, and surfaces auto-binding failures more clearly
+- Secret, region, and task-outcome helpers now use canonical Vault connectivity checks, cache metadata misses more safely, and create meta-learning domains on demand before recording learning episodes
+
 ## [1.7.8] - 2026-04-01
 
 ### Added

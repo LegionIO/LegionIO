@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
+require 'legion/logging'
+
 module Legion
   module CLI
     module ErrorHandler
+      extend Legion::Logging::Helper
+
       PATTERNS = [
         {
           match:       /connection refused.*5672|ECONNREFUSED.*5672|bunny.*not connected/i,
@@ -71,11 +75,13 @@ module Legion
       def wrap(error)
         pattern = PATTERNS.find { |p| error.message.match?(p[:match]) }
         unless pattern
-          Legion::Logging.error("[CLI] unhandled error: #{error.class} — #{error.message}") if logging_available?
+          handle_exception(error, level: :error, handled: true, operation: :wrap_cli_error, matched: false) if logging_available?
+          log.error("[CLI] unhandled error: #{error.class} - #{error.message}") if logging_available?
           return error
         end
 
-        Legion::Logging.warn("[CLI] matched error pattern :#{pattern[:code]} — #{error.message}") if logging_available?
+        handle_exception(error, level: :warn, handled: true, operation: :wrap_cli_error, code: pattern[:code]) if logging_available?
+        log.warn("[CLI] matched error pattern :#{pattern[:code]} - #{error.message}") if logging_available?
         Error.actionable(
           code:        pattern[:code],
           message:     "#{pattern[:message]}: #{error.message}",

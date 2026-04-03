@@ -90,7 +90,7 @@ module Legion
       end
 
       def self.start(given_args = ARGV, config = {})
-        super
+        super(normalize_help_args(given_args), config)
       rescue Legion::CLI::Error => e
         Legion::Logging.error("CLI::Main.start CLI error: #{e.message}") if defined?(Legion::Logging)
         formatter = Output::Formatter.new(json: given_args.include?('--json'), color: !given_args.include?('--no-color'))
@@ -104,6 +104,17 @@ module Legion
         ErrorHandler.format_error(wrapped, formatter)
         ErrorForwarder.forward_error(e, command: given_args.join(' '))
         exit(1)
+      end
+
+      def self.normalize_help_args(given_args)
+        args = Array(given_args).dup
+        return args unless args.length == 2
+        return args unless %w[--help -h].include?(args.last)
+
+        command = args.first
+        return args if command.start_with?('-') || command == 'help'
+
+        ['help', command]
       end
 
       LEGION_GEMS = %w[
@@ -163,7 +174,7 @@ module Legion
       option :pidfile, type: :string, aliases: ['-p'], desc: 'PID file path'
       option :logfile, type: :string, aliases: ['-l'], desc: 'Log file path'
       option :time_limit, type: :numeric, aliases: ['-t'], desc: 'Run for N seconds then exit'
-      option :log_level, type: :string, default: 'info', desc: 'Log level (debug, info, warn, error)'
+      option :log_level, type: :string, desc: 'Log level (debug, info, warn, error)'
       option :api, type: :boolean, default: true, desc: 'Start the HTTP API server'
       option :http_port, type: :numeric, desc: 'HTTP API port (overrides settings)'
       option :lite, type: :boolean, default: false, desc: 'Start in lite mode (no external services)'

@@ -5,6 +5,7 @@ module Legion
     module Routes
       module Events
         BUFFER_SIZE = 100
+        SSE_STOP = Object.new.freeze
 
         class << self
           def event_buffer
@@ -38,6 +39,42 @@ module Legion
             @listener_installed = true
           end
 
+          def write_sse_event(out, event)
+            payload = event.transform_keys(&:to_s)
+            out << "event: #{payload['event']}\ndata: #{Legion::JSON.dump(payload)}\n\n"
+          end
+
+          def stop_queue_stream(queue:, worker:, listener:)
+            Legion::Events.off('*', listener) if defined?(Legion::Events)
+            return unless worker&.alive?
+
+            queue.push(SSE_STOP)
+            worker.join(0.1)
+          rescue ThreadError, IOError, Errno::EPIPE => e
+            Legion::Logging.debug("Events SSE cleanup failed: #{e.message}") if defined?(Legion::Logging)
+          end
+
+          def stream_queue(out:, queue:, listener:)
+            worker = Thread.new do
+              loop do
+                event = queue.pop
+                break if event.equal?(SSE_STOP)
+
+                write_sse_event(out, event)
+              rescue IOError, Errno::EPIPE => e
+                Legion::Logging.debug("Events SSE stream broken for #{event[:event]}: #{e.message}") if defined?(Legion::Logging)
+                break
+              end
+            ensure
+              Legion::Events.off('*', listener) if defined?(Legion::Events)
+            end
+
+            cleanup = proc { stop_queue_stream(queue: queue, worker: worker, listener: listener) }
+            out.callback(&cleanup)
+            out.errback(&cleanup)
+            worker
+          end
+
           def registered(app)
             install_listener if defined?(Legion::Events)
 
@@ -53,21 +90,7 @@ module Legion
               end
 
               stream do |out|
-                Thread.new do
-                  loop do
-                    event = queue.pop
-                    data = Legion::JSON.dump(event.transform_keys(&:to_s))
-                    out << "event: #{event[:event]}\ndata: #{data}\n\n"
-                  rescue IOError, Errno::EPIPE => e
-                    Legion::Logging.debug "Events SSE stream broken for #{event[:event]}: #{e.message}" if defined?(Legion::Logging)
-                    break
-                  end
-                ensure
-                  Legion::Events.off('*', listener)
-                end
-
-                out.callback { Legion::Events.off('*', listener) }
-                out.errback { Legion::Events.off('*', listener) }
+                stream_queue(out: out, queue: queue, listener: listener)
               end
             end
 

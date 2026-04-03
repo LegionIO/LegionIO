@@ -5,7 +5,12 @@ require 'legion/region'
 
 RSpec.describe Legion::Region do
   before do
+    described_class.reset!
     allow(Legion::Settings).to receive(:dig).and_call_original
+  end
+
+  after do
+    described_class.reset!
   end
 
   describe '.current' do
@@ -21,6 +26,14 @@ RSpec.describe Legion::Region do
         allow(Legion::Settings).to receive(:dig).with(:region, :current).and_return(nil)
         allow(described_class).to receive(:detect_from_metadata).and_return('us-west-2')
         expect(described_class.current).to eq('us-west-2')
+      end
+
+      it 'caches a missing metadata result' do
+        allow(Legion::Settings).to receive(:dig).with(:region, :current).and_return(nil)
+        allow(described_class).to receive(:detect_from_metadata).and_return(nil)
+
+        2.times { expect(described_class.current).to be_nil }
+        expect(described_class).to have_received(:detect_from_metadata).once
       end
     end
 
@@ -126,6 +139,16 @@ RSpec.describe Legion::Region do
       it 'returns nil' do
         allow(Net::HTTP).to receive(:start).and_raise(Errno::EHOSTUNREACH, 'no route')
         expect(described_class.send(:detect_from_metadata)).to be_nil
+      end
+    end
+
+    context 'when Azure metadata times out' do
+      it 'suppresses expected timeout logging' do
+        allow(Net::HTTP).to receive(:start).and_raise(Net::ReadTimeout)
+        allow(Legion::Logging).to receive(:debug)
+
+        expect(described_class.send(:detect_from_metadata)).to be_nil
+        expect(Legion::Logging).not_to have_received(:debug).with(/detect_azure_region failed/)
       end
     end
   end

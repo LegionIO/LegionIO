@@ -167,20 +167,7 @@ module Legion
               end
 
               stream do |out|
-                Thread.new do
-                  loop do
-                    event = queue.pop
-                    data = Legion::JSON.dump({ **event.transform_keys(&:to_s) })
-                    out << "event: #{event[:event]}\ndata: #{data}\n\n"
-                  rescue IOError, Errno::EPIPE
-                    break
-                  end
-                ensure
-                  Legion::Events.off('*', listener)
-                end
-
-                out.callback { Legion::Events.off('*', listener) }
-                out.errback { Legion::Events.off('*', listener) }
+                Routes::Events.stream_queue(out: out, queue: queue, listener: listener)
               end
             else
               count = (params[:count] || 25).to_i

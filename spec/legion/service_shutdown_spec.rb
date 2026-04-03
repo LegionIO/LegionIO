@@ -56,8 +56,15 @@ RSpec.describe Legion::Service do
     end
 
     it 'logs a warning on StandardError' do
+      allow(service).to receive(:handle_exception)
       service.shutdown_component('Test') { raise 'boom' }
-      expect(Legion::Logging).to have_received(:warn).with(/Test shutdown error: RuntimeError: boom/)
+      expect(service).to have_received(:handle_exception).with(
+        instance_of(RuntimeError),
+        level:     :warn,
+        operation: 'service.shutdown_component',
+        component: 'Test',
+        timeout:   5
+      )
     end
   end
 

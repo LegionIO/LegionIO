@@ -41,7 +41,7 @@ module Legion
         record_learning(domain: domain, success: success)
         publish_lesson(runner: runner_class, function: function, success: success)
       rescue StandardError => e
-        Legion::Logging.debug "[TaskOutcomeObserver] handle_outcome error: #{e.message}" if defined?(Legion::Logging)
+        Legion::Logging.warn "[TaskOutcomeObserver] handle_outcome error: #{e.class}: #{e.message}" if defined?(Legion::Logging)
       end
 
       def derive_domain(runner_class)
@@ -53,13 +53,15 @@ module Legion
       end
 
       def record_learning(domain:, success:)
-        return unless defined?(Legion::Extensions::Agentic::Learning::MetaLearning)
+        client = meta_learning_client
+        return unless client
 
-        Legion::Extensions::Agentic::Learning::MetaLearning.record_learning_episode(
-          domain_id: domain, success: success
-        )
+        domain_id = resolve_learning_domain_id(client, domain)
+        return unless domain_id
+
+        client.record_learning_episode(domain_id: domain_id, success: success)
       rescue StandardError => e
-        Legion::Logging.debug "[TaskOutcomeObserver] record_learning failed: #{e.message}" if defined?(Legion::Logging)
+        Legion::Logging.warn "[TaskOutcomeObserver] record_learning failed: #{e.class}: #{e.message}" if defined?(Legion::Logging)
       end
 
       def publish_lesson(runner:, function:, success:, **_opts)
@@ -76,7 +78,7 @@ module Legion
           is_inference:     false
         )
       rescue StandardError => e
-        Legion::Logging.debug "[TaskOutcomeObserver] publish_lesson failed: #{e.message}" if defined?(Legion::Logging)
+        Legion::Logging.warn "[TaskOutcomeObserver] publish_lesson failed: #{e.class}: #{e.message}" if defined?(Legion::Logging)
       end
 
       def setup_llm_reflection_hook
@@ -94,7 +96,29 @@ module Legion
         Legion::LLM::Hooks::Reflection.install
         Legion::Logging.info '[TaskOutcomeObserver] LLM reflection hook auto-installed'
       rescue StandardError => e
-        Legion::Logging.debug "[TaskOutcomeObserver] LLM reflection hook install failed: #{e.message}" if defined?(Legion::Logging)
+        Legion::Logging.warn "[TaskOutcomeObserver] LLM reflection hook install failed: #{e.class}: #{e.message}" if defined?(Legion::Logging)
+      end
+
+      def meta_learning_client
+        return unless defined?(Legion::Extensions::Agentic::Learning::MetaLearning::Client)
+
+        @meta_learning_client ||= Legion::Extensions::Agentic::Learning::MetaLearning::Client.new
+      end
+
+      def resolve_learning_domain_id(client, domain)
+        domain_map = learning_domain_map
+        return domain_map[domain] if domain_map.key?(domain)
+
+        result = client.create_learning_domain(name: domain)
+        return if result.is_a?(Hash) && result[:error]
+
+        domain_id = result[:id]
+        domain_map[domain] = domain_id if domain_id
+        domain_id
+      end
+
+      def learning_domain_map
+        @learning_domain_map ||= {}
       end
     end
   end

@@ -3,7 +3,10 @@
 require 'spec_helper'
 
 RSpec.describe Legion::Extensions::Catalog do
-  before { described_class.reset! }
+  before do
+    described_class.reset!
+    allow(Legion::Logging).to receive(:warn)
+  end
 
   describe '.register' do
     it 'registers an extension with default state :registered' do
@@ -49,6 +52,26 @@ RSpec.describe Legion::Extensions::Catalog do
       allow(described_class).to receive(:persist_transition)
       described_class.transition('lex-detect', :loaded)
       expect(described_class).to have_received(:persist_transition).with('lex-detect', :loaded)
+    end
+
+    it 'publishes a raw catalog event instead of using function-backed dynamic messages' do
+      exchange = instance_double('Legion::Transport::Exchange', publish: true)
+      exchange_class = class_double('Legion::Transport::Exchange', new: exchange)
+      connection = class_double('Legion::Transport::Connection', session_open?: true)
+      stub_const('Legion::Transport::Exchange', exchange_class)
+      stub_const('Legion::Transport::Connection', connection)
+
+      allow(described_class).to receive(:persist_transition)
+
+      described_class.transition('lex-detect', :loaded)
+
+      expect(exchange_class).to have_received(:new).with('legion.catalog')
+      expect(exchange).to have_received(:publish).with(
+        kind_of(String),
+        routing_key:  'legion.catalog.lex-detect.loaded',
+        content_type: 'application/json',
+        persistent:   true
+      )
     end
   end
 
@@ -105,6 +128,57 @@ RSpec.describe Legion::Extensions::Catalog do
     it 'does not raise when Data::Local is unavailable' do
       described_class.register('lex-detect')
       expect { described_class.transition('lex-detect', :loaded) }.not_to raise_error
+    end
+
+    it 'warns once and skips persistence when extension_catalog is missing' do
+      connection = double('Sequel::Database', tables: [])
+      local = Module.new do
+        class << self
+          attr_accessor :connection
+        end
+
+        def self.connected? = true
+        def self.registered_migrations = {}
+      end
+      local.connection = connection
+      allow(local).to receive(:register_migrations)
+      stub_const('Legion::Data::Local', local)
+
+      described_class.register('lex-detect')
+      described_class.transition('lex-detect', :loaded)
+      described_class.transition('lex-detect', :running)
+
+      expect(local).to have_received(:register_migrations).with(
+        name: :extension_catalog,
+        path: kind_of(String)
+      ).at_least(:once)
+      expect(Legion::Logging).to have_received(:warn).with(/extension_catalog table is missing/).once
+    end
+
+    it 'registers the local migration lazily once Data::Local is available' do
+      connection = double('Sequel::Database', tables: [:extension_catalog])
+      dataset = instance_double('Sequel::Dataset', first: nil)
+      model = double('Sequel::Model', where: dataset, insert: true)
+      local = Module.new do
+        class << self
+          attr_accessor :connection
+        end
+
+        def self.connected? = true
+        def self.registered_migrations = {}
+      end
+      local.connection = connection
+      allow(local).to receive(:register_migrations)
+      allow(local).to receive(:model).with(:extension_catalog).and_return(model)
+      stub_const('Legion::Data::Local', local)
+
+      described_class.register('lex-detect')
+      described_class.transition('lex-detect', :loaded)
+
+      expect(local).to have_received(:register_migrations).with(
+        name: :extension_catalog,
+        path: kind_of(String)
+      )
     end
   end
 end

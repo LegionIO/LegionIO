@@ -101,7 +101,7 @@ module Legion
       end
 
       desc 'validate', 'Validate current configuration'
-      def validate # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def validate # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         out = formatter
         Connection.config_dir = options[:config_dir] if options[:config_dir]
 

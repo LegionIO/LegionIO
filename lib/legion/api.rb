@@ -149,6 +149,25 @@ module Legion
       def router
         @router ||= Legion::API::Router.new
       end
+
+      def mount_library_routes(gem_name, fallback_module, preferred_constant_path)
+        preferred = constant_from_path(preferred_constant_path)
+        if preferred.is_a?(Module)
+          register_library_routes(gem_name, preferred)
+        elsif router.library_names.include?(gem_name)
+          register_library_routes(gem_name, router.library_routes.fetch(gem_name))
+        else
+          register fallback_module
+        end
+      end
+
+      private
+
+      def constant_from_path(path)
+        path.to_s.split('::').reject(&:empty?).reduce(Object) { |scope, name| scope.const_get(name) }
+      rescue NameError
+        nil
+      end
     end
 
     # Mount route modules
@@ -175,14 +194,14 @@ module Legion
     register Routes::Capacity
     register Routes::Audit
     register Routes::Metrics
-    register Routes::Llm unless router.library_names.include?('llm')
+    mount_library_routes('llm', Routes::Llm, 'Legion::LLM::Routes')
     register Routes::ExtensionCatalog
     register Routes::OrgChart
     register Routes::Governance
     register Routes::Acp
     register Routes::Prompts
     register Routes::Marketplace
-    register Routes::Apollo unless router.library_names.include?('apollo')
+    mount_library_routes('apollo', Routes::Apollo, 'Legion::Apollo::Routes')
     register Routes::Costs
     register Routes::Traces
     register Routes::Stats
