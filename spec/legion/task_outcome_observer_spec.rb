@@ -61,6 +61,18 @@ RSpec.describe Legion::TaskOutcomeObserver do
     it 'does not raise when MetaLearning is not defined' do
       expect { described_class.send(:record_learning, domain: 'test', success: true) }.not_to raise_error
     end
+
+    it 'uses the meta learning client when available' do
+      client = instance_double('meta_client', create_learning_domain: { id: 'dom-123' }, record_learning_episode: true)
+      client_class = Class.new
+      allow(client_class).to receive(:new).and_return(client)
+      stub_const('Legion::Extensions::Agentic::Learning::MetaLearning::Client', client_class)
+
+      described_class.send(:record_learning, domain: 'test', success: true)
+
+      expect(client).to have_received(:create_learning_domain).with(name: 'test')
+      expect(client).to have_received(:record_learning_episode).with(domain_id: 'dom-123', success: true)
+    end
   end
 
   describe '.publish_lesson' do

@@ -4,14 +4,40 @@ require 'net/http'
 
 module Legion
   module Region
+    include Legion::Logging::Helper if defined?(Legion::Logging::Helper)
+
     module_function
+
+    UNSET = Object.new.freeze
+    EXPECTED_METADATA_ERRORS = [
+      Net::OpenTimeout,
+      Net::ReadTimeout,
+      Errno::EHOSTUNREACH,
+      Errno::ECONNREFUSED,
+      Errno::ENETUNREACH,
+      IOError,
+      SocketError
+    ].freeze
 
     def current
       setting = defined?(Legion::Settings) ? Legion::Settings.dig(:region, :current) : nil
-      setting || detect_from_metadata
+      return setting unless blank_region?(setting)
+
+      @detected_region = UNSET unless instance_variable_defined?(:@detected_region)
+      return nil if @detected_region.equal?(UNSET) && @metadata_detection_complete == true
+      return @detected_region unless @detected_region.equal?(UNSET)
+
+      @detected_region = detect_from_metadata
+      @metadata_detection_complete = true
+      @detected_region
     rescue StandardError => e
       Legion::Logging.debug "Region#current failed: #{e.message}" if defined?(Legion::Logging)
       nil
+    end
+
+    def reset!
+      remove_instance_variable(:@detected_region) if instance_variable_defined?(:@detected_region)
+      remove_instance_variable(:@metadata_detection_complete) if instance_variable_defined?(:@metadata_detection_complete)
     end
 
     def local?(target_region)
@@ -76,6 +102,8 @@ module Legion
         response = http.request(req)
         response.is_a?(Net::HTTPSuccess) ? response.body.strip : nil
       end
+    rescue *EXPECTED_METADATA_ERRORS
+      nil
     rescue StandardError => e
       Legion::Logging.debug "Region#detect_aws_region failed: #{e.message}" if defined?(Legion::Logging)
       nil
@@ -90,9 +118,16 @@ module Legion
         response = http.request(req)
         response.is_a?(Net::HTTPSuccess) ? response.body.strip : nil
       end
+    rescue *EXPECTED_METADATA_ERRORS
+      nil
     rescue StandardError => e
       Legion::Logging.debug "Region#detect_azure_region failed: #{e.message}" if defined?(Legion::Logging)
       nil
     end
+
+    def blank_region?(value)
+      value.nil? || (value.respond_to?(:empty?) && value.empty?)
+    end
+    private_class_method :blank_region?
   end
 end

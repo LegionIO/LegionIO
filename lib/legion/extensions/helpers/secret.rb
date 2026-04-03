@@ -78,6 +78,8 @@ module Legion
         end
 
         def vault_connected?
+          return Legion::Crypt.vault_connected? if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:vault_connected?)
+
           defined?(Legion::Settings) &&
             Legion::Settings[:crypt]&.dig(:vault, :connected) == true
         rescue StandardError

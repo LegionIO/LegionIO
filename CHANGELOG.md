@@ -10,6 +10,7 @@
 - CLI startup now honors settings-driven log levels, normalizes `start --help` into the standard Thor help flow, and routes chat/error logging through the newer helper-backed logger path
 - `Legion::Service`, telemetry, and webhook runtime paths now use structured helper logging more consistently, respect configured logging when no CLI override is passed, and avoid brittle settings reads during boot
 - Extension runtime wiring now deep-dups merged settings, lazily registers the local `extension_catalog` migration, publishes catalog transitions directly to transport, and surfaces auto-binding failures more clearly
+- Secret, region, and task-outcome helpers now use canonical Vault connectivity checks, cache metadata misses more safely, and create meta-learning domains on demand before recording learning episodes
 
 ## [1.7.8] - 2026-04-01
 
