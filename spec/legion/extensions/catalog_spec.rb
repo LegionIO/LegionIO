@@ -147,6 +147,7 @@ RSpec.describe Legion::Extensions::Catalog do
       described_class.register('lex-detect')
       described_class.transition('lex-detect', :loaded)
       described_class.transition('lex-detect', :running)
+      described_class.flush_persisted_transitions
 
       expect(local).to have_received(:register_migrations).with(
         name: :extension_catalog,
@@ -159,6 +160,7 @@ RSpec.describe Legion::Extensions::Catalog do
       connection = double('Sequel::Database', tables: [:extension_catalog])
       dataset = instance_double('Sequel::Dataset', first: nil)
       model = double('Sequel::Model', where: dataset, insert: true)
+      nil
       local = Module.new do
         class << self
           attr_accessor :connection
@@ -168,12 +170,14 @@ RSpec.describe Legion::Extensions::Catalog do
         def self.registered_migrations = {}
       end
       local.connection = connection
+      allow(connection).to receive(:transaction) { |&blk| blk.call }
       allow(local).to receive(:register_migrations)
       allow(local).to receive(:model).with(:extension_catalog).and_return(model)
       stub_const('Legion::Data::Local', local)
 
       described_class.register('lex-detect')
       described_class.transition('lex-detect', :loaded)
+      described_class.flush_persisted_transitions
 
       expect(local).to have_received(:register_migrations).with(
         name: :extension_catalog,

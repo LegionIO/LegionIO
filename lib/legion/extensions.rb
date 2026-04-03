@@ -279,16 +279,18 @@ module Legion
 
         Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
 
-        sub_actors = []
-        @pending_actors.each do |actor|
-          if actor[:actor_class].ancestors.include?(Legion::Extensions::Actors::Subscription)
-            sub_actors << actor
-          else
-            hook_actor(**actor)
-          end
-        end
+        groups = group_pending_actors
 
-        hook_subscription_actors_pooled(sub_actors) unless sub_actors.empty?
+        %i[once poll every loop].each do |type|
+          next if groups[type].empty?
+
+          Legion::Logging.info "Starting #{type} actors (#{groups[type].size})"
+          groups[type].each { |actor| hook_actor(**actor) }
+        end
+        unless groups[:subscription].empty?
+          Legion::Logging.info "Starting subscription actors (#{groups[:subscription].size})"
+          hook_subscription_actors_pooled(groups[:subscription])
+        end
         dispatch_local_actors(@local_tasks) unless @local_tasks.empty?
 
         @pending_actors.clear
@@ -301,6 +303,33 @@ module Legion
           "local:#{@local_tasks.count}"
         )
         @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
+        Catalog.flush_persisted_transitions
+      end
+
+      ACTOR_TYPE_MAP = {
+        Once:         :once,
+        Poll:         :poll,
+        Every:        :every,
+        Loop:         :loop,
+        Subscription: :subscription
+      }.freeze
+
+      def group_pending_actors
+        groups = { once: [], poll: [], every: [], loop: [], subscription: [] }
+        @pending_actors.each do |actor|
+          type = resolve_actor_type(actor[:actor_class])
+          groups[type] << actor
+        end
+        groups
+      end
+
+      def resolve_actor_type(actor_class)
+        anc = actor_class.ancestors
+        ACTOR_TYPE_MAP.each do |const, type|
+          return type if anc.include?(Legion::Extensions::Actors.const_get(const))
+        end
+        Legion::Logging.warn "Unknown actor type for #{actor_class}, defaulting to loop"
+        :loop
       end
 
       def hook_actor(extension:, extension_name:, actor_class:, size: 1, **opts)

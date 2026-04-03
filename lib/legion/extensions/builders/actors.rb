@@ -37,6 +37,11 @@ module Legion
         end
 
         def build_meta_actor_list
+          if lex_class.respond_to?(:remote_invocable?) && !lex_class.remote_invocable?
+            log.debug "[Actors] skipping meta actors for #{lex_class} (remote_invocable=false)"
+            return
+          end
+
           @runners.each do |runner, attr|
             next if @actors[runner.to_sym].is_a? Hash
 

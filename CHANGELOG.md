@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.7.14] - 2026-04-03
+
+### Fixed
+- Actor boot ordering: once → poll → every → loop → subscriptions, preventing timer actors from competing with AMQP channel setup
+- Builder now respects `remote_invocable? false` and skips auto-generated subscription actors for local-only extensions
+- Catalog exchange cached and reused instead of creating a new channel + exchange_declare per transition
+- Catalog SQLite persists batched into a single transaction at end of boot instead of per-transition writes from concurrent threads
+
 ## [1.7.13] - 2026-04-03
 
 ### Changed

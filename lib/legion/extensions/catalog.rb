@@ -61,6 +61,40 @@ module Legion
           @warned_missing_extension_catalog = false
         end
 
+        def flush_persisted_transitions
+          pending = nil
+          @pending_persists_mutex ||= Mutex.new
+          @pending_persists_mutex.synchronize do
+            return if @pending_persists.nil? || @pending_persists.empty?
+
+            pending = @pending_persists.dup
+            @pending_persists.clear
+          end
+
+          return unless defined?(Legion::Data::Local) &&
+                        Legion::Data::Local.respond_to?(:connected?) &&
+                        Legion::Data::Local.connected?
+
+          ensure_local_migration_registered!
+          return warn_missing_extension_catalog_once unless extension_catalog_table_available?
+
+          model = Legion::Data::Local.model(:extension_catalog)
+          now = Time.now
+          Legion::Data::Local.connection.transaction do
+            pending.each do |lex_name, new_state|
+              existing = model.where(lex_name: lex_name).first
+              if existing
+                existing.update(state: new_state.to_s, updated_at: now)
+              else
+                model.insert(lex_name: lex_name, state: new_state.to_s, created_at: now, updated_at: now)
+              end
+            end
+          end
+          Legion::Logging.info "Catalog persisted #{pending.size} transitions" if defined?(Legion::Logging)
+        rescue StandardError => e
+          Legion::Logging.warn { "Catalog flush failed: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
+        end
+
         private
 
         def entries
@@ -78,30 +112,25 @@ module Legion
             timestamp: Time.now.to_i
           )
 
-          exchange = Legion::Transport::Exchange.new('legion.catalog')
-          exchange.publish(payload, routing_key: "legion.catalog.#{lex_name}.#{new_state}",
-                                    content_type: 'application/json', persistent: true)
+          catalog_exchange.publish(payload, routing_key: "legion.catalog.#{lex_name}.#{new_state}",
+                                            content_type: 'application/json', persistent: true)
         rescue StandardError => e
+          @catalog_exchange = nil
           Legion::Logging.warn { "Catalog publish failed for #{lex_name}=#{new_state}: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
         end
 
+        def catalog_exchange
+          return @catalog_exchange if @catalog_exchange&.channel&.open?
+
+          @catalog_exchange = Legion::Transport::Exchange.new('legion.catalog')
+        end
+
         def persist_transition(lex_name, new_state)
-          return unless defined?(Legion::Data::Local) &&
-                        Legion::Data::Local.respond_to?(:connected?) &&
-                        Legion::Data::Local.connected?
-
-          ensure_local_migration_registered!
-          return warn_missing_extension_catalog_once unless extension_catalog_table_available?
-
-          model = Legion::Data::Local.model(:extension_catalog)
-          existing = model.where(lex_name: lex_name).first
-          if existing
-            existing.update(state: new_state.to_s, updated_at: Time.now)
-          else
-            model.insert(lex_name: lex_name, state: new_state.to_s, created_at: Time.now, updated_at: Time.now)
+          @pending_persists_mutex ||= Mutex.new
+          @pending_persists_mutex.synchronize do
+            @pending_persists ||= {}
+            @pending_persists[lex_name] = new_state
           end
-        rescue StandardError => e
-          Legion::Logging.warn { "Catalog persist failed for #{lex_name}=#{new_state}: #{e.class}: #{e.message}" } if defined?(Legion::Logging)
         end
 
         def extension_catalog_table_available?
