@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.7.12] - 2026-04-03
+
+### Fixed
+- Fixes #110: normal daemon boot now prefers library-owned LLM and Apollo API routes, `/api/tenants` uses canonical JSON parsing with correct status codes, SSE listeners drain worker threads on disconnect, paginated collections avoid unconditional `COUNT(*)` unless explicitly requested, and service startup skips duplicate settings loads once configuration is already bootstrapped
+
 ## [1.7.11] - 2026-04-02
 
 ### Fixed

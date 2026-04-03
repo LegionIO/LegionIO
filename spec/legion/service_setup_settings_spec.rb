@@ -10,6 +10,10 @@ RSpec.describe Legion::Service do
     before do
       stub_const('Legion::Settings', Class.new do
         def self.load(**); end
+
+        def self.loaded?
+          false
+        end
       end)
       stub_const('Legion::Settings::Loader', Class.new do
         def self.default_directories
@@ -43,6 +47,14 @@ RSpec.describe Legion::Service do
       allow(Legion::Settings).to receive(:load)
 
       expect(Legion::Readiness).to receive(:mark_ready).with(:settings)
+      service.send(:setup_settings)
+    end
+
+    it 'skips reload when settings are already loaded' do
+      allow(Dir).to receive(:exist?).and_return(false)
+      allow(Legion::Settings).to receive(:loaded?).and_return(true)
+
+      expect(Legion::Settings).not_to receive(:load)
       service.send(:setup_settings)
     end
   end

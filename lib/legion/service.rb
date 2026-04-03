@@ -242,7 +242,11 @@ module Legion
       existing = directories.select { |d| Dir.exist?(d) }
       log.info "Settings search directories: #{directories.inspect}"
       existing.each { |d| log.info "Settings: will load from #{d}" }
-      Legion::Settings.load(config_dirs: existing)
+      if Legion::Settings.respond_to?(:loaded?) && Legion::Settings.loaded?
+        log.info 'Legion::Settings already loaded, skipping reload'
+      else
+        Legion::Settings.load(config_dirs: existing)
+      end
       Legion::Readiness.mark_ready(:settings)
       log.info('Legion::Settings Loaded')
       self.class.log_privacy_mode_status

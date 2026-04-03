@@ -16,17 +16,20 @@ module Legion
         content_type :json
         status status_code
 
-        total = dataset.respond_to?(:count) ? dataset.count : dataset.length
         paginated = paginate(dataset)
-        items = paginated.respond_to?(:all) ? paginated.all : paginated
+        items = paginated.respond_to?(:all) ? paginated.all : Array(paginated)
+        total = collection_total(dataset, items)
+        meta = response_meta.merge(
+          count:  items.length,
+          limit:  page_limit,
+          offset: page_offset
+        )
+        meta[:total] = total unless total.nil?
+        meta[:has_more] = collection_has_more?(items, total)
 
         Legion::JSON.dump({
                             data: items.map { |r| r.respond_to?(:values) ? r.values : r },
-                            meta: response_meta.merge(
-                              total:  total,
-                              limit:  page_limit,
-                              offset: page_offset
-                            )
+                            meta: meta
                           })
       end
 
@@ -197,6 +200,25 @@ module Legion
         else
           dataset
         end
+      end
+
+      def include_total_count?
+        params[:include_total].to_s == 'true'
+      end
+
+      def collection_total(dataset, items)
+        return dataset.count if include_total_count? && dataset.respond_to?(:count)
+        return dataset.length if dataset.respond_to?(:length) && !dataset.respond_to?(:limit)
+
+        return page_offset + items.length if items.length < page_limit
+
+        nil
+      end
+
+      def collection_has_more?(items, total)
+        return (page_offset + items.length) < total if total
+
+        items.length == page_limit
       end
     end
   end

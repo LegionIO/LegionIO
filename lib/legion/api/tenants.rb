@@ -13,14 +13,13 @@ module Legion
           end
 
           app.post '/api/tenants' do
-            params = parsed_body
+            body = parse_request_body
             result = Legion::Tenants.create(
-              tenant_id:   params['tenant_id'],
-              name:        params['name'],
-              max_workers: params['max_workers'] || 10
+              tenant_id:   body[:tenant_id],
+              name:        body[:name],
+              max_workers: body[:max_workers] || 10
             )
-            status result[:error] ? 409 : 201
-            json_response(data: result)
+            json_response(result, status_code: result[:error] ? 409 : 201)
           end
 
           app.get '/api/tenants/:tenant_id' do
