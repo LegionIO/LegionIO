@@ -8,6 +8,8 @@ module Legion
       input_schema(properties: {})
 
       class << self
+        include Legion::Logging::Helper
+
         def call(**_args)
           status = {
             version:    defined?(Legion::VERSION) ? Legion::VERSION : 'unknown',

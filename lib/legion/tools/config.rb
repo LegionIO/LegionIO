@@ -14,6 +14,8 @@ module Legion
       SENSITIVE_KEYS = %i[password secret token key cert private_key api_key].freeze
 
       class << self
+        include Legion::Logging::Helper
+
         def call(section: nil)
           settings = Legion::Settings.loader.to_hash
 

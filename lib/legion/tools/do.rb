@@ -29,6 +29,8 @@ module Legion
       )
 
       class << self
+        include Legion::Logging::Helper
+
         def call(intent:, params: {}, context: {})
           request_id = context[:request_id] || "do_#{SecureRandom.hex(6)}"
           tool_params = params.transform_keys(&:to_sym)

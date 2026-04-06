@@ -4,7 +4,10 @@ module Legion
   module Tools
     class Base
       class << self
-        # Lazy log delegation - loads before logging is initialized
+        # Lazy delegation instead of include Helper — Base loads at require time
+        # before Settings is initialized; Helper#log builds TaggedLogger which
+        # calls derive_log_segments -> Settings -> possible recursion.
+        # Subclass static tools (Do, Status, Config) CAN include Helper safely.
         def log
           Legion::Logging.respond_to?(:logger) ? Legion::Logging.logger : nil
         end
