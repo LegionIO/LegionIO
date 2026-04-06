@@ -130,7 +130,7 @@ module Legion
           {
             tool_name:    defn&.dig(:mcp_prefix) || "legion.#{ext_name}.#{runner_snake}.#{func_name}",
             description:  meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
-            input_schema: meta[:options] || { properties: {} },
+            input_schema: normalize_schema(meta[:options]),
             mcp_category: defn&.dig(:mcp_category),
             mcp_tier:     defn&.dig(:mcp_tier),
             deferred:     deferred,
@@ -171,6 +171,15 @@ module Legion
 
           last = mod_name.split('::').last
           last.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase
+        end
+
+        # LLM providers (Bedrock, etc.) require input_schema to have type: 'object' at root
+        def normalize_schema(schema)
+          schema = { properties: {} } if schema.nil? || schema.empty?
+          schema = schema.dup
+          schema[:type] ||= 'object'
+          schema[:properties] ||= {}
+          schema
         end
 
         def derive_extension_name(ext)

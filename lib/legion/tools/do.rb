@@ -9,6 +9,7 @@ module Legion
       description 'Execute a Legion action by describing what you want to do in natural language. ' \
                   'Routes to the best matching tool automatically.'
       input_schema(
+        type:       'object',
         properties: {
           intent:  {
             type:        'string',

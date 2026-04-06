@@ -6,6 +6,7 @@ module Legion
       tool_name 'legion.get_config'
       description 'Get Legion configuration (sensitive values are redacted).'
       input_schema(
+        type:       'object',
         properties: {
           section: { type: 'string', description: 'Specific config section (e.g., "transport", "data")' }
         }

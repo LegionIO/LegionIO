@@ -5,7 +5,7 @@ module Legion
     class Status < Base
       tool_name 'legion.get_status'
       description 'Get Legion service health status and component info.'
-      input_schema(properties: {})
+      input_schema(type: 'object', properties: {})
 
       class << self
         include Legion::Logging::Helper
