@@ -2,12 +2,12 @@
 
 module Legion
   module Readiness
-    COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia extensions api].freeze
+    COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia identity extensions api].freeze
     DRAIN_TIMEOUT = 5
 
     class << self
       def status
-        @status ||= {}
+        @status ||= Concurrent::Hash.new
       end
 
       def mark_ready(component)

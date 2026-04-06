@@ -17,6 +17,8 @@ module Legion
       autoload :PidCheck,         'legion/cli/doctor/pid_check'
       autoload :PermissionsCheck, 'legion/cli/doctor/permissions_check'
       autoload :TlsCheck,         'legion/cli/doctor/tls_check'
+      autoload :ApiBindCheck,     'legion/cli/doctor/api_bind_check'
+      autoload :ModeCheck,        'legion/cli/doctor/mode_check'
 
       def self.exit_on_failure?
         true
@@ -37,6 +39,8 @@ module Legion
         PidCheck
         PermissionsCheck
         TlsCheck
+        ApiBindCheck
+        ModeCheck
       ].freeze
 
       # Weights: security > connectivity > convenience
