@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.7.18] - 2026-04-06
+
+### Added
+- Multi-phase extension loading: identity providers (`lex-identity-*`) load in phase 0 before all other extensions in phase 1
+- `identity` category in extension registry with prefix matching for `lex-identity-*` gems at tier 0, phase 0
+- `group_by_phase` method groups discovered extensions by phase from the category registry
+- `load_phase_extensions` replaces `load_extensions` — scopes parallel loading to a subset of entries per phase
+- `hook_phase_actors` replaces `hook_all_actors` — hooks deferred actors after each phase completes
+- Per-phase logging during extension loading shows cumulative actor counts
+
+### Changed
+- `hook_extensions` now iterates phases sequentially (phase 0 then phase 1), running full load+hook cycle per phase
+- `default_category_registry` includes `phase:` key on all categories; all non-identity categories default to phase 1
+- Catalog transitions (`transition(:running)` + `flush_persisted_transitions`) happen after all phases complete
+- Reserved prefixes list now includes `identity`
+
 ### Added
 - `Legion::Tools::Base` - canonical tool base class with DSL
 - `Legion::Tools::Registry` - always/deferred tool classification
