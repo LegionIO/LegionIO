@@ -158,7 +158,7 @@ module Legion
           end
           return nil unless matched
 
-          matched.tool_name.split('.').last
+          matched.tool_name.split(/[-.]/).last
         end
 
         def build_runner_class(extension, runner)
