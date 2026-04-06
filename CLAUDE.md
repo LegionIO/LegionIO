@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.6.0
+**Version**: 1.7.17
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -85,7 +85,7 @@ Legion (lib/legion.rb)
 │                      # Ingress.run(payload:, runner_class:, function:, source:)
 │                      # Ingress.normalize returns message hash without executing
 ├── Extensions         # LEX discovery, loading, and lifecycle management
-│   ├── Core           # Mixin: data_required?, cache_required?, crypt_required?, etc.
+│   ├── Core           # Mixin: data_required?, cache_required?, crypt_required?, mcp_tools?, mcp_tools_deferred?, etc.
 │   ├── Actors/        # Actor execution modes
 │   │   ├── Base       # Base actor class
 │   │   ├── Every      # Run at interval (timer)
@@ -96,7 +96,7 @@ Legion (lib/legion.rb)
 │   │   └── Nothing    # No-op actor
 │   ├── Builders/      # Build actors and runners from LEX definitions
 │   │   ├── Actors     # Build actors from extension definitions
-│   │   ├── Runners    # Build runners from extension definitions (stores runner_module ref)
+│   │   ├── Runners    # Build runners from extension definitions; exposes `runner_modules` accessor for Discovery
 │   │   ├── Helpers    # Builder utilities
 │   │   ├── Hooks      # Webhook hook system builder
 │   │   └── Routes     # Auto-route builder: introspects runners, registers POST /api/extensions/* routes
@@ -149,7 +149,17 @@ Legion (lib/legion.rb)
 │                      # Populated by Builders::Routes during autobuild via LexDispatch
 │
 ├── MCP (legion-mcp gem)  # Extracted to standalone gem — see legion-mcp/CLAUDE.md
-│   └── (58 tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
+│   └── (tools, 2 resources, TierRouter, PatternStore, ContextGuard, Observer, EmbeddingIndex)
+│
+├── Tools              # Canonical tool layer — replaces Extensions::Capability and Catalog::Registry
+│   ├── Base           # Base class for all framework tools (Do, Status, Config are built-in statics)
+│   ├── Registry       # always/deferred classification for all tools; replaces Catalog::Registry
+│   │                  # Extensions declare tools via `mcp_tools?` / `mcp_tools_deferred?` DSL on Core
+│   ├── Discovery      # Auto-discovers tools from extension runner modules at boot
+│   │                  # `runner_modules` accessor on Builders::Runners feeds Discovery
+│   │                  # `loaded_extension_modules` on Extensions exposes the full set
+│   └── EmbeddingCache # 5-tier persistent embedding cache:
+│                      #   L0 in-memory hash → L1 Cache::Local → L2 Cache → L3 Data::Local → L4 Data
 │
 ├── DigitalWorker      # Digital worker platform (AI-as-labor governance)
 │   ├── Lifecycle      # Worker state machine (active/paused/retired/terminated)
@@ -479,7 +489,7 @@ legion
 
 ### MCP Design
 
-Extracted to the `legion-mcp` gem (v0.5.9). See `legion-mcp/CLAUDE.md` for full architecture.
+Extracted to the `legion-mcp` gem (v0.7.3). See `legion-mcp/CLAUDE.md` for full architecture.
 
 - `Legion::MCP.server` is memoized singleton — call `Legion::MCP.reset!` in tests
 - Tool naming: `legion.snake_case_name` (dot namespace, not slash)
@@ -571,7 +581,7 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/readiness.rb` | Component readiness tracking (COMPONENTS constant, `ready?`, `to_h`) |
 | `lib/legion/events.rb` | In-process pub/sub: `on`, `emit`, `once`, `off`, wildcard `*` |
 | `lib/legion/ingress.rb` | Universal runner invocation: `normalize`, `run` |
-| `lib/legion/extensions.rb` | LEX discovery, loading, actor hooking, shutdown |
+| `lib/legion/extensions.rb` | LEX discovery, loading, actor hooking, shutdown; exposes `loaded_extension_modules` for Tools::Discovery |
 | `lib/legion/extensions/core.rb` | Extension mixin (requirement flags, autobuild) |
 | `lib/legion/extensions/actors/` | Actor types: base, every, loop, once, poll, subscription, nothing, defaults |
 | `lib/legion/extensions/builders/` | Build actors, runners, helpers, hooks, routes from definitions |
@@ -586,7 +596,12 @@ rack-test, rake, rspec, rubocop, rubocop-rspec, simplecov
 | `lib/legion/isolation.rb` | Process isolation for untrusted extension execution |
 | `lib/legion/sandbox.rb` | Sandboxed execution environment for extensions |
 | `lib/legion/context.rb` | Thread-local execution context (request tracing, tenant) |
-| `lib/legion/catalog.rb` | Extension catalog: registry of available extensions with metadata |
+| `lib/legion/catalog.rb` | Extension catalog: registry of available extensions with metadata (Catalog::Registry removed — replaced by Tools::Registry) |
+| `lib/legion/tools.rb` | Tools module entry point |
+| `lib/legion/tools/base.rb` | Tools::Base — canonical base class for all tools |
+| `lib/legion/tools/registry.rb` | Tools::Registry — always/deferred classification, replaces Catalog::Registry |
+| `lib/legion/tools/discovery.rb` | Tools::Discovery — auto-discovers tools from extension runner_modules at boot |
+| `lib/legion/tools/embedding_cache.rb` | Tools::EmbeddingCache — 5-tier persistent embedding cache (L0–L4) |
 | `lib/legion/registry.rb` | Extension registry with security scanning |
 | `lib/legion/registry/security_scanner.rb` | Gem security scanner (CVE checks, signature verification) |
 | `lib/legion/webhooks.rb` | Webhook delivery system: HTTP POST with retry, HMAC signing |
