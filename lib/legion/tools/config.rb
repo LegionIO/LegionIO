@@ -36,17 +36,24 @@ module Legion
 
         private
 
+        def redact_value(key, value)
+          normalized_key = key.to_s.downcase
+          if value.is_a?(Hash)
+            redact_hash(value)
+          elsif value.is_a?(Array)
+            value.map { |elem| elem.is_a?(Hash) ? redact_hash(elem) : elem }
+          elsif SENSITIVE_KEYS.any? { |s| normalized_key.include?(s.to_s) }
+            '[REDACTED]'
+          else
+            value
+          end
+        end
+
         def redact_hash(hash)
           return hash unless hash.is_a?(Hash)
 
           hash.each_with_object({}) do |(k, v), result|
-            result[k] = if v.is_a?(Hash)
-                          redact_hash(v)
-                        elsif SENSITIVE_KEYS.any? { |s| k.to_s.include?(s.to_s) }
-                          '[REDACTED]'
-                        else
-                          v
-                        end
+            result[k] = redact_value(k, v)
           end
         end
       end

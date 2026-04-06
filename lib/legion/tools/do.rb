@@ -125,14 +125,11 @@ module Legion
           nil
         end
 
-        def try_llm(intent, hint: nil, request_id: nil)
+        def try_llm(intent, hint: nil, _request_id: nil)
           return nil unless defined?(Legion::LLM) && Legion::LLM.started?
 
           prompt = hint ? "Known pattern: #{hint[:intent_text]}. User intent: #{intent}" : intent
-          Legion::LLM.ask(
-            prompt,
-            caller: { extension: 'legionio', tool: 'do', request_id: request_id }
-          )
+          Legion::LLM.ask(message: prompt)
         rescue StandardError
           nil
         end
