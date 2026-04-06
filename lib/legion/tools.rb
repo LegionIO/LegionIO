@@ -27,4 +27,5 @@ module Legion
   end
 end
 
+require_relative 'tools/registry'
 require_relative 'tools/base'
