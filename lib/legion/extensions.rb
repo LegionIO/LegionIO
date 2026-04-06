@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'legion/extensions/core'
-require 'legion/extensions/capability'
 require 'legion/extensions/catalog'
 require 'legion/extensions/permissions'
 require 'legion/runner'
@@ -567,54 +566,24 @@ module Legion
 
       public
 
-      def unregister_capabilities(gem_name)
-        Extensions::Catalog::Registry.unregister_extension(gem_name)
-      end
+      def loaded_extension_modules
+        constants(false).filter_map do |const_name|
+          mod = const_get(const_name, false)
+          next nil unless mod.is_a?(Module) && mod.respond_to?(:runner_modules)
 
-      def register_absorber_capabilities(gem_name, absorbers)
-        absorbers.each_value do |absorber_meta|
-          cap = Extensions::Capability.from_absorber(
-            extension:   gem_name,
-            absorber:    absorber_meta[:absorber_module],
-            patterns:    absorber_meta[:patterns],
-            description: absorber_meta[:description]
-          )
-          Extensions::Catalog::Registry.register(cap)
+          mod
         rescue StandardError => e
-          if defined?(Legion::Logging)
-            Legion::Logging.warn(
-              "Absorber catalog registration error for #{gem_name} " \
-              "(#{absorber_meta[:absorber_module]}): #{e.message}"
-            )
-          end
+          Legion::Logging.warn("[Extensions] loaded_extension_modules: #{e.message}") if defined?(Legion::Logging)
+          nil
         end
       end
 
-      def register_capabilities(gem_name, runners)
-        runners.each_value do |runner_meta|
-          runner_name = runner_meta[:runner_name]
-          (runner_meta[:class_methods] || {}).each do |fn_name, fn_meta|
-            next if fn_name.to_s.start_with?('_')
+      # Legacy capability registration - now handled by Tools::Discovery
+      def unregister_capabilities(_gem_name); end
 
-            params = {}
-            (fn_meta[:args] || []).each do |arg|
-              type, name = arg
-              params[name] = { type: :string, required: type == :keyreq }
-            end
+      def register_absorber_capabilities(_gem_name, _absorbers); end
 
-            cap = Extensions::Capability.from_runner(
-              extension:  gem_name,
-              runner:     runner_name.to_s.split('_').map(&:capitalize).join,
-              function:   fn_name.to_s,
-              parameters: params,
-              tags:       [gem_name.delete_prefix('lex-')]
-            )
-            Extensions::Catalog::Registry.register(cap)
-          end
-        rescue StandardError => e
-          Legion::Logging.warn("Catalog registration error for #{gem_name}: #{e.message}") if defined?(Legion::Logging)
-        end
-      end
+      def register_capabilities(_gem_name, _runners); end
 
       def gem_load(entry)
         gem_name     = entry[:gem_name]

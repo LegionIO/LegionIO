@@ -3,36 +3,6 @@
 require 'securerandom'
 require 'open3'
 
-begin
-  require 'legion/cli/chat/tools/search_traces'
-  if defined?(Legion::LLM::ToolRegistry) && defined?(Legion::CLI::Chat::Tools::SearchTraces)
-    Legion::LLM::ToolRegistry.register(Legion::CLI::Chat::Tools::SearchTraces)
-  end
-rescue LoadError => e
-  Legion::Logging.log_exception(e, payload_summary: 'SearchTraces not available for API', component_type: :api) if defined?(Legion::Logging)
-end
-
-ALWAYS_LOADED_TOOLS = %w[
-  legion_do
-  legion_get_status
-  legion_run_task
-  legion_describe_runner
-  legion_list_extensions
-  legion_get_extension
-  legion_list_tasks
-  legion_get_task
-  legion_get_task_logs
-  legion_query_knowledge
-  legion_knowledge_health
-  legion_knowledge_context
-  legion_list_workers
-  legion_show_worker
-  legion_mesh_status
-  legion_list_peers
-  legion_tools
-  legion_search_sessions
-].freeze
-
 module Legion
   class API < Sinatra::Base
     module Routes
@@ -57,44 +27,6 @@ module Legion
 
             define_method(:gateway_available?) do
               defined?(Legion::Extensions::LLM::Gateway::Runners::Inference)
-            end
-
-            define_method(:cached_mcp_tools) do
-              @@cached_mcp_tools ||= begin # rubocop:disable Style/ClassVars
-                all = []
-                begin
-                  require 'legion/mcp' unless defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
-                  Legion::MCP.server if defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
-                rescue LoadError => e
-                  Legion::Logging.log_exception(e, payload_summary: 'cached_mcp_tools: failed to require legion/mcp', component_type: :api)
-                end
-                if defined?(Legion::MCP::Server) && Legion::MCP::Server.respond_to?(:tool_registry)
-                  require 'legion/llm/pipeline/mcp_tool_adapter' unless defined?(Legion::LLM::Pipeline::McpToolAdapter)
-                  Legion::Logging.info "[llm][api] cached_mcp_tools building from #{Legion::MCP::Server.tool_registry.size} MCP tools"
-                  Legion::MCP::Server.tool_registry.each do |tc|
-                    all << Legion::LLM::Pipeline::McpToolAdapter.new(tc)
-                  rescue StandardError => e
-                    Legion::Logging.log_exception(e, payload_summary: "cached_mcp_tools: failed to adapt #{tc}", component_type: :api)
-                  end
-                end
-                {
-                  always:   all.select { |t| ALWAYS_LOADED_TOOLS.include?(t.name) }.freeze,
-                  deferred: all.reject { |t| ALWAYS_LOADED_TOOLS.include?(t.name) }.freeze,
-                  all:      all.freeze
-                }.freeze
-              end
-            end
-
-            define_method(:inject_mcp_tools) do |session, requested_tools: []|
-              cache = cached_mcp_tools
-              cache[:always].each { |t| session.with_tool(t) }
-
-              return if requested_tools.empty?
-
-              requested = requested_tools.map { |n| n.to_s.tr('.', '_') }
-              cache[:deferred].each do |t|
-                session.with_tool(t) if requested.include?(t.name)
-              end
             end
 
             define_method(:build_client_tool_class) do |tname, tdesc, tschema|
@@ -185,7 +117,7 @@ module Legion
 
             message = body[:message]
 
-            # Tier 0 check — serve from PatternStore if available
+            # Tier 0 check - serve from PatternStore if available
             if defined?(Legion::MCP::TierRouter)
               tier_result = Legion::MCP::TierRouter.route(
                 intent:  message,
@@ -206,8 +138,7 @@ module Legion
             model      = body[:model]
             provider   = body[:provider]
 
-            # Route through full Legion pipeline when gateway is available:
-            #   Ingress -> RBAC -> Events -> Task -> Gateway (metering + fleet) -> LLM
+            # Route through full Legion pipeline when gateway is available
             if gateway_available?
               ingress_result = Legion::Ingress.run(
                 payload:      { message: message, model: model, provider: provider,
@@ -315,7 +246,7 @@ module Legion
 
             caller_identity = env['legion.tenant_id'] || 'api:inference'
 
-            # GAIA bridge — push InputFrame to sensory buffer
+            # GAIA bridge - push InputFrame to sensory buffer
             last_user = messages.select { |m| (m[:role] || m['role']).to_s == 'user' }.last
             prompt    = (last_user || {})[:content] || (last_user || {})['content'] || ''
 
@@ -345,18 +276,7 @@ module Legion
             # Detect streaming mode
             streaming = body[:stream] == true && env['HTTP_ACCEPT']&.include?('text/event-stream')
 
-            # Inject MCP tools from daemon alongside client tools
-            all_tools = tool_classes.dup
-            begin
-              mcp_cache = cached_mcp_tools
-              mcp_to_inject = requested_tools.empty? ? mcp_cache[:always] : mcp_cache[:all]
-              all_tools.concat(mcp_to_inject) if mcp_to_inject&.any?
-              Legion::Logging.debug "[llm][api] inference mcp_injected=#{mcp_to_inject&.size || 0} total_tools=#{all_tools.size}"
-            rescue StandardError => e
-              Legion::Logging.log_exception(e, payload_summary: 'mcp tool injection failed', component_type: :api)
-            end
-
-            # Build pipeline request
+            # Executor handles all registry tool injection — API only passes client-defined tools
             require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
             require 'legion/llm/pipeline/executor' unless defined?(Legion::LLM::Pipeline::Executor)
 
@@ -364,7 +284,7 @@ module Legion
               messages:        messages,
               system:          body[:system],
               routing:         { provider: provider, model: model },
-              tools:           all_tools,
+              tools:           tool_classes,
               caller:          { requested_by: { identity: caller_identity, type: :user, credential: :api } },
               conversation_id: body[:conversation_id],
               metadata:        { requested_tools: requested_tools },

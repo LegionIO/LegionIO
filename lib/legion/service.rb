@@ -149,6 +149,8 @@ module Legion
         setup_generated_functions
       end
 
+      register_core_tools
+
       Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
 
       Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer.setup if defined?(Legion::Extensions::Agentic::Memory::Trace::Helpers::ErrorTracer)
@@ -159,10 +161,11 @@ module Legion
       setup_metrics
       setup_task_outcome_observer
 
-      # Pre-warm MCP server in background so first inference isn't blocked by 837-tool build
+      # Pre-warm MCP server in background; async embedding build
       Thread.new do
         require 'legion/mcp' if defined?(Legion::Settings) && !defined?(Legion::MCP)
         Legion::MCP.server if defined?(Legion::MCP) && Legion::MCP.respond_to?(:server)
+        Legion::MCP::Server.populate_embedding_index if defined?(Legion::MCP::Server) && Legion::MCP::Server.respond_to?(:populate_embedding_index)
       rescue StandardError => e
         log.warn("MCP pre-warm failed: #{e.message}")
       end
@@ -607,7 +610,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
-    def shutdown
+    def shutdown # rubocop:disable Metrics/CyclomaticComplexity
       log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
@@ -630,6 +633,8 @@ module Legion
       end
 
       shutdown_component('Dispatch') { Legion::Dispatch.shutdown } if defined?(Legion::Dispatch)
+
+      Legion::Tools::Registry.clear if defined?(Legion::Tools::Registry)
 
       ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
       shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
@@ -665,7 +670,7 @@ module Legion
       Legion::Events.emit('service.shutdown')
     end
 
-    def reload # rubocop:disable Metrics/MethodLength
+    def reload # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       return if @reloading
 
       @reloading = true
@@ -679,6 +684,9 @@ module Legion
         shutdown_component('Gaia') { Legion::Gaia.shutdown }
         Legion::Readiness.mark_not_ready(:gaia)
       end
+
+      Legion::Tools::Registry.clear if defined?(Legion::Tools::Registry)
+      Legion::Tools::EmbeddingCache.clear_memory if defined?(Legion::Tools::EmbeddingCache) && Legion::Tools::EmbeddingCache.respond_to?(:clear_memory)
 
       ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
       shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
@@ -727,8 +735,15 @@ module Legion
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
 
+      register_core_tools
+
       Legion::Crypt.cs
       setup_api if @api_enabled
+
+      if defined?(Legion::MCP)
+        Legion::MCP.reset!
+        Legion::MCP.server if Legion::MCP.respond_to?(:server)
+      end
       setup_network_watchdog
       Legion::Settings[:client][:ready] = true
       Legion::Events.emit('service.ready')
@@ -740,6 +755,20 @@ module Legion
     def load_extensions
       require 'legion/runner'
       Legion::Extensions.hook_extensions
+    end
+
+    def register_core_tools
+      require 'legion/tools'
+      Legion::Tools.register_all
+      Legion::Tools::Discovery.discover_and_register
+      Legion::Tools::EmbeddingCache.setup
+
+      log.info(
+        "Tools registered: #{Legion::Tools::Registry.tools.size} always, " \
+        "#{Legion::Tools::Registry.deferred_tools.size} deferred"
+      )
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.register_core_tools')
     end
 
     def setup_generated_functions

@@ -44,11 +44,7 @@ RSpec.describe Legion::Extensions::Helpers::Cache do
     it 'delegates to Legion::Cache with namespaced key' do
       allow(Legion::Cache).to receive(:set)
       subject.cache_set(':key', 'val', ttl: 120)
-      expect(Legion::Cache).to have_received(:set) do |key, val, ttl, **_opts|
-        expect(key).to eq('test_lex:key')
-        expect(val).to eq('val')
-        expect(ttl).to eq(120)
-      end
+      expect(Legion::Cache).to have_received(:set).with('test_lex:key', 'val', ttl: 120, async: false, phi: false)
     end
   end
 

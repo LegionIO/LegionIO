@@ -10,6 +10,7 @@ require 'legion/ingress'
 require 'legion/process'
 require 'legion/service'
 require 'legion/extensions'
+require 'legion/tools'
 
 module Legion
   autoload :Region,  'legion/region'

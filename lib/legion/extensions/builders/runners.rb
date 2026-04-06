@@ -59,6 +59,12 @@ module Legion
           end
         end
 
+        def runner_modules
+          return [] unless defined?(@runners) && @runners.is_a?(Hash)
+
+          @runners.values.filter_map { |r| r[:runner_module] }
+        end
+
         def runner_files
           @runner_files ||= find_files('runners')
         end
