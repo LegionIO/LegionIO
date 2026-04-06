@@ -100,27 +100,30 @@ module Legion
 
           # L0
           remaining.dup.each do |h|
-            vec = memory_get("embed:#{h}:#{model}")
-            next unless vec
-
-            result[h] = vec
-            remaining.delete(h)
+            key = "embed:#{h}:#{model}"
+            vec = memory_get(key)
+            if vec
+              result[h] = vec
+              remaining.delete(h)
+              next
+            end
 
             # Tier 1
-            vec = cache_local_get("embed:#{h}:#{model}")
-            next unless vec
-
-            result[h] = vec
-            memory_set("embed:#{h}:#{model}", vec)
-            remaining.delete(h)
+            vec = cache_local_get(key)
+            if vec
+              result[h] = vec
+              memory_set(key, vec)
+              remaining.delete(h)
+              next
+            end
 
             # Tier 2
-            vec = cache_global_get("embed:#{h}:#{model}")
+            vec = cache_global_get(key)
             next unless vec
 
             result[h] = vec
-            memory_set("embed:#{h}:#{model}", vec)
-            cache_local_set("embed:#{h}:#{model}", vec)
+            memory_set(key, vec)
+            cache_local_set(key, vec)
             remaining.delete(h)
           end
 

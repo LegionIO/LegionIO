@@ -48,12 +48,26 @@ module Legion
             next unless resolve_mcp_tools_enabled(ext, runner_mod)
 
             functions = runner_mod.settings[:functions]
+            functions = synthesize_functions(ext, runner_mod) if functions.nil? || functions.empty?
             next if functions.nil? || functions.empty?
 
             is_deferred = resolve_deferred(ext, runner_mod)
             functions.each do |func_name, meta|
               register_function(ext, runner_mod, func_name, meta, is_deferred)
             end
+          end
+        end
+
+        # Build a functions hash from class_methods when settings[:functions] is not populated.
+        # The builders/runners.rb populates class_methods but not settings[:functions] by default.
+        def synthesize_functions(ext, runner_mod)
+          return {} unless ext.respond_to?(:runners) && ext.runners.is_a?(Hash)
+
+          runner_entry = ext.runners.values.find { |r| r[:runner_module] == runner_mod }
+          return {} unless runner_entry&.dig(:class_methods).is_a?(Hash)
+
+          runner_entry[:class_methods].each_with_object({}) do |(method_name, method_info), funcs|
+            funcs[method_name] = { desc: "#{method_name} function", options: {}, args: method_info[:args] }
           end
         end
 

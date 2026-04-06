@@ -61,8 +61,13 @@ module Legion
           end
           return nil unless matched
 
-          result = matched.call
-          result.is_a?(Hash) ? result.merge(matched: matched.tool_name) : { matched: matched.tool_name, result: result }
+          begin
+            result = matched.call
+            result.is_a?(Hash) ? result.merge(matched: matched.tool_name) : { matched: matched.tool_name, result: result }
+          rescue ArgumentError
+            { matched: matched.tool_name, status: 'requires_daemon',
+              note: 'Tool requires arguments; start the daemon and retry: legion start' }
+          end
         end
 
         def try_llm_classify(intent)
