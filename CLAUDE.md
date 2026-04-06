@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.7.17
+**Version**: 1.7.18
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -51,14 +51,14 @@ Legion.start
       ├── 10. setup_gaia         (legion-gaia, cognitive coordination layer, optional)
       ├── 11. setup_telemetry    (OpenTelemetry, optional)
       ├── 12. setup_supervision  (process supervision)
-      ├── 13. load_extensions    (two-phase parallel: require+autobuild on FixedThreadPool, then hook_all_actors)
+      ├── 13. load_extensions    (multi-phase: phase 0 (identity providers) loads and hooks actors first, then phase 1 (everything else))
       ├── 14. Legion::Crypt.cs   (distribute cluster secret)
       └── 15. setup_api          (start Sinatra/Puma on port 4567)
 ```
 
 Each phase calls `Legion::Readiness.mark_ready(:component)`. All phases are individually toggleable via `Service.new(transport: false, ...)`.
 
-Extension loading is two-phase and parallel: all extensions are `require`d and `autobuild` runs concurrently on a `Concurrent::FixedThreadPool(min(count, extensions.parallel_pool_size))`, collecting actors into a thread-safe `Concurrent::Array` of `@pending_actors`. Pool size defaults to 24, configurable via `Legion::Settings[:extensions][:parallel_pool_size]`. After all extensions are loaded, `hook_all_actors` starts AMQP subscriptions, timers, and other actor types sequentially. This prevents race conditions where early extensions start ticking while later ones haven't loaded yet. Thread safety relies on ThreadLocal AMQP channels, per-extension Settings keys, and sequential post-processing of Catalog transitions and Registry writes.
+Extension loading is multi-phase and parallel: `hook_extensions` calls `group_by_phase` to partition discovered extensions by phase number (from the category registry), then iterates phases sequentially. Phase 0 contains identity providers (`lex-identity-*` gems, category `:identity`, tier 0); phase 1 contains all other extensions. Within each phase, extensions are `require`d and `autobuild` runs concurrently on a `Concurrent::FixedThreadPool(min(count, extensions.parallel_pool_size))`, collecting actors into a thread-safe `Concurrent::Array` of `@pending_actors`. Pool size defaults to 24, configurable via `Legion::Settings[:extensions][:parallel_pool_size]`. After each phase's extensions are loaded, `hook_phase_actors` starts AMQP subscriptions, timers, and other actor types for that phase sequentially — ensuring identity providers are fully running before any other extension boots. Catalog transitions (`transition(:running)` and `flush_persisted_transitions`) happen after all phases complete. Thread safety relies on ThreadLocal AMQP channels, per-extension Settings keys, and sequential post-processing of Catalog transitions and Registry writes.
 
 ### Reload Sequence
 
@@ -257,6 +257,16 @@ Legion (lib/legion.rb)
 ### Extension Discovery
 
 `Legion::Extensions.find_extensions` discovers lex-* gems via `Bundler.load.specs` (when running under Bundler) or falls back to `Gem::Specification.all_names`. It also processes `Legion::Settings[:extensions]` for explicitly configured extensions, attempting `Gem.install` for missing ones if `auto_install` is enabled.
+
+**Category registry**: Extensions are classified by `categorize_and_order` using `default_category_registry`. Each category has a `type` (`:list` or `:prefix`), `tier` (load order within a phase), and `phase`:
+
+| Category | Type | Tier | Phase | Matches |
+|----------|------|------|-------|---------|
+| `identity` | prefix | 0 | 0 | `lex-identity-*` gems |
+| `core` | list | 1 | 1 | explicitly listed core extensions |
+| `ai` | list | 2 | 1 | explicitly listed AI provider extensions |
+| `gaia` | list | 3 | 1 | explicitly listed GAIA extensions |
+| `agentic` | prefix | 4 | 1 | `lex-agentic-*` gems |
 
 **Role-based filtering**: After discovery, `apply_role_filter` prunes extensions based on `Legion::Settings[:role][:profile]`:
 
