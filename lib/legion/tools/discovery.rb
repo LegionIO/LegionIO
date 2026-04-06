@@ -3,6 +3,13 @@
 module Legion
   module Tools
     module Discovery
+      # Extension/runner pairs that should always be loaded (not deferred)
+      # nil means all runners for that extension; array means specific runners only
+      ALWAYS_LOADED = {
+        'apollo' => ['knowledge'],
+        'eval'   => ['evaluation']
+      }.freeze
+
       class << self
         def log
           Legion::Logging.respond_to?(:logger) ? Legion::Logging.logger : nil
@@ -15,11 +22,19 @@ module Legion
         def discover_and_register
           return unless defined?(Legion::Extensions)
 
-          loaded_extensions.each do |ext|
+          exts = loaded_extensions
+          log&.info("[Tools::Discovery] scanning #{exts.size} extensions")
+
+          exts.each do |ext|
             discover_runners(ext)
           rescue StandardError => e
             handle_exception(e, level: :warn, handled: true, operation: :discovery_process_extension)
           end
+
+          log&.info(
+            "[Tools::Discovery] done: always=#{Registry.tools.size} " \
+            "deferred=#{Registry.deferred_tools.size}"
+          )
         end
 
         private
@@ -58,8 +73,6 @@ module Legion
           end
         end
 
-        # Build a functions hash from class_methods when settings[:functions] is not populated.
-        # The builders/runners.rb populates class_methods but not settings[:functions] by default.
         def synthesize_functions(ext, runner_mod)
           return {} unless ext.respond_to?(:runners) && ext.runners.is_a?(Hash)
 
@@ -87,7 +100,6 @@ module Legion
           Legion::Tools::Registry.register(tool_class)
         end
 
-        # Hierarchical: runner overrides extension
         def resolve_mcp_tools_enabled(ext, runner_mod)
           return runner_mod.mcp_tools? if runner_mod.respond_to?(:mcp_tools?)
 
@@ -95,6 +107,13 @@ module Legion
         end
 
         def resolve_deferred(ext, runner_mod)
+          ext_name = derive_extension_name(ext)
+          runner_name = derive_runner_snake(runner_mod)
+          if ALWAYS_LOADED.key?(ext_name)
+            runners = ALWAYS_LOADED[ext_name]
+            return false if runners.nil? || runners.include?(runner_name)
+          end
+
           return runner_mod.mcp_tools_deferred? if runner_mod.respond_to?(:mcp_tools_deferred?)
 
           ext.respond_to?(:mcp_tools_deferred?) ? ext.mcp_tools_deferred? : true
@@ -128,7 +147,7 @@ module Legion
           ext_name = derive_extension_name(ext)
           runner_snake = derive_runner_snake(runner_mod)
           {
-            tool_name:    defn&.dig(:mcp_prefix) || "legion.#{ext_name}.#{runner_snake}.#{func_name}",
+            tool_name:    defn&.dig(:mcp_prefix) || "legion-#{ext_name}-#{runner_snake}-#{func_name}",
             description:  meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
             input_schema: normalize_schema(meta[:options]),
             mcp_category: defn&.dig(:mcp_category),
@@ -173,7 +192,6 @@ module Legion
           last.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase
         end
 
-        # LLM providers (Bedrock, etc.) require input_schema to have type: 'object' at root
         def normalize_schema(schema)
           schema = { properties: {} } if schema.nil? || schema.empty?
           schema = schema.dup
