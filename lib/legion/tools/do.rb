@@ -66,11 +66,52 @@ module Legion
         private
 
         def match_tool(intent)
-          return nil unless defined?(Legion::MCP::ContextCompiler)
+          if defined?(Legion::MCP::ContextCompiler)
+            matched = Legion::MCP::ContextCompiler.match_tool(intent)
+            return matched if matched
+          end
 
-          Legion::MCP::ContextCompiler.match_tool(intent)
+          match_tool_from_registry(intent)
         rescue StandardError
           nil
+        end
+
+        def match_tool_from_registry(intent)
+          return nil unless defined?(Legion::Tools::Registry)
+
+          normalized = normalize_tool_text(intent)
+          return nil if normalized.empty?
+
+          tools = Legion::Tools::Registry.all_tools
+          return nil if tools.empty?
+
+          tools
+            .map { |t| [t, score_tool_match(t, normalized)] }
+            .select { |(_t, score)| score.positive? }
+            .max_by { |(_t, score)| score }
+            &.first
+        rescue StandardError
+          nil
+        end
+
+        def score_tool_match(tool, normalized_intent)
+          name        = normalize_tool_text(tool.tool_name)
+          description = normalize_tool_text(tool.respond_to?(:description) ? tool.description : nil)
+          return 0 if name.empty? && description.empty?
+
+          intent_terms = normalized_intent.split
+          score        = 0
+          score += 100 if !name.empty? && normalized_intent.include?(name)
+          score += 50  if !description.empty? && normalized_intent.include?(description)
+          score += (intent_terms & name.split).length * 10
+          score += (intent_terms & description.split).length * 3
+          score
+        rescue StandardError
+          0
+        end
+
+        def normalize_tool_text(text)
+          text.to_s.downcase.gsub(/[^a-z0-9]+/, ' ').strip
         end
 
         def try_tier0(intent, params, context, request_id: nil)

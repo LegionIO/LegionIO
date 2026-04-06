@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'digest'
+require 'time'
 
 module Legion
   module Tools
@@ -98,9 +99,10 @@ module Legion
           result = {}
           remaining = content_hashes.dup
 
-          # L0
+          # L0 / Tier 1 / Tier 2
           remaining.dup.each do |h|
             key = "embed:#{h}:#{model}"
+
             vec = memory_get(key)
             if vec
               result[h] = vec
@@ -108,7 +110,6 @@ module Legion
               next
             end
 
-            # Tier 1
             vec = cache_local_get(key)
             if vec
               result[h] = vec
@@ -117,7 +118,6 @@ module Legion
               next
             end
 
-            # Tier 2
             vec = cache_global_get(key)
             next unless vec
 
@@ -171,11 +171,23 @@ module Legion
         end
 
         def clear
+          clear_memory
+        rescue StandardError => e
+          handle_exception(e, level: :warn, handled: true, operation: :embedding_cache_clear)
+        end
+
+        def clear_memory
           @memory_mutex.synchronize { @memory_cache.clear }
+        rescue StandardError => e
+          handle_exception(e, level: :warn, handled: true, operation: :embedding_cache_clear_memory)
+        end
+
+        def purge_persistent!
+          clear_memory
           data_local_connection[:tool_embedding_cache].delete if data_local_available?
           data_global_connection[:tool_embedding_cache].delete if data_global_available?
         rescue StandardError => e
-          handle_exception(e, level: :warn, handled: true, operation: :embedding_cache_clear)
+          handle_exception(e, level: :warn, handled: true, operation: :embedding_cache_purge_persistent)
         end
 
         def stats
@@ -301,7 +313,7 @@ module Legion
           Legion::Data::Local.upsert(
             :tool_embedding_cache,
             { content_hash: content_hash, model: model, tool_name: tool_name,
-              vector: vec_json, embedded_at: Time.now.utc.iso8601 },
+              vector: vec_json, embedded_at: Time.now.utc },
             conflict_keys: %i[content_hash model]
           )
         rescue StandardError => e
@@ -314,10 +326,10 @@ module Legion
           vec_json = vector.is_a?(String) ? vector : Legion::JSON.dump(vector)
           data_global_connection[:tool_embedding_cache]
             .insert_conflict(target: %i[content_hash model], update: {
-                               vector: vec_json, tool_name: tool_name, embedded_at: Time.now.utc.iso8601
+                               vector: vec_json, tool_name: tool_name, embedded_at: Time.now.utc
                              })
             .insert(content_hash: content_hash, model: model, tool_name: tool_name,
-                    vector: vec_json, embedded_at: Time.now.utc.iso8601)
+                    vector: vec_json, embedded_at: Time.now.utc)
         rescue StandardError => e
           handle_exception(e, level: :warn, handled: true, operation: :data_global_store)
         end
@@ -360,7 +372,7 @@ module Legion
         end
 
         def bulk_data_local_store(entries)
-          now = Time.now.utc.iso8601
+          now = Time.now.utc
           ds = data_local_connection[:tool_embedding_cache]
           data_local_connection.transaction do
             entries.each do |entry|
@@ -376,7 +388,7 @@ module Legion
         end
 
         def bulk_data_global_store(entries)
-          now = Time.now.utc.iso8601
+          now = Time.now.utc
           ds = data_global_connection[:tool_embedding_cache]
           data_global_connection.transaction do
             entries.each do |entry|

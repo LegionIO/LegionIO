@@ -670,7 +670,7 @@ module Legion
       Legion::Events.emit('service.shutdown')
     end
 
-    def reload # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity
+    def reload # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       return if @reloading
 
       @reloading = true
@@ -686,7 +686,7 @@ module Legion
       end
 
       Legion::Tools::Registry.clear if defined?(Legion::Tools::Registry)
-      Legion::Tools::EmbeddingCache.clear if defined?(Legion::Tools::EmbeddingCache)
+      Legion::Tools::EmbeddingCache.clear_memory if defined?(Legion::Tools::EmbeddingCache) && Legion::Tools::EmbeddingCache.respond_to?(:clear_memory)
 
       ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
       shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }

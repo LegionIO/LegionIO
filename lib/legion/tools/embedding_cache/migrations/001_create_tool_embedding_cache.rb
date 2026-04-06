@@ -8,7 +8,7 @@ Sequel.migration do
       String :model, null: false
       String :tool_name, null: false
       String :vector, text: true, null: false
-      String :embedded_at, null: false
+      Time :embedded_at, null: false
       unique %i[content_hash model]
     end
   end

@@ -63,10 +63,50 @@ module Legion
 
           begin
             result = matched.call
-            result.is_a?(Hash) ? result.merge(matched: matched.tool_name) : { matched: matched.tool_name, result: result }
+            normalize_in_process_result(result, matched.tool_name)
           rescue ArgumentError
             { matched: matched.tool_name, status: 'requires_daemon',
               note: 'Tool requires arguments; start the daemon and retry: legion start' }
+          end
+        end
+
+        def normalize_in_process_result(result, tool_name)
+          return { matched: tool_name, result: result } unless result.is_a?(Hash)
+
+          normalized = result.dup
+          normalized[:matched] = tool_name
+          extracted = extract_tool_text(normalized)
+
+          if normalized[:error] == true
+            normalized[:error] = extracted.empty? ? 'Tool execution failed' : extracted
+          elsif !normalized.key?(:result) && !extracted.empty?
+            normalized[:result] = extracted
+          end
+
+          normalized
+        end
+
+        def extract_tool_text(value)
+          case value
+          when Hash
+            error_val = value[:error] || value['error']
+            return error_val.to_s unless error_val == true || error_val.nil? || error_val.to_s.empty?
+
+            %i[message result response detail content].each do |key|
+              extracted = extract_tool_text(value[key] || value[key.to_s])
+              return extracted unless extracted.empty?
+            end
+
+            ''
+          when Array
+            value.filter_map do |item|
+              text = extract_tool_text(item)
+              text unless text.empty?
+            end.join("\n")
+          when String
+            value.strip
+          else
+            value.nil? ? '' : value.to_s
           end
         end
 
