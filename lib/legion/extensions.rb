@@ -308,7 +308,8 @@ module Legion
       }.freeze
 
       def group_by_phase
-        categories = ::Legion::Settings.dig(:extensions, :categories) || default_category_registry
+        settings_cats = ::Legion::Settings.dig(:extensions, :categories) || {}
+        categories = default_category_registry.merge(settings_cats)
         default_phase = 1
 
         @extensions.group_by do |entry|
