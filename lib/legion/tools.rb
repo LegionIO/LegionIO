@@ -29,3 +29,4 @@ end
 
 require_relative 'tools/registry'
 require_relative 'tools/base'
+require_relative 'tools/discovery'

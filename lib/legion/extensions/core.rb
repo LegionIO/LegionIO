@@ -112,6 +112,14 @@ module Legion
         true
       end
 
+      def mcp_tools?
+        true
+      end
+
+      def mcp_tools_deferred?
+        true
+      end
+
       # Auto-generate AMQP message classes for each runner method that has a definition.
       # Explicit Messages::* classes in the transport directory take precedence.
       # Runs after build_runners so definitions are populated.

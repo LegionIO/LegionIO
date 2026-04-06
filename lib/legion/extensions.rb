@@ -567,6 +567,18 @@ module Legion
 
       public
 
+      def loaded_extension_modules
+        constants(false).filter_map do |const_name|
+          mod = const_get(const_name, false)
+          next nil unless mod.is_a?(Module) && mod.respond_to?(:runner_modules)
+
+          mod
+        rescue StandardError => e
+          Legion::Logging.warn("[Extensions] loaded_extension_modules: #{e.message}") if defined?(Legion::Logging)
+          nil
+        end
+      end
+
       def unregister_capabilities(gem_name)
         Extensions::Catalog::Registry.unregister_extension(gem_name)
       end
