@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'legion/extensions/capability'
 
 RSpec.describe Legion::Extensions::Capability do
   describe '.from_runner' do

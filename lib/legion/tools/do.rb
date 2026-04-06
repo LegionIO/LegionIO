@@ -25,12 +25,12 @@ module Legion
             additionalProperties: true
           }
         },
-        required: ['intent']
+        required:   ['intent']
       )
 
       class << self
-        def call(intent:, params: {}, context: {}) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-          request_id = context.dig(:request_id) || "do_#{SecureRandom.hex(6)}"
+        def call(intent:, params: {}, context: {})
+          request_id = context[:request_id] || "do_#{SecureRandom.hex(6)}"
           tool_params = params.transform_keys(&:to_sym)
 
           # Try Tier 0 (cached patterns) if MCP TierRouter is available

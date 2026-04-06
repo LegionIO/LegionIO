@@ -9,8 +9,8 @@ module Legion
           Legion::Logging.respond_to?(:logger) ? Legion::Logging.logger : nil
         end
 
-        def handle_exception(e, **opts)
-          log&.warn("[Legion::Tools] #{opts[:operation] || 'unknown'}: #{e.message}")
+        def handle_exception(err, **opts)
+          log&.warn("[Legion::Tools] #{opts[:operation] || 'unknown'}: #{err.message}")
         end
 
         def tool_name(name = nil)

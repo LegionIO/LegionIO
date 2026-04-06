@@ -100,7 +100,7 @@ module Legion
           matched = Legion::Tools::Registry.all_tools.find do |t|
             t.description.downcase.include?(intent.downcase)
           end
-          return nil unless matched && matched.respond_to?(:extension) && matched.respond_to?(:runner)
+          return nil unless matched.respond_to?(:extension) && matched.respond_to?(:runner)
 
           build_runner_class(matched.extension, matched.runner)
         end

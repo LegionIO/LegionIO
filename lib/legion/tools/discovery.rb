@@ -8,8 +8,8 @@ module Legion
           Legion::Logging.respond_to?(:logger) ? Legion::Logging.logger : nil
         end
 
-        def handle_exception(e, **opts)
-          log&.warn("[Tools::Discovery] #{opts[:operation]}: #{e.message}")
+        def handle_exception(err, **opts)
+          log&.warn("[Tools::Discovery] #{opts[:operation]}: #{err.message}")
         end
 
         def discover_and_register
@@ -106,28 +106,35 @@ module Legion
         end
 
         def build_tool_class(ext:, runner_mod:, func_name:, meta:, defn:, deferred:) # rubocop:disable Metrics/ParameterLists
+          attrs = tool_attributes(ext, runner_mod, func_name, meta, defn, deferred)
+          create_tool_class(attrs, runner_mod, func_name)
+        end
+
+        def tool_attributes(ext, runner_mod, func_name, meta, defn, deferred) # rubocop:disable Metrics/ParameterLists
           ext_name = derive_extension_name(ext)
-          runner_name = runner_mod.name&.split('::')&.last
-          runner_snake = runner_name&.gsub(/([A-Z])/, '_\1')&.sub(/^_/, '')&.downcase || 'unknown'
+          runner_snake = derive_runner_snake(runner_mod)
+          {
+            tool_name:    defn&.dig(:mcp_prefix) || "legion.#{ext_name}.#{runner_snake}.#{func_name}",
+            description:  meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
+            input_schema: meta[:options] || { properties: {} },
+            mcp_category: defn&.dig(:mcp_category),
+            mcp_tier:     defn&.dig(:mcp_tier),
+            deferred:     deferred,
+            ext_name:     ext_name,
+            runner_snake: runner_snake
+          }
+        end
 
-          tool_name_value    = defn&.dig(:mcp_prefix) || "legion.#{ext_name}.#{runner_snake}.#{func_name}"
-          description_value  = meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}"
-          input_schema_value = meta[:options] || { properties: {} }
-          mcp_category_value = defn&.dig(:mcp_category)
-          mcp_tier_value     = defn&.dig(:mcp_tier)
-          deferred_value     = deferred
-          runner_ref         = runner_mod
-          func_ref           = func_name
-
+        def create_tool_class(attrs, runner_ref, func_ref)
           Class.new(Legion::Tools::Base) do
-            tool_name tool_name_value
-            description description_value
-            input_schema(input_schema_value)
-            self.deferred(deferred_value)
-            extension(ext_name)
-            runner(runner_snake)
-            mcp_category(mcp_category_value) if mcp_category_value
-            mcp_tier(mcp_tier_value) if mcp_tier_value
+            tool_name attrs[:tool_name]
+            description attrs[:description]
+            input_schema(attrs[:input_schema])
+            deferred(attrs[:deferred])
+            extension(attrs[:ext_name])
+            runner(attrs[:runner_snake])
+            mcp_category(attrs[:mcp_category]) if attrs[:mcp_category]
+            mcp_tier(attrs[:mcp_tier]) if attrs[:mcp_tier]
 
             define_singleton_method(:call) do |**params|
               if runner_ref.respond_to?(func_ref)
@@ -144,11 +151,23 @@ module Legion
           end
         end
 
+        def derive_runner_snake(runner_mod)
+          mod_name = runner_mod.name
+          return 'unknown' unless mod_name
+
+          last = mod_name.split('::').last
+          last.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase
+        end
+
         def derive_extension_name(ext)
           if ext.respond_to?(:lex_name)
             ext.lex_name.delete_prefix('lex-').tr('-', '_')
           else
-            ext.name&.split('::')&.last&.gsub(/([A-Z])/, '_\1')&.sub(/^_/, '')&.downcase || 'unknown'
+            mod_name = ext.name
+            return 'unknown' unless mod_name
+
+            last = mod_name.split('::').last
+            last.gsub(/([A-Z])/, '_\1').sub(/^_/, '').downcase
           end
         end
       end

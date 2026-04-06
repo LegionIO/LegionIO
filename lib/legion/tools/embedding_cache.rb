@@ -18,8 +18,8 @@ module Legion
           Legion::Logging.respond_to?(:logger) ? Legion::Logging.logger : nil
         end
 
-        def handle_exception(e, **opts)
-          log&.warn("[Tools::EmbeddingCache] #{opts[:operation]}: #{e.message}")
+        def handle_exception(err, **opts)
+          log&.warn("[Tools::EmbeddingCache] #{opts[:operation]}: #{err.message}")
         end
 
         def setup
@@ -105,20 +105,16 @@ module Legion
 
             result[h] = vec
             remaining.delete(h)
-          end
 
-          # Tier 1
-          remaining.dup.each do |h|
+            # Tier 1
             vec = cache_local_get("embed:#{h}:#{model}")
             next unless vec
 
             result[h] = vec
             memory_set("embed:#{h}:#{model}", vec)
             remaining.delete(h)
-          end
 
-          # Tier 2
-          remaining.dup.each do |h|
+            # Tier 2
             vec = cache_global_get("embed:#{h}:#{model}")
             next unless vec
 
@@ -201,9 +197,7 @@ module Legion
 
         def memory_set(key, vector)
           @memory_mutex.synchronize do
-            if @memory_cache.size >= L0_MAX_ENTRIES && !@memory_cache.key?(key)
-              @memory_cache.delete(@memory_cache.keys.first)
-            end
+            @memory_cache.delete(@memory_cache.keys.first) if @memory_cache.size >= L0_MAX_ENTRIES && !@memory_cache.key?(key)
             @memory_cache[key] = vector.dup.freeze
           end
         end

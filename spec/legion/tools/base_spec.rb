@@ -11,7 +11,7 @@ RSpec.describe Legion::Tools::Base do
         properties: {
           name: { type: 'string', description: 'Name' }
         },
-        required: ['name']
+        required:   ['name']
       )
 
       class << self

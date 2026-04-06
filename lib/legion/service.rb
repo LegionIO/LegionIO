@@ -610,7 +610,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
-    def shutdown
+    def shutdown # rubocop:disable Metrics/CyclomaticComplexity
       log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
@@ -670,7 +670,7 @@ module Legion
       Legion::Events.emit('service.shutdown')
     end
 
-    def reload # rubocop:disable Metrics/MethodLength
+    def reload # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity
       return if @reloading
 
       @reloading = true
