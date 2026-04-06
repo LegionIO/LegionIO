@@ -15,7 +15,7 @@ module Legion
           result = try_daemon(intent, options) || try_in_process(intent) || try_llm_classify(intent)
 
           if result.nil?
-            formatter.error('No matching capability found')
+            formatter.error('No matching tool found')
             formatter.detail('Try: legion lex list  (to see available extensions)')
             raise SystemExit, 1
           end
@@ -53,37 +53,28 @@ module Legion
         end
 
         def try_in_process(intent)
-          return nil unless defined?(Legion::Extensions::Catalog::Registry)
+          return nil unless defined?(Legion::Tools::Registry)
 
-          matches = Legion::Extensions::Catalog::Registry.find_by_intent(intent)
-          return nil if matches.empty?
-
-          best = matches.first
-          runner_class = build_runner_class(best.extension, best.runner)
-
-          if defined?(Legion::Ingress)
-            Legion::Ingress.run(
-              payload:      { intent: intent },
-              runner_class: runner_class,
-              function:     best.function,
-              source:       'cli:do'
-            )
-          else
-            { matched: best.name, runner_class: runner_class, function: best.function,
-              status: 'resolved', note: 'Daemon not running; cannot execute. Start with: legion start' }
+          matched = Legion::Tools::Registry.all_tools.find do |t|
+            t.tool_name.include?(intent.downcase.tr(' ', '_')) ||
+              t.description.downcase.include?(intent.downcase)
           end
+          return nil unless matched
+
+          result = matched.call
+          result.is_a?(Hash) ? result.merge(matched: matched.tool_name) : { matched: matched.tool_name, result: result }
         end
 
         def try_llm_classify(intent)
-          return nil unless defined?(Legion::Extensions::Catalog::Registry) && defined?(Legion::LLM)
+          return nil unless defined?(Legion::Tools::Registry) && defined?(Legion::LLM)
 
-          caps = Legion::Extensions::Catalog::Registry.capabilities
-          return nil if caps.empty?
+          tools = Legion::Tools::Registry.all_tools
+          return nil if tools.empty?
 
-          catalog = caps.map { |c| "#{c.name}: #{c.description || "#{c.extension} #{c.runner}##{c.function}"}" }
-          prompt = "Given these capabilities:\n#{catalog.join("\n")}\n\n" \
-                   "Which capability best matches this intent: \"#{intent}\"?\n" \
-                   'Reply with ONLY the capability name (e.g., lex-consul:health_check:run). ' \
+          catalog = tools.map { |t| "#{t.tool_name}: #{t.description}" }
+          prompt = "Given these tools:\n#{catalog.join("\n")}\n\n" \
+                   "Which tool best matches this intent: \"#{intent}\"?\n" \
+                   'Reply with ONLY the tool name (e.g., legion.do). ' \
                    'If none match, reply NONE.'
 
           response = Legion::LLM.ask(
@@ -93,12 +84,10 @@ module Legion
           chosen = response.is_a?(Hash) ? response[:response].to_s.strip : response.to_s.strip
           return nil if chosen.empty? || chosen.upcase == 'NONE'
 
-          cap = Legion::Extensions::Catalog::Registry.find(name: chosen)
-          return nil unless cap
+          tool = Legion::Tools::Registry.find(chosen)
+          return nil unless tool
 
-          runner_class = build_runner_class(cap.extension, cap.runner)
-          { matched: cap.name, runner_class: runner_class, function: cap.function,
-            status: 'resolved', source: 'llm',
+          { matched: tool.tool_name, status: 'resolved', source: 'llm',
             note: 'Daemon not running; cannot execute. Start with: legion start' }
         rescue StandardError => e
           Legion::Logging.debug("DoCommand#try_llm_classify failed: #{e.message}") if defined?(Legion::Logging)
@@ -106,26 +95,31 @@ module Legion
         end
 
         def resolve_runner_class(intent)
-          return nil unless defined?(Legion::Extensions::Catalog::Registry)
+          return nil unless defined?(Legion::Tools::Registry)
 
-          matches = Legion::Extensions::Catalog::Registry.find_by_intent(intent)
-          return nil if matches.empty?
+          matched = Legion::Tools::Registry.all_tools.find do |t|
+            t.description.downcase.include?(intent.downcase)
+          end
+          return nil unless matched && matched.respond_to?(:extension) && matched.respond_to?(:runner)
 
-          build_runner_class(matches.first.extension, matches.first.runner)
+          build_runner_class(matched.extension, matched.runner)
         end
 
         def resolve_function(intent)
-          return nil unless defined?(Legion::Extensions::Catalog::Registry)
+          return nil unless defined?(Legion::Tools::Registry)
 
-          matches = Legion::Extensions::Catalog::Registry.find_by_intent(intent)
-          return nil if matches.empty?
+          matched = Legion::Tools::Registry.all_tools.find do |t|
+            t.description.downcase.include?(intent.downcase)
+          end
+          return nil unless matched
 
-          matches.first.function
+          matched.tool_name.split('.').last
         end
 
         def build_runner_class(extension, runner)
-          ext_part = extension.delete_prefix('lex-').split(/[-_]/).map(&:capitalize).join
-          "Legion::Extensions::#{ext_part}::Runners::#{runner}"
+          ext_part = extension.to_s.delete_prefix('lex-').split(/[-_]/).map(&:capitalize).join
+          runner_part = runner.to_s.split('_').map(&:capitalize).join
+          "Legion::Extensions::#{ext_part}::Runners::#{runner_part}"
         end
 
         def daemon_port(options)
