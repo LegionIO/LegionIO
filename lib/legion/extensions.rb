@@ -12,7 +12,7 @@ module Legion
         hook_extensions
       end
 
-      def hook_extensions
+      def hook_extensions # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         @timer_tasks = []
         @loop_tasks = []
         @once_tasks = []
@@ -21,12 +21,21 @@ module Legion
         @local_tasks = []
         @actors = []
         @running_instances = Concurrent::Array.new
-        @pending_actors = Concurrent::Array.new
+        @loaded_extensions = []
 
         find_extensions
-        load_extensions
+
+        phases = group_by_phase
+        phases.each do |phase_num, entries|
+          @pending_actors = Concurrent::Array.new
+          load_phase_extensions(phase_num, entries)
+          hook_phase_actors(phase_num)
+        end
+
+        @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
+        Catalog.flush_persisted_transitions
+
         load_yaml_agents
-        hook_all_actors
       end
 
       attr_reader :local_tasks
@@ -107,11 +116,8 @@ module Legion
         Legion::Logging.warn 'All actors paused' if defined?(Legion::Logging)
       end
 
-      def load_extensions
-        @extensions ||= []
-        @loaded_extensions ||= []
-
-        eligible = @extensions.filter_map do |entry|
+      def load_phase_extensions(phase_num, entries)
+        eligible = entries.filter_map do |entry|
           gem_name = entry[:gem_name]
           ext_name = entry[:require_path].split('/').last
 
@@ -130,13 +136,33 @@ module Legion
         load_extensions_parallel(eligible)
 
         Legion::Logging.info(
-          "#{@extensions.count} extensions loaded with " \
-          "subscription:#{@subscription_tasks.count}," \
+          "Phase #{phase_num}: #{eligible.count} extensions loaded " \
+          "(subscription:#{@subscription_tasks.count}," \
           "every:#{@timer_tasks.count}," \
           "poll:#{@poll_tasks.count}," \
           "once:#{@once_tasks.count}," \
-          "loop:#{@loop_tasks.count}"
+          "loop:#{@loop_tasks.count})"
         )
+      end
+
+      def hook_phase_actors(phase_num)
+        return if @pending_actors.nil? || @pending_actors.empty?
+
+        Legion::Logging.info "Phase #{phase_num}: hooking #{@pending_actors.size} deferred actors"
+
+        groups = group_pending_actors
+
+        %i[once poll every loop].each do |type|
+          next if groups[type].empty?
+
+          groups[type].each { |actor| hook_actor(**actor) }
+        end
+
+        hook_subscription_actors_pooled(groups[:subscription]) unless groups[:subscription].empty?
+
+        dispatch_local_actors(@local_tasks) unless @local_tasks.empty?
+
+        @pending_actors.clear
       end
 
       def load_extensions_parallel(eligible)
@@ -273,38 +299,6 @@ module Legion
         false
       end
 
-      def hook_all_actors
-        return if @pending_actors.nil? || @pending_actors.empty?
-
-        Legion::Logging.info "Hooking #{@pending_actors.size} deferred actors"
-
-        groups = group_pending_actors
-
-        %i[once poll every loop].each do |type|
-          next if groups[type].empty?
-
-          Legion::Logging.info "Starting #{type} actors (#{groups[type].size})"
-          groups[type].each { |actor| hook_actor(**actor) }
-        end
-        unless groups[:subscription].empty?
-          Legion::Logging.info "Starting subscription actors (#{groups[:subscription].size})"
-          hook_subscription_actors_pooled(groups[:subscription])
-        end
-        dispatch_local_actors(@local_tasks) unless @local_tasks.empty?
-
-        @pending_actors.clear
-        Legion::Logging.info(
-          "Actors hooked: subscription:#{@subscription_tasks.count}," \
-          "every:#{@timer_tasks.count}," \
-          "poll:#{@poll_tasks.count}," \
-          "once:#{@once_tasks.count}," \
-          "loop:#{@loop_tasks.count}," \
-          "local:#{@local_tasks.count}"
-        )
-        @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
-        Catalog.flush_persisted_transitions
-      end
-
       ACTOR_TYPE_MAP = {
         Once:         :once,
         Poll:         :poll,
@@ -312,6 +306,16 @@ module Legion
         Loop:         :loop,
         Subscription: :subscription
       }.freeze
+
+      def group_by_phase
+        categories = ::Legion::Settings.dig(:extensions, :categories) || default_category_registry
+        default_phase = 1
+
+        @extensions.group_by do |entry|
+          cat = entry[:category]
+          categories.dig(cat, :phase) || default_phase
+        end.sort_by(&:first)
+      end
 
       def group_pending_actors
         groups = { once: [], poll: [], every: [], loop: [], subscription: [] }
@@ -661,9 +665,10 @@ module Legion
         ext_settings = ::Legion::Settings[:extensions] || {}
         categories   = ext_settings[:categories] || default_category_registry
         lists        = {
-          core: Array(ext_settings[:core]),
-          ai:   Array(ext_settings[:ai]),
-          gaia: Array(ext_settings[:gaia])
+          identity: Array(ext_settings[:identity]),
+          core:     Array(ext_settings[:core]),
+          ai:       Array(ext_settings[:ai]),
+          gaia:     Array(ext_settings[:gaia])
         }
         ctx = {
           blocked:     Array(ext_settings[:blocked]),
@@ -696,7 +701,7 @@ module Legion
           Legion::Logging.debug "Extensions#check_reserved_words failed to read reserved_prefixes: #{e.message}" if defined?(Legion::Logging)
           []
         end
-        reserved_prefixes = configured_prefixes.empty? ? %w[core ai agentic gaia] : configured_prefixes
+        reserved_prefixes = configured_prefixes.empty? ? %w[core ai agentic gaia identity] : configured_prefixes
 
         configured_words = begin
           Array(::Legion::Settings.dig(:extensions, :reserved_words))
@@ -881,10 +886,11 @@ module Legion
 
       def default_category_registry
         {
-          core:    { type: :list, tier: 1 },
-          ai:      { type: :list, tier: 2 },
-          gaia:    { type: :list, tier: 3 },
-          agentic: { type: :prefix, tier: 4 }
+          identity: { type: :prefix, tier: 0, phase: 0 },
+          core:     { type: :list,   tier: 1, phase: 1 },
+          ai:       { type: :list,   tier: 2, phase: 1 },
+          gaia:     { type: :list,   tier: 3, phase: 1 },
+          agentic:  { type: :prefix, tier: 4, phase: 1 }
         }
       end
 
