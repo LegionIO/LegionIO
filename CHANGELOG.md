@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+- `Legion::Tools::Base` - canonical tool base class with DSL
+- `Legion::Tools::Registry` - always/deferred tool classification
+- `Legion::Tools::Discovery` - auto-discovers tools from extension runners with hierarchical DSL
+- `Legion::Tools::EmbeddingCache` - 5-tier persistent embedding cache (L0 memory + Cache + Data)
+- `mcp_tools?` and `mcp_tools_deferred?` extension Core DSL
+- `runner_modules` accessor on extension builders
+- `loaded_extension_modules` accessor on `Legion::Extensions`
+- Static tools: `Do`, `Status`, `Config` with `Legion::Logging::Helper`
+
+### Changed
+- Boot registers tools into Tools::Registry after extension load
+- Embedding index build is async (non-blocking)
+- API inference reads from Tools::Registry instead of MCP
+- Capability registration methods are now no-ops (replaced by Tools::Discovery)
+
+### Removed
+- Direct MCP dependency for tool access in API inference
+
 ## [1.7.16] - 2026-04-03
 
 ### Fixed
