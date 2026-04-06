@@ -12,7 +12,7 @@ module Legion
         hook_extensions
       end
 
-      def hook_extensions # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      def hook_extensions
         @timer_tasks = []
         @loop_tasks = []
         @once_tasks = []

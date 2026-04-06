@@ -32,17 +32,17 @@ RSpec.describe Legion::Extensions do
 
       it 'groups identity extensions into phase 0' do
         phases = described_class.send(:group_by_phase)
-        phase_0 = phases.find { |num, _| num == 0 }
-        expect(phase_0).not_to be_nil
-        names = phase_0.last.map { |e| e[:gem_name] }
+        identity_phase = phases.find { |num, _| num == 0 }
+        expect(identity_phase).not_to be_nil
+        names = identity_phase.last.map { |e| e[:gem_name] }
         expect(names).to contain_exactly('lex-identity-kerberos', 'lex-identity-ldap', 'lex-identity-system')
       end
 
       it 'groups non-identity extensions into phase 1' do
         phases = described_class.send(:group_by_phase)
-        phase_1 = phases.find { |num, _| num == 1 }
-        expect(phase_1).not_to be_nil
-        names = phase_1.last.map { |e| e[:gem_name] }
+        main_phase = phases.find { |num, _| num == 1 }
+        expect(main_phase).not_to be_nil
+        names = main_phase.last.map { |e| e[:gem_name] }
         expect(names).to contain_exactly('lex-http', 'lex-redis', 'lex-agentic-memory')
       end
 
@@ -62,8 +62,8 @@ RSpec.describe Legion::Extensions do
 
       it 'has no phase 0' do
         phases = described_class.send(:group_by_phase)
-        phase_0 = phases.find { |num, _| num == 0 }
-        expect(phase_0).to be_nil
+        identity_phase = phases.find { |num, _| num == 0 }
+        expect(identity_phase).to be_nil
       end
 
       it 'puts everything in phase 1' do
@@ -103,7 +103,7 @@ RSpec.describe Legion::Extensions do
     end
 
     it 'assigns all other categories to phase 1' do
-      non_identity = registry.reject { |k, _| k == :identity }
+      non_identity = registry.except(:identity)
       non_identity.each_value do |v|
         expect(v[:phase]).to eq(1), "Expected phase 1 for #{v}"
       end
