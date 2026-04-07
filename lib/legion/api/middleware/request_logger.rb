@@ -49,6 +49,25 @@ module Legion
           parts << "query=#{query}" if query
           parts.join(' ')
         end
+
+        def peek_body(env)
+          input = env['rack.input']
+          return '-' unless input.respond_to?(:read) && input.respond_to?(:rewind)
+
+          begin
+            input.rewind
+            raw = input.read(1024)
+            raw.to_s.gsub(/\s+/, ' ')[0, 512]
+          rescue StandardError
+            '-'
+          ensure
+            begin
+              input.rewind
+            rescue StandardError
+              nil
+            end
+          end
+        end
       end
     end
   end

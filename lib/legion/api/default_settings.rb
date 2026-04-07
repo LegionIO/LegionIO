@@ -13,7 +13,8 @@ module Legion
           puma:            puma_defaults,
           bind_retries:    3,
           bind_retry_wait: 2,
-          tls:             tls_defaults
+          tls:             tls_defaults,
+          elastic_apm:     elastic_apm_defaults
         }
       end
 
@@ -29,6 +30,33 @@ module Legion
       def self.tls_defaults
         {
           enabled: false
+        }
+      end
+
+      def self.elastic_apm_defaults
+        {
+          enabled:                  false,
+          server_url:               'http://localhost:8200',
+          api_key:                  nil,
+          secret_token:             nil,
+          api_buffer_size:          256,
+          api_request_size:         '750kb',
+          api_request_time:         '10s',
+          capture_body:             'off',
+          capture_headers:          true,
+          capture_env:              true,
+          disable_send:             false,
+          environment:              nil,
+          hostname:                 nil,
+          ignore_url_patterns:      %w[/api/health /api/ready],
+          pool_size:                1,
+          service_name:             'LegionIO',
+          service_node_name:        nil,
+          service_version:          nil,
+          sample_rate:              1.0,
+          verify_server_cert:       true,
+          central_config:           true,
+          span_frames_min_duration: '5ms'
         }
       end
     end

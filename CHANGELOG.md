@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.7.25] - 2026-04-06
+
+### Added
+- Wire Format Phase 3 Group 2: `Identity::Request::SOURCE_NORMALIZATION` constant — maps middleware-emitted source values (`:api_key`, `:local`, `:jwt`, `:kerberos`, `:system`) to canonical credential enum at `from_auth_context` construction time
+- Wire Format Phase 3 Group 2: `response_meta` in `API::Helpers` now includes `caller` block (`canonical_name`, `kind`, `source`) when the request is authenticated and `env['legion.principal']` is set by `Identity::Middleware`
+- Wire Format Phase 3 Group 2: `POST /api/llm/inference` wires `to_caller_hash` from the authenticated principal into the pipeline `caller:` field, replacing the hardcoded `{ type: :user, credential: :api }` fallback
+
 ## [1.7.24] - 2026-04-06
 
 ### Fixed
