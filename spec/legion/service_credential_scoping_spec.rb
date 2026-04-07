@@ -77,6 +77,175 @@ RSpec.describe Legion::Service do
   end
 
   # ---------------------------------------------------------------------------
+  # §8.1 Boot — initialize calls fetch_phase5_bootstrap_creds after Crypt.start
+  # ---------------------------------------------------------------------------
+
+  # Verify that #initialize actually invokes fetch_phase5_bootstrap_creds after Crypt.start
+  # (so the call site cannot be silently deleted without breaking this spec).
+  describe 'Legion::Service#initialize — fetch_phase5_bootstrap_creds call site' do
+    let(:service_instance) { described_class.allocate }
+
+    it 'calls fetch_phase5_bootstrap_creds when crypt is enabled and not in lite mode' do
+      crypt = build_crypt_stub(vault_connected: true, dynamic_rmq_creds: true)
+      crypt_with_start = Module.new do
+        define_singleton_method(:vault_connected?) { crypt.vault_connected? }
+        define_singleton_method(:dynamic_rmq_creds?) { crypt.dynamic_rmq_creds? }
+        define_singleton_method(:fetch_bootstrap_rmq_creds) { crypt.fetch_bootstrap_rmq_creds }
+        define_singleton_method(:swap_to_identity_creds) { |**kw| crypt.swap_to_identity_creds(**kw) }
+        define_singleton_method(:revoke_bootstrap_lease) { crypt.revoke_bootstrap_lease }
+        def self.start = nil
+        def self.cs = nil
+      end
+      stub_const('Legion::Crypt', crypt_with_start)
+      stub_const('Legion::Mode', build_mode_stub(current: :agent, lite: false))
+
+      # Verify fetch_phase5_bootstrap_creds is wired into the initialize call-site by
+      # checking that the private method is invoked when crypt=true and not lite mode.
+      expect(service_instance).to receive(:fetch_phase5_bootstrap_creds)
+
+      # Stub everything else so initialize() can run through the crypt branch
+      allow(service_instance).to receive(:setup_logging)
+      allow(service_instance).to receive(:log).and_return(double(debug: nil, info: nil, warn: nil, error: nil))
+      allow(service_instance).to receive(:setup_settings)
+      allow(service_instance).to receive(:apply_cli_overrides)
+      allow(service_instance).to receive(:setup_compliance)
+      allow(service_instance).to receive(:setup_local_mode)
+      allow(service_instance).to receive(:reconfigure_logging)
+      allow(service_instance).to receive(:setup_mtls_rotation)
+      allow(service_instance).to receive(:require)
+      allow(service_instance).to receive(:require_relative)
+      allow(service_instance).to receive(:setup_transport)
+      allow(service_instance).to receive(:setup_dispatch)
+      allow(service_instance).to receive(:setup_rbac)
+      allow(service_instance).to receive(:setup_cluster)
+      allow(service_instance).to receive(:setup_llm)
+      allow(service_instance).to receive(:setup_apollo)
+      allow(service_instance).to receive(:setup_gaia)
+      allow(service_instance).to receive(:setup_telemetry)
+      allow(service_instance).to receive(:setup_audit_archiver)
+      allow(service_instance).to receive(:setup_safety_metrics)
+      allow(service_instance).to receive(:setup_supervision)
+      allow(service_instance).to receive(:setup_extensions)
+      allow(service_instance).to receive(:setup_generated_functions)
+      allow(service_instance).to receive(:load_extensions)
+      allow(service_instance).to receive(:setup_api)
+      allow(service_instance).to receive(:setup_identity)
+      allow(service_instance).to receive(:setup_apm)
+      allow(service_instance).to receive(:setup_network_watchdog)
+      allow(service_instance).to receive(:register_core_tools)
+      allow(service_instance).to receive(:setup_alerts)
+      allow(service_instance).to receive(:setup_metrics)
+      allow(service_instance).to receive(:setup_task_outcome_observer)
+      allow(service_instance).to receive(:bootstrap_log_level).and_return(:info)
+
+      process_role = Module.new do
+        def self.resolve(_)
+          { transport: false, cache: false, data: false, supervision: false, extensions: false, crypt: true, api: false, llm: false,
+        gaia: false }
+        end
+
+        def self.current = :agent
+      end
+      stub_const('Legion::ProcessRole', process_role)
+
+      settings_mod = Module.new do
+        def self.respond_to?(mth, *) = mth == :resolve_secrets! ? true : super
+        def self.resolve_secrets! = nil
+        def self.dig(*) = nil
+      end
+      settings_mod.define_singleton_method(:[]) { |_k| {} }
+      settings_mod.define_singleton_method(:[]=) { |_k, _v| nil }
+      stub_const('Legion::Settings', settings_mod)
+
+      readiness_mod = Module.new do
+        def self.mark_ready(*) = nil
+        def self.mark_skipped(*) = nil
+      end
+      stub_const('Legion::Readiness', readiness_mod)
+
+      service_instance.send(:initialize, crypt: true)
+    end
+
+    it 'does not call fetch_phase5_bootstrap_creds when in lite mode' do
+      crypt = build_crypt_stub(vault_connected: true, dynamic_rmq_creds: true)
+      crypt_with_start = Module.new do
+        define_singleton_method(:vault_connected?) { crypt.vault_connected? }
+        define_singleton_method(:dynamic_rmq_creds?) { crypt.dynamic_rmq_creds? }
+        define_singleton_method(:fetch_bootstrap_rmq_creds) { crypt.fetch_bootstrap_rmq_creds }
+        define_singleton_method(:swap_to_identity_creds) { |**kw| crypt.swap_to_identity_creds(**kw) }
+        define_singleton_method(:revoke_bootstrap_lease) { crypt.revoke_bootstrap_lease }
+        def self.start = nil
+        def self.cs = nil
+      end
+      stub_const('Legion::Crypt', crypt_with_start)
+      stub_const('Legion::Mode', build_mode_stub(current: :lite, lite: true))
+
+      expect(service_instance).not_to receive(:fetch_phase5_bootstrap_creds)
+
+      allow(service_instance).to receive(:setup_logging)
+      allow(service_instance).to receive(:log).and_return(double(debug: nil, info: nil, warn: nil, error: nil))
+      allow(service_instance).to receive(:setup_settings)
+      allow(service_instance).to receive(:apply_cli_overrides)
+      allow(service_instance).to receive(:setup_compliance)
+      allow(service_instance).to receive(:setup_local_mode)
+      allow(service_instance).to receive(:reconfigure_logging)
+      allow(service_instance).to receive(:setup_mtls_rotation)
+      allow(service_instance).to receive(:require)
+      allow(service_instance).to receive(:require_relative)
+      allow(service_instance).to receive(:setup_transport)
+      allow(service_instance).to receive(:setup_dispatch)
+      allow(service_instance).to receive(:setup_rbac)
+      allow(service_instance).to receive(:setup_cluster)
+      allow(service_instance).to receive(:setup_llm)
+      allow(service_instance).to receive(:setup_apollo)
+      allow(service_instance).to receive(:setup_gaia)
+      allow(service_instance).to receive(:setup_telemetry)
+      allow(service_instance).to receive(:setup_audit_archiver)
+      allow(service_instance).to receive(:setup_safety_metrics)
+      allow(service_instance).to receive(:setup_supervision)
+      allow(service_instance).to receive(:setup_extensions)
+      allow(service_instance).to receive(:setup_generated_functions)
+      allow(service_instance).to receive(:load_extensions)
+      allow(service_instance).to receive(:setup_api)
+      allow(service_instance).to receive(:setup_identity)
+      allow(service_instance).to receive(:setup_apm)
+      allow(service_instance).to receive(:setup_network_watchdog)
+      allow(service_instance).to receive(:register_core_tools)
+      allow(service_instance).to receive(:setup_alerts)
+      allow(service_instance).to receive(:setup_metrics)
+      allow(service_instance).to receive(:setup_task_outcome_observer)
+      allow(service_instance).to receive(:bootstrap_log_level).and_return(:info)
+
+      process_role = Module.new do
+        def self.resolve(_)
+          { transport: false, cache: false, data: false, supervision: false, extensions: false, crypt: true, api: false, llm: false,
+        gaia: false }
+        end
+
+        def self.current = :lite
+      end
+      stub_const('Legion::ProcessRole', process_role)
+
+      settings_mod = Module.new do
+        def self.respond_to?(mth, *) = mth == :resolve_secrets! ? true : super
+        def self.resolve_secrets! = nil
+        def self.dig(*) = nil
+      end
+      settings_mod.define_singleton_method(:[]) { |_k| {} }
+      settings_mod.define_singleton_method(:[]=) { |_k, _v| nil }
+      stub_const('Legion::Settings', settings_mod)
+
+      readiness_mod = Module.new do
+        def self.mark_ready(*) = nil
+        def self.mark_skipped(*) = nil
+      end
+      stub_const('Legion::Readiness', readiness_mod)
+
+      service_instance.send(:initialize, crypt: true)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # §8.1 Boot — setup_identity credential swap
   # ---------------------------------------------------------------------------
 
@@ -426,6 +595,7 @@ RSpec.describe Legion::Service do
       readiness_mod = Module.new do
         def self.mark_ready(*) = nil
         def self.mark_not_ready(*) = nil
+        def self.mark_skipped(*) = nil
         def self.wait_until_not_ready(*) = nil
       end
       events_mod = Module.new do

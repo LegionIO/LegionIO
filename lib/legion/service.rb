@@ -784,7 +784,9 @@ module Legion
       shutdown_mtls_rotation
       # Phase 5: Revoke bootstrap RMQ lease on clean shutdown (defense-in-depth;
       # lease expires naturally if process crashes before identity swap).
-      Legion::Crypt.revoke_bootstrap_lease if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:revoke_bootstrap_lease)
+      shutdown_component('Crypt bootstrap lease') do
+        Legion::Crypt.revoke_bootstrap_lease if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:revoke_bootstrap_lease)
+      end
       shutdown_component('Crypt') { Legion::Crypt.shutdown if defined?(Legion::Crypt) }
       Legion::Readiness.mark_not_ready(:crypt)
 
@@ -836,7 +838,7 @@ module Legion
       Legion::Crypt.start if defined?(Legion::Crypt)
       Legion::Readiness.mark_ready(:crypt)
       # Phase 5: fetch bootstrap RMQ creds after Vault reconnects on reload.
-      fetch_phase5_bootstrap_creds
+      fetch_phase5_bootstrap_creds unless Legion::Mode.lite?
 
       # Resolve lease:// URIs with freshly loaded settings + new Vault token.
       Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
