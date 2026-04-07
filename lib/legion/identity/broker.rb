@@ -23,7 +23,7 @@ module Legion
           lease = renewer.current_lease
           return nil unless lease&.valid?
 
-          { token: lease.token, provider: provider_name, service: service, lease: lease }
+          { token: lease.token, provider: provider_name.to_sym, service: service, lease: lease }
         end
 
         def register_provider(provider_name, provider:, lease:)

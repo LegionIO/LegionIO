@@ -44,13 +44,28 @@ module Legion
         settings_dig(:process, :role)
       end
 
+      def fetch_setting_value(container, key)
+        value = container[key]
+        return value unless value.nil?
+
+        alternate_key = case key
+                        when Symbol then key.to_s
+                        when String then key.to_sym
+                        end
+        return value if alternate_key.nil?
+
+        container[alternate_key]
+      end
+
       def settings_dig(*keys)
         return nil unless defined?(Legion::Settings) && Legion::Settings.respond_to?(:[])
 
         result = Legion::Settings
         keys.each do |k|
-          result = result[k]
-          return nil unless result.is_a?(Hash) || keys.last == k
+          return nil unless result.respond_to?(:[])
+
+          result = fetch_setting_value(result, k)
+          return nil if result.nil? && keys.last != k
         end
         result
       rescue StandardError

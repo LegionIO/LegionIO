@@ -9,7 +9,7 @@ module Legion
         {
           enabled:         true,
           port:            4567,
-          bind:            '0.0.0.0',
+          bind:            '127.0.0.1',
           puma:            puma_defaults,
           bind_retries:    3,
           bind_retry_wait: 2,

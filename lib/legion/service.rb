@@ -796,6 +796,8 @@ module Legion
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
 
+      Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:flush_pending_registrations!)
+
       register_core_tools
 
       Legion::Crypt.cs
@@ -970,12 +972,14 @@ module Legion
       end
 
       winner_pair = providers.zip(futures).find do |_provider, future|
-        result = future.value(5) # 5s timeout per provider
+        result = begin
+          future.value(5) # 5s timeout per provider
+        rescue StandardError => e
+          handle_exception(e, level: :debug, operation: 'service.resolve_identity_providers.future')
+          nil
+        end
         result.is_a?(Hash) && result[:canonical_name]
       end
-
-      pool.shutdown
-      pool.kill unless pool.wait_for_termination(2)
 
       if winner_pair
         provider, future = winner_pair
@@ -989,6 +993,9 @@ module Legion
     rescue StandardError => e
       handle_exception(e, level: :warn, operation: 'service.resolve_identity_providers')
       false
+    ensure
+      pool&.shutdown
+      pool&.kill unless pool&.wait_for_termination(2)
     end
 
     def find_identity_providers

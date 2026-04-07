@@ -17,7 +17,7 @@ RSpec.describe Legion::API::Settings do
     end
 
     it 'includes bind' do
-      expect(defaults[:bind]).to eq('0.0.0.0')
+      expect(defaults[:bind]).to eq('127.0.0.1')
     end
 
     it 'includes enabled' do

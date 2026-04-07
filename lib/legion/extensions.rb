@@ -110,13 +110,15 @@ module Legion
       def flush_pending_registrations!
         return if @pending_registrations.nil? || @pending_registrations.empty?
 
-        count = @pending_registrations.size
-        @pending_registrations.each do |registration|
+        registrations = @pending_registrations
+        count = registrations.size
+        @pending_registrations = nil
+
+        registrations.each do |registration|
           registration.publish
         rescue StandardError => e
           Legion::Logging.warn "[Extensions] flush registration failed: #{e.message}" if defined?(Legion::Logging)
         end
-        @pending_registrations.clear
         Legion::Logging.info "[Extensions] flushed #{count} pending registrations" if defined?(Legion::Logging)
       end
 

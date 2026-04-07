@@ -61,7 +61,9 @@ RSpec.describe Legion::Mode do
 
       it 'returns the mode from Settings[:mode]' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return('worker')
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:worker)
       end
     end
@@ -71,7 +73,9 @@ RSpec.describe Legion::Mode do
 
       it 'returns the mode from Settings[:process][:mode]' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ mode: 'infra' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:infra)
       end
     end
@@ -81,31 +85,41 @@ RSpec.describe Legion::Mode do
 
       it 'maps :full to :agent via LEGACY_MAP' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ role: 'full' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:agent)
       end
 
       it 'maps :api to :worker via LEGACY_MAP' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ role: 'api' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:worker)
       end
 
       it 'maps :router to :worker via LEGACY_MAP' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ role: 'router' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:worker)
       end
 
       it 'maps :worker to :worker via LEGACY_MAP' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ role: 'worker' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:worker)
       end
 
       it 'maps :lite to :lite via LEGACY_MAP' do
         allow(Legion::Settings).to receive(:[]).with(:mode).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with('mode').and_return(nil)
         allow(Legion::Settings).to receive(:[]).with(:process).and_return({ role: 'lite' })
+        allow(Legion::Settings).to receive(:[]).with('process').and_return(nil)
         expect(described_class.current).to eq(:lite)
       end
     end
