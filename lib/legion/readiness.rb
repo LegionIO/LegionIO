@@ -4,7 +4,9 @@ require 'concurrent'
 
 module Legion
   module Readiness
-    COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia identity extensions api].freeze
+    REQUIRED_COMPONENTS = %i[settings crypt transport cache data extensions api].freeze
+    OPTIONAL_COMPONENTS = %i[rbac llm apollo gaia identity].freeze
+    COMPONENTS = (REQUIRED_COMPONENTS + OPTIONAL_COMPONENTS).freeze
     DRAIN_TIMEOUT = 5
 
     class << self
@@ -22,14 +24,19 @@ module Legion
         Legion::Logging.debug "[Readiness] #{component} is not ready" if defined?(Legion::Logging)
       end
 
+      def mark_skipped(component)
+        status[component.to_sym] = :skipped
+        Legion::Logging.debug "[Readiness] #{component} skipped (optional)" if defined?(Legion::Logging)
+      end
+
       def ready?(component = nil)
         if component
-          result = status[component.to_sym] == true
+          result = [true, :skipped].include?(status[component.to_sym])
           Legion::Logging.warn "[Readiness] #{component} is not ready" if !result && defined?(Legion::Logging)
           return result
         end
 
-        not_ready = COMPONENTS.reject { |c| status[c] == true }
+        not_ready = COMPONENTS.reject { |c| [true, :skipped].include?(status[c]) }
         not_ready.each { |c| Legion::Logging.warn "[Readiness] #{c} is not ready" } if !not_ready.empty? && defined?(Legion::Logging)
         not_ready.empty?
       end
@@ -50,7 +57,8 @@ module Legion
 
       def to_h
         COMPONENTS.to_h do |c|
-          [c, status[c] == true]
+          val = status[c]
+          [c, [true, :skipped].include?(val)]
         end
       end
     end

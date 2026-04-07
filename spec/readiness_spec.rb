@@ -21,6 +21,22 @@ RSpec.describe Legion::Readiness do
     end
   end
 
+  describe 'REQUIRED_COMPONENTS' do
+    it 'includes core infrastructure components' do
+      expect(described_class::REQUIRED_COMPONENTS).to include(:settings, :crypt, :transport, :cache, :data, :extensions, :api)
+    end
+
+    it 'does not include optional components' do
+      expect(described_class::REQUIRED_COMPONENTS).not_to include(:rbac, :llm, :apollo, :gaia, :identity)
+    end
+  end
+
+  describe 'OPTIONAL_COMPONENTS' do
+    it 'includes optional components' do
+      expect(described_class::OPTIONAL_COMPONENTS).to include(:rbac, :llm, :apollo, :gaia, :identity)
+    end
+  end
+
   describe 'DRAIN_TIMEOUT' do
     it 'is 5' do
       expect(described_class::DRAIN_TIMEOUT).to eq(5)
@@ -39,6 +55,29 @@ RSpec.describe Legion::Readiness do
       described_class.mark_ready(:settings)
       described_class.mark_not_ready(:settings)
       expect(described_class.ready?(:settings)).to eq(false)
+    end
+  end
+
+  describe '.mark_skipped' do
+    it 'marks a component as skipped' do
+      described_class.mark_skipped(:rbac)
+      expect(described_class.status[:rbac]).to eq(:skipped)
+    end
+
+    it 'counts as ready for individual component check' do
+      described_class.mark_skipped(:rbac)
+      expect(described_class.ready?(:rbac)).to eq(true)
+    end
+
+    it 'counts as ready for global readiness check' do
+      described_class::COMPONENTS.each do |c|
+        if described_class::OPTIONAL_COMPONENTS.include?(c)
+          described_class.mark_skipped(c)
+        else
+          described_class.mark_ready(c)
+        end
+      end
+      expect(described_class.ready?).to eq(true)
     end
   end
 
@@ -62,9 +101,21 @@ RSpec.describe Legion::Readiness do
       expect(described_class.ready?).to eq(true)
     end
 
-    it 'reports not ready when llm is missing' do
+    it 'reports ready when optional llm is skipped' do
       described_class.reset
-      described_class::COMPONENTS.each { |c| described_class.mark_ready(c) unless c == :llm }
+      described_class::COMPONENTS.each do |c|
+        if c == :llm
+          described_class.mark_skipped(c)
+        else
+          described_class.mark_ready(c)
+        end
+      end
+      expect(described_class.ready?).to be true
+    end
+
+    it 'reports not ready when required component is missing' do
+      described_class.reset
+      described_class::COMPONENTS.each { |c| described_class.mark_ready(c) unless c == :settings }
       expect(described_class.ready?).to be false
     end
   end
@@ -93,6 +144,12 @@ RSpec.describe Legion::Readiness do
       result = described_class.to_h
       expect(result[:settings]).to eq(true)
       expect(result[:cache]).to eq(false)
+    end
+
+    it 'reports skipped components as true' do
+      described_class.mark_skipped(:rbac)
+      result = described_class.to_h
+      expect(result[:rbac]).to eq(true)
     end
   end
 

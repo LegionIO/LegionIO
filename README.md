@@ -8,13 +8,13 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╭──────────────────────────────────────╮
          │           L E G I O N I O            │
          │                                      │
-         │   280+ extensions  ·  58 MCP tools   │
+         │   280+ extensions  ·  60 MCP tools   │
          │   AI chat CLI  ·  REST API  ·  HA    │
          │   cognitive architecture  ·  Vault    │
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.6.20** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.7.21** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -33,7 +33,7 @@ When A completes, B runs. B triggers C, D, and E in parallel. Conditions gate ex
 But that's just the foundation. LegionIO is also:
 
 - **An AI coding assistant** — interactive chat with tools, code review, commit messages, PR generation, and multi-agent workflows
-- **An MCP server** — 58 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
+- **An MCP server** — 60 tools that let any AI agent run tasks, manage extensions, and query your infrastructure
 - **A cognitive computing platform** — 242 brain-modeled extensions across 18 cognitive domains
 - **A digital worker platform** — AI-as-labor with governance, risk tiers, and cost tracking
 
@@ -359,7 +359,7 @@ legion mcp http           # streamable HTTP on localhost:9393
 legion mcp http --port 8080 --host 0.0.0.0
 ```
 
-**58 tools** in the `legion.*` namespace:
+**60 tools** in the `legion.*` namespace:
 
 | Category | Tools |
 |----------|-------|

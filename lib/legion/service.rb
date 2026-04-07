@@ -102,7 +102,11 @@ module Legion
         end
       end
 
-      setup_rbac if data
+      if data
+        setup_rbac
+      else
+        Legion::Readiness.mark_skipped(:rbac)
+      end
       setup_cluster if data
 
       if llm
@@ -112,9 +116,13 @@ module Legion
         rescue LoadError => e
           handle_exception(e, level: :debug, operation: 'service.initialize.llm', availability: 'missing')
           log.info 'Legion::LLM gem is not installed'
+          Legion::Readiness.mark_skipped(:llm)
         rescue StandardError => e
           handle_exception(e, level: :warn, operation: 'service.initialize.llm')
+          Legion::Readiness.mark_skipped(:llm)
         end
+      else
+        Legion::Readiness.mark_skipped(:llm)
       end
 
       begin
@@ -123,8 +131,10 @@ module Legion
       rescue LoadError => e
         handle_exception(e, level: :debug, operation: 'service.initialize.apollo', availability: 'missing')
         log.info 'Legion::Apollo gem is not installed, starting without Apollo'
+        Legion::Readiness.mark_skipped(:apollo)
       rescue StandardError => e
         handle_exception(e, level: :warn, operation: 'service.initialize.apollo')
+        Legion::Readiness.mark_skipped(:apollo)
       end
 
       if gaia
@@ -134,9 +144,13 @@ module Legion
         rescue LoadError => e
           handle_exception(e, level: :debug, operation: 'service.initialize.gaia', availability: 'missing')
           log.info 'Legion::Gaia gem is not installed'
+          Legion::Readiness.mark_skipped(:gaia)
         rescue StandardError => e
           handle_exception(e, level: :warn, operation: 'service.initialize.gaia')
+          Legion::Readiness.mark_skipped(:gaia)
         end
+      else
+        Legion::Readiness.mark_skipped(:gaia)
       end
 
       setup_telemetry
@@ -178,6 +192,7 @@ module Legion
       require 'legion/api/default_settings'
       api_settings = Legion::Settings[:api]
       @api_enabled = api && api_settings[:enabled]
+      setup_apm if @api_enabled
       setup_api if @api_enabled
       setup_network_watchdog
       Legion::Settings[:client][:ready] = true
@@ -232,8 +247,10 @@ module Legion
     rescue LoadError => e
       handle_exception(e, level: :debug, operation: 'service.setup_rbac', availability: 'missing')
       log.debug 'Legion::Rbac gem is not installed, starting without RBAC'
+      Legion::Readiness.mark_skipped(:rbac)
     rescue StandardError => e
       handle_exception(e, level: :warn, operation: 'service.setup_rbac')
+      Legion::Readiness.mark_skipped(:rbac)
     end
 
     def setup_cluster
@@ -307,6 +324,42 @@ module Legion
         include_pid: ls.fetch(:include_pid, false),
         color:       true
       )
+    end
+
+    def setup_apm
+      apm_settings = Legion::Settings[:apm] || {}
+      return unless apm_settings[:enabled]
+
+      require 'elastic-apm'
+
+      config = {
+        service_name:            apm_settings[:service_name] || "legion-#{Legion::Settings[:client][:name]}",
+        server_url:              apm_settings[:server_url] || 'http://localhost:8200',
+        environment:             apm_settings[:environment] || Legion::Settings[:environment] || 'development',
+        secret_token:            apm_settings[:secret_token],
+        api_key:                 apm_settings[:api_key],
+        log_level:               apm_settings[:log_level]&.to_sym || Logger::WARN,
+        transaction_sample_rate: apm_settings[:sample_rate] || 1.0
+      }.compact
+
+      ElasticAPM.start(**config)
+      @apm_running = true
+      log.info "Elastic APM started: server=#{config[:server_url]} service=#{config[:service_name]}"
+    rescue LoadError => e
+      handle_exception(e, level: :debug, operation: 'service.setup_apm', availability: 'missing')
+      log.info 'elastic-apm gem is not installed, starting without APM'
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.setup_apm')
+    end
+
+    def shutdown_apm
+      return unless @apm_running
+
+      ElasticAPM.stop if defined?(ElasticAPM) && ElasticAPM.running?
+      @apm_running = false
+      log.info 'Elastic APM stopped'
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.shutdown_apm')
     end
 
     def setup_api # rubocop:disable Metrics/MethodLength
@@ -667,6 +720,7 @@ module Legion
       shutdown_network_watchdog
       shutdown_audit_archiver
       shutdown_api
+      shutdown_apm
 
       Legion::Metrics.reset! if defined?(Legion::Metrics)
 
@@ -738,6 +792,7 @@ module Legion
 
       shutdown_network_watchdog
       shutdown_api
+      shutdown_apm
 
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
         shutdown_component('Gaia') { Legion::Gaia.shutdown }
@@ -786,11 +841,33 @@ module Legion
       setup_data
       Legion::Readiness.mark_ready(:data)
 
-      setup_rbac if defined?(Legion::Rbac)
-      setup_llm if defined?(Legion::LLM)
+      if defined?(Legion::Rbac)
+        setup_rbac
+      else
+        Legion::Readiness.mark_skipped(:rbac)
+      end
 
-      setup_gaia if defined?(Legion::Gaia)
-      Legion::Readiness.mark_ready(:gaia)
+      if defined?(Legion::LLM)
+        setup_llm
+      else
+        Legion::Readiness.mark_skipped(:llm)
+      end
+
+      if defined?(Legion::Apollo)
+        setup_apollo
+        Legion::Readiness.mark_ready(:apollo)
+      else
+        Legion::Readiness.mark_skipped(:apollo)
+      end
+
+      if defined?(Legion::Gaia)
+        setup_gaia
+        Legion::Readiness.mark_ready(:gaia)
+      else
+        Legion::Readiness.mark_skipped(:gaia)
+      end
+
+      Legion::Readiness.mark_ready(:identity)
 
       setup_supervision
       load_extensions
@@ -801,6 +878,7 @@ module Legion
       register_core_tools
 
       Legion::Crypt.cs
+      setup_apm if @api_enabled
       setup_api if @api_enabled
 
       if defined?(Legion::MCP)

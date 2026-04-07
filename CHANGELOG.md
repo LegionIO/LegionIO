@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.7.21] - 2026-04-06
+### Fixed
+- Optional components (rbac, llm, apollo, gaia) no longer block readiness when not installed
+- Split `Readiness::COMPONENTS` into `REQUIRED_COMPONENTS` and `OPTIONAL_COMPONENTS`
+- Added `Readiness.mark_skipped` for components that are absent or disabled
+- Reload path now correctly marks optional components as skipped when not loaded
+
 ## [1.7.20] - 2026-04-06
 ### Added
 - `Legion::Mode` module with `LEGACY_MAP`, ENV/Settings fallback chain, `agent?`/`worker?`/`infra?`/`lite?` predicates
