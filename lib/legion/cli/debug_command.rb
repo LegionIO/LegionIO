@@ -98,7 +98,7 @@ module Legion
         def load_settings
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = 'error'
-          Connection.ensure_settings
+          Connection.ensure_settings(resolve_secrets: false)
         rescue StandardError
           nil
         end

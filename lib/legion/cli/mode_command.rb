@@ -31,7 +31,7 @@ module Legion
       desc 'show', 'Show current process role and extension profile'
       def show
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         process_role = Legion::ProcessRole.current
         profile = Legion::Settings.dig(:role, :profile)&.to_s || '(none — all extensions load)'
@@ -55,7 +55,7 @@ module Legion
       desc 'list', 'List available extension profiles and process roles'
       def list
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         if options[:json]
           out.json({ profiles: PROFILE_DESCRIPTIONS, process_roles: Legion::ProcessRole::ROLES.keys })
@@ -95,7 +95,7 @@ module Legion
       option :reload,       type: :boolean, default: false, desc: 'Trigger daemon reload after writing config'
       def set(profile = nil)
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         validate_inputs!(out, profile)
 

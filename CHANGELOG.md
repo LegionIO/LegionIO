@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.7.29] - 2026-04-07
+
+### Changed
+- Skip secret resolution for all CLI commands that only need local settings: `config`, `mode`, `lex`, `doctor`, `auth`, `marketplace`, `debug`, `failover status` — eliminates noisy Vault/lease warnings on local-only operations
+
 ## [1.7.28] - 2026-04-07
 
 ### Fixed

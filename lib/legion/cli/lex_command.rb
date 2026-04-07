@@ -160,7 +160,7 @@ module Legion
       desc 'enable NAME', 'Enable an extension in settings'
       def enable(name)
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         extensions = Legion::Settings[:extensions] || {}
         if extensions.key?(name.to_sym)
@@ -176,7 +176,7 @@ module Legion
       desc 'disable NAME', 'Disable an extension in settings'
       def disable(name)
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         extensions = Legion::Settings[:extensions] || {}
         if extensions.key?(name.to_sym)
@@ -349,7 +349,7 @@ module Legion
 
           # Load settings to check enabled/disabled state
           begin
-            Connection.ensure_settings
+            Connection.ensure_settings(resolve_secrets: false)
             ext_settings = Legion::Settings[:extensions] || {}
           rescue StandardError => e
             Legion::Logging.warn("LexCommand#discover_all settings load failed: #{e.message}") if defined?(Legion::Logging)

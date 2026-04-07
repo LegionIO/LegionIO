@@ -70,7 +70,7 @@ module Legion
       def diagnose
         out = formatter
         begin
-          Connection.ensure_settings
+          Connection.ensure_settings(resolve_secrets: false)
         rescue StandardError => e
           Legion::Logging.debug("Doctor#diagnose settings load failed: #{e.message}") if defined?(Legion::Logging)
         end
