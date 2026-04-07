@@ -56,6 +56,9 @@ module Legion
         Legion::Crypt.start
         Legion::Readiness.mark_ready(:crypt)
         setup_mtls_rotation
+        # Phase 5: fetch short-lived bootstrap RMQ creds from Vault before transport connects.
+        # No-op unless Vault is connected and dynamic_rmq_creds: true is configured.
+        Legion::Crypt.fetch_bootstrap_rmq_creds if Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
       end
 
       Legion::Settings.resolve_secrets!
@@ -480,7 +483,7 @@ module Legion
       log.info 'Legion::Transport connected'
     end
 
-    def setup_identity
+    def setup_identity # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       require_relative 'identity/process'
       require_relative 'identity/broker'
       require_relative 'identity/lease'
@@ -493,6 +496,17 @@ module Legion
       unless resolved
         Legion::Identity::Process.bind_fallback!
         log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
+      end
+
+      # Phase 5: Swap from bootstrap RMQ credentials to identity-scoped credentials.
+      # Gate on vault_connected? + dynamic_rmq_creds? — NOT on resolved? (fallback identity
+      # still needs scoped creds via the mode-based role).
+      if defined?(Legion::Crypt) &&
+         Legion::Crypt.respond_to?(:vault_connected?) && Legion::Crypt.vault_connected? &&
+         Legion::Crypt.respond_to?(:dynamic_rmq_creds?) && Legion::Crypt.dynamic_rmq_creds? &&
+         !Legion::Mode.lite?
+        log.info '[Identity] swapping to identity-scoped RMQ credentials'
+        Legion::Crypt.swap_to_identity_creds(mode: Legion::Mode.current)
       end
 
       # Re-resolve secrets for any identity-scoped lease:// refs (task 2.25)
@@ -702,7 +716,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
-    def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize, Metrics/MethodLength
       log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
@@ -767,6 +781,9 @@ module Legion
       Legion::Readiness.mark_not_ready(:transport)
 
       shutdown_mtls_rotation
+      # Phase 5: Revoke bootstrap RMQ lease on clean shutdown (defense-in-depth;
+      # lease expires naturally if process crashes before identity swap).
+      Legion::Crypt.revoke_bootstrap_lease if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:revoke_bootstrap_lease)
       shutdown_component('Crypt') { Legion::Crypt.shutdown }
       Legion::Readiness.mark_not_ready(:crypt)
 
@@ -817,6 +834,11 @@ module Legion
 
       Legion::Crypt.start if defined?(Legion::Crypt)
       Legion::Readiness.mark_ready(:crypt)
+      # Phase 5: fetch bootstrap RMQ creds after Vault reconnects on reload.
+      Legion::Crypt.fetch_bootstrap_rmq_creds if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
+
+      # Resolve lease:// URIs with freshly loaded settings + new Vault token.
+      Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
 
       setup_transport
       Legion::Readiness.mark_ready(:transport)
@@ -858,7 +880,9 @@ module Legion
         Legion::Readiness.mark_skipped(:gaia)
       end
 
-      Legion::Readiness.mark_ready(:identity)
+      # Phase 5: re-run identity resolution + credential swap so the reloaded
+      # process gets identity-scoped RMQ creds (not stale bootstrap creds).
+      setup_identity
 
       setup_supervision
       load_extensions
