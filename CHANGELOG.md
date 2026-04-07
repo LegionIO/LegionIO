@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.7.28] - 2026-04-07
+
+### Fixed
+- `legionio setup` pack marker and packs.json writes now rescue `Errno::EPERM`/`EACCES`, fixing Homebrew post-install crash when sandbox blocks writes to `~/.legionio/`
+
 ## [1.7.27] - 2026-04-07
 
 ### Changed
