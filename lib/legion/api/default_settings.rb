@@ -42,7 +42,7 @@ module Legion
           api_buffer_size:          256,
           api_request_size:         '750kb',
           api_request_time:         '10s',
-          capture_body:             'all',
+          capture_body:             'off',
           capture_headers:          true,
           capture_env:              true,
           disable_send:             false,

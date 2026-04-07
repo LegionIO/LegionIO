@@ -1144,7 +1144,7 @@ module Legion
         api_buffer_size:          apm[:api_buffer_size] || 256,
         api_request_size:         apm[:api_request_size] || '750kb',
         api_request_time:         apm[:api_request_time] || '10s',
-        capture_body:             apm[:capture_body] || 'all',
+        capture_body:             apm.fetch(:capture_body, 'off'),
         capture_headers:          apm.fetch(:capture_headers, true),
         capture_env:              apm.fetch(:capture_env, true),
         disable_send:             apm.fetch(:disable_send, false),

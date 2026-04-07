@@ -23,7 +23,7 @@ module Legion
         @canonical_name = canonical_name
         @kind           = kind
         @groups         = groups.freeze
-        @source         = source
+        @source         = SOURCE_NORMALIZATION.fetch(source&.to_sym, source)
         @metadata       = metadata.freeze
         freeze
       end
