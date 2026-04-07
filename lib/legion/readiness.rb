@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'concurrent'
+
 module Legion
   module Readiness
     COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia identity extensions api].freeze
@@ -43,7 +45,7 @@ module Legion
       end
 
       def reset
-        @status = {}
+        @status = nil
       end
 
       def to_h

@@ -44,14 +44,25 @@ module Legion
           cached = @groups_cache&.get
           return cached[:groups] if cached && (Time.now - cached[:fetched_at]) < GROUPS_CACHE_TTL
 
-          return cached[:groups] if cached && !@groups_fetch_in_progress.make_true
+          if @groups_fetch_in_progress.make_true
+            begin
+              fetched = fetch_groups
+              @groups_cache.set({ groups: fetched, fetched_at: Time.now })
+              fetched
+            ensure
+              @groups_fetch_in_progress.make_false
+            end
+          else
+            loop do
+              current = @groups_cache&.get
+              return current[:groups] if current
 
-          begin
-            fetched = fetch_groups
-            @groups_cache.set({ groups: fetched, fetched_at: Time.now })
-            fetched
-          ensure
-            @groups_fetch_in_progress.make_false
+              break unless @groups_fetch_in_progress.true?
+
+              sleep(0.01)
+            end
+
+            cached ? cached[:groups] : []
           end
         end
 

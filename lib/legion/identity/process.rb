@@ -100,7 +100,9 @@ module Legion
         private
 
         def safe_hostname
-          ::Socket.gethostname.downcase.gsub(/[^a-z0-9-]/, '-').gsub(/-{2,}/, '-').gsub(/\A-|-\z/, '')
+          ::Socket.gethostname.downcase
+                  .gsub(/[^a-z0-9]+/, '-')
+                  .gsub(/\A-+|-+\z/, '')
         end
       end
 

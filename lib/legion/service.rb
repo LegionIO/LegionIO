@@ -451,11 +451,6 @@ module Legion
         log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
       end
 
-      Legion::Readiness.mark_ready(:identity)
-
-      # Flush deferred extension registrations now that identity is resolved
-      Legion::Extensions.flush_pending_registrations! if Legion::Extensions.respond_to?(:flush_pending_registrations!)
-
       # Re-resolve secrets for any identity-scoped lease:// refs (task 2.25)
       Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
 
@@ -470,7 +465,14 @@ module Legion
     rescue StandardError => e
       handle_exception(e, level: :warn, operation: 'service.setup_identity')
       Legion::Identity::Process.bind_fallback! if defined?(Legion::Identity::Process) && !Legion::Identity::Process.resolved?
+    ensure
       Legion::Readiness.mark_ready(:identity)
+      begin
+        Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) &&
+                                                           Legion::Extensions.respond_to?(:flush_pending_registrations!)
+      rescue StandardError => e
+        handle_exception(e, level: :warn, operation: 'service.setup_identity.flush_pending_registrations')
+      end
     end
 
     def setup_logging_transport # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -973,7 +975,7 @@ module Legion
       end
 
       pool.shutdown
-      pool.wait_for_termination(2)
+      pool.kill unless pool.wait_for_termination(2)
 
       if winner_pair
         provider, future = winner_pair

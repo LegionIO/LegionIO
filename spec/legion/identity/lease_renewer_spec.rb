@@ -59,8 +59,9 @@ RSpec.describe Legion::Identity::LeaseRenewer do
     end
 
     it 'never blocks (returns immediately)' do
-      elapsed = Benchmark.realtime { renewer.current_lease }
-      expect(elapsed).to be < 0.05
+      t0 = Time.now
+      renewer.current_lease
+      expect(Time.now - t0).to be < 0.05
     end
   end
 
@@ -83,8 +84,9 @@ RSpec.describe Legion::Identity::LeaseRenewer do
     end
 
     it 'returns within bounded time (< 6 seconds)' do
-      elapsed = Benchmark.realtime { renewer.stop! }
-      expect(elapsed).to be < 6
+      t0 = Time.now
+      renewer.stop!
+      expect(Time.now - t0).to be < 6
     end
 
     it 'is safe to call multiple times' do
@@ -225,6 +227,4 @@ RSpec.describe Legion::Identity::LeaseRenewer do
       expect(result).to eq(described_class::MIN_SLEEP)
     end
   end
-
-  require 'benchmark'
 end
