@@ -80,7 +80,7 @@ module Legion
                        id:             identity_hash[:id],
                        canonical_name: identity_hash[:canonical_name],
                        kind:           identity_hash[:kind],
-                       source:         identity_hash[:source] || provider_source,
+                       source:         identity_hash.key?(:source) ? identity_hash[:source] : provider_source,
                        persistent:     identity_hash.fetch(:persistent, true),
                        groups:         Array(identity_hash[:groups]).compact.freeze,
                        metadata:       identity_hash[:metadata].is_a?(Hash) ? identity_hash[:metadata].dup.freeze : {}.freeze

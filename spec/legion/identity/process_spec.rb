@@ -245,6 +245,33 @@ RSpec.describe Legion::Identity::Process do
     it 'returns a Hash with exactly 10 keys' do
       expect(hash.keys).to match_array(%i[id canonical_name kind source mode queue_prefix resolved persistent groups metadata])
     end
+
+    context 'when the provider exposes provider_name' do
+      before do
+        described_class.reset!
+        described_class.bind!(double('provider', provider_name: :custom_provider), {
+                                id:             fixed_uuid,
+                                canonical_name: 'hash-test',
+                                kind:           :machine,
+                                persistent:     true
+                              })
+      end
+
+      it 'includes source from provider.provider_name' do
+        expect(hash[:source]).to eq(:custom_provider)
+      end
+    end
+
+    context 'when using bind_fallback!' do
+      before do
+        described_class.reset!
+        described_class.bind_fallback!
+      end
+
+      it 'includes source as :system' do
+        expect(hash[:source]).to eq(:system)
+      end
+    end
   end
 
   describe '.reset!' do
