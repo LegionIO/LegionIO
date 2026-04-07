@@ -2,8 +2,7 @@
 
 ## [Unreleased]
 
-## [1.7.19] - 2026-04-06
-
+## [1.7.20] - 2026-04-06
 ### Added
 - `Legion::Mode` module with `LEGACY_MAP`, ENV/Settings fallback chain, `agent?`/`worker?`/`infra?`/`lite?` predicates
 - `Legion.instance_id` — UUID computed at load time, ENV override via `LEGIONIO_INSTANCE_ID`
@@ -27,6 +26,16 @@
 - `lite_mode?` delegates to `Mode.lite?`
 - Reload path adds `Identity::Process.refresh_credentials` after transport reconnect
 - Shutdown adds cooperative `Identity::Broker.shutdown` and JWKS background refresh stop
+
+## [1.7.19] - 2026-04-06
+
+### Added
+- `ALWAYS_LOADED` constant in `Tools::Discovery` — pins apollo/knowledge and eval/evaluation runners to always-loaded regardless of extension DSL
+- `always_loaded_names` method on `Tools::Registry` returning names of all non-deferred registered tools
+
+### Changed
+- Tool name format changed from dot-separated to dash-separated (`legion-ext-runner-func`) for LLM provider compatibility
+- Reduced noisy debug logging in `Tools::Discovery` and `Tools::Registry`
 
 ## [1.7.18] - 2026-04-06
 
