@@ -223,4 +223,69 @@ RSpec.describe Legion::Identity::Request do
       expect(hash[:requested_by][:credential]).to eq(source)
     end
   end
+
+  describe 'SOURCE_NORMALIZATION' do
+    subject(:map) { described_class::SOURCE_NORMALIZATION }
+
+    it 'maps :api_key to :api' do
+      expect(map[:api_key]).to eq(:api)
+    end
+
+    it 'maps :jwt to :jwt' do
+      expect(map[:jwt]).to eq(:jwt)
+    end
+
+    it 'maps :kerberos to :kerberos' do
+      expect(map[:kerberos]).to eq(:kerberos)
+    end
+
+    it 'maps :local to :system' do
+      expect(map[:local]).to eq(:system)
+    end
+
+    it 'maps :system to :system' do
+      expect(map[:system]).to eq(:system)
+    end
+
+    it 'is frozen' do
+      expect(map).to be_frozen
+    end
+  end
+
+  describe '.from_auth_context with source normalization' do
+    it 'normalizes :api_key source to :api' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: :api_key)
+      expect(req.source).to eq(:api)
+    end
+
+    it 'normalizes :local source to :system' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'system', source: :local)
+      expect(req.source).to eq(:system)
+    end
+
+    it 'normalizes :kerberos source to :kerberos (passthrough)' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: :kerberos)
+      expect(req.source).to eq(:kerberos)
+    end
+
+    it 'normalizes :jwt source to :jwt (passthrough)' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'service', source: :jwt)
+      expect(req.source).to eq(:jwt)
+    end
+
+    it 'preserves unknown source values as-is' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: :entra)
+      expect(req.source).to eq(:entra)
+    end
+
+    it 'handles nil source gracefully' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: nil)
+      expect(req.source).to be_nil
+    end
+
+    it 'normalizes string source values by converting to symbol first' do
+      req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: 'local')
+      expect(req.source).to eq(:system)
+    end
+  end
 end

@@ -280,12 +280,19 @@ module Legion
             require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
             require 'legion/llm/pipeline/executor' unless defined?(Legion::LLM::Pipeline::Executor)
 
+            principal  = defined?(Legion::Identity::Request) && env['legion.principal']
+            caller_ctx = if principal
+                           principal.to_caller_hash
+                         else
+                           { requested_by: { identity: caller_identity, type: :user, credential: :api } }
+                         end
+
             req = Legion::LLM::Pipeline::Request.build(
               messages:        messages,
               system:          body[:system],
               routing:         { provider: provider, model: model },
               tools:           tool_classes,
-              caller:          { requested_by: { identity: caller_identity, type: :user, credential: :api } },
+              caller:          caller_ctx,
               conversation_id: body[:conversation_id],
               metadata:        { requested_tools: requested_tools },
               stream:          streaming,

@@ -327,21 +327,12 @@ module Legion
     end
 
     def setup_apm
-      apm_settings = Legion::Settings[:apm] || {}
+      apm_settings = Legion::Settings.dig(:api, :elastic_apm) || {}
       return unless apm_settings[:enabled]
 
       require 'elastic-apm'
 
-      config = {
-        service_name:            apm_settings[:service_name] || "legion-#{Legion::Settings[:client][:name]}",
-        server_url:              apm_settings[:server_url] || 'http://localhost:8200',
-        environment:             apm_settings[:environment] || Legion::Settings[:environment] || 'development',
-        secret_token:            apm_settings[:secret_token],
-        api_key:                 apm_settings[:api_key],
-        log_level:               apm_settings[:log_level]&.to_sym || Logger::WARN,
-        transaction_sample_rate: apm_settings[:sample_rate] || 1.0
-      }.compact
-
+      config = build_apm_config(apm_settings)
       ElasticAPM.start(**config)
       @apm_running = true
       log.info "Elastic APM started: server=#{config[:server_url]} service=#{config[:service_name]}"
@@ -1142,6 +1133,35 @@ module Legion
         key:         key,
         ca:          tls[:ca],
         verify_mode: verify_mode_for(tls[:verify])
+      }.compact
+    end
+
+    def build_apm_config(apm)
+      {
+        server_url:               apm[:server_url] || 'http://localhost:8200',
+        api_key:                  apm[:api_key],
+        secret_token:             apm[:secret_token],
+        api_buffer_size:          apm[:api_buffer_size] || 256,
+        api_request_size:         apm[:api_request_size] || '750kb',
+        api_request_time:         apm[:api_request_time] || '10s',
+        capture_body:             apm[:capture_body] || 'all',
+        capture_headers:          apm.fetch(:capture_headers, true),
+        capture_env:              apm.fetch(:capture_env, true),
+        disable_send:             apm.fetch(:disable_send, false),
+        environment:              apm[:environment] || Legion::Settings[:environment] || 'development',
+        framework_name:           'LegionIO',
+        framework_version:        Legion::VERSION,
+        hostname:                 apm[:hostname] || Legion::Settings[:client][:name],
+        ignore_url_patterns:      apm[:ignore_url_patterns] || %w[/api/health /api/ready],
+        logger:                   Legion::Logging.log,
+        pool_size:                apm[:pool_size] || 1,
+        service_name:             apm[:service_name] || 'LegionIO',
+        service_node_name:        apm[:service_node_name] || Legion::Settings[:client][:name],
+        service_version:          apm[:service_version] || Legion::VERSION,
+        transaction_sample_rate:  apm[:sample_rate] || 1.0,
+        verify_server_cert:       apm.fetch(:verify_server_cert, true),
+        central_config:           apm.fetch(:central_config, true),
+        span_frames_min_duration: apm[:span_frames_min_duration]
       }.compact
     end
 

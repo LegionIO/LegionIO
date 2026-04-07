@@ -173,10 +173,23 @@ module Legion
       private
 
       def response_meta
-        {
+        meta = {
           timestamp: Time.now.utc.iso8601,
           node:      Legion::Settings[:client][:name]
         }
+
+        if authenticated? && defined?(Legion::Identity::Request)
+          req = env['legion.principal']
+          if req
+            meta[:caller] = {
+              canonical_name: req.canonical_name,
+              kind:           req.kind,
+              source:         req.source
+            }
+          end
+        end
+
+        meta
       end
 
       def page_limit

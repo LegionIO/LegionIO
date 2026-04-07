@@ -3,6 +3,19 @@
 module Legion
   module Identity
     class Request
+      # Maps middleware-emitted source values to the canonical credential enum.
+      # :local is emitted by Middleware#system_principal for unauthenticated loopback
+      # requests and must normalize to :system to maintain audit trail consistency.
+      # :jwt is intentionally kept distinct — JWT is the transport, not the provider.
+      # Entra-specific identification requires issuer inspection (Phase 7 concern).
+      SOURCE_NORMALIZATION = {
+        api_key:  :api,
+        jwt:      :jwt,
+        kerberos: :kerberos,
+        local:    :system,
+        system:   :system
+      }.freeze
+
       attr_reader :principal_id, :canonical_name, :kind, :groups, :source, :metadata
 
       def initialize(principal_id:, canonical_name:, kind:, groups: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
@@ -23,16 +36,19 @@ module Legion
 
       # Builds a Request from a parsed auth claims hash with symbol keys:
       #   { sub:, name:, preferred_username:, kind:, groups:, source: }
+      # The source value is normalized via SOURCE_NORMALIZATION at construction time.
       def self.from_auth_context(claims_hash)
         raw_name = claims_hash[:name] || claims_hash[:preferred_username] || ''
         canonical = raw_name.to_s.strip.downcase.gsub('.', '-')
+        raw_source = claims_hash[:source]&.to_sym
+        normalized_source = SOURCE_NORMALIZATION.fetch(raw_source, raw_source)
 
         new(
           principal_id:   claims_hash[:sub],
           canonical_name: canonical,
           kind:           claims_hash[:kind] || :human,
           groups:         claims_hash[:groups] || [],
-          source:         claims_hash[:source]
+          source:         normalized_source
         )
       end
 

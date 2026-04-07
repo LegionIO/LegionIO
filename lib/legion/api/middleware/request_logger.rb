@@ -47,7 +47,20 @@ module Legion
             "content_length=#{content_length}"
           ]
           parts << "query=#{query}" if query
+          parts << "body=#{peek_body(env)}" if env['REQUEST_METHOD'] == 'POST'
           parts.join(' ')
+        end
+
+        def peek_body(env)
+          input = env['rack.input']
+          return '-' unless input
+
+          input.rewind
+          raw = input.read(1024)
+          input.rewind
+          raw.to_s.gsub(/\s+/, ' ')[0, 512]
+        rescue StandardError
+          '-'
         end
       end
     end
