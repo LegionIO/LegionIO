@@ -11,7 +11,9 @@ module Legion
         id:             nil,
         canonical_name: nil,
         kind:           nil,
-        persistent:     false
+        persistent:     false,
+        groups:         [].freeze,
+        metadata:       {}.freeze
       }.freeze
 
       class << self
@@ -59,7 +61,9 @@ module Legion
             mode:           mode,
             queue_prefix:   queue_prefix,
             resolved:       resolved?,
-            persistent:     persistent?
+            persistent:     persistent?,
+            groups:         @state.get[:groups] || [],
+            metadata:       @state.get[:metadata] || {}
           }
         end
 
@@ -69,7 +73,9 @@ module Legion
                        id:             identity_hash[:id],
                        canonical_name: identity_hash[:canonical_name],
                        kind:           identity_hash[:kind],
-                       persistent:     identity_hash.fetch(:persistent, true)
+                       persistent:     identity_hash.fetch(:persistent, true),
+                       groups:         Array(identity_hash[:groups]).compact.freeze,
+                       metadata:       identity_hash[:metadata].is_a?(Hash) ? identity_hash[:metadata].dup.freeze : {}.freeze
                      })
           @resolved.make_true
         end
@@ -80,7 +86,9 @@ module Legion
                        id:             nil,
                        canonical_name: user,
                        kind:           :human,
-                       persistent:     false
+                       persistent:     false,
+                       groups:         [].freeze,
+                       metadata:       {}.freeze
                      })
           @resolved.make_false
         end

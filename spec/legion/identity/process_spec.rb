@@ -67,6 +67,16 @@ RSpec.describe Legion::Identity::Process do
     it 'stores persistent true' do
       expect(described_class.persistent?).to be(true)
     end
+
+    it 'stores groups when provided' do
+      described_class.bind!(provider, identity.merge(groups: %w[ops support]))
+      expect(described_class.identity_hash[:groups]).to eq(%w[ops support])
+    end
+
+    it 'stores metadata when provided' do
+      described_class.bind!(provider, identity.merge(metadata: { emails: ['a@example.com'] }))
+      expect(described_class.identity_hash[:metadata]).to eq(emails: ['a@example.com'])
+    end
   end
 
   describe '.bind_fallback!' do
@@ -220,8 +230,16 @@ RSpec.describe Legion::Identity::Process do
       expect(hash[:persistent]).to be(true)
     end
 
-    it 'returns a Hash with exactly 7 keys' do
-      expect(hash.keys).to match_array(%i[id canonical_name kind mode queue_prefix resolved persistent])
+    it 'includes groups (defaults to empty)' do
+      expect(hash[:groups]).to eq([])
+    end
+
+    it 'includes metadata (defaults to empty)' do
+      expect(hash[:metadata]).to eq({})
+    end
+
+    it 'returns a Hash with exactly 9 keys' do
+      expect(hash.keys).to match_array(%i[id canonical_name kind mode queue_prefix resolved persistent groups metadata])
     end
   end
 
