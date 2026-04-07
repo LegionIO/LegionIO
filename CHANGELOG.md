@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.19] - 2026-04-06
+
+### Added
+- `ALWAYS_LOADED` constant in `Tools::Discovery` — pins apollo/knowledge and eval/evaluation runners to always-loaded regardless of extension DSL
+- `always_loaded_names` method on `Tools::Registry` returning names of all non-deferred registered tools
+
+### Changed
+- Tool name format changed from dot-separated to dash-separated (`legion-ext-runner-func`) for LLM provider compatibility
+- Reduced noisy debug logging in `Tools::Discovery` and `Tools::Registry`
+
 ## [1.7.18] - 2026-04-06
 
 ### Added

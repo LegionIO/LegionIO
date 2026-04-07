@@ -2,7 +2,6 @@
 
 module Legion
   module Tools
-    # Static tool classes accumulate here at require time for reload safety
     @tool_classes = []
     @mutex = Mutex.new
 
@@ -17,7 +16,6 @@ module Legion
         end
       end
 
-      # Called by Service#register_core_tools on boot AND reload
       def register_all
         @mutex.synchronize { @tool_classes.dup }.each do |klass|
           Legion::Tools::Registry.register(klass)
@@ -32,7 +30,6 @@ require_relative 'tools/base'
 require_relative 'tools/discovery'
 require_relative 'tools/embedding_cache'
 
-# Static tools with custom orchestration logic
 Dir[File.join(__dir__, 'tools', '*.rb')].each do |f|
   require f unless f.end_with?('/base.rb', '/registry.rb', '/discovery.rb', '/embedding_cache.rb')
 end
