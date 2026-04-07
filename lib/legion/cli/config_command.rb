@@ -18,7 +18,7 @@ module Legion
       def show
         out = formatter
         Connection.config_dir = options[:config_dir] if options[:config_dir]
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         settings = if Legion::Settings.respond_to?(:to_hash)
                      Legion::Settings.to_hash
@@ -110,7 +110,7 @@ module Legion
 
         # Check settings load
         begin
-          Connection.ensure_settings
+          Connection.ensure_settings(resolve_secrets: false)
           out.success('Settings loaded successfully') unless options[:json]
         rescue StandardError => e
           issues << "Settings failed to load: #{e.message}"

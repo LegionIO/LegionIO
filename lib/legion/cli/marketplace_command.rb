@@ -248,7 +248,7 @@ module Legion
         end
 
         begin
-          Connection.ensure_settings
+          Connection.ensure_settings(resolve_secrets: false)
           Legion::Extensions::GemSource.setup!
         rescue StandardError => e
           Legion::Logging.debug("marketplace install: settings not available: #{e.message}") if defined?(Legion::Logging)

@@ -72,7 +72,7 @@ module Legion
         private
 
         def ensure_settings
-          Connection.ensure_settings
+          Connection.ensure_settings(resolve_secrets: false)
         end
 
         def run_dry_run(out, target)

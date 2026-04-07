@@ -1,5 +1,21 @@
 # Legion Changelog
 
+## [1.7.29] - 2026-04-07
+
+### Changed
+- Skip secret resolution for all CLI commands that only need local settings: `config`, `mode`, `lex`, `doctor`, `auth`, `marketplace`, `debug`, `failover status` — eliminates noisy Vault/lease warnings on local-only operations
+
+## [1.7.28] - 2026-04-07
+
+### Fixed
+- `legionio setup` pack marker and packs.json writes now rescue `Errno::EPERM`/`EACCES`, fixing Homebrew post-install crash when sandbox blocks writes to `~/.legionio/`
+
+## [1.7.27] - 2026-04-07
+
+### Changed
+- `Connection.ensure_settings` accepts `resolve_secrets:` keyword (default `true`) to skip Vault/lease resolution for CLI commands that don't need infrastructure credentials
+- `legionio update` now skips secret resolution, eliminating noisy "Vault not connected" and "LeaseManager not available" warnings
+
 ## [1.7.26] - 2026-04-07
 
 ### Added

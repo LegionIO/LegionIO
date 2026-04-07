@@ -20,7 +20,7 @@ module Legion
       method_option :scopes,     type: :string, desc: 'OAuth scopes to request'
       def teams
         out = formatter
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
 
         port = begin
           Legion::Settings.dig(:api, :port) || 4567

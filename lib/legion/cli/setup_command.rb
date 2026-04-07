@@ -304,6 +304,8 @@ module Legion
           marker = File.join(marker_dir, pack_name.to_s)
           File.write(marker, '') unless File.exist?(marker)
           update_packs_setting(pack_name)
+        rescue Errno::EPERM, Errno::EACCES => e
+          Legion::Logging.warn("Could not write pack marker: #{e.message}") if defined?(Legion::Logging)
         end
 
         def update_packs_setting(pack_name)
@@ -318,6 +320,8 @@ module Legion
           data['packs'] = packs.sort
           FileUtils.mkdir_p(File.dirname(settings_file))
           File.write(settings_file, ::JSON.pretty_generate(data))
+        rescue Errno::EPERM, Errno::EACCES => e
+          Legion::Logging.warn("Could not update packs setting: #{e.message}") if defined?(Legion::Logging)
         rescue ::JSON::ParserError
           data = { 'packs' => [pack_name.to_s] }
           File.write(settings_file, ::JSON.pretty_generate(data))
