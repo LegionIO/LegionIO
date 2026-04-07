@@ -31,8 +31,8 @@ module Legion
           renewers[name]&.stop!
           renewers[name] = LeaseRenewer.new(
             provider_name: name,
-            provider: provider,
-            lease: lease
+            provider:      provider,
+            lease:         lease
           )
         end
 
@@ -42,9 +42,7 @@ module Legion
 
         def groups
           cached = @groups_cache&.get
-          if cached && (Time.now - cached[:fetched_at]) < GROUPS_CACHE_TTL
-            return cached[:groups]
-          end
+          return cached[:groups] if cached && (Time.now - cached[:fetched_at]) < GROUPS_CACHE_TTL
 
           return cached[:groups] if cached && !@groups_fetch_in_progress.make_true
 
@@ -76,7 +74,11 @@ module Legion
         end
 
         def shutdown
-          renewers.each_value(&:stop!)
+          renewers.each_value do |r|
+            r.stop!
+          rescue Exception # rubocop:disable Lint/RescueException
+            nil
+          end
           renewers.clear
         end
 
@@ -114,11 +116,9 @@ module Legion
           principal_id = Identity::Process.id
           memberships = model.where(principal_id: principal_id, status: 'active').all
           memberships.filter_map do |m|
-            begin
-              m.group.name
-            rescue StandardError
-              nil
-            end
+            m.group.name
+          rescue StandardError
+            nil
           end
         rescue StandardError => e
           log_warn("Broker.db_groups failed: #{e.message}")

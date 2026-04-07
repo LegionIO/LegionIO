@@ -8,8 +8,8 @@ module Legion
       api:    { transport: true,  cache: true, data: true,  extensions: false, api: true,  llm: false, gaia: false, crypt: true, supervision: false },
       worker: { transport: true,  cache: true, data: true,  extensions: true,  api: false, llm: true,  gaia: true,  crypt: true, supervision: true  },
       router: { transport: true,  cache: true, data: false, extensions: true,  api: false, llm: false, gaia: false, crypt: true, supervision: false },
-      lite:   { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: false, supervision: true  },
-      infra:  { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: true, supervision: true  }
+      lite:   { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: false, supervision: true },
+      infra:  { transport: true,  cache: true, data: true,  extensions: true,  api: true,  llm: true,  gaia: true,  crypt: true, supervision: true }
     }.freeze
 
     def self.resolve(role_name)
@@ -22,10 +22,8 @@ module Legion
     end
 
     def self.current
-      return Legion::Mode.current if defined?(Legion::Mode)
-
       settings = begin
-        Legion::Settings[:process]
+        defined?(Legion::Settings) ? Legion::Settings[:process] : nil
       rescue StandardError => e
         Legion::Logging.debug "ProcessRole#current failed to read process settings: #{e.message}" if defined?(Legion::Logging)
         nil

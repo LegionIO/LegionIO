@@ -36,16 +36,10 @@ module Legion
         def queue_prefix
           name = canonical_name
           case mode
-          when :agent
-            "agent.#{name}.#{safe_hostname}"
-          when :worker
-            "worker.#{name}.#{Legion.instance_id}"
-          when :infra
-            "infra.#{name}.#{safe_hostname}"
-          when :lite
-            "lite.#{name}.#{Legion.instance_id}"
-          else
-            "agent.#{name}.#{safe_hostname}"
+          when :worker then "worker.#{name}.#{Legion.instance_id}"
+          when :infra  then "infra.#{name}.#{safe_hostname}"
+          when :lite   then "lite.#{name}.#{Legion.instance_id}"
+          else              "agent.#{name}.#{safe_hostname}"
           end
         end
 
@@ -106,7 +100,7 @@ module Legion
         private
 
         def safe_hostname
-          ::Socket.gethostname.downcase.gsub(/[^a-z0-9\-]/, '')
+          ::Socket.gethostname.downcase.gsub(/[^a-z0-9-]/, '-').gsub(/-{2,}/, '-').gsub(/\A-|-\z/, '')
         end
       end
 

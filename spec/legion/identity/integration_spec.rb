@@ -30,12 +30,12 @@ RSpec.describe 'Identity Integration' do
       }
 
       initial_lease = Legion::Identity::Lease.new(
-        provider:    :kerberos,
-        credential:  'spnego-token-abc',
-        lease_id:    'vault-lease-123',
-        expires_at:  Time.now + 3600,
-        renewable:   true,
-        issued_at:   Time.now
+        provider:   :kerberos,
+        credential: 'spnego-token-abc',
+        lease_id:   'vault-lease-123',
+        expires_at: Time.now + 3600,
+        renewable:  true,
+        issued_at:  Time.now
       )
 
       mock_provider = double('IdentityProvider')
@@ -44,7 +44,7 @@ RSpec.describe 'Identity Integration' do
       stub_renewer = instance_double(
         Legion::Identity::LeaseRenewer,
         current_lease: initial_lease,
-        stop!: nil
+        stop!:         nil
       )
       allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(stub_renewer)
 
@@ -134,7 +134,7 @@ RSpec.describe 'Identity Integration' do
 
     before do
       allow(Legion).to receive(:instance_id).and_return(fixed_uuid)
-      allow(::Socket).to receive(:gethostname).and_return(fixed_host)
+      allow(Socket).to receive(:gethostname).and_return(fixed_host)
       Legion::Identity::Process.bind!(nil, {
                                         id:             'uuid-1',
                                         canonical_name: 'myagent',

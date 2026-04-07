@@ -18,17 +18,17 @@ module Legion
         auth_claims  = env['legion.auth']
         auth_method  = env['legion.auth_method']
 
-        if auth_claims
-          env['legion.principal'] = build_request(auth_claims, auth_method)
-        elsif @require_auth
-          # Auth middleware already handled 401 for protected paths;
-          # this is a safety net for any path that slipped through.
-          env['legion.principal'] = nil
-        else
-          # No auth required (loopback bind, lite mode, etc.).
-          # Set a system-level principal so audit trails always have an identity.
-          env['legion.principal'] = system_principal
-        end
+        env['legion.principal'] = if auth_claims
+                                    build_request(auth_claims, auth_method)
+                                  elsif @require_auth
+                                    # Auth middleware already handled 401 for protected paths;
+                                    # this is a safety net for any path that slipped through.
+                                    nil
+                                  else
+                                    # No auth required (loopback bind, lite mode, etc.).
+                                    # Set a system-level principal so audit trails always have an identity.
+                                    system_principal
+                                  end
 
         @app.call(env)
       end
@@ -50,12 +50,12 @@ module Legion
 
       def build_request(claims, method)
         Identity::Request.from_auth_context({
-          sub:    claims[:sub] || claims[:worker_id] || claims[:owner_msid],
-          name:   claims[:name] || claims[:sub],
-          kind:   determine_kind(claims, method),
-          groups: Array(claims[:roles] || claims[:groups]),
-          source: method&.to_sym
-        })
+                                              sub:    claims[:sub] || claims[:worker_id] || claims[:owner_msid],
+                                              name:   claims[:name] || claims[:sub],
+                                              kind:   determine_kind(claims, method),
+                                              groups: Array(claims[:roles] || claims[:groups]),
+                                              source: method&.to_sym
+                                            })
       end
 
       def determine_kind(claims, method)

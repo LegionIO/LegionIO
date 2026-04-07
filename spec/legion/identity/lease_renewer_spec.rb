@@ -41,6 +41,7 @@ RSpec.describe Legion::Identity::LeaseRenewer do
     end
 
     it 'names the thread after the provider' do
+      renewer # trigger subject creation so the thread exists
       thread_name = Thread.list.find { |t| t.name == "lease-renewer-#{provider_name}" }&.name
       expect(thread_name).to eq("lease-renewer-#{provider_name}")
     end
@@ -160,7 +161,8 @@ RSpec.describe Legion::Identity::LeaseRenewer do
     end
 
     it 'logs renewal failures to $stderr when Legion::Logging is unavailable' do
-      stale_lease = make_lease(ttl_seconds: 2, offset: 1)
+      # Use a nearly-expired lease so compute_sleep returns MIN_SLEEP (1s) and renewal triggers quickly
+      stale_lease = make_lease(ttl_seconds: 2, offset: 1.9)
       allow(provider).to receive(:provide_token).and_raise(StandardError, 'boom')
 
       hide_const('Legion::Logging') if defined?(Legion::Logging)
@@ -168,7 +170,7 @@ RSpec.describe Legion::Identity::LeaseRenewer do
       expect($stderr).to receive(:puts).with(/LeaseRenewer.*vault.*boom/).at_least(:once)
 
       r = described_class.new(provider_name: :vault, provider: provider, lease: stale_lease)
-      sleep 0.5
+      sleep 1.5
     ensure
       r&.stop!
     end
@@ -213,7 +215,7 @@ RSpec.describe Legion::Identity::LeaseRenewer do
 
     it 'returns MIN_SLEEP when remaining TTL is very small' do
       # Nearly expired: expires_at is 0.5s from now
-      lease  = Legion::Identity::Lease.new(
+      lease = Legion::Identity::Lease.new(
         provider:   :vault,
         credential: 'tok',
         issued_at:  Time.now - 99.5,

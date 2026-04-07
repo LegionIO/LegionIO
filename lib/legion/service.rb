@@ -656,7 +656,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
-    def shutdown # rubocop:disable Metrics/CyclomaticComplexity
+    def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true

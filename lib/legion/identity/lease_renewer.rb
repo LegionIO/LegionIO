@@ -66,9 +66,7 @@ module Legion
 
       def interruptible_sleep(seconds)
         deadline = Time.now + seconds
-        while Time.now < deadline && !@stop.true?
-          sleep([1, deadline - Time.now].min)
-        end
+        sleep([1, deadline - Time.now].min) while Time.now < deadline && !@stop.true?
       end
 
       def log_renewal_failure(error)

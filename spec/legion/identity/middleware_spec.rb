@@ -46,28 +46,40 @@ RSpec.describe Legion::Identity::Middleware do
 
     it 'sets legion.principal on the downstream env' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal']).to be_a(Legion::Identity::Request)
     end
 
     it 'sets principal_id from sub' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].principal_id).to eq('user-001')
     end
 
     it 'sets kind to :human for human scope' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].kind).to eq(:human)
     end
 
     it 'sets source from the auth method' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].source).to eq(:jwt)
     end
@@ -81,14 +93,20 @@ RSpec.describe Legion::Identity::Middleware do
 
     it 'sets kind to :service' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].kind).to eq(:service)
     end
 
     it 'falls back to worker_id when sub is nil' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].principal_id).to eq('w-99')
     end
@@ -102,14 +120,20 @@ RSpec.describe Legion::Identity::Middleware do
 
     it 'sets kind to :human' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].kind).to eq(:human)
     end
 
     it 'sets source to :kerberos' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].source).to eq(:kerberos)
     end
@@ -122,28 +146,40 @@ RSpec.describe Legion::Identity::Middleware do
 
     it 'sets a system principal' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal']).to be_a(Legion::Identity::Request)
     end
 
     it 'sets principal_id to system:local' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].principal_id).to eq('system:local')
     end
 
     it 'sets kind to :service' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
       app.call(env)
       expect(captured['legion.principal'].kind).to eq(:service)
     end
 
     it 'memoizes the system principal across calls' do
       principals = []
-      app = described_class.new(->(e) { principals << e['legion.principal']; [200, {}, []] })
+      app = described_class.new(lambda { |e|
+        principals << e['legion.principal']
+        [200, {}, []]
+      })
       2.times { app.call(env_for('/api/tasks')) }
       expect(principals[0]).to equal(principals[1])
     end
@@ -156,14 +192,20 @@ RSpec.describe Legion::Identity::Middleware do
 
     it 'sets legion.principal to nil' do
       captured = nil
-      app = described_class.new(->(e) { captured = e; [200, {}, []] }, require_auth: true)
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      }, require_auth: true)
       app.call(env)
       expect(captured['legion.principal']).to be_nil
     end
 
     it 'still calls the downstream app' do
       called = false
-      app = described_class.new(->(_e) { called = true; [200, {}, []] }, require_auth: true)
+      app = described_class.new(lambda { |_e|
+        called = true
+        [200, {}, []]
+      }, require_auth: true)
       app.call(env)
       expect(called).to be(true)
     end

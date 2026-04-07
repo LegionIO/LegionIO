@@ -10,7 +10,7 @@ RSpec.describe Legion::Identity::Process do
   before do
     described_class.reset!
     allow(Legion).to receive(:instance_id).and_return(fixed_uuid)
-    allow(::Socket).to receive(:gethostname).and_return(fixed_hostname)
+    allow(Socket).to receive(:gethostname).and_return(fixed_hostname)
   end
 
   describe 'default state' do
@@ -158,7 +158,7 @@ RSpec.describe Legion::Identity::Process do
       before do
         described_class.reset!
         allow(Legion).to receive(:instance_id).and_return(fixed_uuid)
-        allow(::Socket).to receive(:gethostname).and_return(fixed_hostname)
+        allow(Socket).to receive(:gethostname).and_return(fixed_hostname)
         allow(Legion::Mode).to receive(:current).and_return(:agent)
       end
 
@@ -169,12 +169,12 @@ RSpec.describe Legion::Identity::Process do
 
     context 'when hostname contains special characters' do
       before do
-        allow(::Socket).to receive(:gethostname).and_return('Host_Name.local')
+        allow(Socket).to receive(:gethostname).and_return('Host_Name.local')
         allow(Legion::Mode).to receive(:current).and_return(:agent)
       end
 
       it 'strips non-alphanumeric/dash characters from hostname' do
-        expect(described_class.queue_prefix).to eq('agent.my-node.hostname-local')
+        expect(described_class.queue_prefix).to eq('agent.my-node.host-name-local')
       end
     end
   end

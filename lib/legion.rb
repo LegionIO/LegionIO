@@ -19,7 +19,7 @@ module Legion
   autoload :Leader,  'legion/leader'
   autoload :Prompts, 'legion/prompts'
 
-  @instance_id = ENV.fetch('LEGIONIO_INSTANCE_ID') { SecureRandom.uuid }.downcase.strip.gsub(/[^a-z0-9\-]/, '')
+  @instance_id = ENV.fetch('LEGIONIO_INSTANCE_ID') { SecureRandom.uuid }.downcase.strip.gsub(/[^a-z0-9-]/, '')
 
   def self.instance_id
     @instance_id

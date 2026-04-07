@@ -5,7 +5,7 @@ module Legion
     class Request
       attr_reader :principal_id, :canonical_name, :kind, :groups, :source, :metadata
 
-      def initialize(principal_id:, canonical_name:, kind:, groups: [], source: nil, metadata: {})
+      def initialize(principal_id:, canonical_name:, kind:, groups: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
         @principal_id   = principal_id
         @canonical_name = canonical_name
         @kind           = kind

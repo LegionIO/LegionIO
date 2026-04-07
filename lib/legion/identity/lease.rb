@@ -5,7 +5,7 @@ module Legion
     class Lease
       attr_reader :provider, :credential, :lease_id, :expires_at, :renewable, :issued_at, :metadata
 
-      def initialize(provider:, credential:, lease_id: nil, expires_at: nil, renewable: false, issued_at: nil, metadata: {})
+      def initialize(provider:, credential:, lease_id: nil, expires_at: nil, renewable: false, issued_at: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
         @provider = provider
         @credential = credential
         @lease_id = lease_id

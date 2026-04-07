@@ -21,6 +21,7 @@ RSpec.describe Legion::Service do
         def self.running? = false
       end)
       allow(service).to receive(:require).and_return(true)
+      allow(Legion::Settings).to receive(:[]).and_call_original
     end
 
     context 'when api.tls.enabled is false (default)' do

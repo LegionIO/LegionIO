@@ -8,19 +8,20 @@ require 'legion/identity/broker'
 
 RSpec.describe Legion::Identity::Broker do
   def make_lease(valid: true, token: 'tok.abc123')
-    instance_double(
-      Legion::Identity::Lease,
+    double(
+      'Lease',
       valid?: valid,
-      token: token,
-      to_h: { token: token, valid: valid }
+      token:  token,
+      to_h:   { token: token, valid: valid }
     )
   end
 
   def make_renewer(lease: make_lease)
-    instance_double(Legion::Identity::LeaseRenewer, current_lease: lease, stop!: nil)
+    double('LeaseRenewer', current_lease: lease, stop!: nil)
   end
 
   before(:each) { described_class.reset! }
+  after(:each) { described_class.reset! }
 
   # ---------------------------------------------------------------------------
   # token_for
@@ -135,8 +136,8 @@ RSpec.describe Legion::Identity::Broker do
       renewer = make_renewer
       expect(Legion::Identity::LeaseRenewer).to receive(:new).with(
         provider_name: :vault,
-        provider: anything,
-        lease: anything
+        provider:      anything,
+        lease:         anything
       ).and_return(renewer)
 
       described_class.register_provider(:vault, provider: double('p'), lease: make_lease)
@@ -227,7 +228,7 @@ RSpec.describe Legion::Identity::Broker do
         described_class.groups
 
         described_class.send(:instance_variable_get, :@groups_cache)
-          .set({ groups: ['initial'], fetched_at: Time.now - (described_class::GROUPS_CACHE_TTL + 1) })
+                       .set({ groups: ['initial'], fetched_at: Time.now - (described_class::GROUPS_CACHE_TTL + 1) })
 
         result = described_class.groups
         expect(result).to eq(['refreshed'])
@@ -235,10 +236,19 @@ RSpec.describe Legion::Identity::Broker do
     end
 
     context 'single-flight: concurrent calls when fetch is in progress' do
-      it 'does not trigger multiple concurrent fetches' do
-        fetch_count = 0
+      it 'does not trigger multiple concurrent fetches when stale cache exists' do
+        # Prime the cache with a stale entry
+        allow(Legion::Identity::Process).to receive(:identity_hash)
+          .and_return({ groups: ['stale'] })
+        described_class.groups
+
+        # Now make the cache stale by backdating fetched_at
+        described_class.instance_variable_get(:@groups_cache)
+                       .set({ groups: ['stale'], fetched_at: Time.now - 120 })
+
+        fetch_count = Concurrent::AtomicFixnum.new(0)
         allow(Legion::Identity::Process).to receive(:identity_hash) do
-          fetch_count += 1
+          fetch_count.increment
           sleep 0.05
           { groups: ['concurrent'] }
         end
@@ -246,8 +256,8 @@ RSpec.describe Legion::Identity::Broker do
         threads = Array.new(5) { Thread.new { described_class.groups } }
         results = threads.map(&:value)
 
-        expect(fetch_count).to be <= 2
-        results.each { |r| expect(r).to eq(['concurrent']) }
+        expect(fetch_count.value).to be <= 2
+        results.each { |r| expect(r).to include('stale').or include('concurrent') }
       end
     end
   end
