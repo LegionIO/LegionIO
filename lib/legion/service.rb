@@ -1001,15 +1001,27 @@ module Legion
     def find_identity_providers
       return [] unless defined?(Legion::Extensions)
 
-      Legion::Extensions.constants(false).filter_map do |const_name|
-        mod = Legion::Extensions.const_get(const_name, false)
-        next unless mod.is_a?(Module) && mod.respond_to?(:resolve)
-        next unless mod.respond_to?(:provider_name)
+      collect_identity_providers(Legion::Extensions)
+    end
 
-        mod
+    def collect_identity_providers(namespace, visited = Set.new)
+      return [] unless namespace.is_a?(Module)
+      return [] if visited.include?(namespace.object_id)
+
+      visited.add(namespace.object_id)
+      providers = []
+
+      namespace.constants(false).each do |const_name|
+        mod = namespace.const_get(const_name, false)
+        next unless mod.is_a?(Module)
+
+        providers << mod if mod.respond_to?(:resolve) && mod.respond_to?(:provider_name)
+        providers.concat(collect_identity_providers(mod, visited))
       rescue StandardError
-        nil
+        next
       end
+
+      providers
     end
 
     def bootstrap_log_level(cli_level)
