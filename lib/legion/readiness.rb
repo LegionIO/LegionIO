@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
+require 'concurrent'
+
 module Legion
   module Readiness
-    COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia extensions api].freeze
+    COMPONENTS = %i[settings crypt transport cache data rbac llm apollo gaia identity extensions api].freeze
     DRAIN_TIMEOUT = 5
 
     class << self
       def status
-        @status ||= {}
+        @status ||= Concurrent::Hash.new
       end
 
       def mark_ready(component)
@@ -43,7 +45,7 @@ module Legion
       end
 
       def reset
-        @status = {}
+        @status = nil
       end
 
       def to_h

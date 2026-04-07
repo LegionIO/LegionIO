@@ -3,6 +3,7 @@
 require 'timeout'
 require 'legion/logging'
 require_relative 'readiness'
+require_relative 'mode'
 require_relative 'process_role'
 
 module Legion
@@ -149,6 +150,9 @@ module Legion
         setup_generated_functions
       end
 
+      # Identity resolution — after extensions so lex-identity-* providers are loaded
+      setup_identity if transport
+
       register_core_tools
 
       Legion::Gaia.registry&.rediscover if gaia && defined?(Legion::Gaia) && Legion::Gaia.started?
@@ -204,8 +208,7 @@ module Legion
     end
 
     def lite_mode?
-      ENV['LEGION_MODE'] == 'lite' ||
-        Legion::Settings[:mode].to_s == 'lite'
+      Legion::Mode.lite?
     end
 
     def setup_data
@@ -344,6 +347,12 @@ module Legion
         log.info "Starting Legion API on #{bind}:#{port}"
       end
 
+      # Mount identity middleware — bridges legion.auth to legion.principal
+      if defined?(Legion::Identity::Middleware)
+        require_auth = Legion::Identity::Middleware.require_auth?(bind: bind, mode: Legion::Mode.current)
+        Legion::API.use Legion::Identity::Middleware, require_auth: require_auth
+      end
+
       @api_thread = Thread.new do
         retries = 0
         max_retries = api_settings[:bind_retries]
@@ -425,6 +434,45 @@ module Legion
       Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
       Legion::Transport::Connection.setup
       log.info 'Legion::Transport connected'
+    end
+
+    def setup_identity
+      require_relative 'identity/process'
+      require_relative 'identity/broker'
+      require_relative 'identity/lease'
+      require_relative 'identity/lease_renewer'
+      require_relative 'identity/request'
+      require_relative 'identity/middleware'
+
+      # Resolve identity from available providers (Phase 4 adds real providers)
+      resolved = resolve_identity_providers
+      unless resolved
+        Legion::Identity::Process.bind_fallback!
+        log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
+      end
+
+      # Re-resolve secrets for any identity-scoped lease:// refs (task 2.25)
+      Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
+
+      # Fire-and-forget JWKS prefetch
+      jwks_url = Legion::Settings.dig(:identity, :jwks_endpoint) || Legion::Settings.dig(:crypt, :jwt, :jwks_endpoint)
+      if jwks_url && defined?(Legion::Crypt::JwksClient)
+        Legion::Crypt::JwksClient.prefetch!(jwks_url)
+        Legion::Crypt::JwksClient.start_background_refresh!(jwks_url)
+      end
+
+      log.info "[Identity] resolved=#{Legion::Identity::Process.resolved?} mode=#{Legion::Mode.current} queue_prefix=#{Legion::Identity::Process.queue_prefix}"
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.setup_identity')
+      Legion::Identity::Process.bind_fallback! if defined?(Legion::Identity::Process) && !Legion::Identity::Process.resolved?
+    ensure
+      Legion::Readiness.mark_ready(:identity)
+      begin
+        Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) &&
+                                                           Legion::Extensions.respond_to?(:flush_pending_registrations!)
+      rescue StandardError => e
+        handle_exception(e, level: :warn, operation: 'service.setup_identity.flush_pending_registrations')
+      end
     end
 
     def setup_logging_transport # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -610,7 +658,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_api')
     end
 
-    def shutdown # rubocop:disable Metrics/CyclomaticComplexity
+    def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       log.info('Legion::Service.shutdown was called')
       @shutdown = true
       Legion::Settings[:client][:shutting_down] = true
@@ -657,6 +705,17 @@ module Legion
 
       shutdown_component('Cache') { Legion::Cache.shutdown }
       Legion::Readiness.mark_not_ready(:cache)
+
+      # Identity: cooperative shutdown of Broker (stops all LeaseRenewer threads)
+      if defined?(Legion::Identity::Broker)
+        shutdown_component('Identity::Broker') { Legion::Identity::Broker.shutdown }
+        Legion::Readiness.mark_not_ready(:identity)
+      end
+
+      # Stop JWKS background refresh
+      if defined?(Legion::Crypt::JwksClient) && Legion::Crypt::JwksClient.respond_to?(:stop_background_refresh!)
+        Legion::Crypt::JwksClient.stop_background_refresh!
+      end
 
       teardown_logging_transport
       shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
@@ -718,6 +777,8 @@ module Legion
       teardown_logging_transport
       setup_logging_transport
 
+      Legion::Identity::Process.refresh_credentials if defined?(Legion::Identity::Process)
+
       require 'legion/cache' unless defined?(Legion::Cache)
       Legion::Cache.setup
       Legion::Readiness.mark_ready(:cache)
@@ -734,6 +795,8 @@ module Legion
       setup_supervision
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
+
+      Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:flush_pending_registrations!)
 
       register_core_tools
 
@@ -894,6 +957,72 @@ module Legion
     end
 
     private
+
+    def resolve_identity_providers
+      # Phase 4 adds lex-identity-* providers. For now, check if any are loaded.
+      return false unless defined?(Legion::Extensions)
+
+      providers = find_identity_providers
+      return false if providers.empty?
+
+      # Parallel resolution with 5s per-provider timeout (NO Timeout.timeout — uses future.value)
+      pool = Concurrent::FixedThreadPool.new([providers.size, 4].min)
+      futures = providers.map do |provider|
+        Concurrent::Promises.future_on(pool, provider, &:resolve)
+      end
+
+      winner_pair = providers.zip(futures).find do |_provider, future|
+        result = begin
+          future.value(5) # 5s timeout per provider
+        rescue StandardError => e
+          handle_exception(e, level: :debug, operation: 'service.resolve_identity_providers.future')
+          nil
+        end
+        result.is_a?(Hash) && result[:canonical_name]
+      end
+
+      if winner_pair
+        provider, future = winner_pair
+        identity = future.value
+        Legion::Identity::Process.bind!(provider, identity)
+        log.info "[Identity] resolved via #{provider.class.name}: #{identity[:canonical_name]}"
+        true
+      else
+        false
+      end
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.resolve_identity_providers')
+      false
+    ensure
+      pool&.shutdown
+      pool&.kill unless pool&.wait_for_termination(2)
+    end
+
+    def find_identity_providers
+      return [] unless defined?(Legion::Extensions)
+
+      collect_identity_providers(Legion::Extensions)
+    end
+
+    def collect_identity_providers(namespace, visited = Set.new)
+      return [] unless namespace.is_a?(Module)
+      return [] if visited.include?(namespace.object_id)
+
+      visited.add(namespace.object_id)
+      providers = []
+
+      namespace.constants(false).each do |const_name|
+        mod = namespace.const_get(const_name, false)
+        next unless mod.is_a?(Module)
+
+        providers << mod if mod.respond_to?(:resolve) && mod.respond_to?(:provider_name)
+        providers.concat(collect_identity_providers(mod, visited))
+      rescue StandardError
+        next
+      end
+
+      providers
+    end
 
     def bootstrap_log_level(cli_level)
       cli_level = nil if cli_level.respond_to?(:empty?) && cli_level.empty?

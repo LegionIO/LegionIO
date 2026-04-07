@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.7.20] - 2026-04-06
+### Added
+- `Legion::Mode` module with `LEGACY_MAP`, ENV/Settings fallback chain, `agent?`/`worker?`/`infra?`/`lite?` predicates
+- `Legion.instance_id` — UUID computed at load time, ENV override via `LEGIONIO_INSTANCE_ID`
+- `Legion::Identity::Process` singleton — process identity with `bind!`, `bind_fallback!`, `queue_prefix` per-mode, `AtomicReference` thread safety
+- `Legion::Identity::Request` — per-request immutable identity with `from_env`, `from_auth_context`, `to_caller_hash`, `to_rbac_principal`
+- `Legion::Identity::Lease` — credential lease value object with `expired?`, `stale?` (50% TTL), `ttl_seconds`, `valid?`
+- `Legion::Identity::LeaseRenewer` — background thread per provider, 50% TTL renewal, cooperative shutdown (no `Thread#kill`)
+- `Legion::Identity::Broker` — provider management with groups cache (60s TTL, single-flight CAS), `token_for`, `credentials_for`, `shutdown`
+- `Legion::Identity::Middleware` — Rack middleware bridging `legion.auth` to `legion.principal` (`Identity::Request`)
+- `setup_identity` boot step 9 — parallel provider resolution via `Concurrent::Promises`, fallback to `ENV['USER']`
+- Extension publish suppression — defers `LexRegister.publish` until identity resolves, `flush_pending_registrations!`
+- Identity provider auto-registration during phased extension load (`identity_provider?` duck-type check)
+- `GET /api/identity/audit` route with principal and duration filtering
+- `legion doctor` checks: `ApiBindCheck` (non-loopback without auth), `ModeCheck` (no explicit process.mode)
+
+### Changed
+- `Readiness.status` upgraded to `Concurrent::Hash` for thread safety; `:identity` added to `COMPONENTS`
+- `READONLY_SECTIONS` extended with `:identity`, `:rbac`, `:api`
+- Default API bind changed from `0.0.0.0` to `127.0.0.1`
+- `ProcessRole` delegates `.current` to `Mode.current`; added `:agent` and `:infra` role entries
+- `lite_mode?` delegates to `Mode.lite?`
+- Reload path adds `Identity::Process.refresh_credentials` after transport reconnect
+- Shutdown adds cooperative `Identity::Broker.shutdown` and JWKS background refresh stop
+
 ## [1.7.19] - 2026-04-06
 
 ### Added

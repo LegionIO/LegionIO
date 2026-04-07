@@ -6,6 +6,7 @@ require 'securerandom'
 require 'legion/version'
 require 'legion/logging'
 require 'legion/events'
+require 'legion/mode'
 require 'legion/ingress'
 require 'legion/process'
 require 'legion/service'
@@ -17,6 +18,12 @@ module Legion
   autoload :Lock,    'legion/lock'
   autoload :Leader,  'legion/leader'
   autoload :Prompts, 'legion/prompts'
+
+  @instance_id = ENV.fetch('LEGIONIO_INSTANCE_ID') { SecureRandom.uuid }.downcase.strip.gsub(/[^a-z0-9-]/, '')
+
+  def self.instance_id
+    @instance_id
+  end
 
   attr_reader :service
 

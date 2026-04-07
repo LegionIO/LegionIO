@@ -76,6 +76,11 @@ RSpec.describe Legion::Service do
       allow(service).to receive(:shutdown_mtls_rotation)
       allow(Legion::Readiness).to receive(:mark_not_ready)
 
+      # Stub identity broker shutdown to avoid leaked-double errors
+      broker_mod = Module.new
+      stub_const('Legion::Identity::Broker', broker_mod)
+      allow(broker_mod).to receive(:shutdown)
+
       # Stub extensions shutdown
       allow(Legion::Extensions).to receive(:shutdown)
 

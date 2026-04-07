@@ -3,6 +3,9 @@ AllCops:
   NewCops: enable
   SuggestExtensions: false
 
+Style/RedundantConstantBase:
+  Enabled: false
+
 Layout/LineLength:
   Max: 160
   Exclude:

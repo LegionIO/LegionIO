@@ -5,7 +5,7 @@ module Legion
     module Routes
       module Settings
         SENSITIVE_KEYS = %i[password secret token key cert private_key api_key].freeze
-        READONLY_SECTIONS = %i[crypt transport].freeze
+        READONLY_SECTIONS = %i[crypt transport identity rbac api].freeze
 
         def self.registered(app)
           app.get '/api/settings' do

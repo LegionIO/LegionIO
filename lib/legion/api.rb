@@ -60,6 +60,7 @@ require_relative 'api/tbi_patterns'
 require_relative 'api/webhooks'
 require_relative 'api/tenants'
 require_relative 'api/inbound_webhooks'
+require_relative 'api/identity_audit'
 require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
@@ -216,6 +217,7 @@ module Legion
     register Routes::Webhooks
     register Routes::Tenants
     register Routes::InboundWebhooks
+    register Routes::IdentityAudit
     register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger
