@@ -23,7 +23,7 @@ module Legion
           @logging_ready = true
         end
 
-        def ensure_settings
+        def ensure_settings(resolve_secrets: true)
           return if @settings_ready
 
           ensure_logging
@@ -31,7 +31,7 @@ module Legion
 
           dir = resolve_config_dir
           Legion::Settings.load(config_dir: dir)
-          Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
+          Legion::Settings.resolve_secrets! if resolve_secrets && Legion::Settings.respond_to?(:resolve_secrets!)
           @settings_ready = true
         end
 

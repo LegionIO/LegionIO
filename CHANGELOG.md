@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.7.27] - 2026-04-07
+
+### Changed
+- `Connection.ensure_settings` accepts `resolve_secrets:` keyword (default `true`) to skip Vault/lease resolution for CLI commands that don't need infrastructure credentials
+- `legionio update` now skips secret resolution, eliminating noisy "Vault not connected" and "LeaseManager not available" warnings
+
 ## [1.7.26] - 2026-04-07
 
 ### Added

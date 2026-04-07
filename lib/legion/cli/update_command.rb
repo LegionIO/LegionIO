@@ -31,7 +31,7 @@ module Legion
           raise SystemExit, 1
         end
 
-        Connection.ensure_settings
+        Connection.ensure_settings(resolve_secrets: false)
         Legion::Extensions::GemSource.setup!
 
         target_gems = discover_legion_gems
