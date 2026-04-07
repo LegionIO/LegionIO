@@ -1,6 +1,9 @@
 # Legion Changelog
 
-## [Unreleased]
+## [1.7.24] - 2026-04-06
+
+### Fixed
+- `Routes::Events` SSE stream: qualify `stream_queue` call with `Routes::Events.` to fix NoMethodError on Legion::API instance
 
 ### Added
 - `Identity::Process.source` accessor — exposes provider source in identity hash (Wire Format Phase 3)

@@ -90,7 +90,7 @@ module Legion
               end
 
               stream do |out|
-                stream_queue(out: out, queue: queue, listener: listener)
+                Routes::Events.stream_queue(out: out, queue: queue, listener: listener)
               end
             end
 
