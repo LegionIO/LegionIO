@@ -66,9 +66,6 @@ module Legion
         setup_logging_transport
       end
 
-      # Step 9: Identity resolution
-      setup_identity if transport
-
       setup_dispatch
 
       if cache
@@ -152,6 +149,9 @@ module Legion
         Legion::Readiness.mark_ready(:extensions)
         setup_generated_functions
       end
+
+      # Identity resolution — after extensions so lex-identity-* providers are loaded
+      setup_identity if transport
 
       register_core_tools
 
@@ -436,7 +436,7 @@ module Legion
       log.info 'Legion::Transport connected'
     end
 
-    def setup_identity # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    def setup_identity
       require_relative 'identity/process'
       require_relative 'identity/broker'
       require_relative 'identity/lease'
@@ -711,7 +711,9 @@ module Legion
       end
 
       # Stop JWKS background refresh
-      Legion::Crypt::JwksClient.stop_background_refresh! if defined?(Legion::Crypt::JwksClient) && Legion::Crypt::JwksClient.respond_to?(:stop_background_refresh!)
+      if defined?(Legion::Crypt::JwksClient) && Legion::Crypt::JwksClient.respond_to?(:stop_background_refresh!)
+        Legion::Crypt::JwksClient.stop_background_refresh!
+      end
 
       teardown_logging_transport
       shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
@@ -962,9 +964,7 @@ module Legion
       # Parallel resolution with 5s per-provider timeout (NO Timeout.timeout — uses future.value)
       pool = Concurrent::FixedThreadPool.new([providers.size, 4].min)
       futures = providers.map do |provider|
-        Concurrent::Promises.future_on(pool, provider) do |p|
-          p.resolve
-        end
+        Concurrent::Promises.future_on(pool, provider, &:resolve)
       end
 
       winner_pair = providers.zip(futures).find do |_provider, future|

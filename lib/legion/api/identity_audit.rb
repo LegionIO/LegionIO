@@ -5,10 +5,10 @@ module Legion
     module Routes
       module IdentityAudit
         def self.registered(app)
+          app.helpers IdentityAuditHelpers
+
           app.get '/api/identity/audit' do
-            unless defined?(Legion::Data::Model::AuditRecord)
-              halt 503, json_error('unavailable', 'audit records not available')
-            end
+            halt 503, json_error('unavailable', 'audit records not available') unless defined?(Legion::Data::Model::AuditRecord)
 
             dataset = Legion::Data::Model::AuditRecord.where(entity_type: 'identity')
 
@@ -26,9 +26,9 @@ module Legion
               { id: r.id, action: r.action, entity_type: r.entity_type, metadata: r.parsed_metadata, created_at: r.created_at }
             end)
           end
+        end
 
-          private
-
+        module IdentityAuditHelpers
           def parse_since_duration(value)
             return nil unless value.is_a?(String)
 
