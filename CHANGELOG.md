@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.7.26] - 2026-04-07
+
+### Added
+- Phase 5 Credential Scoping — service.rb integration (§8 of `docs/plans/2026-04-07-credential-scoping-design.md`)
+- Boot: call `Legion::Crypt.fetch_bootstrap_rmq_creds` after `Crypt.start` to acquire short-lived bootstrap RMQ credentials from Vault before transport connects (no-op when `dynamic_rmq_creds: false`)
+- `setup_identity`: after identity resolves, call `Legion::Crypt.swap_to_identity_creds(mode:)` to swap from bootstrap to identity-scoped RMQ credentials — gated on `vault_connected? && dynamic_rmq_creds? && !lite?`; fallback identity still gets scoped creds
+- `shutdown`: call `Legion::Crypt.revoke_bootstrap_lease` before Crypt shutdown for defense-in-depth lease cleanup
+- `reload`: call `fetch_bootstrap_rmq_creds` after Crypt.start, `resolve_secrets!` after settings reload, and `setup_identity` (replacing static `mark_ready(:identity)`) so reloaded processes acquire identity-scoped credentials
+- Specs for all Phase 5 service.rb integration paths: boot credential fetch, identity swap per mode, vault/flag/lite guards, swap failure recovery, shutdown revocation, reload credential flow
+
 ## [1.7.25] - 2026-04-06
 
 ### Added
