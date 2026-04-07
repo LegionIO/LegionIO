@@ -11,6 +11,7 @@ module Legion
         id:             nil,
         canonical_name: nil,
         kind:           nil,
+        source:         nil,
         persistent:     false,
         groups:         [].freeze,
         metadata:       {}.freeze
@@ -53,11 +54,16 @@ module Legion
           @state.get[:persistent] == true
         end
 
+        def source
+          @state.get[:source]
+        end
+
         def identity_hash
           {
             id:             id,
             canonical_name: canonical_name,
             kind:           kind,
+            source:         source,
             mode:           mode,
             queue_prefix:   queue_prefix,
             resolved:       resolved?,
@@ -69,10 +75,12 @@ module Legion
 
         def bind!(provider, identity_hash)
           @provider = provider
+          provider_source = provider.respond_to?(:provider_name) ? provider.provider_name : nil
           @state.set({
                        id:             identity_hash[:id],
                        canonical_name: identity_hash[:canonical_name],
                        kind:           identity_hash[:kind],
+                       source:         identity_hash[:source] || provider_source,
                        persistent:     identity_hash.fetch(:persistent, true),
                        groups:         Array(identity_hash[:groups]).compact.freeze,
                        metadata:       identity_hash[:metadata].is_a?(Hash) ? identity_hash[:metadata].dup.freeze : {}.freeze
@@ -86,6 +94,7 @@ module Legion
                        id:             nil,
                        canonical_name: user,
                        kind:           :human,
+                       source:         :system,
                        persistent:     false,
                        groups:         [].freeze,
                        metadata:       {}.freeze

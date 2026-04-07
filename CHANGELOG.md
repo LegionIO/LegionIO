@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+- `Identity::Process.source` accessor — exposes provider source in identity hash (Wire Format Phase 3)
+- `source:` key in `Identity::Process.identity_hash`, `bind!`, `bind_fallback!`, and `EMPTY_STATE`
+
+## [1.7.22] - 2026-04-06
+### Added
+- Elastic APM integration for Sinatra API via `elastic-apm` gem
+- Full APM config under `api.elastic_apm` settings: server_url, api_key, secret_token, api_buffer_size, api_request_size, api_request_time, capture_body, capture_headers, capture_env, disable_send, enabled, environment, hostname, ignore_url_patterns, pool_size, service_name, service_node_name, service_version, sample_rate
+- `setup_apm` / `shutdown_apm` lifecycle in Service (boot, shutdown, reload)
+- `ElasticAPM::Middleware` wired into API when available
+- Health/ready endpoints excluded from APM tracing by default
+
 ## [1.7.21] - 2026-04-06
 ### Fixed
 - Optional components (rbac, llm, apollo, gaia) no longer block readiness when not installed
