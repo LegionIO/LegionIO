@@ -584,6 +584,9 @@ RSpec.describe Legion::Service do
       allow(service).to receive(:register_core_tools)
       allow(service).to receive(:handle_exception)
 
+      mode_mod = Module.new { def self.lite? = false }
+      stub_const('Legion::Mode', mode_mod)
+
       loader_mod = Module.new { def self.default_directories = [] }
       settings_mod = Module.new do
         def self.load(*) = nil

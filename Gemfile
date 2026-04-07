@@ -16,9 +16,6 @@ gem 'lex-agentic-memory', path: '../extensions-agentic/lex-agentic-memory' if Fi
 gem 'lex-llm-gateway', path: '../extensions-core/lex-llm-gateway' if File.exist?(File.expand_path('../extensions-core/lex-llm-gateway', __dir__))
 gem 'lex-microsoft_teams', path: '../extensions/lex-microsoft_teams' if File.exist?(File.expand_path('../extensions/lex-microsoft_teams', __dir__))
 
-gem 'elastic-apm'
-
-gem 'lex-kerberos'
 gem 'pg'
 
 gem 'kramdown', '>= 2.0'

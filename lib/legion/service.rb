@@ -836,7 +836,7 @@ module Legion
       Legion::Readiness.mark_ready(:settings)
 
       Legion::Crypt.start if defined?(Legion::Crypt)
-      Legion::Readiness.mark_ready(:crypt)
+      Legion::Readiness.mark_ready(:crypt) if defined?(Legion::Crypt)
       # Phase 5: fetch bootstrap RMQ creds after Vault reconnects on reload.
       fetch_phase5_bootstrap_creds unless Legion::Mode.lite?
 
@@ -895,7 +895,7 @@ module Legion
 
       register_core_tools
 
-      Legion::Crypt.cs
+      Legion::Crypt.cs if defined?(Legion::Crypt)
       setup_apm if @api_enabled
       setup_api if @api_enabled
 
