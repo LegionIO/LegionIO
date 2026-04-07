@@ -35,18 +35,14 @@ RSpec.describe Legion::Service do
   # §8.1 Boot — fetch_bootstrap_rmq_creds called after Crypt.start
   # ---------------------------------------------------------------------------
 
-  describe '#initialize boot sequence — fetch_bootstrap_rmq_creds' do
-    context 'when Crypt responds to fetch_bootstrap_rmq_creds' do
+  describe '#fetch_phase5_bootstrap_creds (private helper used by boot and reload)' do
+    context 'when Crypt responds to fetch_bootstrap_rmq_creds and vault is connected with dynamic creds on' do
       it 'calls fetch_bootstrap_rmq_creds' do
-        crypt = build_crypt_stub
+        crypt = build_crypt_stub(vault_connected: true, dynamic_rmq_creds: true)
         stub_const('Legion::Crypt', crypt)
 
-        # Verify the call happens inside the crypt boot block
         expect(Legion::Crypt).to receive(:fetch_bootstrap_rmq_creds)
-
-        # Call the private helper used by initialize (isolate from full boot)
-        # We test the conditional inline — service exposes it via the boot block
-        Legion::Crypt.fetch_bootstrap_rmq_creds if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
+        service.send(:fetch_phase5_bootstrap_creds)
       end
     end
 
@@ -55,9 +51,27 @@ RSpec.describe Legion::Service do
         crypt_no_bootstrap = Module.new
         stub_const('Legion::Crypt', crypt_no_bootstrap)
 
-        expect do
-          Legion::Crypt.fetch_bootstrap_rmq_creds if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
-        end.not_to raise_error
+        expect { service.send(:fetch_phase5_bootstrap_creds) }.not_to raise_error
+      end
+    end
+
+    context 'when vault is not connected' do
+      it 'does not call fetch_bootstrap_rmq_creds' do
+        crypt = build_crypt_stub(vault_connected: false, dynamic_rmq_creds: true)
+        stub_const('Legion::Crypt', crypt)
+
+        expect(Legion::Crypt).not_to receive(:fetch_bootstrap_rmq_creds)
+        service.send(:fetch_phase5_bootstrap_creds)
+      end
+    end
+
+    context 'when dynamic_rmq_creds is false' do
+      it 'does not call fetch_bootstrap_rmq_creds' do
+        crypt = build_crypt_stub(vault_connected: true, dynamic_rmq_creds: false)
+        stub_const('Legion::Crypt', crypt)
+
+        expect(Legion::Crypt).not_to receive(:fetch_bootstrap_rmq_creds)
+        service.send(:fetch_phase5_bootstrap_creds)
       end
     end
   end
@@ -279,7 +293,8 @@ RSpec.describe Legion::Service do
       allow(service).to receive(:shutdown_audit_archiver)
       allow(service).to receive(:shutdown_api)
       allow(service).to receive(:shutdown_apm)
-      allow(service).to receive(:shutdown_component)
+      # Let shutdown_component yield its block so Legion::Crypt.shutdown is actually called
+      allow(service).to receive(:shutdown_component) { |_name, &blk| blk&.call }
       allow(service).to receive(:teardown_logging_transport)
       allow(service).to receive(:shutdown_mtls_rotation)
       allow(service).to receive(:handle_exception)
@@ -329,6 +344,7 @@ RSpec.describe Legion::Service do
 
       it 'calls revoke_bootstrap_lease before shutting down Crypt' do
         expect(Legion::Crypt).to receive(:revoke_bootstrap_lease).ordered
+        expect(Legion::Crypt).to receive(:shutdown).ordered
         service.shutdown
       end
     end
@@ -445,13 +461,14 @@ RSpec.describe Legion::Service do
       allow(Legion::Settings).to receive(:dig) { |*k| settings_hash.dig(*k) }
     end
 
-    context 'when Crypt responds to fetch_bootstrap_rmq_creds' do
+    context 'when Crypt responds to fetch_bootstrap_rmq_creds and vault is ready' do
       before do
         crypt = Module.new do
           def self.start = nil
           def self.cs = nil
           def self.shutdown = nil
-          def self.respond_to?(mth, *) = mth == :fetch_bootstrap_rmq_creds ? true : super
+          def self.vault_connected? = true
+          def self.dynamic_rmq_creds? = true
           def self.fetch_bootstrap_rmq_creds = nil
         end
         stub_const('Legion::Crypt', crypt)

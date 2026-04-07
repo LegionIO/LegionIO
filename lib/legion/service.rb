@@ -57,8 +57,8 @@ module Legion
         Legion::Readiness.mark_ready(:crypt)
         setup_mtls_rotation
         # Phase 5: fetch short-lived bootstrap RMQ creds from Vault before transport connects.
-        # No-op unless Vault is connected and dynamic_rmq_creds: true is configured.
-        Legion::Crypt.fetch_bootstrap_rmq_creds if Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
+        # Service is the authoritative gate (vault_connected? + dynamic_rmq_creds?).
+        fetch_phase5_bootstrap_creds unless Legion::Mode.respond_to?(:lite?) && Legion::Mode.lite?
       end
 
       Legion::Settings.resolve_secrets!
@@ -504,6 +504,7 @@ module Legion
       if defined?(Legion::Crypt) &&
          Legion::Crypt.respond_to?(:vault_connected?) && Legion::Crypt.vault_connected? &&
          Legion::Crypt.respond_to?(:dynamic_rmq_creds?) && Legion::Crypt.dynamic_rmq_creds? &&
+         Legion::Crypt.respond_to?(:swap_to_identity_creds) &&
          !Legion::Mode.lite?
         log.info '[Identity] swapping to identity-scoped RMQ credentials'
         Legion::Crypt.swap_to_identity_creds(mode: Legion::Mode.current)
@@ -784,7 +785,7 @@ module Legion
       # Phase 5: Revoke bootstrap RMQ lease on clean shutdown (defense-in-depth;
       # lease expires naturally if process crashes before identity swap).
       Legion::Crypt.revoke_bootstrap_lease if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:revoke_bootstrap_lease)
-      shutdown_component('Crypt') { Legion::Crypt.shutdown }
+      shutdown_component('Crypt') { Legion::Crypt.shutdown if defined?(Legion::Crypt) }
       Legion::Readiness.mark_not_ready(:crypt)
 
       Legion::Settings[:client][:ready] = false
@@ -824,7 +825,7 @@ module Legion
       shutdown_component('Transport') { Legion::Transport::Connection.shutdown }
       Legion::Readiness.mark_not_ready(:transport)
 
-      shutdown_component('Crypt') { Legion::Crypt.shutdown }
+      shutdown_component('Crypt') { Legion::Crypt.shutdown if defined?(Legion::Crypt) }
       Legion::Readiness.mark_not_ready(:crypt)
 
       Legion::Readiness.wait_until_not_ready(:transport, :data, :cache, :crypt)
@@ -835,7 +836,7 @@ module Legion
       Legion::Crypt.start if defined?(Legion::Crypt)
       Legion::Readiness.mark_ready(:crypt)
       # Phase 5: fetch bootstrap RMQ creds after Vault reconnects on reload.
-      Legion::Crypt.fetch_bootstrap_rmq_creds if defined?(Legion::Crypt) && Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
+      fetch_phase5_bootstrap_creds
 
       # Resolve lease:// URIs with freshly loaded settings + new Vault token.
       Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
@@ -1050,6 +1051,18 @@ module Legion
     end
 
     private
+
+    # Phase 5: fetch short-lived bootstrap RMQ credentials from Vault.
+    # Called after Crypt.start (boot) and after Crypt.start (reload).
+    # Service owns the gate so Crypt.fetch_bootstrap_rmq_creds can be unconditional.
+    def fetch_phase5_bootstrap_creds
+      return unless defined?(Legion::Crypt)
+      return unless Legion::Crypt.respond_to?(:fetch_bootstrap_rmq_creds)
+      return unless Legion::Crypt.respond_to?(:vault_connected?) && Legion::Crypt.vault_connected?
+      return unless Legion::Crypt.respond_to?(:dynamic_rmq_creds?) && Legion::Crypt.dynamic_rmq_creds?
+
+      Legion::Crypt.fetch_bootstrap_rmq_creds
+    end
 
     def resolve_identity_providers
       # Phase 4 adds lex-identity-* providers. For now, check if any are loaded.
