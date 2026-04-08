@@ -32,6 +32,10 @@ module Legion
           end
         end
 
+        # Single shared struct class for tool result objects; avoids allocating
+        # an anonymous Struct class on every build_tool_result_object call.
+        ToolResult = Struct.new(:content, :tool_call_id, :id)
+
         attr_reader :model, :conversation_id, :caller_context
 
         def initialize(model: nil, provider: nil)
@@ -210,7 +214,7 @@ module Legion
         # tool call by ID (rather than falling back to name-based matching which
         # breaks when multiple tools of the same type run in parallel).
         def build_tool_result_object(text, tool_call_id = nil)
-          Struct.new(:content, :tool_call_id, :id).new(text.to_s, tool_call_id, tool_call_id)
+          ToolResult.new(text.to_s, tool_call_id, tool_call_id)
         end
 
         def run_tool(tool_call)

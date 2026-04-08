@@ -309,9 +309,11 @@ module Legion
                 # Wire up real-time tool-call / tool-result / tool-error / model-fallback SSE events.
                 # The executor fires tool_event_handler for each event as it happens,
                 # including accurate wall-clock startedAt/finishedAt/durationMs timing.
+                emitted_tool_call_ids = Set.new
                 executor.tool_event_handler = lambda do |event|
                   case event[:type]
                   when :tool_call
+                    emitted_tool_call_ids << event[:tool_call_id] if event[:tool_call_id]
                     out << "event: tool-call\ndata: #{Legion::JSON.dump({
                                                                           toolCallId: event[:tool_call_id],
                                                                           toolName:   event[:tool_name],
@@ -333,7 +335,7 @@ module Legion
                     out << "event: tool-error\ndata: #{Legion::JSON.dump({
                                                                            toolCallId: event[:tool_call_id],
                                                                            toolName:   event[:tool_name],
-                                                                           error:      event[:error] || event[:result].to_s,
+                                                                           error:      (event[:error] || event[:result]).to_s,
                                                                            startedAt:  event[:started_at]&.iso8601(3),
                                                                            finishedAt: Time.now.iso8601(3),
                                                                            timestamp:  Time.now.iso8601(3)
@@ -359,11 +361,14 @@ module Legion
                 end
 
                 # Post-hoc safety net: emit any tool-calls that weren't fired in real-time
-                # (e.g. non-streaming tool paths). Skip duplicates — real-time ones already sent.
+                # (e.g. non-streaming tool paths). Skip IDs already sent via tool_event_handler.
                 if pipeline_response.tools.is_a?(Array) && !pipeline_response.tools.empty?
                   pipeline_response.tools.each do |tc|
+                    tc_id = tc.respond_to?(:id) ? tc.id : nil
+                    next if tc_id && emitted_tool_call_ids.include?(tc_id)
+
                     out << "event: tool-call\ndata: #{Legion::JSON.dump({
-                                                                          toolCallId: tc.respond_to?(:id) ? tc.id : nil,
+                                                                          toolCallId: tc_id,
                                                                           toolName:   tc.respond_to?(:name) ? tc.name : tc.to_s,
                                                                           args:       tc.respond_to?(:arguments) ? tc.arguments : {}
                                                                         })}\n\n"
@@ -374,11 +379,15 @@ module Legion
                 Array(pipeline_response.warnings).each do |w|
                   next unless w.is_a?(Hash) && w[:type] == :provider_fallback
 
-                  parts = w[:fallback].to_s.split(':', 2)
+                  fallback = w[:fallback].to_s
+                  provider, model = fallback.split(':', 2)
+                  resolved_model = (model || provider).to_s.strip
+                  next if resolved_model.empty?
+
                   out << "event: model-fallback\ndata: #{Legion::JSON.dump({
                                                                              fromModel:  pipeline_response.routing&.dig(:model),
-                                                                             toModel:    parts[1],
-                                                                             toModelKey: parts[1],
+                                                                             toModel:    resolved_model,
+                                                                             toModelKey: resolved_model,
                                                                              error:      w[:original_error] || 'Provider unavailable',
                                                                              reason:     'provider_fallback'
                                                                            })}\n\n"

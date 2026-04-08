@@ -9,13 +9,15 @@ module Legion
       namespace :admin
 
       desc 'purge-topology', 'Remove old v2.0 AMQP exchanges (legion.* that have lex.* counterparts)'
-      method_option :dry_run,  type: :boolean, default: true,        desc: 'List without deleting'
-      method_option :execute,  type: :boolean, default: false,       desc: 'Actually delete exchanges'
-      method_option :host,     type: :string,  default: 'localhost', desc: 'RabbitMQ management host'
-      method_option :port,     type: :numeric, default: 15_672,      desc: 'RabbitMQ management port'
-      method_option :user,     type: :string,  default: 'guest',     desc: 'RabbitMQ management user'
-      method_option :password, type: :string,  default: 'guest',     desc: 'RabbitMQ management password'
-      method_option :vhost,    type: :string,  default: '/',         desc: 'RabbitMQ vhost'
+      method_option :dry_run,      type: :boolean, default: true,        desc: 'List without deleting'
+      method_option :execute,      type: :boolean, default: false,       desc: 'Actually delete exchanges'
+      method_option :host,         type: :string,  default: 'localhost', desc: 'RabbitMQ management host'
+      method_option :port,         type: :numeric, default: 15_672,      desc: 'RabbitMQ management port'
+      method_option :user,         type: :string,  default: 'guest',     desc: 'RabbitMQ management user'
+      method_option :password,     type: :string,  default: 'guest',     desc: 'RabbitMQ management password'
+      method_option :vhost,        type: :string,  default: '/',         desc: 'RabbitMQ vhost'
+      method_option :open_timeout, type: :numeric, default: 5,           desc: 'HTTP open timeout in seconds'
+      method_option :read_timeout, type: :numeric, default: 30,          desc: 'HTTP read timeout in seconds'
       def purge_topology
         exchanges  = fetch_exchanges
         candidates = self.class.detect_old_exchanges(exchanges)
@@ -76,7 +78,9 @@ module Legion
       end
 
       def management_request(uri, method_class)
-        Net::HTTP.start(uri.host, uri.port) do |http|
+        Net::HTTP.start(uri.host, uri.port,
+                        open_timeout: options[:open_timeout],
+                        read_timeout: options[:read_timeout]) do |http|
           req = method_class.new(uri)
           req.basic_auth(options[:user], options[:password])
           http.request(req)

@@ -355,6 +355,105 @@ RSpec.describe 'POST /api/llm/inference' do
       expect(body).to include('"toolName":"file_read"')
     end
 
+    it 'emits real-time tool-call event via tool_event_handler with camelCase keys' do
+      captured_handler = nil
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) { |h| captured_handler = h }
+        define_method(:call_stream) do |&block|
+          block&.call('chunk')
+          # Fire the real-time handler as if a tool call happened mid-stream
+          captured_handler&.call(
+            type:         :tool_call,
+            tool_call_id: 'tc_realtime',
+            tool_name:    'file_read',
+            arguments:    { path: '/tmp/y' },
+            started_at:   nil
+          )
+          build_pipeline_response_local
+        end
+      end)
+
+      def build_pipeline_response_local
+        tokens = double('tokens',
+                        input_tokens:  0,
+                        output_tokens: 0,
+                        respond_to?:   true)
+        allow(tokens).to receive(:respond_to?) { |m| %i[input_tokens output_tokens].include?(m) }
+        double('pipeline_response',
+               message:         { role: :assistant, content: 'ok' },
+               routing:         { provider: 'anthropic', model: 'test' },
+               tokens:          tokens,
+               tools:           [],
+               enrichments:     {},
+               stop:            { reason: :end_turn },
+               conversation_id: nil,
+               warnings:        [])
+      end
+
+      pr = build_pipeline_response(tools: [])
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) do |h|
+          h.call(
+            type:         :tool_call,
+            tool_call_id: 'tc_realtime',
+            tool_name:    'file_read',
+            arguments:    { path: '/tmp/y' },
+            started_at:   nil
+          )
+        end
+        define_method(:call_stream) do |&block|
+          block&.call('chunk')
+          pr
+        end
+      end)
+
+      post '/api/llm/inference',
+           Legion::JSON.dump({ messages: [{ role: 'user', content: 'use tool' }], stream: true }),
+           { 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'text/event-stream' }
+
+      body = last_response.body
+      expect(body).to include('event: tool-call')
+      parsed = body.scan(/data: (\{.*\})/).flatten.map { |d| Legion::JSON.load(d) }
+      tool_call_event = parsed.find { |e| e[:toolCallId] == 'tc_realtime' }
+      expect(tool_call_event).not_to be_nil
+      expect(tool_call_event[:toolName]).to eq('file_read')
+    end
+
+    it 'does not emit duplicate post-hoc tool-call for IDs already sent by tool_event_handler' do
+      tc_id = 'tc_dedup'
+      tool = double('tool_call', id: tc_id, name: 'grep', arguments: { pattern: 'foo' })
+      allow(tool).to receive(:respond_to?) { |m| %i[id name arguments].include?(m) }
+
+      pr = build_pipeline_response(tools: [tool])
+      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) do |h|
+          # Simulate real-time emission with the same ID
+          h.call(
+            type:         :tool_call,
+            tool_call_id: tc_id,
+            tool_name:    'grep',
+            arguments:    { pattern: 'foo' },
+            started_at:   nil
+          )
+        end
+        define_method(:call_stream) do |&block|
+          block&.call('chunk')
+          pr
+        end
+      end)
+
+      post '/api/llm/inference',
+           Legion::JSON.dump({ messages: [{ role: 'user', content: 'grep it' }], stream: true }),
+           { 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'text/event-stream' }
+
+      body = last_response.body
+      tc_events = body.scan('event: tool-call').size
+      expect(tc_events).to eq(1)
+    end
+
     it 'does NOT stream when Accept header is missing text/event-stream' do
       sync_tokens = Object.new.tap do |t|
         t.define_singleton_method(:input_tokens)  { 0 }
