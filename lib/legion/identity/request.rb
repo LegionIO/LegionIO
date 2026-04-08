@@ -16,13 +16,16 @@ module Legion
         system:   :system
       }.freeze
 
-      attr_reader :principal_id, :canonical_name, :kind, :groups, :source, :metadata
+      attr_reader :principal_id, :canonical_name, :kind, :groups, :roles, :source, :metadata
 
-      def initialize(principal_id:, canonical_name:, kind:, groups: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
+      alias id principal_id
+
+      def initialize(principal_id:, canonical_name:, kind:, groups: [], roles: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
         @principal_id   = principal_id
         @canonical_name = canonical_name
         @kind           = kind
         @groups         = groups.freeze
+        @roles          = roles.freeze
         @source         = SOURCE_NORMALIZATION.fetch(source&.to_sym, source)
         @metadata       = metadata.freeze
         freeze
@@ -35,7 +38,9 @@ module Legion
       end
 
       # Builds a Request from a parsed auth claims hash with symbol keys:
-      #   { sub:, name:, preferred_username:, kind:, groups:, source: }
+      #   { sub:, name:, preferred_username:, kind:, groups:, resolved_roles:, source: }
+      # resolved_roles is the final merged set of Entra app roles + group-derived RBAC
+      # roles (populated by Identity::Middleware before calling this method).
       # The source value is normalized via SOURCE_NORMALIZATION at construction time.
       def self.from_auth_context(claims_hash)
         raw_name = claims_hash[:name] || claims_hash[:preferred_username] || ''
@@ -48,6 +53,7 @@ module Legion
           canonical_name: canonical,
           kind:           claims_hash[:kind] || :human,
           groups:         claims_hash[:groups] || [],
+          roles:          Array(claims_hash[:resolved_roles]),
           source:         normalized_source
         )
       end
@@ -58,6 +64,7 @@ module Legion
           canonical_name: canonical_name,
           kind:           kind,
           groups:         groups,
+          roles:          roles,
           source:         source
         }
       end

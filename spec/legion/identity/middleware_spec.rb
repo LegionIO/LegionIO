@@ -211,6 +211,280 @@ RSpec.describe Legion::Identity::Middleware do
     end
   end
 
+  # ─── groups vs roles separation (§3.4 prerequisite fix) ─────────────────────
+
+  describe 'groups vs roles separation in build_request' do
+    let(:claims_with_both) do
+      {
+        sub:    'user-001',
+        name:   'Alice',
+        groups: ['group-oid-abc'],
+        roles:  ['app-admin'],
+        scope:  'human'
+      }
+    end
+
+    it 'passes groups from claims[:groups] to Request, not claims[:roles]' do
+      captured = nil
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
+      env = env_for('/api/tasks', 'legion.auth' => claims_with_both, 'legion.auth_method' => 'jwt')
+      app.call(env)
+      expect(captured['legion.principal'].groups).to eq(['group-oid-abc'])
+    end
+
+    it 'does not conflate claims[:roles] into groups' do
+      captured = nil
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
+      env = env_for('/api/tasks', 'legion.auth' => claims_with_both, 'legion.auth_method' => 'jwt')
+      app.call(env)
+      expect(captured['legion.principal'].groups).not_to include('app-admin')
+    end
+  end
+
+  # ─── worker token: worker_id takes precedence over sub ───────────────────────
+
+  describe 'worker token principal_id resolution' do
+    let(:worker_token_claims) do
+      { sub: 'owner@example.com', worker_id: 'w-007', name: 'Bot', scope: 'worker' }
+    end
+
+    it 'uses worker_id as principal_id when both sub and worker_id are present' do
+      captured = nil
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
+      env = env_for('/api/tasks', 'legion.auth' => worker_token_claims, 'legion.auth_method' => 'jwt')
+      app.call(env)
+      expect(captured['legion.principal'].principal_id).to eq('w-007')
+    end
+
+    it 'does not use the owner sub as principal_id when worker_id is present' do
+      captured = nil
+      app = described_class.new(lambda { |e|
+        captured = e
+        [200, {}, []]
+      })
+      env = env_for('/api/tasks', 'legion.auth' => worker_token_claims, 'legion.auth_method' => 'jwt')
+      app.call(env)
+      expect(captured['legion.principal'].principal_id).not_to eq('owner@example.com')
+    end
+
+    context 'when the worker token has no name claim (production JWT format)' do
+      let(:nameless_worker_claims) do
+        { sub: 'owner@example.com', worker_id: 'w-007', scope: 'worker' }
+      end
+
+      it 'derives canonical_name from worker_id, not the owner sub' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => nameless_worker_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].canonical_name).not_to include('owner')
+        expect(captured['legion.principal'].canonical_name).not_to include('example.com')
+      end
+
+      it 'sets canonical_name based on worker_id when name is absent' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => nameless_worker_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].canonical_name).to eq('w-007')
+      end
+    end
+  end
+
+  # ─── RBAC principal bridge (§5.3) ────────────────────────────────────────────
+
+  describe 'RBAC principal bridge' do
+    let(:jwt_claims) do
+      { sub: 'user-001', name: 'Alice', groups: ['readers'], scope: 'human' }
+    end
+
+    context 'when Legion::Rbac::Principal is NOT available' do
+      before do
+        hide_const('Legion::Rbac::Principal') if defined?(Legion::Rbac::Principal)
+        hide_const('Legion::Rbac') if defined?(Legion::Rbac)
+      end
+
+      it 'does not set legion.rbac_principal' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => jwt_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured.key?('legion.rbac_principal')).to be(false)
+      end
+    end
+
+    context 'when Legion::Rbac::Principal is available with enabled?' do
+      let(:rbac_principal_double) { double('rbac_principal') }
+      let(:principal_class) do
+        klass = Class.new
+        allow(klass).to receive(:new).and_return(rbac_principal_double)
+        klass
+      end
+      let(:rbac_module) do
+        Module.new do
+          def self.enabled?
+            true
+          end
+        end
+      end
+
+      before do
+        stub_const('Legion::Rbac', rbac_module)
+        stub_const('Legion::Rbac::Principal', principal_class)
+      end
+
+      it 'sets legion.rbac_principal on the env' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => jwt_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.rbac_principal']).to eq(rbac_principal_double)
+      end
+
+      it 'passes the principal_id to Legion::Rbac::Principal' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => jwt_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(principal_class).to have_received(:new).with(hash_including(id: 'user-001'))
+      end
+
+      it 'maps :service kind to :worker type in the RBAC principal' do
+        service_claims = { sub: 'svc-1', name: 'Bot', scope: 'worker', worker_id: 'svc-1' }
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => service_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(principal_class).to have_received(:new).with(hash_including(type: :worker))
+      end
+
+      it 'passes resolved roles (from claims[:roles]) to the RBAC principal' do
+        claims_with_roles = jwt_claims.merge(roles: ['admin'])
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => claims_with_roles, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(principal_class).to have_received(:new).with(hash_including(roles: ['admin']))
+      end
+    end
+
+    context 'when request is nil (require_auth=true, no auth)' do
+      it 'does not set legion.rbac_principal' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        }, require_auth: true)
+        app.call(env_for('/api/tasks'))
+        expect(captured.key?('legion.rbac_principal')).to be(false)
+      end
+    end
+  end
+
+  # ─── GroupRoleMapper enrichment (§5.2) ───────────────────────────────────────
+
+  describe 'GroupRoleMapper enrichment in build_request' do
+    let(:claims_with_groups) do
+      {
+        sub:    'user-001',
+        name:   'Alice',
+        groups: %w[group-a group-b],
+        roles:  ['existing-role'],
+        scope:  'human'
+      }
+    end
+
+    context 'when GroupRoleMapper is available and RBAC is enabled' do
+      let(:rbac_module) do
+        Module.new do
+          def self.enabled?
+            true
+          end
+        end
+      end
+
+      let(:mapper_module) do
+        Module.new do
+          def self.resolve_roles(groups:, **)
+            groups.include?('group-a') ? ['mapped-admin'] : []
+          end
+        end
+      end
+
+      before do
+        stub_const('Legion::Rbac', rbac_module)
+        stub_const('Legion::Rbac::GroupRoleMapper', mapper_module)
+      end
+
+      it 'merges group-derived roles with existing roles' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => claims_with_groups, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].roles).to include('existing-role', 'mapped-admin')
+      end
+
+      it 'deduplicates roles' do
+        dup_claims = claims_with_groups.merge(roles: ['mapped-admin'])
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => dup_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].roles.count('mapped-admin')).to eq(1)
+      end
+    end
+
+    context 'when RBAC is disabled (no enabled? method)' do
+      it 'passes claims[:roles] through as resolved_roles without enrichment' do
+        stub_const('Legion::Rbac', Module.new)
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => claims_with_groups, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].roles).to eq(['existing-role'])
+      end
+    end
+  end
+
   # ─── .require_auth? class method ─────────────────────────────────────────────
 
   describe '.require_auth?' do
