@@ -275,6 +275,35 @@ RSpec.describe Legion::Identity::Middleware do
       app.call(env)
       expect(captured['legion.principal'].principal_id).not_to eq('owner@example.com')
     end
+
+    context 'when the worker token has no name claim (production JWT format)' do
+      let(:nameless_worker_claims) do
+        { sub: 'owner@example.com', worker_id: 'w-007', scope: 'worker' }
+      end
+
+      it 'derives canonical_name from worker_id, not the owner sub' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => nameless_worker_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].canonical_name).not_to include('owner')
+        expect(captured['legion.principal'].canonical_name).not_to include('example.com')
+      end
+
+      it 'sets canonical_name based on worker_id when name is absent' do
+        captured = nil
+        app = described_class.new(lambda { |e|
+          captured = e
+          [200, {}, []]
+        })
+        env = env_for('/api/tasks', 'legion.auth' => nameless_worker_claims, 'legion.auth_method' => 'jwt')
+        app.call(env)
+        expect(captured['legion.principal'].canonical_name).to eq('w-007')
+      end
+    end
   end
 
   # ─── RBAC principal bridge (§5.3) ────────────────────────────────────────────

@@ -75,6 +75,12 @@ module Legion
         # worker_id and sub=owner_msid, and we want the worker's identity, not the owner's.
         principal_id = claims[:worker_id] || claims[:sub] || claims[:owner_msid]
 
+        # For worker tokens (scope: 'worker' or worker_id present), derive canonical_name
+        # from the worker's own identity. Production worker JWTs omit :name and carry
+        # sub=owner_msid, so falling back to claims[:sub] would inherit the owner's identity.
+        worker_token = claims[:scope] == 'worker' || claims[:worker_id]
+        display_name = claims[:name] || (worker_token ? principal_id : claims[:sub])
+
         # Separate group OIDs/names from Entra app roles — they are NOT equivalent.
         # claims[:groups] = group OIDs/names (for GroupRoleMapper)
         # claims[:roles]  = Entra app roles (pre-assigned at token-exchange time)
@@ -93,7 +99,7 @@ module Legion
 
         Identity::Request.from_auth_context({
                                               sub:            principal_id,
-                                              name:           claims[:name] || claims[:sub],
+                                              name:           display_name,
                                               kind:           determine_kind(claims, method),
                                               groups:         groups,
                                               resolved_roles: resolved_roles,
