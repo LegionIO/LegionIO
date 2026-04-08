@@ -1,5 +1,18 @@
 # Legion Changelog
 
+## [1.7.30] - 2026-04-08
+
+### Added
+- SSE streaming inference now emits real-time `tool-call`, `tool-result`, `tool-error`, and `model-fallback` events via `executor.tool_event_handler` as tools execute (with wall-clock `startedAt`/`finishedAt`/`durationMs` timing)
+- `event: done` payload extended with `conversation_id`, `stop_reason`, `cache_read_tokens`, and `cache_write_tokens` fields (nil values compacted out)
+- Post-hoc `model-fallback` events emitted from `pipeline_response.warnings` for non-streaming tool paths
+- `admin purge-topology` CLI command to remove stale v2.0 `legion.*` AMQP exchanges that have `lex.*` counterparts
+- Parallel tool execution in `CLI::Chat::DaemonChat`: all tools in a response now run concurrently via `Thread.new`, preserving original order for message replay
+- `build_tool_result_object` now carries `tool_call_id`/`id` so the Interlink frontend can match results to tool calls by ID rather than name (fixes parallel same-type tool matching)
+
+### Changed
+- SSE tool-call events now use camelCase keys (`toolCallId`, `toolName`, `args`) matching the Interlink wire protocol
+
 ## [1.7.29] - 2026-04-07
 
 ### Changed
