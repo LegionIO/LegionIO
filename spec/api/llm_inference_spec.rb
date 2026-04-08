@@ -41,12 +41,14 @@ RSpec.describe 'POST /api/llm/inference' do
     allow(tokens).to receive(:respond_to?) { |m| %i[input_tokens output_tokens].include?(m) }
 
     double('pipeline_response',
-           message:     { role: :assistant, content: content },
-           routing:     { provider: 'anthropic', model: model },
-           tokens:      tokens,
-           tools:       tools,
-           enrichments: enrichments,
-           stop:        { reason: :end_turn })
+           message:         { role: :assistant, content: content },
+           routing:         { provider: 'anthropic', model: model },
+           tokens:          tokens,
+           tools:           tools,
+           enrichments:     enrichments,
+           stop:            { reason: :end_turn },
+           conversation_id: nil,
+           warnings:        [])
   end
 
   def stub_llm_pipeline(executor_double, pipeline_response)
@@ -271,6 +273,7 @@ RSpec.describe 'POST /api/llm/inference' do
       pr = pipeline_response
       stub_const('Legion::LLM::Pipeline::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
           block&.call('Hello ')
           block&.call('from pipeline')
@@ -313,6 +316,7 @@ RSpec.describe 'POST /api/llm/inference' do
       pr = build_pipeline_response(enrichments: { 'rag:context' => { docs: 1 } })
       stub_const('Legion::LLM::Pipeline::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
           block&.call('chunk')
           pr
@@ -335,6 +339,7 @@ RSpec.describe 'POST /api/llm/inference' do
       pr = build_pipeline_response(tools: [tool])
       stub_const('Legion::LLM::Pipeline::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
+        define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
           block&.call('text chunk')
           pr
@@ -347,7 +352,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
       body = last_response.body
       expect(body).to include('event: tool-call')
-      expect(body).to include('"name":"file_read"')
+      expect(body).to include('"toolName":"file_read"')
     end
 
     it 'does NOT stream when Accept header is missing text/event-stream' do

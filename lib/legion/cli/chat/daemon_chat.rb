@@ -168,15 +168,24 @@ module Legion
           # Record the assistant turn with tool_calls before appending results.
           @messages << { role: 'assistant', content: assistant_content, tool_calls: tool_calls }
 
-          tool_calls.each do |tc|
-            tc = tc.transform_keys(&:to_sym) if tc.respond_to?(:transform_keys)
-            tc_obj = build_tool_call_object(tc)
+          # Normalize all tool calls upfront so threads don't mutate shared state
+          normalized = tool_calls.map do |tc|
+            tc.respond_to?(:transform_keys) ? tc.transform_keys(&:to_sym) : tc
+          end
 
-            @on_tool_call&.call(tc_obj)
+          # Fire on_tool_call callbacks immediately (serial — fast, just event emission)
+          normalized.each do |tc|
+            @on_tool_call&.call(build_tool_call_object(tc))
+          end
 
-            result_text = run_tool(tc)
+          # Execute all tools in parallel, preserving original order for message replay
+          results = normalized.map do |tc|
+            Thread.new { [tc, run_tool(tc)] }
+          end.map(&:value)
 
-            result_obj = build_tool_result_object(result_text)
+          # Collect results serially: fire callbacks and append messages in order
+          results.each do |tc, result_text|
+            result_obj = build_tool_result_object(result_text, tc[:id] || tc[:tool_call_id])
             @on_tool_result&.call(result_obj)
 
             @messages << {
@@ -195,8 +204,13 @@ module Legion
           )
         end
 
-        def build_tool_result_object(text)
-          Struct.new(:content).new(content: text.to_s)
+        # Carries both the result content AND the originating tool_call_id so the
+        # daemon-bridge-script serializer can include it in the tool-result event,
+        # allowing the Interlink frontend to match results back to the correct
+        # tool call by ID (rather than falling back to name-based matching which
+        # breaks when multiple tools of the same type run in parallel).
+        def build_tool_result_object(text, tool_call_id = nil)
+          Struct.new(:content, :tool_call_id, :id).new(text.to_s, tool_call_id, tool_call_id)
         end
 
         def run_tool(tool_call)
