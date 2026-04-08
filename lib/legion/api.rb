@@ -221,7 +221,6 @@ module Legion
     register Routes::GraphQL if defined?(Routes::GraphQL)
 
     use Legion::API::Middleware::RequestLogger
-    use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
     use ElasticAPM::Middleware if defined?(ElasticAPM::Middleware) &&
                                   Legion::Settings.dig(:api, :elastic_apm, :enabled)
   end

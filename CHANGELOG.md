@@ -1,5 +1,18 @@
 # Legion Changelog
 
+## [1.7.31] - 2026-04-08
+
+### Added
+- Phase 7 RBAC enrichment: `Identity::Request` gains `roles:` constructor kwarg, `#roles` reader, `#id` alias for `principal_id`, and `roles:` in `identity_hash`
+- `Identity::Middleware#build_request` now separates `claims[:groups]` (group OIDs/names) from `claims[:roles]` (Entra app roles), fixing the pre-existing conflation via `||`
+- Worker token principal_id now correctly uses `claims[:worker_id]` when present, preventing worker tokens owned by a human from sharing the human's RBAC identity
+- `Identity::Middleware` enriches resolved roles via `Legion::Rbac::GroupRoleMapper` when legion-rbac is loaded and enabled (including audit mode)
+- `Identity::Middleware` builds `env['legion.rbac_principal']` (a `Legion::Rbac::Principal`) after setting `env['legion.principal']`, bridging identity to RBAC
+- Middleware mount order fix: `Legion::Rbac::Middleware` removed from class-level `use` in `api.rb`; both `Identity::Middleware` and `Rbac::Middleware` now registered in `service.rb#setup_api` in the correct order (Identity first, then RBAC)
+
+### Changed
+- `Legion::Identity::Request.from_auth_context` now reads `claims[:resolved_roles]` to populate `roles`
+
 ## [1.7.30] - 2026-04-08
 
 ### Added

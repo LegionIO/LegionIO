@@ -52,6 +52,16 @@ RSpec.describe Legion::Identity::Request do
       expect(req.groups).to eq([])
     end
 
+    it 'defaults roles to an empty array' do
+      req = described_class.new(principal_id: principal_id, canonical_name: canonical_name, kind: kind)
+      expect(req.roles).to eq([])
+    end
+
+    it 'sets roles when provided' do
+      req = described_class.new(principal_id: principal_id, canonical_name: canonical_name, kind: kind, roles: %w[admin operator])
+      expect(req.roles).to eq(%w[admin operator])
+    end
+
     it 'defaults source to nil' do
       req = described_class.new(principal_id: principal_id, canonical_name: canonical_name, kind: kind)
       expect(req.source).to be_nil
@@ -61,8 +71,23 @@ RSpec.describe Legion::Identity::Request do
       expect(request.groups).to be_frozen
     end
 
+    it 'freezes roles' do
+      req = described_class.new(principal_id: principal_id, canonical_name: canonical_name, kind: kind, roles: ['admin'])
+      expect(req.roles).to be_frozen
+    end
+
     it 'freezes the object after creation' do
       expect(request).to be_frozen
+    end
+  end
+
+  describe '#id alias' do
+    it 'returns the same value as principal_id' do
+      expect(request.id).to eq(request.principal_id)
+    end
+
+    it 'returns the principal_id string' do
+      expect(request.id).to eq(principal_id)
     end
   end
 
@@ -148,6 +173,16 @@ RSpec.describe Legion::Identity::Request do
       req = described_class.from_auth_context(sub: 'u1', name: 'alice', source: nil)
       expect(req.groups).to eq([])
     end
+
+    it 'maps resolved_roles to roles' do
+      req = described_class.from_auth_context(claims.merge(resolved_roles: %w[admin operator]))
+      expect(req.roles).to eq(%w[admin operator])
+    end
+
+    it 'defaults roles to [] when resolved_roles is absent' do
+      req = described_class.from_auth_context(claims)
+      expect(req.roles).to eq([])
+    end
   end
 
   describe '#groups' do
@@ -173,6 +208,15 @@ RSpec.describe Legion::Identity::Request do
 
     it 'includes groups' do
       expect(hash[:groups]).to eq(groups)
+    end
+
+    it 'includes roles' do
+      req = described_class.new(principal_id: principal_id, canonical_name: canonical_name, kind: kind, roles: ['admin'])
+      expect(req.identity_hash[:roles]).to eq(['admin'])
+    end
+
+    it 'includes roles as empty array by default' do
+      expect(hash[:roles]).to eq([])
     end
 
     it 'includes source' do

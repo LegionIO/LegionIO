@@ -394,11 +394,17 @@ module Legion
         log.info "Starting Legion API on #{bind}:#{port}"
       end
 
-      # Mount identity middleware — bridges legion.auth to legion.principal
+      # Mount identity middleware — bridges legion.auth to legion.principal.
+      # Identity MUST be mounted before RBAC so env['legion.rbac_principal'] is
+      # populated before the RBAC middleware reads it.
       if defined?(Legion::Identity::Middleware)
         require_auth = Legion::Identity::Middleware.require_auth?(bind: bind, mode: Legion::Mode.current)
         Legion::API.use Legion::Identity::Middleware, require_auth: require_auth
       end
+
+      # Mount RBAC middleware after Identity — reads env['legion.rbac_principal']
+      # set by Identity::Middleware above.
+      Legion::API.use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
 
       @api_thread = Thread.new do
         retries = 0

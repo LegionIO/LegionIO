@@ -16,13 +16,16 @@ module Legion
         system:   :system
       }.freeze
 
-      attr_reader :principal_id, :canonical_name, :kind, :groups, :source, :metadata
+      attr_reader :principal_id, :canonical_name, :kind, :groups, :roles, :source, :metadata
 
-      def initialize(principal_id:, canonical_name:, kind:, groups: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
+      alias id principal_id
+
+      def initialize(principal_id:, canonical_name:, kind:, groups: [], roles: [], source: nil, metadata: {}) # rubocop:disable Metrics/ParameterLists
         @principal_id   = principal_id
         @canonical_name = canonical_name
         @kind           = kind
         @groups         = groups.freeze
+        @roles          = roles.freeze
         @source         = SOURCE_NORMALIZATION.fetch(source&.to_sym, source)
         @metadata       = metadata.freeze
         freeze
@@ -48,6 +51,7 @@ module Legion
           canonical_name: canonical,
           kind:           claims_hash[:kind] || :human,
           groups:         claims_hash[:groups] || [],
+          roles:          Array(claims_hash[:resolved_roles]),
           source:         normalized_source
         )
       end
@@ -58,6 +62,7 @@ module Legion
           canonical_name: canonical_name,
           kind:           kind,
           groups:         groups,
+          roles:          roles,
           source:         source
         }
       end
