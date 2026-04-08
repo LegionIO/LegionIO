@@ -356,7 +356,7 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.shutdown_apm')
     end
 
-    def setup_api # rubocop:disable Metrics/MethodLength
+    def setup_api # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       if @api_thread&.alive?
         log.warn 'API already running, skipping duplicate setup_api call'
         return
@@ -403,8 +403,15 @@ module Legion
       end
 
       # Mount RBAC middleware after Identity — reads env['legion.rbac_principal']
-      # set by Identity::Middleware above.
-      Legion::API.use Legion::Rbac::Middleware if defined?(Legion::Rbac::Middleware)
+      # set by Identity::Middleware above. Only mount when a compatible RBAC
+      # integration is present and enabled to avoid mixed-version request
+      # failures.
+      if defined?(Legion::Rbac::Middleware) &&
+         defined?(Legion::Rbac::Principal) &&
+         Legion::Rbac.respond_to?(:enabled?) &&
+         Legion::Rbac.enabled?
+        Legion::API.use Legion::Rbac::Middleware
+      end
 
       @api_thread = Thread.new do
         retries = 0

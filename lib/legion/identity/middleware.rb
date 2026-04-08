@@ -40,12 +40,16 @@ module Legion
         if request && defined?(Legion::Rbac::Principal) &&
            defined?(Legion::Rbac) && Legion::Rbac.respond_to?(:enabled?) &&
            Legion::Rbac.enabled?
-          env['legion.rbac_principal'] = Legion::Rbac::Principal.new(
-            id:    request.principal_id,
-            type:  request.kind == :service ? :worker : request.kind,
-            roles: request.roles,
-            team:  request.metadata&.dig(:team)
-          )
+          begin
+            env['legion.rbac_principal'] = Legion::Rbac::Principal.new(
+              id:    request.principal_id,
+              type:  request.kind == :service ? :worker : request.kind,
+              roles: request.roles,
+              team:  request.metadata&.dig(:team)
+            )
+          rescue StandardError
+            # Best-effort bridge: leave legion.rbac_principal unset on construction errors.
+          end
         end
 
         @app.call(env)

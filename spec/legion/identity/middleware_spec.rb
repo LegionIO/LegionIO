@@ -285,6 +285,11 @@ RSpec.describe Legion::Identity::Middleware do
     end
 
     context 'when Legion::Rbac::Principal is NOT available' do
+      before do
+        hide_const('Legion::Rbac::Principal') if defined?(Legion::Rbac::Principal)
+        hide_const('Legion::Rbac') if defined?(Legion::Rbac)
+      end
+
       it 'does not set legion.rbac_principal' do
         captured = nil
         app = described_class.new(lambda { |e|
