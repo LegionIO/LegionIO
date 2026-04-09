@@ -62,8 +62,10 @@ module Legion
           return false unless provider.respond_to?(:provide_token)
 
           new_lease = provider.provide_token
-          ref.set(new_lease) if new_lease
-          !new_lease.nil?
+          return false unless new_lease&.valid?
+
+          ref.set(new_lease)
+          true
         end
 
         def authenticated?
