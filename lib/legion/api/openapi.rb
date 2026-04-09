@@ -520,28 +520,42 @@ module Legion
 
       def self.extension_paths
         {
-          '/api/extensions'                                                         => {
+          '/api/extension_catalog'                                                               => {
             get: {
               tags:        ['Extensions'],
-              summary:     'List extensions',
+              summary:     'List loaded extensions',
               operationId: 'listExtensions',
               parameters:  PAGINATION_PARAMS + [
-                { name: 'active', in: 'query', description: 'Filter to active extensions only', required: false,
-                  schema: { type: 'boolean' } }
+                { name: 'state', in: 'query', description: 'Filter by extension state (e.g. running)', required: false,
+                  schema: { type: 'string' } }
               ],
               responses:   {
                 '200' => ok_response('Extension list', wrap_collection('ExtensionObject')),
-                '401' => UNAUTH_RESPONSE,
-                '503' => { description: 'legion-data not connected' }
+                '401' => UNAUTH_RESPONSE
               }
             }
           },
-          '/api/extensions/{id}'                                                    => {
+          '/api/extension_catalog/available'                                                     => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get extension by ID',
+              summary:     'List all available extensions in the ecosystem registry',
+              operationId: 'listAvailableExtensions',
+              parameters:  [
+                { name: 'category', in: 'query', description: 'Filter by category (core, ai, agentic, identity, service, other)',
+                  required: false, schema: { type: 'string' } }
+              ],
+              responses:   {
+                '200' => ok_response('Available extension list', wrap_collection('AvailableExtensionObject')),
+                '401' => UNAUTH_RESPONSE
+              }
+            }
+          },
+          '/api/extension_catalog/{name}'                                                        => {
+            get: {
+              tags:        ['Extensions'],
+              summary:     'Get extension by name',
               operationId: 'getExtension',
-              parameters:  [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+              parameters:  [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
               responses:   {
                 '200' => ok_response('Extension detail', wrap_data('ExtensionObject')),
                 '401' => UNAUTH_RESPONSE,
@@ -549,12 +563,12 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners'                                            => {
+          '/api/extension_catalog/{name}/runners'                                                => {
             get: {
               tags:        ['Extensions'],
               summary:     'List runners for extension',
               operationId: 'listExtensionRunners',
-              parameters:  [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }] + PAGINATION_PARAMS,
+              parameters:  [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }] + PAGINATION_PARAMS,
               responses:   {
                 '200' => ok_response('Runner list', wrap_collection('RunnerObject')),
                 '401' => UNAUTH_RESPONSE,
@@ -562,14 +576,14 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}'                                => {
+          '/api/extension_catalog/{name}/runners/{runner_name}'                                  => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get runner by ID',
+              summary:     'Get runner by name',
               operationId: 'getExtensionRunner',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               responses:   {
                 '200' => ok_response('Runner detail', wrap_data('RunnerObject')),
@@ -578,14 +592,14 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions'                      => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions'                        => {
             get: {
               tags:        ['Extensions'],
               summary:     'List functions for runner',
               operationId: 'listRunnerFunctions',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } }
               ] + PAGINATION_PARAMS,
               responses:   {
                 '200' => ok_response('Function list', wrap_collection('FunctionObject')),
@@ -594,15 +608,15 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions/{function_id}'        => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}'        => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get function by ID',
+              summary:     'Get function by name',
               operationId: 'getRunnerFunction',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'function_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'function_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               responses:   {
                 '200' => ok_response('Function detail', wrap_data('FunctionObject')),
@@ -611,15 +625,15 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions/{function_id}/invoke' => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}/invoke' => {
             post: {
               tags:        ['Extensions'],
               summary:     'Invoke a function directly',
               operationId: 'invokeFunction',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'function_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'function_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               requestBody: {
                 required: false,

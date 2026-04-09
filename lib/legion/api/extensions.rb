@@ -13,7 +13,7 @@ module Legion
         end
 
         def self.register_available_route(app)
-          app.get '/api/extensions/available' do
+          app.get '/api/extension_catalog/available' do
             entries = Legion::Extensions::Catalog::Available.all
             entries = entries.select { |e| e[:category] == params[:category] } if params[:category]
             json_response(entries)
@@ -21,7 +21,7 @@ module Legion
         end
 
         def self.register_extension_routes(app)
-          app.get '/api/extensions' do
+          app.get '/api/extension_catalog' do
             entries = Legion::Extensions::Catalog.all.map do |name, entry|
               { name: name, state: entry[:state].to_s,
                 registered_at: entry[:registered_at]&.iso8601,
@@ -31,7 +31,7 @@ module Legion
             json_response(entries)
           end
 
-          app.get '/api/extensions/:name' do
+          app.get '/api/extension_catalog/:name' do
             name = params[:name]
             entry = Legion::Extensions::Catalog.entry(name)
             halt_not_found("extension '#{name}' not found") unless entry
@@ -53,7 +53,7 @@ module Legion
         end
 
         def self.register_runner_routes(app)
-          app.get '/api/extensions/:name/runners' do
+          app.get '/api/extension_catalog/:name/runners' do
             name = params[:name]
             halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
@@ -63,7 +63,7 @@ module Legion
             json_response(runner_summaries(ext_mod))
           end
 
-          app.get '/api/extensions/:name/runners/:runner_name' do
+          app.get '/api/extension_catalog/:name/runners/:runner_name' do
             name = params[:name]
             halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
@@ -85,7 +85,7 @@ module Legion
         end
 
         def self.register_function_routes(app)
-          app.get '/api/extensions/:name/runners/:runner_name/functions' do
+          app.get '/api/extension_catalog/:name/runners/:runner_name/functions' do
             name = params[:name]
             halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
@@ -102,7 +102,7 @@ module Legion
             json_response(functions)
           end
 
-          app.get '/api/extensions/:name/runners/:runner_name/functions/:function_name' do
+          app.get '/api/extension_catalog/:name/runners/:runner_name/functions/:function_name' do
             name = params[:name]
             halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
@@ -121,7 +121,7 @@ module Legion
         end
 
         def self.register_invoke_route(app)
-          app.post '/api/extensions/:name/runners/:runner_name/functions/:function_name/invoke' do
+          app.post '/api/extension_catalog/:name/runners/:runner_name/functions/:function_name/invoke' do
             name = params[:name]
             halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
@@ -148,7 +148,7 @@ module Legion
           rescue NameError => e
             json_error('invalid_runner', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API POST /api/extensions invoke: #{e.class} - #{e.message}" if defined?(Legion::Logging)
+            Legion::Logging.error "API POST /api/extension_catalog invoke: #{e.class} - #{e.message}" if defined?(Legion::Logging)
             json_error('execution_error', e.message, status_code: 500)
           end
         end

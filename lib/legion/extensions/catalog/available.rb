@@ -136,19 +136,20 @@ module Legion
           { name: 'lex-todoist',              category: 'other', description: 'Todoist task management integration' },
           { name: 'lex-twilio',               category: 'other', description: 'Twilio SMS/voice integration' },
           { name: 'lex-wled',                 category: 'other', description: 'WLED LED controller integration' }
-        ].freeze
+        ].each(&:freeze).freeze
 
         class << self
           def all
-            EXTENSIONS.dup
+            EXTENSIONS.map(&:dup)
           end
 
           def by_category(category)
-            EXTENSIONS.select { |e| e[:category] == category }
+            EXTENSIONS.select { |e| e[:category] == category }.map(&:dup)
           end
 
           def find(name)
-            EXTENSIONS.find { |e| e[:name] == name }
+            entry = EXTENSIONS.find { |e| e[:name] == name }
+            entry&.dup
           end
         end
       end

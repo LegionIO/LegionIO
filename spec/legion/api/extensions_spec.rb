@@ -3,6 +3,8 @@
 require 'spec_helper'
 require 'rack/test'
 require 'sinatra/base'
+require 'legion/api/helpers'
+require 'legion/api/extensions'
 
 RSpec.describe Legion::API::Routes::Extensions do
   include Rack::Test::Methods
@@ -12,6 +14,9 @@ RSpec.describe Legion::API::Routes::Extensions do
     Legion::Settings.load(config_dir: File.expand_path('../../..', __dir__))
     loader = Legion::Settings.loader
     loader.settings[:client] = { name: 'test-node', ready: true }
+    loader.settings[:data] = {}
+    loader.settings[:transport] = {}
+    loader.settings[:extensions] = {}
   end
 
   let(:fake_runner) do
@@ -79,9 +84,9 @@ RSpec.describe Legion::API::Routes::Extensions do
     test_app
   end
 
-  describe 'GET /api/extensions' do
+  describe 'GET /api/extension_catalog' do
     it 'returns loaded extensions from catalog' do
-      get '/api/extensions'
+      get '/api/extension_catalog'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to be_an(Array)
@@ -91,7 +96,7 @@ RSpec.describe Legion::API::Routes::Extensions do
 
     it 'filters by state when ?state= param given' do
       Legion::Extensions::Catalog.register('lex-stopped', state: :stopped)
-      get '/api/extensions?state=running'
+      get '/api/extension_catalog?state=running'
       body = Legion::JSON.load(last_response.body)
       names = body[:data].map { |e| e[:name] }
       expect(names).to include('lex-fake_ext')
@@ -99,9 +104,9 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
   end
 
-  describe 'GET /api/extensions/available' do
+  describe 'GET /api/extension_catalog/available' do
     it 'returns the full ecosystem list' do
-      get '/api/extensions/available'
+      get '/api/extension_catalog/available'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to be_an(Array)
@@ -111,15 +116,15 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
 
     it 'filters by ?category= param' do
-      get '/api/extensions/available?category=ai'
+      get '/api/extension_catalog/available?category=ai'
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to all(include(category: 'ai'))
     end
   end
 
-  describe 'GET /api/extensions/:name' do
+  describe 'GET /api/extension_catalog/:name' do
     it 'returns extension detail' do
-      get '/api/extensions/lex-fake_ext'
+      get '/api/extension_catalog/lex-fake_ext'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:name]).to eq('lex-fake_ext')
@@ -128,14 +133,14 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
 
     it 'returns 404 for unknown extension' do
-      get '/api/extensions/lex-nonexistent'
+      get '/api/extension_catalog/lex-nonexistent'
       expect(last_response.status).to eq(404)
     end
   end
 
-  describe 'GET /api/extensions/:name/runners' do
+  describe 'GET /api/extension_catalog/:name/runners' do
     it 'returns runners for the extension' do
-      get '/api/extensions/lex-fake_ext/runners'
+      get '/api/extension_catalog/lex-fake_ext/runners'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to be_an(Array)
@@ -143,9 +148,9 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
   end
 
-  describe 'GET /api/extensions/:name/runners/:runner_name' do
+  describe 'GET /api/extension_catalog/:name/runners/:runner_name' do
     it 'returns runner detail with functions' do
-      get '/api/extensions/lex-fake_ext/runners/things'
+      get '/api/extension_catalog/lex-fake_ext/runners/things'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:name]).to eq('things')
@@ -153,14 +158,14 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
 
     it 'returns 404 for unknown runner' do
-      get '/api/extensions/lex-fake_ext/runners/nonexistent'
+      get '/api/extension_catalog/lex-fake_ext/runners/nonexistent'
       expect(last_response.status).to eq(404)
     end
   end
 
-  describe 'GET /api/extensions/:name/runners/:runner_name/functions' do
+  describe 'GET /api/extension_catalog/:name/runners/:runner_name/functions' do
     it 'returns function list' do
-      get '/api/extensions/lex-fake_ext/runners/things/functions'
+      get '/api/extension_catalog/lex-fake_ext/runners/things/functions'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to be_an(Array)
@@ -168,16 +173,16 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
   end
 
-  describe 'GET /api/extensions/:name/runners/:runner_name/functions/:function_name' do
+  describe 'GET /api/extension_catalog/:name/runners/:runner_name/functions/:function_name' do
     it 'returns function detail' do
-      get '/api/extensions/lex-fake_ext/runners/things/functions/do_stuff'
+      get '/api/extension_catalog/lex-fake_ext/runners/things/functions/do_stuff'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:name]).to eq('do_stuff')
     end
 
     it 'returns 404 for unknown function' do
-      get '/api/extensions/lex-fake_ext/runners/things/functions/nonexistent'
+      get '/api/extension_catalog/lex-fake_ext/runners/things/functions/nonexistent'
       expect(last_response.status).to eq(404)
     end
   end

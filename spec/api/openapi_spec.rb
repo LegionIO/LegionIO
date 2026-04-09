@@ -55,13 +55,14 @@ RSpec.describe Legion::API::OpenAPI do
         /api/tasks
         /api/tasks/{id}
         /api/tasks/{id}/logs
-        /api/extensions
-        /api/extensions/{id}
-        /api/extensions/{id}/runners
-        /api/extensions/{id}/runners/{runner_id}
-        /api/extensions/{id}/runners/{runner_id}/functions
-        /api/extensions/{id}/runners/{runner_id}/functions/{function_id}
-        /api/extensions/{id}/runners/{runner_id}/functions/{function_id}/invoke
+        /api/extension_catalog
+        /api/extension_catalog/available
+        /api/extension_catalog/{name}
+        /api/extension_catalog/{name}/runners
+        /api/extension_catalog/{name}/runners/{runner_name}
+        /api/extension_catalog/{name}/runners/{runner_name}/functions
+        /api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}
+        /api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}/invoke
         /api/nodes
         /api/nodes/{id}
         /api/schedules
