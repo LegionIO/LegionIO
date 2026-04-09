@@ -18,19 +18,19 @@ module Legion
           description 'List loaded Legion extensions and their runners/functions. ' \
                       'Use this to discover what capabilities are available, what extensions are active, ' \
                       'and what tasks can be triggered through the framework.'
-          param :extension_id, type: 'integer',
-                               desc: 'Show runners for a specific extension ID (optional)', required: false
-          param :active_only, type: 'string',
-                              desc: 'Set to "true" to show only active extensions (default: all)', required: false
+          param :extension_name, type: 'string',
+                                 desc: 'Show runners for a specific extension by name (e.g. lex-node)', required: false
+          param :state, type: 'string',
+                        desc: 'Filter by state (e.g. "running"). Default: all', required: false
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(extension_id: nil, active_only: nil)
-            if extension_id
-              fetch_extension_detail(extension_id)
+          def execute(extension_name: nil, state: nil)
+            if extension_name
+              fetch_extension_detail(extension_name)
             else
-              fetch_extension_list(active_only)
+              fetch_extension_list(state)
             end
           rescue Errno::ECONNREFUSED
             'Legion daemon not running (cannot query extensions API).'
@@ -41,9 +41,9 @@ module Legion
 
           private
 
-          def fetch_extension_list(active_only)
-            path = '/api/extensions'
-            path += '?active=true' if active_only == 'true'
+          def fetch_extension_list(state)
+            path = '/api/extension_catalog'
+            path += "?state=#{state}" if state
             data = api_get(path)
             return "API error: #{data[:error]}" if data[:error]
 
@@ -54,37 +54,35 @@ module Legion
             format_list(extensions)
           end
 
-          def fetch_extension_detail(ext_id)
-            ext_data = api_get("/api/extensions/#{ext_id}")
-            runners_data = api_get("/api/extensions/#{ext_id}/runners")
-
+          def fetch_extension_detail(name)
+            ext_data = api_get("/api/extension_catalog/#{name}")
             return "API error: #{ext_data[:error]}" if ext_data[:error]
 
+            runners_data = api_get("/api/extension_catalog/#{name}/runners")
             runners = runners_data[:data] || runners_data[:items] || runners_data
             runners = [runners] if runners.is_a?(Hash)
             runners = [] unless runners.is_a?(Array)
 
-            format_detail(ext_data, runners)
+            format_detail(ext_data[:data] || ext_data, runners)
           end
 
           def format_list(extensions)
             lines = ["Loaded Extensions (#{extensions.size}):\n"]
             extensions.each do |ext|
-              status = ext[:active] ? 'active' : 'inactive'
-              lines << "  #{ext[:id]}. #{ext[:name]} (#{status})"
+              lines << "  #{ext[:name]} (#{ext[:state]})"
             end
             lines.join("\n")
           end
 
           def format_detail(ext, runners)
-            lines = ["Extension: #{ext[:name]} (id: #{ext[:id]})\n"]
-            lines << "  Status: #{ext[:active] ? 'active' : 'inactive'}"
-            lines << "  Namespace: #{ext[:namespace]}" if ext[:namespace]
+            lines = ["Extension: #{ext[:name]}\n"]
+            lines << "  State: #{ext[:state]}"
+            lines << "  Version: #{ext[:version]}" if ext[:version]
 
             if runners.any?
               lines << "\n  Runners (#{runners.size}):"
               runners.each do |r|
-                lines << "    #{r[:id]}. #{r[:name] || r[:namespace]}"
+                lines << "    #{r[:name]} (#{r[:runner_class]})"
               end
             else
               lines << "\n  No runners registered."

@@ -1,5 +1,32 @@
 # Legion Changelog
 
+## [1.7.33] - 2026-04-09
+
+### Added
+- Phase 8 prerequisites: `Broker.lease_for(name)` returns raw Lease, `Broker.renewer_for(name)` returns LeaseRenewer
+- `LeaseRenewer` now exposes `attr_reader :provider` for structured credential access
+- Non-renewing registration path: static API key providers (expires_at: nil, renewable: false) stored in `Concurrent::AtomicReference` without background LeaseRenewer thread
+- `Broker.refresh_credential(name)` for manual refresh of static credentials
+- `Broker.providers` and `Broker.leases` include both dynamic and static registrations
+- `register_provider_with_broker` in service.rb — winning auth provider auto-registered with Broker after identity resolution
+
+### Changed (Copilot review #126)
+- Renamed extension catalog routes from `/api/extensions` to `/api/extension_catalog` to eliminate route conflict with LexDispatch's `GET /api/extensions/:lex_name/:component_type/:component_name/:method_name` wildcard
+- Updated `GET /api/extension_catalog/available` (was `/api/extensions/available`)
+- Updated OpenAPI spec paths and `list_extensions` chat tool to match new route prefix
+- Froze individual entry hashes in `Catalog::Available::EXTENSIONS` via `.each(&:freeze).freeze`; `all`, `by_category`, and `find` now return dup copies to prevent caller mutation
+- Added explicit `require 'legion/api/helpers'` and `require 'legion/api/extensions'` to `spec/legion/api/extensions_spec.rb` for deterministic spec loading
+- Added `loader.settings[:data]`, `[:transport]`, and `[:extensions]` initialization to extensions spec `before(:all)` for isolation
+
+## [1.7.32] - 2026-04-09
+
+### Changed
+- Rewrote `/api/extensions` routes to use in-memory state from `Catalog` instead of database queries — no `require_data!` dependency
+- All extension routes now use `:name` (string identifier like `lex-node`) instead of numeric `:id` params
+- Added `GET /api/extensions/available` route backed by `Catalog::Available.all` (static ecosystem list, filterable by `?category=`)
+- Added `Legion::Extensions::Catalog::Available` module with 120+ known LEX gems organized by category
+- Extension helper methods (`find_extension_module`, `find_runner_info`, `runner_summaries`, `halt_not_found`) moved into `Legion::API::Helpers` for reuse across all API tests
+
 ## [1.7.31] - 2026-04-08
 
 ### Added

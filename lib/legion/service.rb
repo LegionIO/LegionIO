@@ -1107,6 +1107,11 @@ module Legion
         identity = future.value
         Legion::Identity::Process.bind!(provider, identity)
         log.info "[Identity] resolved via #{provider.class.name}: #{identity[:canonical_name]}"
+
+        # Phase 8: Register winning auth provider with Broker so extensions can
+        # call Broker.token_for(:provider_name) without managing tokens themselves.
+        register_provider_with_broker(provider)
+
         true
       else
         false
@@ -1117,6 +1122,19 @@ module Legion
     ensure
       pool&.shutdown
       pool&.kill unless pool&.wait_for_termination(2)
+    end
+
+    def register_provider_with_broker(provider)
+      return unless provider.respond_to?(:provide_token) && defined?(Legion::Identity::Broker)
+
+      lease = provider.provide_token
+      return unless lease
+
+      provider_name = provider.respond_to?(:provider_name) ? provider.provider_name : provider.class.name.to_sym
+      Legion::Identity::Broker.register_provider(provider_name, provider: provider, lease: lease)
+      log.info "[Identity] registered provider #{provider_name} with Broker"
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.register_provider_with_broker')
     end
 
     def find_identity_providers

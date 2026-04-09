@@ -177,22 +177,23 @@ module Legion
             }
           },
           schemas:         {
-            Meta:               META_SCHEMA,
-            MetaCollection:     META_COLLECTION_SCHEMA,
-            ErrorResponse:      ERROR_SCHEMA,
-            DeletedResponse:    deleted_response_schema,
-            TaskObject:         task_object_schema,
-            TaskInput:          task_input_schema,
-            ExtensionObject:    extension_object_schema,
-            RunnerObject:       runner_object_schema,
-            FunctionObject:     function_object_schema,
-            NodeObject:         node_object_schema,
-            ScheduleObject:     schedule_object_schema,
-            ScheduleInput:      schedule_input_schema,
-            RelationshipObject: stub_object_schema('Relationship'),
-            ChainObject:        stub_object_schema('Chain'),
-            WorkerObject:       worker_object_schema,
-            WorkerInput:        worker_input_schema
+            Meta:                     META_SCHEMA,
+            MetaCollection:           META_COLLECTION_SCHEMA,
+            ErrorResponse:            ERROR_SCHEMA,
+            DeletedResponse:          deleted_response_schema,
+            TaskObject:               task_object_schema,
+            TaskInput:                task_input_schema,
+            ExtensionObject:          extension_object_schema,
+            RunnerObject:             runner_object_schema,
+            FunctionObject:           function_object_schema,
+            AvailableExtensionObject: available_extension_object_schema,
+            NodeObject:               node_object_schema,
+            ScheduleObject:           schedule_object_schema,
+            ScheduleInput:            schedule_input_schema,
+            RelationshipObject:       stub_object_schema('Relationship'),
+            ChainObject:              stub_object_schema('Chain'),
+            WorkerObject:             worker_object_schema,
+            WorkerInput:              worker_input_schema
           }
         }
       end
@@ -240,11 +241,12 @@ module Legion
         {
           type:       'object',
           properties: {
-            id:        { type: 'integer' },
-            name:      { type: 'string' },
-            namespace: { type: 'string' },
-            active:    { type: 'boolean' },
-            version:   { type: 'string', nullable: true }
+            name:          { type: 'string' },
+            state:         { type: 'string' },
+            version:       { type: 'string', nullable: true },
+            registered_at: { type: 'string', format: 'date-time', nullable: true },
+            started_at:    { type: 'string', format: 'date-time', nullable: true },
+            runners:       { type: 'array', items: { '$ref' => '#/components/schemas/RunnerObject' } }
           }
         }
       end
@@ -254,10 +256,9 @@ module Legion
         {
           type:       'object',
           properties: {
-            id:           { type: 'integer' },
-            extension_id: { type: 'integer' },
             name:         { type: 'string' },
-            namespace:    { type: 'string' }
+            runner_class: { type: 'string' },
+            functions:    { type: 'array', items: { type: 'string' } }
           }
         }
       end
@@ -267,13 +268,25 @@ module Legion
         {
           type:       'object',
           properties: {
-            id:        { type: 'integer' },
-            runner_id: { type: 'integer' },
-            name:      { type: 'string' }
+            name:   { type: 'string' },
+            runner: { type: 'string' },
+            args:   { type: 'object', nullable: true }
           }
         }
       end
       private_class_method :function_object_schema
+
+      def self.available_extension_object_schema
+        {
+          type:       'object',
+          properties: {
+            name:        { type: 'string' },
+            category:    { type: 'string' },
+            description: { type: 'string' }
+          }
+        }
+      end
+      private_class_method :available_extension_object_schema
 
       def self.node_object_schema
         {
@@ -369,6 +382,17 @@ module Legion
       private_class_method :worker_input_schema
 
       # --- route path builders ---
+
+      def self.wrap_array(schema_ref)
+        {
+          type:       'object',
+          properties: {
+            data: { type: 'array', items: { '$ref' => "#/components/schemas/#{schema_ref}" } },
+            meta: { '$ref' => '#/components/schemas/Meta' }
+          }
+        }
+      end
+      private_class_method :wrap_array
 
       def self.wrap_data(schema_ref)
         {
@@ -520,28 +544,42 @@ module Legion
 
       def self.extension_paths
         {
-          '/api/extensions'                                                         => {
+          '/api/extension_catalog'                                                               => {
             get: {
               tags:        ['Extensions'],
-              summary:     'List extensions',
+              summary:     'List loaded extensions',
               operationId: 'listExtensions',
-              parameters:  PAGINATION_PARAMS + [
-                { name: 'active', in: 'query', description: 'Filter to active extensions only', required: false,
-                  schema: { type: 'boolean' } }
+              parameters:  [
+                { name: 'state', in: 'query', description: 'Filter by extension state (e.g. running)', required: false,
+                  schema: { type: 'string' } }
               ],
               responses:   {
-                '200' => ok_response('Extension list', wrap_collection('ExtensionObject')),
-                '401' => UNAUTH_RESPONSE,
-                '503' => { description: 'legion-data not connected' }
+                '200' => ok_response('Extension list', wrap_array('ExtensionObject')),
+                '401' => UNAUTH_RESPONSE
               }
             }
           },
-          '/api/extensions/{id}'                                                    => {
+          '/api/extension_catalog/available'                                                     => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get extension by ID',
+              summary:     'List all available extensions in the ecosystem registry',
+              operationId: 'listAvailableExtensions',
+              parameters:  [
+                { name: 'category', in: 'query', description: 'Filter by category (core, ai, agentic, identity, service, other)',
+                  required: false, schema: { type: 'string' } }
+              ],
+              responses:   {
+                '200' => ok_response('Available extension list', wrap_array('AvailableExtensionObject')),
+                '401' => UNAUTH_RESPONSE
+              }
+            }
+          },
+          '/api/extension_catalog/{name}'                                                        => {
+            get: {
+              tags:        ['Extensions'],
+              summary:     'Get extension by name',
               operationId: 'getExtension',
-              parameters:  [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+              parameters:  [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
               responses:   {
                 '200' => ok_response('Extension detail', wrap_data('ExtensionObject')),
                 '401' => UNAUTH_RESPONSE,
@@ -549,27 +587,27 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners'                                            => {
+          '/api/extension_catalog/{name}/runners'                                                => {
             get: {
               tags:        ['Extensions'],
               summary:     'List runners for extension',
               operationId: 'listExtensionRunners',
-              parameters:  [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }] + PAGINATION_PARAMS,
+              parameters:  [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
               responses:   {
-                '200' => ok_response('Runner list', wrap_collection('RunnerObject')),
+                '200' => ok_response('Runner list', wrap_array('RunnerObject')),
                 '401' => UNAUTH_RESPONSE,
                 '404' => NOT_FOUND_RESPONSE
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}'                                => {
+          '/api/extension_catalog/{name}/runners/{runner_name}'                                  => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get runner by ID',
+              summary:     'Get runner by name',
               operationId: 'getExtensionRunner',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               responses:   {
                 '200' => ok_response('Runner detail', wrap_data('RunnerObject')),
@@ -578,31 +616,31 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions'                      => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions'                        => {
             get: {
               tags:        ['Extensions'],
               summary:     'List functions for runner',
               operationId: 'listRunnerFunctions',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } }
-              ] + PAGINATION_PARAMS,
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } }
+              ],
               responses:   {
-                '200' => ok_response('Function list', wrap_collection('FunctionObject')),
+                '200' => ok_response('Function list', wrap_array('FunctionObject')),
                 '401' => UNAUTH_RESPONSE,
                 '404' => NOT_FOUND_RESPONSE
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions/{function_id}'        => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}'        => {
             get: {
               tags:        ['Extensions'],
-              summary:     'Get function by ID',
+              summary:     'Get function by name',
               operationId: 'getRunnerFunction',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'function_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'function_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               responses:   {
                 '200' => ok_response('Function detail', wrap_data('FunctionObject')),
@@ -611,15 +649,15 @@ module Legion
               }
             }
           },
-          '/api/extensions/{id}/runners/{runner_id}/functions/{function_id}/invoke' => {
+          '/api/extension_catalog/{name}/runners/{runner_name}/functions/{function_name}/invoke' => {
             post: {
               tags:        ['Extensions'],
               summary:     'Invoke a function directly',
               operationId: 'invokeFunction',
               parameters:  [
-                { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'runner_id', in: 'path', required: true, schema: { type: 'integer' } },
-                { name: 'function_id', in: 'path', required: true, schema: { type: 'integer' } }
+                { name: 'name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'runner_name', in: 'path', required: true, schema: { type: 'string' } },
+                { name: 'function_name', in: 'path', required: true, schema: { type: 'string' } }
               ],
               requestBody: {
                 required: false,

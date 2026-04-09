@@ -21,9 +21,9 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
         allow(response).to receive(:body).and_return(
           JSON.generate({
                           data: [
-                            { id: 1, name: 'lex-node', active: true },
-                            { id: 2, name: 'lex-scheduler', active: true },
-                            { id: 3, name: 'lex-detect', active: false }
+                            { name: 'lex-node', state: 'running' },
+                            { name: 'lex-scheduler', state: 'running' },
+                            { name: 'lex-detect', state: 'stopped' }
                           ]
                         })
         )
@@ -31,8 +31,8 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
 
         result = tool.execute
         expect(result).to include('Loaded Extensions (3)')
-        expect(result).to include('lex-node (active)')
-        expect(result).to include('lex-detect (inactive)')
+        expect(result).to include('lex-node (running)')
+        expect(result).to include('lex-detect (stopped)')
       end
 
       it 'returns message when no extensions found' do
@@ -44,15 +44,15 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
         expect(result).to include('No extensions found')
       end
 
-      it 'passes active_only filter' do
+      it 'passes state filter' do
         response = instance_double(Net::HTTPOK)
         allow(response).to receive(:body).and_return(JSON.generate({ data: [] }))
         expect(mock_http).to receive(:get) do |uri|
-          expect(uri).to include('active=true')
+          expect(uri).to include('state=running')
           response
         end
 
-        tool.execute(active_only: 'true')
+        tool.execute(state: 'running')
       end
     end
 
@@ -60,14 +60,16 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
       it 'returns extension detail with runners' do
         ext_response = instance_double(Net::HTTPOK)
         allow(ext_response).to receive(:body).and_return(
-          JSON.generate({ id: 1, name: 'lex-node', active: true, namespace: 'Legion::Extensions::Node' })
+          JSON.generate({
+                          data: { name: 'lex-node', state: 'running', version: '1.0.0' }
+                        })
         )
 
         runners_response = instance_double(Net::HTTPOK)
         allow(runners_response).to receive(:body).and_return(
           JSON.generate({
                           data: [
-                            { id: 1, name: 'node_info', namespace: 'Legion::Extensions::Node::Runners::Info' }
+                            { name: 'node_info', runner_class: 'Legion::Extensions::Node::Runners::Info' }
                           ]
                         })
         )
@@ -78,9 +80,9 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
           call_count == 1 ? ext_response : runners_response
         end
 
-        result = tool.execute(extension_id: 1)
+        result = tool.execute(extension_name: 'lex-node')
         expect(result).to include('Extension: lex-node')
-        expect(result).to include('Namespace: Legion::Extensions::Node')
+        expect(result).to include('State: running')
         expect(result).to include('Runners (1)')
         expect(result).to include('node_info')
       end
@@ -88,7 +90,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
       it 'handles extension with no runners' do
         ext_response = instance_double(Net::HTTPOK)
         allow(ext_response).to receive(:body).and_return(
-          JSON.generate({ id: 5, name: 'lex-empty', active: true })
+          JSON.generate({ data: { name: 'lex-empty', state: 'running' } })
         )
 
         runners_response = instance_double(Net::HTTPOK)
@@ -100,7 +102,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
           call_count == 1 ? ext_response : runners_response
         end
 
-        result = tool.execute(extension_id: 5)
+        result = tool.execute(extension_name: 'lex-empty')
         expect(result).to include('No runners registered')
       end
     end

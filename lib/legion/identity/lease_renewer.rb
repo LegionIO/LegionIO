@@ -5,7 +5,7 @@ require 'concurrent'
 module Legion
   module Identity
     class LeaseRenewer
-      attr_reader :provider_name
+      attr_reader :provider_name, :provider
 
       BACKOFF_SLEEP  = 5
       MIN_SLEEP      = 1
