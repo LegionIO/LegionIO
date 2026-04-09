@@ -56,6 +56,23 @@ module Legion
         }
       }.freeze
 
+      # Packages installed into the Legion Python venv by default.
+      PYTHON_PACKAGES = %w[
+        python-pptx
+        python-docx
+        openpyxl
+        pandas
+        pillow
+        requests
+        lxml
+        PyYAML
+        tabulate
+        markdown
+      ].freeze
+
+      PYTHON_VENV_DIR = File.expand_path('~/.legionio/python').freeze
+      PYTHON_MARKER   = File.expand_path('~/.legionio/.python-venv').freeze
+
       SKILL_CONTENT = <<~MARKDOWN
         ---
         name: legion
@@ -146,6 +163,70 @@ module Legion
         install_pack(:channels)
       end
 
+      desc 'python', 'Set up Legion Python environment (venv + document/data packages)'
+      option :packages, type: :array,   default: [],    banner: 'PKG [PKG...]', desc: 'Additional pip packages to install'
+      option :rebuild,  type: :boolean, default: false, desc: 'Destroy and recreate the venv from scratch'
+      def python # rubocop:disable Metrics/MethodLength
+        out = formatter
+        results = []
+
+        python3 = find_python3
+        unless python3
+          out.error('python3 not found. Install it with: brew install python')
+          exit 1
+        end
+
+        if options[:rebuild] && Dir.exist?(PYTHON_VENV_DIR)
+          out.header("Rebuilding Python venv at #{PYTHON_VENV_DIR}") unless options[:json]
+          FileUtils.rm_rf(PYTHON_VENV_DIR)
+        end
+
+        unless File.exist?("#{PYTHON_VENV_DIR}/pyvenv.cfg")
+          out.header("Creating Python venv at #{PYTHON_VENV_DIR}") unless options[:json]
+          FileUtils.mkdir_p(File.dirname(PYTHON_VENV_DIR))
+          unless system(python3, '-m', 'venv', PYTHON_VENV_DIR)
+            out.error('Failed to create Python venv')
+            exit 1
+          end
+          results << { action: 'created_venv', path: PYTHON_VENV_DIR }
+        end
+
+        pip = "#{PYTHON_VENV_DIR}/bin/pip"
+        unless File.executable?(pip)
+          out.error("pip not found at #{pip} — try: legionio setup python --rebuild")
+          exit 1
+        end
+
+        packages = PYTHON_PACKAGES + Array(options[:packages])
+        packages.uniq!
+
+        packages.each do |pkg|
+          puts "  Installing #{pkg}..." unless options[:json]
+          output = `"#{pip}" install --quiet --upgrade "#{pkg}" 2>&1`
+          if $CHILD_STATUS.success?
+            out.success("  #{pkg}") unless options[:json]
+            results << { package: pkg, status: 'installed' }
+          else
+            out.error("  #{pkg} failed") unless options[:json]
+            results << { package: pkg, status: 'failed', error: output.strip.lines.last&.strip }
+          end
+        end
+
+        write_python_marker(python3, packages)
+
+        if options[:json]
+          out.json(venv: PYTHON_VENV_DIR, python: python_version(python3), results: results)
+        else
+          out.spacer
+          out.success("Python environment ready: #{PYTHON_VENV_DIR}/bin/python3")
+          out.spacer
+          puts "  Interpreter:    #{PYTHON_VENV_DIR}/bin/python3"
+          puts "  Env var:        $LEGION_PYTHON"
+          puts "  Add packages:   legionio setup python --packages <name> [<name>...]"
+          puts "  Rebuild venv:   legionio setup python --rebuild"
+        end
+      end
+
       desc 'packs', 'Show installed feature packs and available gems'
       def packs
         out = formatter
@@ -206,6 +287,42 @@ module Legion
         end
 
         private
+
+        # -----------------------------------------------------------------------
+        # Python helpers
+        # -----------------------------------------------------------------------
+
+        def find_python3
+          candidates = %w[
+            /opt/homebrew/bin/python3
+            /usr/local/bin/python3
+            /usr/bin/python3
+          ]
+          path_python = `command -v python3 2>/dev/null`.strip
+          candidates.unshift(path_python) unless path_python.empty?
+          candidates.uniq.find { |p| File.executable?(p) }
+        end
+
+        def python_version(python3)
+          `"#{python3}" --version 2>&1`.strip
+        rescue StandardError
+          'unknown'
+        end
+
+        def write_python_marker(python3, packages)
+          File.write(PYTHON_MARKER, ::JSON.pretty_generate(
+            venv:       PYTHON_VENV_DIR,
+            python:     python_version(python3),
+            packages:   packages,
+            updated_at: Time.now.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+          ))
+        rescue Errno::EPERM, Errno::EACCES => e
+          Legion::Logging.warn("SetupCommand#write_python_marker: #{e.message}") if defined?(Legion::Logging)
+        end
+
+        # -----------------------------------------------------------------------
+        # Pack helpers
+        # -----------------------------------------------------------------------
 
         def install_pack(pack_name)
           pack = PACKS[pack_name]
@@ -344,6 +461,10 @@ module Legion
             puts '    Configure channels in settings: {"gaia": {"channels": {"slack": {"enabled": true}}}}'
           end
         end
+
+        # -----------------------------------------------------------------------
+        # MCP / editor platform helpers
+        # -----------------------------------------------------------------------
 
         def install_claude_mcp(installed)
           settings_path = File.expand_path('~/.claude/settings.json')
