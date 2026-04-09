@@ -7,12 +7,25 @@ require 'legion/identity/process'
 require 'legion/identity/broker'
 
 RSpec.describe Legion::Identity::Broker do
-  def make_lease(valid: true, token: 'tok.abc123')
+  def make_lease(valid: true, token: 'tok.abc123', expires_at: Time.now + 3600, renewable: true)
     double(
       'Lease',
-      valid?: valid,
-      token:  token,
-      to_h:   { token: token, valid: valid }
+      valid?:     valid,
+      token:      token,
+      expires_at: expires_at,
+      renewable:  renewable,
+      to_h:       { token: token, valid: valid }
+    )
+  end
+
+  def make_static_lease(token: 'static.key')
+    double(
+      'StaticLease',
+      valid?:     true,
+      token:      token,
+      expires_at: nil,
+      renewable:  false,
+      to_h:       { token: token, valid: true }
     )
   end
 
@@ -162,6 +175,173 @@ RSpec.describe Legion::Identity::Broker do
 
       described_class.register_provider('ldap', provider: double('p'), lease: make_lease)
       expect(described_class.providers).to include(:ldap)
+    end
+
+    context 'with a static credential (expires_at: nil, renewable: false)' do
+      it 'does NOT create a LeaseRenewer' do
+        expect(Legion::Identity::LeaseRenewer).not_to receive(:new)
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease)
+      end
+
+      it 'includes the provider in providers list' do
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease)
+        expect(described_class.providers).to include(:openai)
+      end
+
+      it 'stores the lease so token_for returns the token' do
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease(token: 'sk-abc'))
+        expect(described_class.token_for(:openai)).to eq('sk-abc')
+      end
+
+      it 'stores the lease so lease_for returns the lease object' do
+        lease = make_static_lease
+        described_class.register_provider(:openai, provider: double('p'), lease: lease)
+        expect(described_class.lease_for(:openai)).to equal(lease)
+      end
+
+      it 'returns nil from renewer_for' do
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease)
+        expect(described_class.renewer_for(:openai)).to be_nil
+      end
+
+      it 'stops any existing renewer before switching to static' do
+        renewer = make_renewer
+        allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+        described_class.register_provider(:openai, provider: double('p'), lease: make_lease)
+
+        expect(renewer).to receive(:stop!)
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease)
+      end
+
+      it 'replaces a static lease when re-registered' do
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease(token: 'old'))
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease(token: 'new'))
+        expect(described_class.token_for(:openai)).to eq('new')
+      end
+    end
+
+    context 'switching from static to dynamic' do
+      it 'removes the static lease and creates a LeaseRenewer' do
+        described_class.register_provider(:vault, provider: double('p'), lease: make_static_lease)
+
+        renewer = make_renewer
+        allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+        described_class.register_provider(:vault, provider: double('p'), lease: make_lease)
+
+        expect(described_class.renewer_for(:vault)).to equal(renewer)
+        expect(described_class.lease_for(:vault)).to eq(renewer.current_lease)
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # lease_for
+  # ---------------------------------------------------------------------------
+  describe '.lease_for' do
+    context 'when provider has a dynamic renewer' do
+      before do
+        lease   = make_lease(token: 'dyn.tok')
+        renewer = make_renewer(lease: lease)
+        allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+        described_class.register_provider(:vault, provider: double('p'), lease: make_lease)
+      end
+
+      it 'returns the current lease from the renewer' do
+        result = described_class.lease_for(:vault)
+        expect(result.token).to eq('dyn.tok')
+      end
+    end
+
+    context 'when provider has a static lease' do
+      it 'returns the stored static lease' do
+        lease = make_static_lease(token: 'api.key')
+        described_class.register_provider(:openai, provider: double('p'), lease: lease)
+        expect(described_class.lease_for(:openai)).to equal(lease)
+      end
+    end
+
+    context 'when provider is not registered' do
+      it 'returns nil' do
+        expect(described_class.lease_for(:unknown)).to be_nil
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # renewer_for
+  # ---------------------------------------------------------------------------
+  describe '.renewer_for' do
+    context 'when provider has a dynamic renewer' do
+      it 'returns the LeaseRenewer instance' do
+        renewer = make_renewer
+        allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+        described_class.register_provider(:kerberos, provider: double('p'), lease: make_lease)
+
+        expect(described_class.renewer_for(:kerberos)).to equal(renewer)
+      end
+    end
+
+    context 'when provider is static' do
+      it 'returns nil' do
+        described_class.register_provider(:openai, provider: double('p'), lease: make_static_lease)
+        expect(described_class.renewer_for(:openai)).to be_nil
+      end
+    end
+
+    context 'when provider is not registered' do
+      it 'returns nil' do
+        expect(described_class.renewer_for(:ghost)).to be_nil
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # refresh_credential
+  # ---------------------------------------------------------------------------
+  describe '.refresh_credential' do
+    context 'when provider is static and supports provide_token' do
+      let(:new_lease) { make_static_lease(token: 'refreshed.key') }
+      let(:provider)  { double('StaticProvider', provide_token: new_lease) }
+
+      before do
+        described_class.register_provider(:openai, provider: provider, lease: make_static_lease(token: 'old.key'))
+      end
+
+      it 'returns true' do
+        expect(described_class.refresh_credential(:openai)).to be(true)
+      end
+
+      it 'updates the stored lease' do
+        described_class.refresh_credential(:openai)
+        expect(described_class.token_for(:openai)).to eq('refreshed.key')
+      end
+    end
+
+    context 'when provider is dynamic (not static)' do
+      it 'returns false' do
+        renewer = make_renewer
+        allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+        described_class.register_provider(:vault, provider: double('p'), lease: make_lease)
+
+        expect(described_class.refresh_credential(:vault)).to be(false)
+      end
+    end
+
+    context 'when provider is not registered' do
+      it 'returns false' do
+        expect(described_class.refresh_credential(:unknown)).to be(false)
+      end
+    end
+
+    context 'when provider returns nil from provide_token' do
+      it 'returns false and does not change the existing lease' do
+        provider = double('BadProvider', provide_token: nil)
+        described_class.register_provider(:openai, provider: provider, lease: make_static_lease(token: 'orig.key'))
+
+        result = described_class.refresh_credential(:openai)
+        expect(result).to be(false)
+        expect(described_class.token_for(:openai)).to eq('orig.key')
+      end
     end
   end
 

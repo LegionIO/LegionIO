@@ -242,4 +242,92 @@ RSpec.describe 'Identity Integration' do
       expect { Legion::Identity::Process.refresh_credentials }.not_to raise_error
     end
   end
+
+  describe 'static credential registration (Phase 8 credential-only providers)' do
+    let(:static_lease) do
+      Legion::Identity::Lease.new(
+        provider:   :openai,
+        credential: 'sk-test-abc123',
+        expires_at: nil,
+        renewable:  false
+      )
+    end
+
+    let(:provider) { double('CredentialProvider', provide_token: static_lease) }
+
+    it 'token_for returns the credential string for a static provider' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      expect(Legion::Identity::Broker.token_for(:openai)).to eq('sk-test-abc123')
+    end
+
+    it 'lease_for returns the Lease object for a static provider' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      result = Legion::Identity::Broker.lease_for(:openai)
+      expect(result).to be_a(Legion::Identity::Lease)
+      expect(result.token).to eq('sk-test-abc123')
+    end
+
+    it 'renewer_for returns nil for static providers (no background thread)' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      expect(Legion::Identity::Broker.renewer_for(:openai)).to be_nil
+    end
+
+    it 'includes the static provider in the providers list' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      expect(Legion::Identity::Broker.providers).to include(:openai)
+    end
+
+    it 'refresh_credential calls provide_token and updates the stored lease' do
+      new_lease = Legion::Identity::Lease.new(
+        provider:   :openai,
+        credential: 'sk-refreshed',
+        expires_at: nil,
+        renewable:  false
+      )
+      allow(provider).to receive(:provide_token).and_return(new_lease)
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+
+      result = Legion::Identity::Broker.refresh_credential(:openai)
+      expect(result).to be(true)
+      expect(Legion::Identity::Broker.token_for(:openai)).to eq('sk-refreshed')
+    end
+
+    it 'static leases appear in leases hash' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      leases = Legion::Identity::Broker.leases
+      expect(leases[:openai]).to be_a(Hash)
+      expect(leases[:openai][:valid]).to be(true)
+    end
+
+    it 'shutdown clears static leases' do
+      Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
+      Legion::Identity::Broker.shutdown
+      expect(Legion::Identity::Broker.providers).to be_empty
+    end
+  end
+
+  describe 'Broker registration via register_provider_with_broker (Phase 8 8.0e)' do
+    it 'registers a provider that responds to provide_token' do
+      initial_lease = Legion::Identity::Lease.new(
+        provider:   :entra,
+        credential: 'entra-bearer-token',
+        expires_at: Time.now + 3600,
+        renewable:  true,
+        issued_at:  Time.now
+      )
+      provider = double('EntraProvider', provider_name: :entra, provide_token: initial_lease)
+
+      stub_renewer = instance_double(
+        Legion::Identity::LeaseRenewer,
+        current_lease: initial_lease,
+        stop!:         nil
+      )
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(stub_renewer)
+
+      Legion::Identity::Broker.register_provider(:entra, provider: provider, lease: initial_lease)
+
+      expect(Legion::Identity::Broker.token_for(:entra)).to eq('entra-bearer-token')
+      expect(Legion::Identity::Broker.renewer_for(:entra)).to equal(stub_renewer)
+    end
+  end
 end

@@ -53,6 +53,16 @@ RSpec.describe Legion::Identity::LeaseRenewer do
     end
   end
 
+  describe '#provider' do
+    it 'returns the provider object' do
+      expect(renewer.provider).to equal(provider)
+    end
+
+    it 'is readable (not private)' do
+      expect { renewer.provider }.not_to raise_error
+    end
+  end
+
   describe '#current_lease' do
     it 'returns the initial lease without blocking' do
       expect(renewer.current_lease).to equal(initial_lease)

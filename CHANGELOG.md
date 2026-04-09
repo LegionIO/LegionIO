@@ -1,5 +1,15 @@
 # Legion Changelog
 
+## [1.7.33] - 2026-04-09
+
+### Added
+- Phase 8 prerequisites: `Broker.lease_for(name)` returns raw Lease, `Broker.renewer_for(name)` returns LeaseRenewer
+- `LeaseRenewer` now exposes `attr_reader :provider` for structured credential access
+- Non-renewing registration path: static API key providers (expires_at: nil, renewable: false) stored in `Concurrent::AtomicReference` without background LeaseRenewer thread
+- `Broker.refresh_credential(name)` for manual refresh of static credentials
+- `Broker.providers` and `Broker.leases` include both dynamic and static registrations
+- `register_provider_with_broker` in service.rb — winning auth provider auto-registered with Broker after identity resolution
+
 ## [1.7.32] - 2026-04-09
 
 ### Changed

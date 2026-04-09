@@ -9,18 +9,25 @@ module Legion
 
       class << self
         def token_for(provider_name)
-          renewer = renewers[provider_name.to_sym]
-          return nil unless renewer
-
-          lease = renewer.current_lease
+          lease = lease_for(provider_name)
           lease&.valid? ? lease.token : nil
         end
 
-        def credentials_for(provider_name, service: nil)
-          renewer = renewers[provider_name.to_sym]
-          return nil unless renewer
+        def lease_for(provider_name)
+          name = provider_name.to_sym
+          renewer = renewers[name]
+          return renewer.current_lease if renewer
 
-          lease = renewer.current_lease
+          static_ref = static_leases[name]
+          static_ref&.get
+        end
+
+        def renewer_for(provider_name)
+          renewers[provider_name.to_sym]
+        end
+
+        def credentials_for(provider_name, service: nil)
+          lease = lease_for(provider_name)
           return nil unless lease&.valid?
 
           { token: lease.token, provider: provider_name.to_sym, service: service, lease: lease }
@@ -28,12 +35,35 @@ module Legion
 
         def register_provider(provider_name, provider:, lease:)
           name = provider_name.to_sym
+
           renewers[name]&.stop!
-          renewers[name] = LeaseRenewer.new(
-            provider_name: name,
-            provider:      provider,
-            lease:         lease
-          )
+          if lease&.expires_at.nil? && !lease&.renewable
+            # Static credential — store without a background renewal thread
+            renewers.delete(name)
+            static_leases[name] = Concurrent::AtomicReference.new(lease)
+            providers_map[name] = provider
+          else
+            # Dynamic credential — create LeaseRenewer
+            static_leases.delete(name)
+            renewers[name] = LeaseRenewer.new(
+              provider_name: name,
+              provider:      provider,
+              lease:         lease
+            )
+          end
+        end
+
+        def refresh_credential(provider_name)
+          name = provider_name.to_sym
+          ref  = static_leases[name]
+          return false unless ref
+
+          provider = providers_map[name]
+          return false unless provider.respond_to?(:provide_token)
+
+          new_lease = provider.provide_token
+          ref.set(new_lease) if new_lease
+          !new_lease.nil?
         end
 
         def authenticated?
@@ -77,11 +107,13 @@ module Legion
         end
 
         def providers
-          renewers.keys
+          (renewers.keys + static_leases.keys).uniq
         end
 
         def leases
-          renewers.transform_values { |r| r.current_lease&.to_h }
+          dynamic = renewers.transform_values { |r| r.current_lease&.to_h }
+          static  = static_leases.transform_values { |ref| ref.get&.to_h }
+          dynamic.merge(static)
         end
 
         def shutdown
@@ -91,6 +123,8 @@ module Legion
             nil
           end
           renewers.clear
+          static_leases.clear
+          providers_map.clear
         end
 
         def reset!
@@ -103,6 +137,14 @@ module Legion
 
         def renewers
           @renewers ||= Concurrent::Hash.new
+        end
+
+        def static_leases
+          @static_leases ||= Concurrent::Hash.new
+        end
+
+        def providers_map
+          @providers_map ||= Concurrent::Hash.new
         end
 
         def fetch_groups
