@@ -113,7 +113,6 @@ module Legion
       desc 'create PATH', 'Generate a Jupyter notebook from a natural language description (requires legion-llm)'
       option :description, type: :string, aliases: ['-d'], desc: 'What the notebook should do'
       option :kernel,      type: :string, default: 'python3', desc: 'Kernel name (default: python3)'
-      option :python,      type: :string, desc: 'Python interpreter override (default: Legion venv)'
       option :model,       type: :string, aliases: ['-m'], desc: 'LLM model override'
       option :provider,    type: :string, desc: 'LLM provider override'
       def create(path)
@@ -133,7 +132,6 @@ module Legion
         notebook_data = Legion::Notebook::Generator.generate(
           description: description,
           kernel:      options[:kernel],
-          python:      options[:python] || legion_python,
           model:       options[:model],
           provider:    options[:provider]
         )
@@ -168,13 +166,6 @@ module Legion
         rescue CLI::Error => e
           out.error(e.message)
           raise SystemExit, 1
-        end
-
-        # Returns the Legion-managed venv Python interpreter if it exists,
-        # falling back to bare `python3` for systems without the venv set up yet.
-        def legion_python
-          venv_python = File.expand_path('~/.legionio/python/bin/python3')
-          File.executable?(venv_python) ? venv_python : 'python3'
         end
 
         def load_notebook(path, out)

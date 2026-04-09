@@ -5,6 +5,18 @@
 ### Added
 - register_credential_providers step in boot sequence for Phase 8 credential-only identity module registration with Broker
 
+## [1.7.35] - 2026-04-09
+
+### Added
+- `Legion::Python` central module — single source of truth for venv paths, package list, and interpreter resolution
+- `legionio setup python` CLI command for creating/repairing Python venv with document/data packages
+- `PythonEnvCheck` doctor check for Python venv health
+- `LEGION_PYTHON` and `LEGION_PYTHON_VENV` env vars exported in Homebrew wrapper scripts
+
+### Fixed
+- `notebook create` crash: removed `python:` kwarg that `Generator.generate` does not accept (`ArgumentError`)
+- `docs serve` now uses `Legion::Python.interpreter` instead of inline path resolution
+
 ## [1.7.33] - 2026-04-09
 
 ### Added

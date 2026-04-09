@@ -2,6 +2,7 @@
 
 require 'thor'
 require 'legion/cli/output'
+require 'legion/python'
 
 module Legion
   module CLI
@@ -46,17 +47,11 @@ module Legion
           return
         end
 
-        # Use the Legion-managed venv Python when available so the server runs
-        # in the same environment as all other Legion Python tooling.
-        python = File.executable?(File.expand_path('~/.legionio/python/bin/python3')) \
-                   ? File.expand_path('~/.legionio/python/bin/python3') \
-                   : 'python3'
-
         out.header('Documentation preview')
         puts "  Open http://localhost:#{port}/ in your browser"
         puts "  Serving files from: #{File.expand_path(dir)}"
         puts ''
-        puts "  To start: #{python} -m http.server #{port} --directory #{dir}"
+        puts "  To start: #{Legion::Python.interpreter} -m http.server #{port} --directory #{dir}"
         puts '  Press Ctrl+C to stop'
       end
 

@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'tmpdir'
+require 'legion/python'
 require 'legion/cli/setup_command'
 
 RSpec.describe Legion::CLI::Setup do
@@ -217,6 +218,75 @@ RSpec.describe Legion::CLI::Setup do
       parsed = JSON.parse(output, symbolize_names: true)
       expect(parsed[:platform]).to eq('vscode')
       expect(parsed[:installed]).to be_an(Array)
+    end
+  end
+
+  describe 'python' do
+    let(:venv_dir) { File.join(tmpdir, 'python') }
+    let(:marker)   { File.join(tmpdir, '.python-venv') }
+
+    before do
+      stub_const('Legion::CLI::Setup::PYTHON_VENV_DIR', venv_dir)
+      stub_const('Legion::CLI::Setup::PYTHON_MARKER', marker)
+    end
+
+    it 'exits with error when python3 is not found' do
+      allow(Legion::Python).to receive(:find_system_python3).and_return(nil)
+      expect do
+        capture_stdout { described_class.start(%w[python --no-color]) }
+      end.to raise_error(SystemExit)
+    end
+
+    it 'creates venv when python3 is available' do
+      allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
+
+      # Stub the system call for venv creation
+      allow_any_instance_of(described_class).to receive(:system)
+        .with('/usr/bin/python3', '-m', 'venv', venv_dir).and_return(true)
+
+      # Pre-create venv structure so the method proceeds past venv creation
+      pip_path = File.join(venv_dir, 'bin', 'pip')
+      FileUtils.mkdir_p(File.join(venv_dir, 'bin'))
+      File.write(File.join(venv_dir, 'pyvenv.cfg'), 'home = /usr')
+      FileUtils.touch(pip_path)
+      File.chmod(0o755, pip_path)
+
+      # Use Open3 to mock the pip install calls instead of backtick
+      allow(Open3).to receive(:capture3) do |*_args|
+        ['Successfully installed', '', instance_double(::Process::Status, exitstatus: 0, success?: true)]
+      end
+
+      # Replace backtick calls with Open3 by overriding the pip install loop
+      allow_any_instance_of(described_class).to receive(:python_version).and_return('Python 3.12.0')
+      # Kernel#` is used for pip install — stub it and set a real exit status
+      allow_any_instance_of(Kernel).to receive(:`).and_wrap_original do |_m, _cmd|
+        system('true') # sets $CHILD_STATUS to success
+        ''
+      end
+
+      output = capture_stdout { described_class.start(%w[python --no-color]) }
+      expect(output).to include('Python environment ready')
+    end
+
+    it 'outputs JSON when --json is passed' do
+      allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
+
+      pip_path = File.join(venv_dir, 'bin', 'pip')
+      FileUtils.mkdir_p(File.join(venv_dir, 'bin'))
+      File.write(File.join(venv_dir, 'pyvenv.cfg'), 'home = /usr')
+      FileUtils.touch(pip_path)
+      File.chmod(0o755, pip_path)
+
+      allow_any_instance_of(described_class).to receive(:python_version).and_return('Python 3.12.0')
+      allow_any_instance_of(Kernel).to receive(:`).and_wrap_original do |_m, _cmd|
+        system('true')
+        ''
+      end
+
+      output = capture_stdout { described_class.start(%w[python --json]) }
+      parsed = JSON.parse(output, symbolize_names: true)
+      expect(parsed[:venv]).to eq(venv_dir)
+      expect(parsed[:results]).to be_an(Array)
     end
   end
 

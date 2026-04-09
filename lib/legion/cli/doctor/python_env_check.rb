@@ -1,43 +1,31 @@
 # frozen_string_literal: true
 
+require 'legion/python'
+
 module Legion
   module CLI
     class Doctor
       class PythonEnvCheck
-        VENV_DIR = File.expand_path('~/.legionio/python').freeze
-        MARKER   = File.expand_path('~/.legionio/.python-venv').freeze
-
-        # Packages we consider mandatory — a missing one is a :warn, not a :fail,
-        # because Python tools are optional addons rather than daemon requirements.
-        REQUIRED_PACKAGES = %w[
-          python-pptx
-          python-docx
-          openpyxl
-          pandas
-          pillow
-          requests
-          lxml
-          PyYAML
-          tabulate
-          markdown
-        ].freeze
-
         def name
           'Python env'
         end
 
         def run
-          return skip_result('python3 not found on PATH') unless python3_available?
-          return warn_result(
-            'Python venv missing',
-            'Run: legionio setup python'
-          ) unless venv_exists?
+          return skip_result('python3 not found on PATH') unless Legion::Python.find_system_python3
+          unless Legion::Python.venv_exists?
+            return warn_result(
+              'Python venv missing',
+              'Run: legionio setup python'
+            )
+          end
 
-          return warn_result(
-            'pip not found in venv — venv may be corrupt',
-            'Run: legionio setup python --rebuild',
-            auto_fixable: true
-          ) unless pip_exists?
+          unless Legion::Python.venv_pip_exists?
+            return warn_result(
+              'pip not found in venv — venv may be corrupt',
+              'Run: legionio setup python --rebuild',
+              auto_fixable: true
+            )
+          end
 
           missing = missing_packages
           if missing.any?
@@ -65,48 +53,32 @@ module Legion
 
         private
 
-        def python3_available?
-          %w[
-            /opt/homebrew/bin/python3
-            /usr/local/bin/python3
-            /usr/bin/python3
-          ].any? { |p| File.executable?(p) }
-        end
-
-        def venv_exists?
-          File.exist?("#{VENV_DIR}/pyvenv.cfg")
-        end
-
-        def pip_exists?
-          File.executable?("#{VENV_DIR}/bin/pip")
-        end
-
         def missing_packages
-          output = `"#{VENV_DIR}/bin/pip" list --format=columns 2>/dev/null`
+          pip = Legion::Python.venv_pip
+          output = `"#{pip}" list --format=columns 2>/dev/null`
           installed_names = output.lines
-                                  .drop(2) # skip header lines
+                                  .drop(2)
                                   .map { |l| l.split.first&.downcase&.tr('-', '_') }
                                   .compact
 
-          REQUIRED_PACKAGES.reject do |pkg|
+          Legion::Python::PACKAGES.reject do |pkg|
             normalised = pkg.downcase.tr('-', '_')
             installed_names.include?(normalised)
           end
         rescue StandardError
-          # If pip itself errors, surface the missing-venv warning instead
-          REQUIRED_PACKAGES.dup
+          Legion::Python::PACKAGES.dup
         end
 
         def venv_summary
-          python_bin = "#{VENV_DIR}/bin/python3"
+          python_bin = Legion::Python.venv_python
           if File.executable?(python_bin)
             version = `"#{python_bin}" --version 2>&1`.strip
-            "#{version} at #{VENV_DIR}"
+            "#{version} at #{Legion::Python::VENV_DIR}"
           else
-            VENV_DIR
+            Legion::Python::VENV_DIR
           end
         rescue StandardError
-          VENV_DIR
+          Legion::Python::VENV_DIR
         end
 
         def pass_result(message)
