@@ -169,6 +169,7 @@ module Legion
 
       # Identity resolution — after extensions so lex-identity-* providers are loaded
       setup_identity if transport
+      register_credential_providers if extensions && transport
 
       register_core_tools
 
@@ -904,6 +905,7 @@ module Legion
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
 
+      register_credential_providers
       Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:flush_pending_registrations!)
 
       register_core_tools
@@ -1135,6 +1137,36 @@ module Legion
       log.info "[Identity] registered provider #{provider_name} with Broker"
     rescue StandardError => e
       handle_exception(e, level: :warn, operation: 'service.register_provider_with_broker')
+    end
+
+    def register_credential_providers
+      return unless defined?(Legion::Identity::Broker) && defined?(Legion::Extensions)
+
+      Legion::Extensions.loaded_extension_modules.each do |ext|
+        identity_mod = find_credential_identity(ext)
+        next unless identity_mod
+
+        name = identity_mod.provider_name
+        next if Legion::Identity::Broker.providers.include?(name)
+
+        lease = identity_mod.provide_token
+        next unless lease
+
+        Legion::Identity::Broker.register_provider(name, provider: identity_mod, lease: lease)
+        log.info "[Identity] registered credential provider #{name} with Broker"
+      rescue StandardError => e
+        handle_exception(e, level: :warn, operation: 'service.register_credential_providers')
+      end
+    end
+
+    def find_credential_identity(ext)
+      return nil unless ext.respond_to?(:const_defined?) && ext.const_defined?(:Identity, false)
+
+      identity = ext.const_get(:Identity, false)
+      return nil unless identity.respond_to?(:provider_type) && identity.provider_type == :credential
+      return nil unless identity.respond_to?(:provide_token)
+
+      identity
     end
 
     def find_identity_providers

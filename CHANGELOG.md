@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [Unreleased]
+
+### Added
+- register_credential_providers step in boot sequence for Phase 8 credential-only identity module registration with Broker
+
 ## [1.7.33] - 2026-04-09
 
 ### Added
