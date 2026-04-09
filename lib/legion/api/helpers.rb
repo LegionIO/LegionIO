@@ -101,6 +101,39 @@ module Legion
         halt 400, json_error('invalid_json', 'request body is not valid JSON', status_code: 400)
       end
 
+      def find_extension_module(lex_name)
+        short = lex_name.delete_prefix('lex-')
+        short_no_sep = short.tr('-', '_').delete('_')
+        Legion::Extensions.loaded_extension_modules.find do |mod|
+          parts = mod.name&.split('::')
+          mod_short = parts&.last&.downcase
+          mod_short == short.tr('-', '_') ||
+            mod_short == short.delete('-') ||
+            mod_short == short_no_sep
+        end
+      end
+
+      def find_runner_info(ext_mod, runner_name)
+        return nil unless ext_mod.respond_to?(:runners)
+
+        ext_mod.runners.values.find do |r|
+          r[:runner_name].to_s.downcase == runner_name.downcase
+        end
+      end
+
+      def runner_summaries(ext_mod)
+        return [] unless ext_mod.respond_to?(:runners)
+
+        ext_mod.runners.values.map do |r|
+          functions = r[:runner_module]&.instance_methods(false)&.map(&:to_s) || []
+          { name: r[:runner_name], runner_class: r[:runner_class], functions: functions }
+        end
+      end
+
+      def halt_not_found(message)
+        halt 404, json_error('not_found', message, status_code: 404)
+      end
+
       def find_or_halt(model_class, id)
         record = model_class[id.to_i]
         halt 404, json_error('not_found', "#{model_class.name.split('::').last} #{id} not found", status_code: 404) if record.nil?

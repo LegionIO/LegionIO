@@ -5,87 +5,157 @@ module Legion
     module Routes
       module Extensions
         def self.registered(app)
+          register_available_route(app)
           register_extension_routes(app)
           register_runner_routes(app)
           register_function_routes(app)
+          register_invoke_route(app)
+        end
+
+        def self.register_available_route(app)
+          app.get '/api/extensions/available' do
+            entries = Legion::Extensions::Catalog::Available.all
+            entries = entries.select { |e| e[:category] == params[:category] } if params[:category]
+            json_response(entries)
+          end
         end
 
         def self.register_extension_routes(app)
           app.get '/api/extensions' do
-            require_data!
-            dataset = Legion::Data::Model::Extension.order(:id)
-            dataset = dataset.where(active: true) if params[:active] == 'true'
-            json_collection(dataset)
+            entries = Legion::Extensions::Catalog.all.map do |name, entry|
+              { name: name, state: entry[:state].to_s,
+                registered_at: entry[:registered_at]&.iso8601,
+                started_at: entry[:started_at]&.iso8601 }
+            end
+            entries = entries.select { |e| e[:state] == params[:state] } if params[:state]
+            json_response(entries)
           end
 
-          app.get '/api/extensions/:id' do
-            require_data!
-            ext = find_or_halt(Legion::Data::Model::Extension, params[:id])
-            json_response(ext.values)
+          app.get '/api/extensions/:name' do
+            name = params[:name]
+            entry = Legion::Extensions::Catalog.entry(name)
+            halt_not_found("extension '#{name}' not found") unless entry
+
+            ext_mod = find_extension_module(name)
+            version = ext_mod&.const_defined?(:VERSION) ? ext_mod::VERSION : nil
+
+            runners = ext_mod ? runner_summaries(ext_mod) : []
+
+            json_response({
+              name:          name,
+              state:         entry[:state].to_s,
+              version:       version,
+              registered_at: entry[:registered_at]&.iso8601,
+              started_at:    entry[:started_at]&.iso8601,
+              runners:       runners
+            }.compact)
           end
         end
 
         def self.register_runner_routes(app)
-          app.get '/api/extensions/:id/runners' do
-            require_data!
-            find_or_halt(Legion::Data::Model::Extension, params[:id])
-            runners = Legion::Data::Model::Runner.where(extension_id: params[:id].to_i).order(:id)
-            json_collection(runners)
+          app.get '/api/extensions/:name/runners' do
+            name = params[:name]
+            halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
+
+            ext_mod = find_extension_module(name)
+            halt_not_found("extension '#{name}' not loaded") unless ext_mod
+
+            json_response(runner_summaries(ext_mod))
           end
 
-          app.get '/api/extensions/:id/runners/:runner_id' do
-            require_data!
-            find_or_halt(Legion::Data::Model::Extension, params[:id])
-            runner = find_or_halt(Legion::Data::Model::Runner, params[:runner_id])
-            json_response(runner.values)
+          app.get '/api/extensions/:name/runners/:runner_name' do
+            name = params[:name]
+            halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
+
+            ext_mod = find_extension_module(name)
+            halt_not_found("extension '#{name}' not loaded") unless ext_mod
+
+            info = find_runner_info(ext_mod, params[:runner_name])
+            halt_not_found("runner '#{params[:runner_name]}' not found") unless info
+
+            runner_mod = info[:runner_module]
+            functions = runner_mod.instance_methods(false).map(&:to_s)
+
+            json_response({
+                            name:         info[:runner_name],
+                            runner_class: info[:runner_class],
+                            functions:    functions
+                          })
           end
         end
 
-        def self.register_function_routes(app) # rubocop:disable Metrics/AbcSize
-          app.get '/api/extensions/:id/runners/:runner_id/functions' do
-            require_data!
-            find_or_halt(Legion::Data::Model::Extension, params[:id])
-            find_or_halt(Legion::Data::Model::Runner, params[:runner_id])
-            functions = Legion::Data::Model::Function.where(runner_id: params[:runner_id].to_i).order(:id)
-            json_collection(functions)
+        def self.register_function_routes(app)
+          app.get '/api/extensions/:name/runners/:runner_name/functions' do
+            name = params[:name]
+            halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
+
+            ext_mod = find_extension_module(name)
+            halt_not_found("extension '#{name}' not loaded") unless ext_mod
+
+            info = find_runner_info(ext_mod, params[:runner_name])
+            halt_not_found("runner '#{params[:runner_name]}' not found") unless info
+
+            functions = info[:runner_module].instance_methods(false).map do |m|
+              args = info.dig(:class_methods, m, :args)
+              { name: m.to_s, args: args }
+            end
+            json_response(functions)
           end
 
-          app.get '/api/extensions/:id/runners/:runner_id/functions/:function_id' do
-            require_data!
-            find_or_halt(Legion::Data::Model::Extension, params[:id])
-            find_or_halt(Legion::Data::Model::Runner, params[:runner_id])
-            func = find_or_halt(Legion::Data::Model::Function, params[:function_id])
-            json_response(func.values)
-          end
+          app.get '/api/extensions/:name/runners/:runner_name/functions/:function_name' do
+            name = params[:name]
+            halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
 
-          app.post '/api/extensions/:id/runners/:runner_id/functions/:function_id/invoke' do
-            require_data!
-            path = "/api/extensions/#{params[:id]}/runners/#{params[:runner_id]}/functions/#{params[:function_id]}/invoke"
-            Legion::Logging.debug "API: POST #{path} params=#{params.keys}"
-            find_or_halt(Legion::Data::Model::Extension, params[:id])
-            runner = find_or_halt(Legion::Data::Model::Runner, params[:runner_id])
-            func = find_or_halt(Legion::Data::Model::Function, params[:function_id])
+            ext_mod = find_extension_module(name)
+            halt_not_found("extension '#{name}' not loaded") unless ext_mod
+
+            info = find_runner_info(ext_mod, params[:runner_name])
+            halt_not_found("runner '#{params[:runner_name]}' not found") unless info
+
+            func_sym = params[:function_name].to_sym
+            halt_not_found("function '#{params[:function_name]}' not found") unless info[:runner_module].method_defined?(func_sym, false)
+
+            args = info.dig(:class_methods, func_sym, :args)
+            json_response({ name: params[:function_name], runner: params[:runner_name], args: args })
+          end
+        end
+
+        def self.register_invoke_route(app)
+          app.post '/api/extensions/:name/runners/:runner_name/functions/:function_name/invoke' do
+            name = params[:name]
+            halt_not_found("extension '#{name}' not found") unless Legion::Extensions::Catalog.entry(name)
+
+            ext_mod = find_extension_module(name)
+            halt_not_found("extension '#{name}' not loaded") unless ext_mod
+
+            info = find_runner_info(ext_mod, params[:runner_name])
+            halt_not_found("runner '#{params[:runner_name]}' not found") unless info
+
+            func_sym = params[:function_name].to_sym
+            halt_not_found("function '#{params[:function_name]}' not found") unless info[:runner_module].method_defined?(func_sym, false)
+
             body = parse_request_body
 
             result = Legion::Ingress.run(
-              payload: body, runner_class: runner.values[:namespace],
-              function: func.values[:name].to_sym, source: 'api',
+              payload:       body,
+              runner_class:  info[:runner_class],
+              function:      func_sym,
+              source:        'api',
               check_subtask: body.fetch(:check_subtask, true),
               generate_task: body.fetch(:generate_task, true)
             )
-            Legion::Logging.info "API: invoked function #{func.values[:name]} via runner #{runner.values[:namespace]}, task #{result[:task_id]}"
             json_response(result, status_code: 201)
           rescue NameError => e
-            Legion::Logging.warn "API POST /api/extensions invoke returned 422: #{e.message}"
             json_error('invalid_runner', e.message, status_code: 422)
           rescue StandardError => e
-            Legion::Logging.error "API POST /api/extensions invoke: #{e.class} — #{e.message}"
+            Legion::Logging.error "API POST /api/extensions invoke: #{e.class} - #{e.message}" if defined?(Legion::Logging)
             json_error('execution_error', e.message, status_code: 500)
           end
         end
 
         class << self
-          private :register_extension_routes, :register_runner_routes, :register_function_routes
+          private :register_available_route, :register_extension_routes,
+                  :register_runner_routes, :register_function_routes, :register_invoke_route
         end
       end
     end

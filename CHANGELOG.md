@@ -1,5 +1,14 @@
 # Legion Changelog
 
+## [1.7.32] - 2026-04-09
+
+### Changed
+- Rewrote `/api/extensions` routes to use in-memory state from `Catalog` instead of database queries — no `require_data!` dependency
+- All extension routes now use `:name` (string identifier like `lex-node`) instead of numeric `:id` params
+- Added `GET /api/extensions/available` route backed by `Catalog::Available.all` (static ecosystem list, filterable by `?category=`)
+- Added `Legion::Extensions::Catalog::Available` module with 120+ known LEX gems organized by category
+- Extension helper methods (`find_extension_module`, `find_runner_info`, `runner_summaries`, `halt_not_found`) moved into `Legion::API::Helpers` for reuse across all API tests
+
 ## [1.7.31] - 2026-04-08
 
 ### Added
