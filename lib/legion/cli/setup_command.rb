@@ -3,6 +3,7 @@
 require 'English'
 require 'json'
 require 'fileutils'
+require 'open3'
 require 'thor'
 require 'rbconfig'
 require 'legion/cli/output'
@@ -154,7 +155,7 @@ module Legion
       desc 'python', 'Set up Legion Python environment (venv + document/data packages)'
       option :packages, type: :array,   default: [],    banner: 'PKG [PKG...]', desc: 'Additional pip packages to install'
       option :rebuild,  type: :boolean, default: false, desc: 'Destroy and recreate the venv from scratch'
-      def python # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      def python # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         out = formatter
         results = []
 
@@ -188,13 +189,15 @@ module Legion
         packages = PYTHON_PACKAGES + Array(options[:packages])
         packages.uniq!
 
+        failed = false
         packages.each do |pkg|
           puts "  Installing #{pkg}..." unless options[:json]
-          output = `"#{pip}" install --quiet --upgrade "#{pkg}" 2>&1`
-          if $CHILD_STATUS.success?
+          output, status = Open3.capture2e(pip, 'install', '--quiet', '--upgrade', pkg)
+          if status.success?
             out.success("  #{pkg}") unless options[:json]
             results << { package: pkg, status: 'installed' }
           else
+            failed = true
             out.error("  #{pkg} failed") unless options[:json]
             results << { package: pkg, status: 'failed', error: output.strip.lines.last&.strip }
           end
@@ -213,6 +216,8 @@ module Legion
           puts '  Add packages:   legionio setup python --packages <name> [<name>...]'
           puts '  Rebuild venv:   legionio setup python --rebuild'
         end
+
+        exit 1 if failed
       end
 
       desc 'packs', 'Show installed feature packs and available gems'
@@ -291,13 +296,14 @@ module Legion
         end
 
         def write_python_marker(python3, packages)
+          FileUtils.mkdir_p(File.dirname(PYTHON_MARKER))
           File.write(PYTHON_MARKER, ::JSON.pretty_generate(
                                       venv:       PYTHON_VENV_DIR,
                                       python:     python_version(python3),
                                       packages:   packages,
                                       updated_at: Time.now.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
                                     ))
-        rescue Errno::EPERM, Errno::EACCES => e
+        rescue Errno::EPERM, Errno::EACCES, Errno::ENOENT => e
           Legion::Logging.warn("SetupCommand#write_python_marker: #{e.message}") if defined?(Legion::Logging)
         end
 

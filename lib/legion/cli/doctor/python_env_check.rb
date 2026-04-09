@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+require 'open3'
 require 'legion/python'
 
 module Legion
@@ -48,22 +50,20 @@ module Legion
         end
 
         def fix
-          system('legionio', 'setup', 'python')
+          system('legionio', 'setup', 'python', '--rebuild')
         end
 
         private
 
         def missing_packages
           pip = Legion::Python.venv_pip
-          output = `"#{pip}" list --format=columns 2>/dev/null`
-          installed_names = output.lines
-                                  .drop(2)
-                                  .map { |l| l.split.first&.downcase&.tr('-', '_') }
-                                  .compact
+          output, status = Open3.capture2e(pip, 'list', '--format=json')
+          return Legion::Python::PACKAGES.dup unless status.success?
+
+          installed_names = ::JSON.parse(output).map { |p| p['name'].downcase.tr('-', '_') }
 
           Legion::Python::PACKAGES.reject do |pkg|
-            normalised = pkg.downcase.tr('-', '_')
-            installed_names.include?(normalised)
+            installed_names.include?(pkg.downcase.tr('-', '_'))
           end
         rescue StandardError
           Legion::Python::PACKAGES.dup

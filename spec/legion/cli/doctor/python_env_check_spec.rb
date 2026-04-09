@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'open3'
 require 'legion/python'
 require 'legion/cli/doctor_command'
 
@@ -54,35 +55,41 @@ RSpec.describe Legion::CLI::Doctor::PythonEnvCheck do
     end
 
     context 'when venv is healthy with all packages' do
+      let(:pip_json) do
+        Legion::Python::PACKAGES.map { |p| { 'name' => p, 'version' => '1.0.0' } }
+      end
+
       before do
         allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
         allow(Legion::Python).to receive(:venv_exists?).and_return(true)
         allow(Legion::Python).to receive(:venv_pip_exists?).and_return(true)
+        allow(Legion::Python).to receive(:venv_pip).and_return('/fake/pip')
         allow(Legion::Python).to receive(:venv_python).and_return('/fake/python3')
         allow(File).to receive(:executable?).and_call_original
         allow(File).to receive(:executable?).with('/fake/python3').and_return(true)
 
-        pkg_lines = Legion::Python::PACKAGES.map { |p| "#{p}  1.0.0" }.join("\n")
-        pip_output = "Package    Version\n---------- -------\n#{pkg_lines}"
-        allow(check).to receive(:`).and_return(pip_output)
+        mock_status = instance_double(::Process::Status, success?: true)
+        allow(Open3).to receive(:capture2e).and_return([::JSON.generate(pip_json), mock_status])
+        allow(check).to receive(:`).with(/".*python3" --version/).and_return('Python 3.12.0')
       end
 
       it 'returns a pass result' do
-        allow(check).to receive(:`).with(/".*python3" --version/).and_return('Python 3.12.0')
         result = check.run
         expect(result.status).to eq(:pass)
       end
     end
 
     context 'when packages are missing' do
+      let(:pip_json) { [{ 'name' => 'pandas', 'version' => '2.0.0' }] }
+
       before do
         allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
         allow(Legion::Python).to receive(:venv_exists?).and_return(true)
         allow(Legion::Python).to receive(:venv_pip_exists?).and_return(true)
         allow(Legion::Python).to receive(:venv_pip).and_return('/fake/pip')
 
-        pip_output = "Package    Version\n---------- -------\npandas  2.0.0\n"
-        allow(check).to receive(:`).and_return(pip_output)
+        mock_status = instance_double(::Process::Status, success?: true)
+        allow(Open3).to receive(:capture2e).and_return([::JSON.generate(pip_json), mock_status])
       end
 
       it 'returns a warn result listing missing packages' do
@@ -92,13 +99,25 @@ RSpec.describe Legion::CLI::Doctor::PythonEnvCheck do
         expect(result.message).to include('python-pptx')
       end
     end
+
+    context 'when an unexpected error occurs' do
+      before do
+        allow(Legion::Python).to receive(:find_system_python3).and_raise(RuntimeError, 'boom')
+      end
+
+      it 'returns a fail result' do
+        result = check.run
+        expect(result.status).to eq(:fail)
+        expect(result.message).to include('boom')
+      end
+    end
   end
 
   describe '#fix' do
-    it 'calls legionio setup python' do
-      allow(check).to receive(:system).with('legionio', 'setup', 'python').and_return(true)
+    it 'calls legionio setup python --rebuild' do
+      allow(check).to receive(:system).with('legionio', 'setup', 'python', '--rebuild').and_return(true)
       check.fix
-      expect(check).to have_received(:system).with('legionio', 'setup', 'python')
+      expect(check).to have_received(:system).with('legionio', 'setup', 'python', '--rebuild')
     end
   end
 end
