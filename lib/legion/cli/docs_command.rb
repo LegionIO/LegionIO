@@ -2,6 +2,7 @@
 
 require 'thor'
 require 'legion/cli/output'
+require 'legion/python'
 
 module Legion
   module CLI
@@ -50,7 +51,7 @@ module Legion
         puts "  Open http://localhost:#{port}/ in your browser"
         puts "  Serving files from: #{File.expand_path(dir)}"
         puts ''
-        puts "  To start: python3 -m http.server #{port} --directory #{dir}"
+        puts "  To start: #{Legion::Python.interpreter} -m http.server #{port} --directory #{dir}"
         puts '  Press Ctrl+C to stop'
       end
 

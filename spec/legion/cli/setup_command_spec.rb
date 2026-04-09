@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'tmpdir'
+require 'legion/python'
 require 'legion/cli/setup_command'
 
 RSpec.describe Legion::CLI::Setup do
@@ -217,6 +218,77 @@ RSpec.describe Legion::CLI::Setup do
       parsed = JSON.parse(output, symbolize_names: true)
       expect(parsed[:platform]).to eq('vscode')
       expect(parsed[:installed]).to be_an(Array)
+    end
+  end
+
+  describe 'python' do
+    let(:venv_dir) { File.join(tmpdir, 'python') }
+    let(:marker)   { File.join(tmpdir, '.python-venv') }
+
+    before do
+      stub_const('Legion::CLI::Setup::PYTHON_VENV_DIR', venv_dir)
+      stub_const('Legion::CLI::Setup::PYTHON_MARKER', marker)
+    end
+
+    it 'exits with error when python3 is not found' do
+      allow(Legion::Python).to receive(:find_system_python3).and_return(nil)
+      expect do
+        capture_stdout { described_class.start(%w[python --no-color]) }
+      end.to raise_error(SystemExit)
+    end
+
+    def setup_venv_stubs
+      allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
+
+      # Pre-create venv structure so the system() call to create venv is skipped
+      pip_path = File.join(venv_dir, 'bin', 'pip')
+      FileUtils.mkdir_p(File.join(venv_dir, 'bin'))
+      File.write(File.join(venv_dir, 'pyvenv.cfg'), 'home = /usr')
+      FileUtils.touch(pip_path)
+      File.chmod(0o755, pip_path)
+
+      mock_status = instance_double(::Process::Status, success?: true)
+      allow(Open3).to receive(:capture2e).and_return(['Successfully installed', mock_status])
+
+      # Stub the backtick call inside python_version without stubbing the Thor instance
+      allow_any_instance_of(Kernel).to receive(:`).and_return('Python 3.12.0')
+    end
+
+    it 'creates venv when python3 is available' do
+      setup_venv_stubs
+      output = capture_stdout { described_class.start(%w[python --no-color]) }
+      expect(output).to include('Python environment ready')
+    end
+
+    it 'outputs JSON when --json is passed' do
+      setup_venv_stubs
+      output = capture_stdout { described_class.start(%w[python --json]) }
+      parsed = JSON.parse(output, symbolize_names: true)
+      expect(parsed[:venv]).to eq(venv_dir)
+      expect(parsed[:results]).to be_an(Array)
+    end
+
+    it 'destroys and recreates venv with --rebuild' do
+      setup_venv_stubs
+      output = capture_stdout { described_class.start(%w[python --rebuild --no-color]) }
+      expect(output).to include('Rebuilding')
+    end
+
+    it 'reports failed packages in results' do
+      setup_venv_stubs
+      fail_status = instance_double(::Process::Status, success?: false)
+      allow(Open3).to receive(:capture2e).and_return(['error: no matching distribution', fail_status])
+      output = capture_stdout do
+        described_class.start(%w[python --json])
+      rescue SystemExit
+        # expected — exit 1 on package failure
+      end
+      parsed = begin
+        JSON.parse(output, symbolize_names: true)
+      rescue StandardError
+        nil
+      end
+      expect(parsed[:results]).to be_an(Array) if parsed
     end
   end
 

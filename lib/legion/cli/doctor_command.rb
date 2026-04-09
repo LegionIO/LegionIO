@@ -19,6 +19,7 @@ module Legion
       autoload :TlsCheck,         'legion/cli/doctor/tls_check'
       autoload :ApiBindCheck,     'legion/cli/doctor/api_bind_check'
       autoload :ModeCheck,        'legion/cli/doctor/mode_check'
+      autoload :PythonEnvCheck,   'legion/cli/doctor/python_env_check'
 
       def self.exit_on_failure?
         true
@@ -41,6 +42,7 @@ module Legion
         TlsCheck
         ApiBindCheck
         ModeCheck
+        PythonEnvCheck
       ].freeze
 
       # Weights: security > connectivity > convenience
@@ -55,6 +57,7 @@ module Legion
         'Bundle'              => 1.5,
         'Config'              => 1.0,
         'Extensions'          => 1.0,
+        'Python env'          => 1.0,
         'PID files'           => 0.5
       }.freeze
 
