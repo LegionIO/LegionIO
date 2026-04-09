@@ -13,17 +13,26 @@ module Legion
         end
 
         def run
-          return skip_result('python3 not found on PATH') unless Legion::Python.find_system_python3
+          return skip_result('python3 not found') unless Legion::Python.find_system_python3
           unless Legion::Python.venv_exists?
             return warn_result(
               'Python venv missing',
-              'Run: legionio setup python'
+              'Run: legionio setup python',
+              auto_fixable: true
             )
           end
 
           unless Legion::Python.venv_pip_exists?
             return warn_result(
               'pip not found in venv — venv may be corrupt',
+              'Run: legionio setup python --rebuild',
+              auto_fixable: true
+            )
+          end
+
+          unless Legion::Python.venv_python_exists?
+            return warn_result(
+              'python3 not found in venv — venv may be corrupt',
               'Run: legionio setup python --rebuild',
               auto_fixable: true
             )

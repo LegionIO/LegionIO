@@ -11,7 +11,7 @@
 - `Legion::Python` central module — single source of truth for venv paths, package list, and interpreter resolution
 - `legionio setup python` CLI command for creating/repairing Python venv with document/data packages
 - `PythonEnvCheck` doctor check for Python venv health
-- `LEGION_PYTHON` and `LEGION_PYTHON_VENV` env vars exported in Homebrew wrapper scripts
+- Homebrew packaging note: `LEGION_PYTHON` and `LEGION_PYTHON_VENV` are exported by Homebrew wrapper scripts in the companion tap, not by changes in this gem repository
 
 ### Fixed
 - `notebook create` crash: removed `python:` kwarg that `Generator.generate` does not accept (`ArgumentError`)

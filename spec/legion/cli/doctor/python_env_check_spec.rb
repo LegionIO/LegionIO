@@ -86,6 +86,7 @@ RSpec.describe Legion::CLI::Doctor::PythonEnvCheck do
         allow(Legion::Python).to receive(:find_system_python3).and_return('/usr/bin/python3')
         allow(Legion::Python).to receive(:venv_exists?).and_return(true)
         allow(Legion::Python).to receive(:venv_pip_exists?).and_return(true)
+        allow(Legion::Python).to receive(:venv_python_exists?).and_return(true)
         allow(Legion::Python).to receive(:venv_pip).and_return('/fake/pip')
 
         mock_status = instance_double(::Process::Status, success?: true)
