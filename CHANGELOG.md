@@ -5,6 +5,11 @@
 ### Added
 - register_credential_providers step in boot sequence for Phase 8 credential-only identity module registration with Broker
 
+## [1.7.36] - 2026-04-09
+
+### Changed
+- `Legion::Python::VENV_DIR` reads `LEGION_PYTHON_VENV` env var first, falls back to `~/.legionio/python`
+
 ## [1.7.35] - 2026-04-09
 
 ### Added
