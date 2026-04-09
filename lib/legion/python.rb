@@ -2,7 +2,7 @@
 
 module Legion
   module Python
-    VENV_DIR = File.expand_path('~/.legionio/python').freeze
+    VENV_DIR = (ENV['LEGION_PYTHON_VENV'] || File.expand_path('~/.legionio/python')).freeze
     MARKER   = File.expand_path('~/.legionio/.python-venv').freeze
 
     PACKAGES = %w[
