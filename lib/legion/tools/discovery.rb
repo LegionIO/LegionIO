@@ -147,14 +147,15 @@ module Legion
           ext_name = derive_extension_name(ext)
           runner_snake = derive_runner_snake(runner_mod)
           {
-            tool_name:    defn&.dig(:mcp_prefix) || "legion-#{ext_name}-#{runner_snake}-#{func_name}",
-            description:  meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
-            input_schema: normalize_schema(meta[:options]),
-            mcp_category: defn&.dig(:mcp_category),
-            mcp_tier:     defn&.dig(:mcp_tier),
-            deferred:     deferred,
-            ext_name:     ext_name,
-            runner_snake: runner_snake
+            tool_name:     defn&.dig(:mcp_prefix) || "legion-#{ext_name}-#{runner_snake}-#{func_name}",
+            description:   meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
+            input_schema:  normalize_schema(meta[:options]),
+            mcp_category:  defn&.dig(:mcp_category),
+            mcp_tier:      defn&.dig(:mcp_tier),
+            deferred:      deferred,
+            ext_name:      ext_name,
+            runner_snake:  runner_snake,
+            trigger_words: merge_trigger_words(ext, runner_mod)
           }
         end
 
@@ -168,6 +169,7 @@ module Legion
             runner(attrs[:runner_snake])
             mcp_category(attrs[:mcp_category]) if attrs[:mcp_category]
             mcp_tier(attrs[:mcp_tier]) if attrs[:mcp_tier]
+            trigger_words(attrs[:trigger_words])
 
             define_singleton_method(:call) do |**params|
               if runner_ref.respond_to?(func_ref)
@@ -182,6 +184,12 @@ module Legion
               error_response(e.message)
             end
           end
+        end
+
+        def merge_trigger_words(ext, runner_mod)
+          ext_words = ext.respond_to?(:trigger_words) ? Array(ext.trigger_words) : []
+          runner_words = runner_mod.respond_to?(:trigger_words) ? Array(runner_mod.trigger_words) : []
+          (ext_words + runner_words).uniq
         end
 
         def derive_runner_snake(runner_mod)

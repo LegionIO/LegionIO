@@ -69,6 +69,12 @@ module Legion
           @mcp_tier = val
         end
 
+        def trigger_words(val = nil)
+          return @trigger_words || [] if val.nil?
+
+          @trigger_words = val
+        end
+
         def call(**_args)
           raise NotImplementedError, "#{name} must implement .call"
         end

@@ -105,6 +105,43 @@ RSpec.describe Legion::Tools::Discovery do
     end
   end
 
+  describe 'trigger_words propagation' do
+    before { Legion::Tools::Registry.clear }
+
+    let(:runner_mod) do
+      mod = Module.new do
+        def self.name = 'Legion::Extensions::Testlex::Runners::Stuff'
+        def self.mcp_tools? = true
+        def self.mcp_tools_deferred? = true
+        def self.trigger_words = %w[stuff things]
+        def self.settings = { functions: { do_stuff: { desc: 'does stuff', options: {} } } }
+        def self.do_stuff(**) = { result: true }
+      end
+      mod.extend(Legion::Extensions::Definitions)
+      mod
+    end
+
+    let(:ext_mod) do
+      runner = runner_mod
+      Module.new do
+        def self.name = 'Legion::Extensions::Testlex'
+        def self.lex_name = 'testlex'
+        def self.mcp_tools? = true
+        def self.mcp_tools_deferred? = true
+        def self.trigger_words = %w[test]
+        define_singleton_method(:runner_modules) { [runner] }
+      end
+    end
+
+    it 'propagates merged trigger words to registered tool classes' do
+      allow(Legion::Extensions).to receive(:loaded_extension_modules).and_return([ext_mod])
+      Legion::Tools::Discovery.discover_and_register
+
+      tool = Legion::Tools::Registry.all_tools.first
+      expect(tool.trigger_words).to include('stuff', 'things', 'test')
+    end
+  end
+
   describe 'runner-level override' do
     let(:override_runner) do
       Module.new do

@@ -314,40 +314,40 @@ module Legion
                   case event[:type]
                   when :tool_call
                     emitted_tool_call_ids << event[:tool_call_id] if event[:tool_call_id]
-                    out << "event: tool-call\ndata: #{Legion::JSON.dump({
-                                                                          toolCallId: event[:tool_call_id],
-                                                                          toolName:   event[:tool_name],
-                                                                          args:       event[:arguments] || {},
-                                                                          startedAt:  event[:started_at]&.iso8601(3),
-                                                                          timestamp:  event[:started_at]&.iso8601(3) || Time.now.iso8601(3)
-                                                                        })}\n\n"
+                    out << "event: tool-call\ndata: #{Legion::JSON.generate({
+                                                                              toolCallId: event[:tool_call_id],
+                                                                              toolName:   event[:tool_name],
+                                                                              args:       event[:arguments] || {},
+                                                                              startedAt:  event[:started_at]&.iso8601(3),
+                                                                              timestamp:  event[:started_at]&.iso8601(3) || Time.now.iso8601(3)
+                                                                            })}\n\n"
                   when :tool_result
-                    out << "event: tool-result\ndata: #{Legion::JSON.dump({
-                                                                            toolCallId: event[:tool_call_id],
-                                                                            toolName:   event[:tool_name],
-                                                                            result:     event[:result],
-                                                                            startedAt:  event[:started_at]&.iso8601(3),
-                                                                            finishedAt: event[:finished_at]&.iso8601(3) || Time.now.iso8601(3),
-                                                                            durationMs: event[:duration_ms],
-                                                                            timestamp:  event[:finished_at]&.iso8601(3) || Time.now.iso8601(3)
-                                                                          })}\n\n"
+                    out << "event: tool-result\ndata: #{Legion::JSON.generate({
+                                                                                toolCallId: event[:tool_call_id],
+                                                                                toolName:   event[:tool_name],
+                                                                                result:     event[:result],
+                                                                                startedAt:  event[:started_at]&.iso8601(3),
+                                                                                finishedAt: event[:finished_at]&.iso8601(3) || Time.now.iso8601(3),
+                                                                                durationMs: event[:duration_ms],
+                                                                                timestamp:  event[:finished_at]&.iso8601(3) || Time.now.iso8601(3)
+                                                                              })}\n\n"
                   when :tool_error
-                    out << "event: tool-error\ndata: #{Legion::JSON.dump({
-                                                                           toolCallId: event[:tool_call_id],
-                                                                           toolName:   event[:tool_name],
-                                                                           error:      (event[:error] || event[:result]).to_s,
-                                                                           startedAt:  event[:started_at]&.iso8601(3),
-                                                                           finishedAt: Time.now.iso8601(3),
-                                                                           timestamp:  Time.now.iso8601(3)
-                                                                         })}\n\n"
-                  when :model_fallback
-                    out << "event: model-fallback\ndata: #{Legion::JSON.dump({
-                                                                               fromModel:  event[:from_model],
-                                                                               toModel:    event[:to_model],
-                                                                               toModelKey: event[:to_model],
-                                                                               error:      event[:error] || 'Provider unavailable',
-                                                                               reason:     event[:reason] || 'provider_fallback'
+                    out << "event: tool-error\ndata: #{Legion::JSON.generate({
+                                                                               toolCallId: event[:tool_call_id],
+                                                                               toolName:   event[:tool_name],
+                                                                               error:      (event[:error] || event[:result]).to_s,
+                                                                               startedAt:  event[:started_at]&.iso8601(3),
+                                                                               finishedAt: Time.now.iso8601(3),
+                                                                               timestamp:  Time.now.iso8601(3)
                                                                              })}\n\n"
+                  when :model_fallback
+                    out << "event: model-fallback\ndata: #{Legion::JSON.generate({
+                                                                                   fromModel:  event[:from_model],
+                                                                                   toModel:    event[:to_model],
+                                                                                   toModelKey: event[:to_model],
+                                                                                   error:      event[:error] || 'Provider unavailable',
+                                                                                   reason:     event[:reason] || 'provider_fallback'
+                                                                                 })}\n\n"
                   end
                 end
 
@@ -357,7 +357,7 @@ module Legion
                   next if text.empty?
 
                   full_text << text
-                  out << "event: text-delta\ndata: #{Legion::JSON.dump({ delta: text })}\n\n"
+                  out << "event: text-delta\ndata: #{Legion::JSON.generate({ delta: text })}\n\n"
                 end
 
                 # Post-hoc safety net: emit any tool-calls that weren't fired in real-time
@@ -367,11 +367,11 @@ module Legion
                     tc_id = tc.respond_to?(:id) ? tc.id : nil
                     next if tc_id && emitted_tool_call_ids.include?(tc_id)
 
-                    out << "event: tool-call\ndata: #{Legion::JSON.dump({
-                                                                          toolCallId: tc_id,
-                                                                          toolName:   tc.respond_to?(:name) ? tc.name : tc.to_s,
-                                                                          args:       tc.respond_to?(:arguments) ? tc.arguments : {}
-                                                                        })}\n\n"
+                    out << "event: tool-call\ndata: #{Legion::JSON.generate({
+                                                                              toolCallId: tc_id,
+                                                                              toolName:   tc.respond_to?(:name) ? tc.name : tc.to_s,
+                                                                              args:       tc.respond_to?(:arguments) ? tc.arguments : {}
+                                                                            })}\n\n"
                   end
                 end
 
@@ -384,20 +384,20 @@ module Legion
                   resolved_model = (model || provider).to_s.strip
                   next if resolved_model.empty?
 
-                  out << "event: model-fallback\ndata: #{Legion::JSON.dump({
-                                                                             fromModel:  pipeline_response.routing&.dig(:model),
-                                                                             toModel:    resolved_model,
-                                                                             toModelKey: resolved_model,
-                                                                             error:      w[:original_error] || 'Provider unavailable',
-                                                                             reason:     'provider_fallback'
-                                                                           })}\n\n"
+                  out << "event: model-fallback\ndata: #{Legion::JSON.generate({
+                                                                                 fromModel:  pipeline_response.routing&.dig(:model),
+                                                                                 toModel:    resolved_model,
+                                                                                 toModelKey: resolved_model,
+                                                                                 error:      w[:original_error] || 'Provider unavailable',
+                                                                                 reason:     'provider_fallback'
+                                                                               })}\n\n"
                 end
 
                 enrichments = pipeline_response.enrichments
-                out << "event: enrichment\ndata: #{Legion::JSON.dump(enrichments)}\n\n" if enrichments.is_a?(Hash) && !enrichments.empty?
+                out << "event: enrichment\ndata: #{Legion::JSON.generate(enrichments)}\n\n" if enrichments.is_a?(Hash) && !enrichments.empty?
 
                 tokens = pipeline_response.tokens
-                out << "event: done\ndata: #{Legion::JSON.dump({
+                out << "event: done\ndata: #{Legion::JSON.generate({
                   content:            full_text,
                   model:              pipeline_response.routing&.dig(:model),
                   conversation_id:    pipeline_response.conversation_id,
@@ -409,7 +409,7 @@ module Legion
                 }.compact)}\n\n"
               rescue StandardError => e
                 Legion::Logging.log_exception(e, payload_summary: 'api/llm/inference stream failed', component_type: :api)
-                out << "event: error\ndata: #{Legion::JSON.dump({ code: 'stream_error', message: e.message })}\n\n"
+                out << "event: error\ndata: #{Legion::JSON.generate({ code: 'stream_error', message: e.message })}\n\n"
               end
             else
               pipeline_response = executor.call
