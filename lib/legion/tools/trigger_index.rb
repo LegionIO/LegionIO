@@ -34,10 +34,13 @@ module Legion
           matched = Set.new
           per_word = {}
           word_set.each do |word|
-            tools = read_word(word)
+            normalized = word.to_s.downcase.gsub(/[^a-z ]/, ' ').strip
+            next if normalized.empty?
+
+            tools = read_word(normalized)
             next unless tools
 
-            per_word[word] = tools
+            per_word[normalized] = tools
             matched.merge(tools)
           end
           [matched, per_word]
