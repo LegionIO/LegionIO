@@ -935,6 +935,7 @@ module Legion
       require 'legion/tools'
       Legion::Tools.register_all
       Legion::Tools::Discovery.discover_and_register
+      Legion::Tools::TriggerIndex.build_async!
       Legion::Tools::EmbeddingCache.setup
 
       log.info(
