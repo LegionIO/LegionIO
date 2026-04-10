@@ -72,6 +72,19 @@ RSpec.describe Legion::Tools::Base do
     end
   end
 
+  describe '.trigger_words' do
+    let(:tool_class) { Class.new(described_class) }
+
+    it 'defaults to an empty array' do
+      expect(tool_class.trigger_words).to eq([])
+    end
+
+    it 'stores and returns trigger words' do
+      tool_class.trigger_words(%w[git github gh])
+      expect(tool_class.trigger_words).to eq(%w[git github gh])
+    end
+  end
+
   describe '.call' do
     it 'raises NotImplementedError on base class' do
       expect { described_class.call }.to raise_error(NotImplementedError)
