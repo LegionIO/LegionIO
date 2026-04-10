@@ -38,6 +38,7 @@ module Legion
             }
 
             @runners[runner_name.to_sym][:scheduled_tasks] = loaded_runner.scheduled_tasks if loaded_runner.method_defined? :scheduled_tasks
+            @runners[runner_name.to_sym][:trigger_words] = loaded_runner.trigger_words if loaded_runner.respond_to?(:trigger_words)
 
             if settings.key?(:runners) && settings[:runners].key?(runner_name.to_sym)
               @runners[runner_name.to_sym][:desc] = settings[:runners][runner_name.to_sym][:desc]
