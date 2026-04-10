@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'set'
-
 module Legion
   module Tools
     module TriggerIndex

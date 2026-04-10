@@ -33,5 +33,5 @@ require_relative 'tools/trigger_index'
 
 Dir[File.join(__dir__, 'tools', '*.rb')].each do |f|
   require f unless f.end_with?('/base.rb', '/registry.rb', '/discovery.rb', '/embedding_cache.rb',
-                                '/trigger_index.rb')
+                               '/trigger_index.rb')
 end
