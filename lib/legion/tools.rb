@@ -29,7 +29,9 @@ require_relative 'tools/registry'
 require_relative 'tools/base'
 require_relative 'tools/discovery'
 require_relative 'tools/embedding_cache'
+require_relative 'tools/trigger_index'
 
 Dir[File.join(__dir__, 'tools', '*.rb')].each do |f|
-  require f unless f.end_with?('/base.rb', '/registry.rb', '/discovery.rb', '/embedding_cache.rb')
+  require f unless f.end_with?('/base.rb', '/registry.rb', '/discovery.rb', '/embedding_cache.rb',
+                                '/trigger_index.rb')
 end
