@@ -12,11 +12,8 @@ module Legion
         true
       end
 
-      include Legion::CLI::Connection
-
       desc 'list', 'List all registered skills'
       def list
-        ensure_settings
         response = daemon_get('/api/skills')
         unless response.is_a?(::Net::HTTPSuccess)
           say "Error fetching skills: #{response.code}", :red
@@ -36,7 +33,6 @@ module Legion
 
       desc 'show NAMESPACE:NAME', 'Show skill details'
       def show(name)
-        ensure_settings
         ns, nm = name.include?(':') ? name.split(':', 2) : ['default', name]
         response = daemon_get("/api/skills/#{ns}/#{nm}")
         unless response.is_a?(::Net::HTTPSuccess)
@@ -82,7 +78,6 @@ module Legion
       desc 'run NAME', 'Run a skill via the daemon'
       map 'run' => :run_skill
       def run_skill(name)
-        ensure_settings
         url     = "#{daemon_base_url}/api/skills/invoke"
         payload = { skill_name: name }.to_json
 
@@ -101,17 +96,17 @@ module Legion
         end
       end
 
-      private
+      no_commands do
+        def daemon_base_url
+          host = Legion::Settings.dig(:api, :host) || 'localhost'
+          port = Legion::Settings.dig(:api, :port) || 4567
+          "http://#{host}:#{port}"
+        end
 
-      def daemon_base_url
-        host = Legion::Settings.dig(:api, :host) || 'localhost'
-        port = Legion::Settings.dig(:api, :port) || 4567
-        "http://#{host}:#{port}"
-      end
-
-      def daemon_get(path)
-        uri = ::URI.parse("#{daemon_base_url}#{path}")
-        ::Net::HTTP.get_response(uri)
+        def daemon_get(path)
+          uri = ::URI.parse("#{daemon_base_url}#{path}")
+          ::Net::HTTP.get_response(uri)
+        end
       end
     end
   end
