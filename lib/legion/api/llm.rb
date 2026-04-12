@@ -287,6 +287,7 @@ module Legion
                            { requested_by: { identity: caller_identity, type: :user, credential: :api } }
                          end
 
+            caller_metadata = body[:metadata].is_a?(Hash) ? body[:metadata] : {}
             req = Legion::LLM::Pipeline::Request.build(
               messages:        messages,
               system:          body[:system],
@@ -294,7 +295,7 @@ module Legion
               tools:           tool_classes,
               caller:          caller_ctx,
               conversation_id: body[:conversation_id],
-              metadata:        { requested_tools: requested_tools },
+              metadata:        caller_metadata.merge(requested_tools: requested_tools),
               stream:          streaming,
               cache:           { strategy: :default, cacheable: true }
             )

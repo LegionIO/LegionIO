@@ -35,6 +35,7 @@ require_relative 'api/capacity'
 require_relative 'api/audit'
 require_relative 'api/metrics'
 require_relative 'api/llm'
+require_relative 'api/skills'
 require_relative 'api/catalog'
 require_relative 'api/org_chart'
 require_relative 'api/workflow'
@@ -197,6 +198,7 @@ module Legion
     register Routes::Audit
     register Routes::Metrics
     mount_library_routes('llm', Routes::Llm, 'Legion::LLM::Routes')
+    register Routes::Skills
     register Routes::ExtensionCatalog
     register Routes::OrgChart
     register Routes::Governance
