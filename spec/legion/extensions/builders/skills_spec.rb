@@ -24,9 +24,9 @@ RSpec.describe Legion::Extensions::Builder::Skills do
     context 'when skills directory is empty' do
       it 'registers nothing' do
         llm_mod = Module.new do
-          def self.started?; true; end
+          def self.started? = true
 
-          def self.settings; { skills: { enabled: true } }; end
+          def self.settings = { skills: { enabled: true } }
         end
         stub_const('Legion::LLM', llm_mod)
         stub_const('Legion::LLM::Skills', Module.new)

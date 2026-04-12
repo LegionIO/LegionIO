@@ -13,12 +13,12 @@ RSpec.describe Legion::API, 'skills routes' do
 
   before do
     skill_dbl = double(:skill,
-                       skill_name: 'brainstorming',
-                       namespace: 'superpowers',
-                       description: 'Brainstorm',
-                       trigger: :on_demand,
+                       skill_name:    'brainstorming',
+                       namespace:     'superpowers',
+                       description:   'Brainstorm',
+                       trigger:       :on_demand,
                        follows_skill: nil,
-                       steps: %i[step1])
+                       steps:         %i[step1])
     registry = Module.new do
       define_singleton_method(:all) { [skill_dbl] }
       define_singleton_method(:find) do |key|
@@ -54,7 +54,7 @@ RSpec.describe Legion::API, 'skills routes' do
   describe 'DELETE /api/skills/active/:conversation_id' do
     let(:conv_store) do
       Module.new do
-        def self.cancel_skill!(_id); nil; end
+        def self.cancel_skill!(_id) = nil
       end
     end
 

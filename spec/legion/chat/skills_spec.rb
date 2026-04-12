@@ -26,8 +26,8 @@ RSpec.describe Legion::Chat::Skills do
 
     context 'when LLM::Skills is available and started' do
       it 'delegates to Registry.all' do
-        registry_mod = Module.new { def self.all; [:skill_a]; end }
-        llm_mod = Module.new { def self.started?; true; end }
+        registry_mod = Module.new { def self.all = [:skill_a] }
+        llm_mod = Module.new { def self.started? = true }
         stub_const('Legion::LLM', llm_mod)
         stub_const('Legion::LLM::Skills', Module.new)
         stub_const('Legion::LLM::Skills::Registry', registry_mod)
@@ -60,7 +60,7 @@ RSpec.describe Legion::Chat::Skills do
         skill_class = double('SkillClass')
         registry_mod = Module.new
         allow(registry_mod).to receive(:find).with('my_skill').and_return(skill_class)
-        llm_mod = Module.new { def self.started?; true; end }
+        llm_mod = Module.new { def self.started? = true }
         stub_const('Legion::LLM', llm_mod)
         stub_const('Legion::LLM::Skills', Module.new)
         stub_const('Legion::LLM::Skills::Registry', registry_mod)

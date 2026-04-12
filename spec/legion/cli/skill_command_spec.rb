@@ -9,13 +9,13 @@ RSpec.describe Legion::CLI::Skill do
   let(:ok_skills_response) do
     double(:response,
            is_a?: true,
-           body: Legion::JSON.dump({
-                                     data: [
-                                       { namespace: 'superpowers', name: 'brainstorming',
-                                         trigger: 'on_demand', description: 'Brainstorm ideas' }
-                                     ],
-                                     meta: {}
-                                   }))
+           body:  Legion::JSON.dump({
+                                      data: [
+                                        { namespace: 'superpowers', name: 'brainstorming',
+                                          trigger: 'on_demand', description: 'Brainstorm ideas' }
+                                      ],
+                                      meta: {}
+                                    }))
   end
 
   let(:not_found_response) do
