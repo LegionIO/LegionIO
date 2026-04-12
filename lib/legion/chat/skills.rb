@@ -7,13 +7,14 @@ module Legion
         def discover
           return file_discover unless llm_skills_available?
 
-          Legion::LLM::Skills::Registry.all
+          Legion::LLM::Skills::Registry.all.map { |s| registry_descriptor(s) }
         end
 
         def find(name)
           return file_find(name) unless llm_skills_available?
 
-          Legion::LLM::Skills::Registry.find(name)
+          skill = Legion::LLM::Skills::Registry.find(name)
+          skill ? registry_descriptor(skill) : nil
         end
 
         # execute: REMOVED — all skill execution routes through the daemon API.
@@ -27,10 +28,15 @@ module Legion
             Legion::LLM.started?
         end
 
+        def registry_descriptor(skill)
+          { name: skill.skill_name, namespace: skill.namespace, prompt: nil,
+            description: skill.description, source: :registry }
+        end
+
         def file_discover
           dirs = skill_directories
           dirs.flat_map { |dir| ::Dir.glob(::File.join(dir, '*.{md,rb,yml,yaml}')) }
-              .map { |f| ::File.basename(f, '.*') }
+              .map { |f| { name: ::File.basename(f, '.*'), path: f, source: :file } }
         end
 
         def file_find(name)
@@ -38,7 +44,9 @@ module Legion
           dirs.each do |dir|
             %w[.md .rb .yml .yaml].each do |ext|
               path = ::File.join(dir, "#{name}#{ext}")
-              return path if ::File.exist?(path)
+              next unless ::File.exist?(path)
+
+              return { name: name, path: path, prompt: ::File.read(path), source: :file }
             end
           end
           nil
