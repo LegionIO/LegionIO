@@ -266,6 +266,12 @@ module Legion
           return false
         end
 
+        if extension.respond_to?(:skills_required?) && extension.skills_required? &&
+           !Object.const_defined?('Legion::LLM::Skills', false)
+          Legion::Logging.warn "#{ext_name} requires Legion::LLM::Skills but isn't loaded, skipping"
+          return false
+        end
+
         has_logger = extension.respond_to?(:log)
         extension.autobuild
 
