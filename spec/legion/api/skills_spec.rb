@@ -51,6 +51,61 @@ RSpec.describe Legion::API, 'skills routes' do
     end
   end
 
+  describe 'POST /api/skills/invoke' do
+    let(:executor_result) do
+      double(:result, message: { content: 'skill output' })
+    end
+
+    let(:executor_class) do
+      klass = double(:executor_class)
+      allow(klass).to receive(:new).and_return(double(:executor, call: executor_result))
+      klass
+    end
+
+    before do
+      conv_store = Module.new do
+        def self.set_skill_state(_id, **) = nil
+        def self.clear_skill_state(_id) = nil
+      end
+      request_class = double(:request_class)
+      allow(request_class).to receive(:build).and_return(double(:req))
+      stub_const('Legion::LLM::ConversationStore', conv_store)
+      stub_const('Legion::LLM::Pipeline::Request', request_class)
+      stub_const('Legion::LLM::Pipeline::Executor', executor_class)
+    end
+
+    it 'returns 200 with content on success' do
+      post '/api/skills/invoke',
+           Legion::JSON.dump({ skill_name: 'superpowers:brainstorming' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(200)
+      body = Legion::JSON.load(last_response.body)
+      expect(body.dig(:data, :content)).to eq('skill output')
+    end
+
+    it 'returns 422 when skill_name is missing' do
+      post '/api/skills/invoke',
+           Legion::JSON.dump({}),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(422)
+    end
+
+    it 'returns 404 when skill is not found' do
+      post '/api/skills/invoke',
+           Legion::JSON.dump({ skill_name: 'unknown:nope' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(404)
+    end
+
+    it 'returns 500 and clears state when executor raises' do
+      allow(executor_class).to receive(:new).and_raise(StandardError, 'boom')
+      post '/api/skills/invoke',
+           Legion::JSON.dump({ skill_name: 'superpowers:brainstorming' }),
+           'CONTENT_TYPE' => 'application/json'
+      expect(last_response.status).to eq(500)
+    end
+  end
+
   describe 'DELETE /api/skills/active/:conversation_id' do
     let(:conv_store) do
       Module.new do

@@ -32,7 +32,7 @@ module Legion
             return json_error('skills_unavailable', 'Skills unavailable', status_code: 503) unless skills_registry_available?
 
             skills = Legion::LLM::Skills::Registry.all.map { |s| skill_descriptor(s) }
-            json_collection(skills)
+            json_response(skills)
           end
         end
 
@@ -44,7 +44,7 @@ module Legion
             skill = Legion::LLM::Skills::Registry.find(key)
             return json_error('not_found', "Skill #{key} not found", status_code: 404) unless skill
 
-            json_response({ data: skill_descriptor(skill).merge(steps: skill.steps) })
+            json_response(skill_descriptor(skill).merge(steps: skill.steps))
           end
         end
 
@@ -69,8 +69,8 @@ module Legion
                 stream:          false
               )
               result = Legion::LLM::Pipeline::Executor.new(req).call
-              json_response({ data: { conversation_id: conv_id, content: result.message[:content],
-                                      skill_name: skill_name } })
+              json_response({ conversation_id: conv_id, content: result.message[:content],
+                              skill_name: skill_name })
             rescue StandardError => e
               Legion::LLM::ConversationStore.clear_skill_state(conv_id)
               json_error('internal_error', e.message, status_code: 500)
@@ -84,8 +84,8 @@ module Legion
             if defined?(Legion::LLM::ConversationStore)
               state = Legion::LLM::ConversationStore.cancel_skill!(conv_id)
               if state && defined?(Legion::Events)
-                Legion::Events.emit('skill.cancelled', { conversation_id: conv_id,
-                                                         skill_name:      state[:skill_key] })
+                Legion::Events.emit('skill.cancelled', conversation_id: conv_id,
+                                                       skill_name:      state[:skill_key])
               end
             end
             status 204

@@ -92,6 +92,45 @@ RSpec.describe Legion::CLI::Skill do
     end
   end
 
+  describe '#run_skill' do
+    let(:run_success_response) do
+      double(:response,
+             body: Legion::JSON.dump({
+                                       data: { conversation_id: 'conv_abc', content: 'result text', skill_name: 'superpowers:brainstorming' },
+                                       meta: {}
+                                     }))
+    end
+
+    let(:run_error_response) do
+      double(:response, code: '404', body: '{"error":{"code":"not_found"}}')
+    end
+
+    before do
+      allow(run_success_response).to receive(:is_a?).with(::Net::HTTPSuccess).and_return(true)
+      allow(run_error_response).to receive(:is_a?).with(::Net::HTTPSuccess).and_return(false)
+    end
+
+    context 'on success' do
+      before do
+        allow(::Net::HTTP).to receive(:post).and_return(run_success_response)
+      end
+
+      it 'outputs the skill content' do
+        expect { described_class.start(%w[run superpowers:brainstorming]) }.to output(/result text/).to_stdout
+      end
+    end
+
+    context 'on failure' do
+      before do
+        allow(::Net::HTTP).to receive(:post).and_return(run_error_response)
+      end
+
+      it 'outputs an error message' do
+        expect { described_class.start(%w[run unknown:nope]) }.to output(/Error/).to_stdout
+      end
+    end
+  end
+
   describe '#create' do
     it 'creates skill file in .legion/skills/' do
       described_class.start(%w[create new-skill])

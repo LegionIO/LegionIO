@@ -17,6 +17,8 @@ module Legion
           return if Legion::LLM.settings.dig(:skills, :enabled) == false
 
           @skills = {}
+          lex_mod = lex_class.is_a?(::Module) ? lex_class : ::Kernel.const_get(lex_class.to_s)
+          lex_mod.const_set(:Skills, ::Module.new) unless lex_mod.const_defined?(:Skills, false)
           require_files(skill_files)
           build_skill_list
         end
