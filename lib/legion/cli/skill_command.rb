@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require 'thor'
+require 'net/http'
+require 'json'
+require 'uri'
 
 module Legion
   module CLI
@@ -9,45 +12,54 @@ module Legion
         true
       end
 
-      desc 'list', 'List all discovered skills'
+      include Legion::CLI::Connection
+
+      desc 'list', 'List all registered skills'
       def list
-        require 'legion/chat/skills'
-        skills = Legion::Chat::Skills.discover
+        ensure_settings
+        response = daemon_get('/api/skills')
+        unless response.is_a?(::Net::HTTPSuccess)
+          say "Error fetching skills: #{response.code}", :red
+          exit 1
+        end
+
+        skills = ::JSON.parse(response.body, symbolize_names: true)[:data] || []
         if skills.empty?
-          say 'No skills found. Create skills in .legion/skills/ or ~/.legionio/skills/'
+          say 'No skills registered. Start the daemon with legion-llm loaded.'
           return
         end
 
         skills.each do |s|
-          type_label = s[:type] == :ruby ? '[rb]' : '[md]'
-          say "  /#{s[:name]} #{type_label} — #{s[:description]}", :green
-          say "    model: #{s[:model] || 'default'}, tools: #{s[:tools].empty? ? 'none' : s[:tools].join(', ')}"
+          say "  #{s[:namespace]}:#{s[:name]}  [#{s[:trigger]}]  #{s[:description]}", :green
         end
       end
 
-      desc 'show NAME', 'Display skill definition'
+      desc 'show NAMESPACE:NAME', 'Show skill details'
       def show(name)
-        require 'legion/chat/skills'
-        skill = Legion::Chat::Skills.find(name)
-        if skill
-          say "Name: #{skill[:name]}", :green
-          say "Description: #{skill[:description]}"
-          say "Model: #{skill[:model] || 'default'}"
-          say "Tools: #{skill[:tools].empty? ? 'none' : skill[:tools].join(', ')}"
-          say "Path: #{skill[:path]}"
-          say "\n--- Prompt ---\n#{skill[:prompt]}"
-        else
+        ensure_settings
+        ns, nm = name.include?(':') ? name.split(':', 2) : ['default', name]
+        response = daemon_get("/api/skills/#{ns}/#{nm}")
+        unless response.is_a?(::Net::HTTPSuccess)
           say "Skill '#{name}' not found", :red
+          exit 1
         end
+
+        result = ::JSON.parse(response.body, symbolize_names: true)
+        data   = result[:data] || {}
+        say "Name:        #{data[:namespace]}:#{data[:name]}", :green
+        say "Description: #{data[:description]}"
+        say "Trigger:     #{data[:trigger]}"
+        say "Steps:       #{Array(data[:steps]).join(', ')}"
       end
 
       desc 'create NAME', 'Scaffold a new skill file'
       def create(name)
+        require 'fileutils'
         dir = '.legion/skills'
         FileUtils.mkdir_p(dir)
-        path = File.join(dir, "#{name}.md")
+        path = ::File.join(dir, "#{name}.md")
 
-        if File.exist?(path)
+        if ::File.exist?(path)
           say "Skill already exists: #{path}", :red
           return
         end
@@ -55,36 +67,51 @@ module Legion
         content = <<~SKILL
           ---
           name: #{name}
+          namespace: local
           description: Describe what this skill does
-          model:
-          tools: []
+          trigger: on_demand
           ---
 
           You are a helpful assistant. Describe the skill's behavior here.
         SKILL
 
-        File.write(path, content)
+        ::File.write(path, content)
         say "Created: #{path}", :green
       end
 
-      desc 'execute NAME [INPUT]', 'Run a skill outside of chat'
-      map 'run' => :execute
-      def execute(name, *input)
-        require 'legion/chat/skills'
-        skill = Legion::Chat::Skills.find(name)
-        unless skill
-          say "Skill '#{name}' not found", :red
-          return
-        end
+      desc 'run NAME', 'Run a skill via the daemon'
+      map 'run' => :run_skill
+      def run_skill(name)
+        ensure_settings
+        url     = "#{daemon_base_url}/api/skills/invoke"
+        payload = { skill_name: name }.to_json
 
-        user_input = input.empty? ? nil : input.join(' ')
-        result = Legion::Chat::Skills.execute(skill, input: user_input)
+        response = ::Net::HTTP.post(
+          ::URI.parse(url),
+          payload,
+          'Content-Type' => 'application/json'
+        )
 
-        if result[:success]
-          say result[:output].to_s
+        if response.is_a?(::Net::HTTPSuccess)
+          result = ::JSON.parse(response.body, symbolize_names: true)
+          say result.dig(:data, :content).to_s
         else
-          say "Skill failed: #{result[:error]}", :red
+          say "Error: #{response.code} #{response.body}", :red
+          exit 1
         end
+      end
+
+      private
+
+      def daemon_base_url
+        host = Legion::Settings.dig(:api, :host) || 'localhost'
+        port = Legion::Settings.dig(:api, :port) || 4567
+        "http://#{host}:#{port}"
+      end
+
+      def daemon_get(path)
+        uri = ::URI.parse("#{daemon_base_url}#{path}")
+        ::Net::HTTP.get_response(uri)
       end
     end
   end
