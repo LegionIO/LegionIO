@@ -7,6 +7,7 @@ require_relative 'builders/helpers'
 require_relative 'builders/hooks'
 require_relative 'builders/routes'
 require_relative 'builders/runners'
+require_relative 'builders/skills'
 
 require_relative 'helpers/segments'
 require_relative 'helpers/core'
@@ -57,6 +58,7 @@ module Legion
       include Legion::Extensions::Builder::Actors
       include Legion::Extensions::Builder::Hooks
       include Legion::Extensions::Builder::Routes
+      include Legion::Extensions::Builder::Skills
 
       def autobuild
         Legion::Logging.debug "[Core] autobuild start: #{name}" if defined?(Legion::Logging)
@@ -81,6 +83,7 @@ module Legion
         build_actors
         build_hooks
         build_routes
+        build_skills if skills_required?
         Legion::Logging.debug "[Core] autobuild complete: #{name}" if defined?(Legion::Logging)
       end
 
@@ -105,6 +108,10 @@ module Legion
       end
 
       def llm_required?
+        false
+      end
+
+      def skills_required?
         false
       end
 
