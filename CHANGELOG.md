@@ -2,8 +2,12 @@
 
 ## [Unreleased]
 
+## [1.7.37] - 2026-04-09
+
 ### Added
-- register_credential_providers step in boot sequence for Phase 8 credential-only identity module registration with Broker
+- Trigger word tool injection: extensions and runners declare trigger words that auto-promote deferred tools when detected in LLM messages
+- `Legion::Tools::TriggerIndex` — Concurrent::Map-backed reverse index for O(1) trigger word lookup
+- `trigger_words` DSL on Extensions::Core, runner modules, and Tools::Base
 
 ## [1.8.0] - 2026-04-12
 

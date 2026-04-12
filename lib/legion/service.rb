@@ -935,6 +935,13 @@ module Legion
       require 'legion/tools'
       Legion::Tools.register_all
       Legion::Tools::Discovery.discover_and_register
+      future = Legion::Tools::TriggerIndex.build_async!
+      if future.respond_to?(:rescue)
+        @trigger_index_build_future = future.rescue do |e|
+          handle_exception(e, level: :warn, operation: 'service.register_core_tools.trigger_index_build')
+          nil
+        end
+      end
       Legion::Tools::EmbeddingCache.setup
 
       log.info(

@@ -26,7 +26,7 @@ module Legion
       end
 
       def to_ndjson(records)
-        export_batch(records).map { |r| Legion::JSON.dump(r) }.join("\n")
+        export_batch(records).map { |r| Legion::JSON.generate(r) }.join("\n")
       end
     end
   end
