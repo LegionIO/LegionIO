@@ -5,6 +5,16 @@
 ### Added
 - register_credential_providers step in boot sequence for Phase 8 credential-only identity module registration with Broker
 
+## [1.8.0] - 2026-04-12
+
+### Added
+- `Legion::Extensions::Builders::Skills` — parallel to `Builders::Runners`, discovers and registers `lex-skill-*` gems into `Legion::LLM::Skills::Registry` at boot
+- `Legion::Extensions::Core` — `skills_required?` guard; extensions declaring this flag are skipped when legion-llm is not loaded
+- `Legion::Chat::Skills` rewritten — delegates to `Legion::LLM::Skills::Registry` instead of YAML file discovery; returns `{ skills: [...] }` hash
+- `Legion::API::Skills` — REST endpoints: `GET /api/skills`, `GET /api/skills/:namespace/:name`, `POST /api/skills/:namespace/:name/invoke`, `DELETE /api/skills/active/:conversation_id`
+- `Legion::CLI::SkillCommand` rewritten — delegates to daemon API instead of local YAML parsing; `list`, `show`, `run` subcommands
+- `Builders::Skills` wired into `Extensions::Core#autobuild` after `Builders::Runners`
+
 ## [1.7.36] - 2026-04-09
 
 ### Changed
