@@ -87,7 +87,8 @@ RSpec.describe Legion::CLI::Skill do
       end
 
       it 'shows not found message' do
-        expect { described_class.start(%w[show unknown:nope]) }.to output(/not found/).to_stdout
+        expect { described_class.start(%w[show unknown:nope]) }
+          .to output(/not found/).to_stdout.and raise_error(SystemExit)
       end
     end
   end
@@ -126,19 +127,25 @@ RSpec.describe Legion::CLI::Skill do
       end
 
       it 'outputs an error message' do
-        expect { described_class.start(%w[run unknown:nope]) }.to output(/Error/).to_stdout
+        expect { described_class.start(%w[run unknown:nope]) }
+          .to output(/Error/).to_stdout.and raise_error(SystemExit)
       end
     end
   end
 
   describe '#create' do
+    around do |example|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { example.run }
+      end
+    end
+
     it 'creates skill file in .legion/skills/' do
       described_class.start(%w[create new-skill])
       path = '.legion/skills/new-skill.md'
       expect(File).to exist(path)
       content = File.read(path)
       expect(content).to include('name: new-skill')
-      FileUtils.rm_rf('.legion/skills/new-skill.md')
     end
 
     context 'when skill already exists' do
@@ -147,8 +154,6 @@ RSpec.describe Legion::CLI::Skill do
         FileUtils.mkdir_p(dir)
         File.write(File.join(dir, 'existing.md'), '---')
       end
-
-      after { FileUtils.rm_rf('.legion/skills/existing.md') }
 
       it 'shows already exists message' do
         expect { described_class.start(%w[create existing]) }.to output(/already exists/).to_stdout
