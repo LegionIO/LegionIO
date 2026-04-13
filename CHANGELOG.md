@@ -8,6 +8,7 @@
 - Trigger word tool injection: extensions and runners declare trigger words that auto-promote deferred tools when detected in LLM messages
 - `Legion::Tools::TriggerIndex` — Concurrent::Map-backed reverse index for O(1) trigger word lookup
 - `trigger_words` DSL on Extensions::Core, runner modules, and Tools::Base
+- also fixed the stupid thor rspec issue
 
 ## [1.8.0] - 2026-04-12
 
