@@ -41,7 +41,7 @@ module Legion
         Legion::Logging.debug "[Status] generate_task_id: #{runner_class}##{function} status=#{status}" if defined?(Legion::Logging)
         return nil unless Legion::Settings[:data][:connected]
 
-        runner = Legion::Data::Model::Runner.where(namespace: runner_class.to_s.downcase).first
+        runner = Legion::Data::Model::Runner.where(namespace: runner_class.to_s).first
         return nil if runner.nil?
 
         function = Legion::Data::Model::Function.where(runner_id: runner.values[:id], name: function).first
