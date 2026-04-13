@@ -15,8 +15,8 @@ module Legion
                         Legion::LLM.started?
 
               halt 503, { 'Content-Type' => 'application/json' },
-                   Legion::JSON.dump({ error: { code:    'llm_unavailable',
-                                                message: 'LLM subsystem is not available' } })
+                   Legion::JSON.generate({ error: { code:    'llm_unavailable',
+                                                    message: 'LLM subsystem is not available' } })
             end
 
             define_method(:cache_available?) do
@@ -241,7 +241,7 @@ module Legion
 
             unless messages.is_a?(Array)
               halt 400, { 'Content-Type' => 'application/json' },
-                   Legion::JSON.dump({ error: { code: 'invalid_messages', message: 'messages must be an array' } })
+                   Legion::JSON.generate({ error: { code: 'invalid_messages', message: 'messages must be an array' } })
             end
 
             caller_identity = env['legion.tenant_id'] || 'api:inference'
@@ -287,6 +287,7 @@ module Legion
                            { requested_by: { identity: caller_identity, type: :user, credential: :api } }
                          end
 
+            caller_metadata = body[:metadata].is_a?(Hash) ? body[:metadata] : {}
             req = Legion::LLM::Pipeline::Request.build(
               messages:        messages,
               system:          body[:system],
@@ -294,7 +295,7 @@ module Legion
               tools:           tool_classes,
               caller:          caller_ctx,
               conversation_id: body[:conversation_id],
-              metadata:        { requested_tools: requested_tools },
+              metadata:        caller_metadata.merge(requested_tools: requested_tools),
               stream:          streaming,
               cache:           { strategy: :default, cacheable: true }
             )
