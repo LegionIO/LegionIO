@@ -30,10 +30,10 @@ RSpec.describe 'Runner.run CheckSubtask forwarding' do
 
     it 'forwards task_id explicitly when args: is provided' do
       Legion::Runner.run(
-        runner_class: TestRunners::CheckSubtaskTest,
-        function: :do_work,
-        task_id: 99,
-        args: { some_param: 'value' },
+        runner_class:  TestRunners::CheckSubtaskTest,
+        function:      :do_work,
+        task_id:       99,
+        args:          { some_param: 'value' },
         check_subtask: true
       )
       expect(Legion::Transport::Messages::CheckSubtask).to have_received(:new).with(
@@ -43,11 +43,11 @@ RSpec.describe 'Runner.run CheckSubtask forwarding' do
 
     it 'forwards master_id explicitly when args: is provided' do
       Legion::Runner.run(
-        runner_class: TestRunners::CheckSubtaskTest,
-        function: :do_work,
-        task_id: 99,
-        master_id: 7,
-        args: { some_param: 'value' },
+        runner_class:  TestRunners::CheckSubtaskTest,
+        function:      :do_work,
+        task_id:       99,
+        master_id:     7,
+        args:          { some_param: 'value' },
         check_subtask: true
       )
       expect(Legion::Transport::Messages::CheckSubtask).to have_received(:new).with(
@@ -57,11 +57,11 @@ RSpec.describe 'Runner.run CheckSubtask forwarding' do
 
     it 'forwards both task_id and master_id when args: is provided' do
       Legion::Runner.run(
-        runner_class: TestRunners::CheckSubtaskTest,
-        function: :do_work,
-        task_id: 55,
-        master_id: 3,
-        args: { payload: 'data' },
+        runner_class:  TestRunners::CheckSubtaskTest,
+        function:      :do_work,
+        task_id:       55,
+        master_id:     3,
+        args:          { payload: 'data' },
         check_subtask: true
       )
       expect(Legion::Transport::Messages::CheckSubtask).to have_received(:new).with(
