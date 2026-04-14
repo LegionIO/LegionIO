@@ -74,8 +74,8 @@ RSpec.describe Legion::CLI::FleetSetup do
     before do
       allow(Legion::Workflow::Loader).to receive(:new).and_return(mock_loader)
       allow(mock_loader).to receive(:install).and_return({
-        success: true, chain_id: 1, relationship_ids: (1..10).to_a
-      })
+                                                           success: true, chain_id: 1, relationship_ids: (1..10).to_a
+                                                         })
       allow(setup).to receive(:seed_conditioner_rules).and_return({ success: true })
       allow(setup).to receive(:register_settings).and_return({ success: true })
       allow(setup).to receive(:apply_planner_timeout_policy)

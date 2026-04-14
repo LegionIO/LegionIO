@@ -41,7 +41,7 @@ RSpec.describe 'Fleet CLI Integration' do
       gem_names = Legion::CLI::FleetSetup::FLEET_GEMS.map { |g| g.sub('lex-', '') }
       required_extensions.each do |ext|
         expect(gem_names).to include(ext),
-          "Extension '#{ext}' in manifest but 'lex-#{ext}' not in FLEET_GEMS"
+                             "Extension '#{ext}' in manifest but 'lex-#{ext}' not in FLEET_GEMS"
       end
     end
 
@@ -59,7 +59,7 @@ RSpec.describe 'Fleet CLI Integration' do
         conditions = rule[:conditions][:all] || rule[:conditions][:any] || []
         conditions.each do |cond|
           expect(valid_ops).to include(cond[:operator]),
-            "Rule '#{rule[:name]}' uses invalid operator '#{cond[:operator]}'"
+                               "Rule '#{rule[:name]}' uses invalid operator '#{cond[:operator]}'"
         end
       end
     end
@@ -75,7 +75,7 @@ RSpec.describe 'Fleet CLI Integration' do
         conditions = rel[:conditions][:all] || rel[:conditions][:any] || []
         conditions.each do |cond|
           expect(valid_ops).to include(cond[:operator]),
-            "Relationship '#{rel[:name]}' uses invalid operator '#{cond[:operator]}'"
+                               "Relationship '#{rel[:name]}' uses invalid operator '#{cond[:operator]}'"
         end
       end
     end
@@ -87,7 +87,7 @@ RSpec.describe 'Fleet CLI Integration' do
         conditions = rel[:conditions][:all] || rel[:conditions][:any] || []
         conditions.each do |cond|
           expect(cond[:fact]).to start_with('results.'),
-            "Relationship '#{rel[:name]}' fact '#{cond[:fact]}' missing 'results.' prefix"
+                                 "Relationship '#{rel[:name]}' fact '#{cond[:fact]}' missing 'results.' prefix"
         end
       end
     end
@@ -101,8 +101,9 @@ RSpec.describe 'Fleet CLI Integration' do
     it 'non-entry relationships default to no new chains' do
       # Relationships 3-8 plus 4b,4c (indices 2-9) should not allow new chains
       (2..9).each do |idx|
+        rel_name = manifest.relationships[idx][:name]
         expect(manifest.relationships[idx][:allow_new_chains]).to be(false),
-          "Relationship at index #{idx} (#{manifest.relationships[idx][:name]}) should not allow new chains"
+                                                                  "Relationship at index #{idx} (#{rel_name}) should not allow new chains"
       end
     end
 
@@ -127,7 +128,7 @@ RSpec.describe 'Fleet CLI Integration' do
       expected = %w[status pending approve add config]
       expected.each do |cmd|
         expect(Legion::CLI::FleetCommand.commands).to have_key(cmd),
-          "Missing fleet command: #{cmd}"
+                                                      "Missing fleet command: #{cmd}"
       end
     end
   end

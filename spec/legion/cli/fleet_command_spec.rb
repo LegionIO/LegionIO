@@ -48,7 +48,7 @@ RSpec.describe Legion::CLI::FleetCommand do
   describe '#status' do
     let(:mock_api_response) do
       {
-        queues:           [
+        queues:            [
           { name: 'lex.assessor.runners.assessor', depth: 3 },
           { name: 'lex.developer.runners.developer', depth: 1 }
         ],
