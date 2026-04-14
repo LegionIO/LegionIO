@@ -83,7 +83,7 @@ module Legion
         end
 
         def runner_class
-          @runner_class ||= Kernel.const_get(actor_class.to_s.sub(/Actor$/, 'Runners'))
+          @runner_class ||= Kernel.const_get(actor_class.to_s.sub('::Actor::', '::Runners::'))
         end
 
         def runner_name
