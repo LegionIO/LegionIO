@@ -30,7 +30,7 @@ RSpec.describe Legion::CLI::Task do
     before { stub_data_connection }
 
     it 'queries tasks and renders table' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_dataset = double('dataset')
@@ -43,7 +43,7 @@ RSpec.describe Legion::CLI::Task do
     end
 
     it 'applies status filter when provided' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_dataset = double('dataset')
@@ -61,7 +61,7 @@ RSpec.describe Legion::CLI::Task do
     before { stub_data_connection }
 
     it 'displays task details' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_task = double('task', values: {
@@ -77,7 +77,7 @@ RSpec.describe Legion::CLI::Task do
     end
 
     it 'reports error for missing task' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
       allow(task_model).to receive(:[]).with(999).and_return(nil)
 
@@ -86,7 +86,7 @@ RSpec.describe Legion::CLI::Task do
     end
 
     it 'outputs JSON when --json flag is set' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_task = double('task', values: { id: 1, status: 'queued' })
@@ -133,7 +133,7 @@ RSpec.describe Legion::CLI::Task do
     before { stub_data_connection }
 
     it 'reports no tasks to purge when count is zero' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_dataset = double('dataset')
@@ -145,7 +145,7 @@ RSpec.describe Legion::CLI::Task do
     end
 
     it 'deletes old tasks when confirmed' do
-      task_model = class_double('Legion::Data::Model::Task')
+      task_model = double('Legion::Data::Model::Task')
       stub_const('Legion::Data::Model::Task', task_model)
 
       fake_dataset = double('dataset')
