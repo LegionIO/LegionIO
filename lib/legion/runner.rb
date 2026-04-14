@@ -76,6 +76,8 @@ module Legion
                                                       function:      function,
                                                       result:        result,
                                                       original_args: args,
+                                                      task_id:       task_id,
+                                                      master_id:     master_id,
                                                       **opts).publish
       end
       if defined?(Legion::Audit)

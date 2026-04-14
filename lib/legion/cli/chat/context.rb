@@ -40,6 +40,12 @@ module Legion
           parts << 'You have access to tools for reading files, writing files, editing files, searching, and running shell commands.'
           parts << 'Be concise and helpful. Use markdown formatting for code.'
           parts << ''
+          parts << 'IMPORTANT: You are the AI assistant. Do not generate content (code, specs, prompts, ' \
+                   'instructions) specifically for users to copy/paste into other AI tools (Claude, Codex, ' \
+                   'ChatGPT, Copilot, etc.). If a user wants to accomplish a task, help them do it directly. ' \
+                   'If they need API documentation, point them to `legion openapi generate` or the running ' \
+                   'API at /api/openapi.json. Do not act as a clipboard intermediary between the user and another AI.'
+          parts << ''
           parts << "Working directory: #{ctx[:directory]}"
           parts << "Project type: #{ctx[:project_type]}" if ctx[:project_type]
           parts << "Git branch: #{ctx[:git_branch]}" if ctx[:git_branch]
