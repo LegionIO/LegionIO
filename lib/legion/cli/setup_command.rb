@@ -152,6 +152,50 @@ module Legion
         install_pack(:channels)
       end
 
+      desc 'fleet', 'Install and wire the Fleet Pipeline (two-phase: install gems + seed relationships)'
+      option :phase, type: :numeric, desc: 'Run only phase 1 (install) or 2 (wire)'
+      option :dry_run, type: :boolean, default: false, desc: 'Show what would be installed'
+      def fleet
+        require 'legion/cli/fleet_setup'
+        setup = Legion::CLI::FleetSetup.new(formatter: formatter, options: options)
+
+        if options[:dry_run]
+          gems = Legion::CLI::FleetSetup.fleet_gems
+          installed, missing = gems.partition { |g| Gem::Specification.find_by_name(g) rescue nil } # rubocop:disable Style/RescueModifier
+          if options[:json]
+            formatter.json(to_install: missing, already_installed: installed)
+          else
+            formatter.header('Fleet Setup (dry run)')
+            missing.each { |g| puts "  install  #{g}" }
+            installed.each { |g| puts "  skip     #{g} (already installed)" }
+          end
+          return
+        end
+
+        case options[:phase]
+        when 1
+          result = setup.phase1_install
+        when 2
+          Connection.ensure_data
+          result = setup.phase2_wire
+          Connection.shutdown
+        else
+          result = setup.phase1_install
+          if result[:success]
+            formatter.spacer unless options[:json]
+            formatter.warn('Phase 2 requires LegionIO restart to register extensions.') unless options[:json]
+            formatter.warn('Run: legionio start && legionio setup fleet --phase 2') unless options[:json]
+          end
+        end
+
+        formatter.json(result) if options[:json]
+      rescue SystemExit
+        raise
+      rescue StandardError => e
+        formatter.error("Fleet setup failed: #{e.message}")
+        raise SystemExit, 1
+      end
+
       desc 'python', 'Set up Legion Python environment (venv + document/data packages)'
       option :packages, type: :array,   default: [],    banner: 'PKG [PKG...]', desc: 'Additional pip packages to install'
       option :rebuild,  type: :boolean, default: false, desc: 'Destroy and recreate the venv from scratch'

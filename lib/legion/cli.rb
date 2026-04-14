@@ -72,6 +72,7 @@ module Legion
     autoload :Broker,         'legion/cli/broker_command'
     autoload :AdminCommand,   'legion/cli/admin_command'
     autoload :Workflow,       'legion/cli/workflow_command'
+    autoload :FleetCommand,   'legion/cli/fleet_command'
     autoload :Mode,           'legion/cli/mode_command'
 
     module Groups
@@ -312,6 +313,9 @@ module Legion
 
       desc 'workflow SUBCOMMAND', 'Manage workflow bundles'
       subcommand 'workflow', Legion::CLI::Workflow
+
+      desc 'fleet SUBCOMMAND', 'Fleet pipeline operations (status, pending, approve, add, config)'
+      subcommand 'fleet', Legion::CLI::FleetCommand
 
       desc 'mode SUBCOMMAND', 'View and switch extension profiles and process roles'
       subcommand 'mode', Legion::CLI::Mode
