@@ -29,6 +29,11 @@ module Legion
           klass = Kernel.const_get(klass) if klass.is_a?(String)
           func = respond_to?(:runner_function) ? runner_function : :action
           if klass == self.class
+            unless respond_to?(func)
+              raise NoMethodError,
+                    "#{self.class} resolved runner_class to itself but does not define '#{func}'. " \
+                    'Override runner_class or define the method on the actor.'
+            end
             send(func, **args)
           else
             klass.send(func, **args)

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-04-14
+
+### Fixed
+- `runner_class` resolution for actors nested under `Actor::` namespace — `sub(/Actor$/, 'Runners')` only matched `Actor` at end-of-string, failing for `Extension::Actor::ClassName` patterns (e.g., `Health::Actor::Watchdog`, `Node::Actor::Beat`). Changed to `sub(/::Actor::/, '::Runners::')` which matches the path segment. Affects 9+ actors across lex-health, lex-node, lex-tasker, lex-conditioner, lex-transformer.
+- Added defensive guard in `manual` method — raises descriptive `NoMethodError` when `runner_class` resolves to the actor itself and the function is not defined, instead of a generic undefined method error.
+
 ## [1.8.2] - 2026-04-13
 
 ### Added
