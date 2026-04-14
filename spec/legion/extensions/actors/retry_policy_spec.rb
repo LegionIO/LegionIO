@@ -53,7 +53,7 @@ RSpec.describe Legion::Extensions::Actors::RetryPolicy do
     end
 
     it 'handles symbol keys' do
-      headers = { :'x-retry-count' => 2 }
+      headers = { 'x-retry-count': 2 }
       expect(described_class.extract_retry_count(headers)).to eq(2)
     end
   end
