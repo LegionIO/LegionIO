@@ -1,0 +1,244 @@
+---
+name: fleet-pipeline
+version: "1.0.0"
+description: >-
+  Fleet Pipeline: universal intake-to-done engine. Connects assessor, planner,
+  developer, and validator via conditioner-driven routing. 10 relationships
+  define the flexible pipeline graph per design spec section 4.
+
+requires:
+  - lex-assessor
+  - lex-planner
+  - lex-developer
+  - lex-validator
+  - lex-codegen
+  - lex-eval
+  - lex-exec
+  - lex-tasker
+  - lex-conditioner
+  - lex-transformer
+
+relationships:
+  # Relationship 1: Assessor -> Planner (if planning enabled)
+  - name: fleet-assess-to-plan
+    trigger:
+      extension: assessor
+      runner: assessor
+      function: assess
+    action:
+      extension: planner
+      runner: planner
+      function: plan
+    conditions:
+      all:
+        - fact: results.config.planning.enabled
+          operator: equal
+          value: true
+    allow_new_chains: true
+
+  # Relationship 2: Assessor -> Developer (if planning disabled)
+  - name: fleet-assess-to-develop
+    trigger:
+      extension: assessor
+      runner: assessor
+      function: assess
+    action:
+      extension: developer
+      runner: developer
+      function: implement
+    conditions:
+      all:
+        - fact: results.config.planning.enabled
+          operator: equal
+          value: false
+    allow_new_chains: true
+
+  # Relationship 3: Planner -> Developer (chain inherited)
+  - name: fleet-plan-to-develop
+    trigger:
+      extension: planner
+      runner: planner
+      function: plan
+    action:
+      extension: developer
+      runner: developer
+      function: implement
+    allow_new_chains: false
+
+  # Relationship 4: Developer -> Validator (if validation enabled)
+  - name: fleet-develop-to-validate
+    trigger:
+      extension: developer
+      runner: developer
+      function: implement
+    action:
+      extension: validator
+      runner: validator
+      function: validate
+    conditions:
+      all:
+        - fact: results.config.validation.enabled
+          operator: equal
+          value: true
+    allow_new_chains: false
+
+  # Relationship 4b: Developer feedback -> Validator (when validation enabled)
+  - name: fleet-feedback-to-validate
+    trigger:
+      extension: developer
+      runner: developer
+      function: incorporate_feedback
+    action:
+      extension: validator
+      runner: validator
+      function: validate
+    conditions:
+      all:
+        - fact: results.config.validation.enabled
+          operator: equal
+          value: true
+    allow_new_chains: false
+
+  # Relationship 4c: Developer feedback -> Escalate (when results.escalate == true)
+  - name: fleet-feedback-to-escalate
+    trigger:
+      extension: developer
+      runner: developer
+      function: incorporate_feedback
+    action:
+      extension: assessor
+      runner: assessor
+      function: escalate
+    conditions:
+      all:
+        - fact: results.escalate
+          operator: equal
+          value: true
+    allow_new_chains: false
+
+  # Relationship 5: Developer -> Ship (if validation disabled)
+  - name: fleet-develop-to-ship
+    trigger:
+      extension: developer
+      runner: developer
+      function: implement
+    action:
+      extension: developer
+      runner: ship
+      function: finalize
+    conditions:
+      all:
+        - fact: results.config.validation.enabled
+          operator: equal
+          value: false
+    allow_new_chains: false
+
+  # Relationship 6: Validator -> Ship (approved)
+  - name: fleet-validate-to-ship
+    trigger:
+      extension: validator
+      runner: validator
+      function: validate
+    action:
+      extension: developer
+      runner: ship
+      function: finalize
+    conditions:
+      all:
+        - fact: results.pipeline.review_result.verdict
+          operator: equal
+          value: approved
+    allow_new_chains: false
+
+  # Relationship 7: Validator -> Developer feedback (rejected, under limit)
+  # NOTE: value 4 (not 5) because attempt starts at 0 and increments before
+  # re-entering implement. With value=4: attempts 0,1,2,3 retry (4 retries).
+  # Attempt 4 escalates. This gives exactly max_iterations=5 total runs.
+  # IMPORTANT: This hardcoded value is a safety net. The developer's
+  # incorporate_feedback runner checks the per-item limit internally,
+  # allowing different max_iterations per work item without reseeding.
+  - name: fleet-validate-to-feedback
+    trigger:
+      extension: validator
+      runner: validator
+      function: validate
+    action:
+      extension: developer
+      runner: developer
+      function: incorporate_feedback
+    conditions:
+      all:
+        - fact: results.pipeline.review_result.verdict
+          operator: equal
+          value: rejected
+        - fact: results.pipeline.attempt
+          operator: less_than
+          value: 4
+    allow_new_chains: false
+
+  # Relationship 8: Validator -> Escalate (rejected, at limit)
+  # NOTE: Safety-net fallback. Primary enforcement is in incorporate_feedback.
+  - name: fleet-validate-to-escalate
+    trigger:
+      extension: validator
+      runner: validator
+      function: validate
+    action:
+      extension: assessor
+      runner: assessor
+      function: escalate
+    conditions:
+      all:
+        - fact: results.pipeline.review_result.verdict
+          operator: equal
+          value: rejected
+        - fact: results.pipeline.attempt
+          operator: greater_or_equal
+          value: 4
+    allow_new_chains: false
+
+settings:
+  fleet:
+    enabled: true
+    sources: []
+    llm:
+      routing:
+        escalation:
+          enabled: true
+    planning:
+      enabled: true
+      solvers: 1
+      validators: 1
+      max_iterations: 2
+    implementation:
+      solvers: 1
+      validators: 3
+      max_iterations: 5
+    validation:
+      enabled: true
+      run_tests: true
+      run_lint: true
+      security_scan: true
+      adversarial_review: true
+    feedback:
+      drain_enabled: true
+      max_drain_rounds: 3
+      summarize_after: 2
+    workspace:
+      isolation: worktree
+      cleanup_on_complete: true
+    context:
+      load_repo_docs: true
+      load_file_tree: true
+      max_context_files: 50
+    tracing:
+      stage_comments: true
+      token_tracking: true
+    safety:
+      poison_message_threshold: 2
+      cancel_allowed: true
+    selection:
+      strategy: test_winner
+    escalation:
+      on_max_iterations: human
+      consent_domain: fleet.shipping

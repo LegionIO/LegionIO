@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-04-14
+
+### Added
+- `legionio fleet` CLI subcommand tree: `status`, `pending`, `approve`, `add`, `config`
+- `legionio setup fleet` two-phase command: phase 1 installs fleet gems, phase 2 wires relationships via `Workflow::Loader`, seeds conditioner rules, registers settings via `load_module_settings`, merges LLM routing overrides, applies RabbitMQ planner consumer timeout policy
+- Fleet pipeline YAML manifest with 10 relationships (1-8 plus 4b, 4c) connecting assessor, planner, developer, and validator
+- `Legion::Fleet::SettingsDefaults` — file-based fleet settings persistence
+- `Legion::Fleet::ConditionerRules` — supplementary conditioner rule seeds (skip-planning-trivial, skip-validation-trivial, escalate-max-iterations, critical-production-max-capability, governance-mind-growth)
+- Fleet API routes: `POST /api/fleet/sources`, `GET /api/fleet/pending` (filters both `fleet.shipping` and `fleet.escalation`), `POST /api/fleet/approve`, `GET /api/fleet/sources`, `GET /api/fleet/status`
+
 ## [1.8.3] - 2026-04-14
 
 ### Fixed
