@@ -2,6 +2,7 @@
 
 require_relative 'base'
 require_relative 'dsl'
+require_relative 'retry_policy'
 require 'date'
 require 'securerandom'
 
@@ -84,7 +85,7 @@ module Legion
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
             handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
-            @queue.reject(delivery_info.delivery_tag) if manual_ack
+            reject_or_retry(delivery_info, metadata, payload) if manual_ack
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
         rescue StandardError => e
@@ -176,8 +177,8 @@ module Legion
             cancel if Legion::Settings[:client][:shutting_down]
           rescue StandardError => e
             handle_exception(e)
-            log.warn "[Subscription] nacking message for #{lex_name}/#{fn}"
-            @queue.reject(delivery_info.delivery_tag) if manual_ack
+            log.warn "[Subscription] retry-or-dlq for #{lex_name}/#{fn}"
+            reject_or_retry(delivery_info, metadata, payload) if manual_ack
           end
           log.info "[Subscription] subscribed: #{lex_name}/#{runner_name} (consumer registered)" if defined?(log)
         end
@@ -222,6 +223,47 @@ module Legion
           else
             run_block.call
           end
+        end
+
+        def reject_or_retry(delivery_info, metadata, payload)
+          headers = metadata&.headers || {}
+          retry_count = RetryPolicy.extract_retry_count(headers)
+          threshold = RetryPolicy.retry_threshold
+
+          if RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
+            base_delay = Legion::Settings.dig(:fleet, :transport, :retry_base_delay_seconds) || 1
+            max_delay = Legion::Settings.dig(:fleet, :transport, :retry_max_delay_seconds) || 30
+            delay = [base_delay * (2**retry_count), max_delay].min
+            log.info "[Subscription] retrying message in #{delay}s (attempt #{retry_count + 1}/#{threshold}) for #{lex_name}"
+            sleep(delay)
+            if republish_with_retry_count(delivery_info, metadata, payload, retry_count + 1)
+              @queue.acknowledge(delivery_info.delivery_tag)
+            else
+              @queue.reject(delivery_info.delivery_tag, requeue: false)
+            end
+          else
+            log.warn "[Subscription] dead-lettering message after #{retry_count} retries for #{lex_name}"
+            @queue.reject(delivery_info.delivery_tag, requeue: false)
+          end
+        end
+
+        def republish_with_retry_count(_delivery_info, metadata, payload, new_count)
+          headers = (metadata&.headers || {}).dup
+          headers[RetryPolicy::RETRY_COUNT_HEADER] = new_count
+
+          exchange = @queue.channel.default_exchange
+          exchange.publish(
+            payload,
+            routing_key:      @queue.name,
+            headers:          headers,
+            content_type:     metadata&.content_type,
+            content_encoding: metadata&.content_encoding,
+            persistent:       true
+          )
+          true
+        rescue StandardError => e
+          log.warn "[Subscription] republish failed, dead-lettering: #{e.message}"
+          false
         end
       end
     end

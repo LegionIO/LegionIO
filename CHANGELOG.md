@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-04-13
+
+### Added
+- `Legion::Extensions::Actors::RetryPolicy` — configurable retry threshold module with `should_retry?`, `extract_retry_count`, and `retry_threshold` helpers
+- Subscription actor `reject_or_retry` — counts retries via `x-retry-count` header, republishes with incremented header and exponential backoff (`2^n * base_delay`, capped at `max_delay`), dead-letters to DLX when threshold exceeded
+- Settings: `fleet.poison_message_threshold` (primary), `transport.retry_threshold` (fallback), `fleet.transport.retry_base_delay_seconds`, `fleet.transport.retry_max_delay_seconds`
+
 ## [1.7.37] - 2026-04-09
 
 ### Added
