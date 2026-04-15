@@ -42,7 +42,11 @@ module Legion
             class_methods:   {}
           }
           entry[:scheduled_tasks] = loaded_runner.scheduled_tasks if loaded_runner.method_defined?(:scheduled_tasks)
-          entry[:trigger_words] = loaded_runner.trigger_words if loaded_runner.respond_to?(:trigger_words)
+          entry[:trigger_words] = if loaded_runner.respond_to?(:trigger_words) && loaded_runner.trigger_words.any?
+                                    loaded_runner.trigger_words
+                                  else
+                                    [runner_name]
+                                  end
           entry[:desc] = settings[:runners][runner_name.to_sym][:desc] if settings.key?(:runners) && settings[:runners].key?(runner_name.to_sym)
           entry
         end
