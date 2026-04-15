@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.8.5] - 2026-04-15
+
+### Fixed
+- `Legion::Extensions::Core#trigger_words` now defaults to `lex_name.split('_')` (e.g. `['github']` for lex-github) instead of `[]`, ensuring extensions auto-surface in TriggerIndex without requiring explicit declaration. Closes #139
+- `Legion::Extensions::Builder::Runners#build_runner_entry` now always populates `trigger_words`, defaulting to `[runner_name]` when the runner module does not define them explicitly. Closes #139
+- `Legion::Tools::Discovery#synthesize_functions` now builds a real JSON Schema from Ruby method reflection data (`Method#parameters`) — required kwargs become required schema properties, optional kwargs become optional properties — so the LLM receives accurate parameter information instead of an empty schema. Closes #140
+- `Legion::Tools::Discovery#synthesize_functions` now uses `definition[:desc]` for tool description when a `definition` DSL entry exists, falling back to the method name rather than `"method_name function"`. Closes #140
+- `Legion::Tools::Discovery#tool_attributes` now reads `definition[:inputs]` when present and non-empty, using it as the input schema in preference to `meta[:options]`. Closes #140
+- `Legion::Tools::Discovery#register_function` fixed asymmetric default: `resolve_exposed` now defaults to `true` when the extension does not respond to `mcp_tools?`, matching the behaviour of `resolve_mcp_tools_enabled`. Closes #140
+
 ## [1.8.4] - 2026-04-14
 
 ### Added
