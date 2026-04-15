@@ -128,7 +128,7 @@ module Legion
       end
 
       def trigger_words
-        []
+        lex_name.split('_')
       end
 
       # Auto-generate AMQP message classes for each runner method that has a definition.

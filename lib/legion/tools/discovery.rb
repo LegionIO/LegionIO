@@ -80,14 +80,40 @@ module Legion
           return {} unless runner_entry&.dig(:class_methods).is_a?(Hash)
 
           runner_entry[:class_methods].each_with_object({}) do |(method_name, method_info), funcs|
-            funcs[method_name] = { desc: "#{method_name} function", options: {}, args: method_info[:args] }
+            defn = runner_mod.respond_to?(:definition_for) ? runner_mod.definition_for(method_name) : nil
+            funcs[method_name] = {
+              desc:    defn&.dig(:desc) || method_name.to_s,
+              options: build_schema_from_args(method_info[:args]),
+              args:    method_info[:args]
+            }
           end
+        end
+
+        def build_schema_from_args(args)
+          return {} if args.nil? || args.empty?
+
+          properties = {}
+          required = []
+
+          args.each do |type, name|
+            next if name.nil? || %i[** * block].include?(name)
+
+            param_name = name.to_s
+            properties[param_name] = { type: 'string' }
+            required << param_name if type == :req
+          end
+
+          return {} if properties.empty?
+
+          schema = { properties: properties }
+          schema[:required] = required unless required.empty?
+          schema
         end
 
         def register_function(ext, runner_mod, func_name, meta, is_deferred)
           defn = runner_mod.respond_to?(:definition_for) ? runner_mod.definition_for(func_name) : nil
 
-          ext_default = ext.respond_to?(:mcp_tools?) ? ext.mcp_tools? : false
+          ext_default = ext.respond_to?(:mcp_tools?) ? ext.mcp_tools? : true
           return unless resolve_exposed(defn, meta, ext_default)
 
           requires = defn&.dig(:requires)&.map(&:to_s) || meta[:requires]
@@ -149,7 +175,7 @@ module Legion
           {
             tool_name:     defn&.dig(:mcp_prefix) || "legion-#{ext_name}-#{runner_snake}-#{func_name}",
             description:   meta[:desc] || defn&.dig(:desc) || "#{ext_name}##{func_name}",
-            input_schema:  normalize_schema(meta[:options]),
+            input_schema:  normalize_schema(defn&.dig(:inputs)&.any? ? defn[:inputs] : meta[:options]),
             mcp_category:  defn&.dig(:mcp_category),
             mcp_tier:      defn&.dig(:mcp_tier),
             deferred:      deferred,
