@@ -11,12 +11,13 @@ RSpec.describe Legion::Extensions::Core do
 
     it 'splits compound lex names into individual words' do
       stub_const('Legion::Extensions::IdentityLdap', Module.new { extend Legion::Extensions::Core })
-      expect(Legion::Extensions::IdentityLdap.trigger_words).to eq(['identity', 'ldap'])
+      expect(Legion::Extensions::IdentityLdap.trigger_words).to eq(%w[identity ldap])
     end
 
     it 'returns explicit trigger_words unchanged when overridden' do
       mod = Module.new do
         extend Legion::Extensions::Core
+
         def self.trigger_words
           %w[custom words]
         end
