@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.8.6] - 2026-04-15
+
+### Added
+- `Tools::Base#sticky` accessor — tool classes can opt out of sticky runner injection (defaults `true`)
+- `Tools::Discovery` propagates `sticky_tools?` from extension to tool class `sticky` attribute; nil treated as opt-out (conservative)
+- `Extensions::Core#sticky_tools?` — defaults `true`, extensions may override with `def self.sticky_tools? false end`
+
 ## [1.8.5] - 2026-04-15
 
 ### Fixed
