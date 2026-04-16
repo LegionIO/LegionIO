@@ -181,7 +181,8 @@ module Legion
             deferred:      deferred,
             ext_name:      ext_name,
             runner_snake:  runner_snake,
-            trigger_words: merge_trigger_words(ext, runner_mod)
+            trigger_words: merge_trigger_words(ext, runner_mod),
+            sticky:        ext.respond_to?(:sticky_tools?) ? ext.sticky_tools? == true : true
           }
         end
 
@@ -196,6 +197,7 @@ module Legion
             mcp_category(attrs[:mcp_category]) if attrs[:mcp_category]
             mcp_tier(attrs[:mcp_tier]) if attrs[:mcp_tier]
             trigger_words(attrs[:trigger_words])
+            sticky(attrs[:sticky])
 
             define_singleton_method(:call) do |**params|
               if runner_ref.respond_to?(func_ref)
@@ -214,7 +216,19 @@ module Legion
 
         def merge_trigger_words(ext, runner_mod)
           ext_words = ext.respond_to?(:trigger_words) ? Array(ext.trigger_words) : []
-          runner_words = runner_mod.respond_to?(:trigger_words) ? Array(runner_mod.trigger_words) : []
+
+          # Prefer explicit trigger_words on the runner module itself.
+          # Fall back to the runner entry stored by builders/runners.rb, which
+          # defaults to [runner_name] when the module doesn't define them.
+          runner_words = if runner_mod.respond_to?(:trigger_words) && runner_mod.trigger_words.any?
+                           Array(runner_mod.trigger_words)
+                         elsif ext.respond_to?(:runners) && ext.runners.is_a?(Hash)
+                           entry = ext.runners.values.find { |r| r[:runner_module] == runner_mod }
+                           Array(entry&.dig(:trigger_words))
+                         else
+                           []
+                         end
+
           (ext_words + runner_words).uniq
         end
 

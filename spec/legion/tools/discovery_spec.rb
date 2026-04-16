@@ -142,6 +142,47 @@ RSpec.describe Legion::Tools::Discovery do
     end
   end
 
+  describe 'sticky attribute on discovered tool classes' do
+    let(:ext) do
+      mod = Module.new
+      mod.extend(Legion::Extensions::Core) if Legion::Extensions.const_defined?(:Core, false)
+      mod
+    end
+
+    it 'sets sticky true when extension returns true from sticky_tools?' do
+      allow(ext).to receive(:sticky_tools?).and_return(true)
+      attrs = Legion::Tools::Discovery.send(:tool_attributes, ext, double(name: 'Ext::Runners::Test'),
+                                            :do_thing, { desc: 'test', options: {} }, nil, false)
+      expect(attrs[:sticky]).to eq(true)
+    end
+
+    it 'sets sticky false when extension returns false' do
+      allow(ext).to receive(:sticky_tools?).and_return(false)
+      attrs = Legion::Tools::Discovery.send(:tool_attributes, ext, double(name: 'Ext::Runners::Test'),
+                                            :do_thing, { desc: 'test', options: {} }, nil, false)
+      expect(attrs[:sticky]).to eq(false)
+    end
+
+    it 'treats nil return from sticky_tools? as false (conservative opt-out)' do
+      allow(ext).to receive(:sticky_tools?).and_return(nil)
+      attrs = Legion::Tools::Discovery.send(:tool_attributes, ext, double(name: 'Ext::Runners::Test'),
+                                            :do_thing, { desc: 'test', options: {} }, nil, false)
+      expect(attrs[:sticky]).to eq(false)
+    end
+
+    it 'calls sticky() on the created tool class' do
+      allow(ext).to receive(:sticky_tools?).and_return(false)
+      tool_class = Legion::Tools::Discovery.send(:build_tool_class,
+                     ext: ext,
+                     runner_mod: double(name: 'Ext::Runners::Test', respond_to?: false),
+                     func_name: :do_thing,
+                     meta: { desc: 'test', options: {} },
+                     defn: nil,
+                     deferred: false)
+      expect(tool_class.sticky).to eq(false)
+    end
+  end
+
   describe 'runner-level override' do
     let(:override_runner) do
       Module.new do
