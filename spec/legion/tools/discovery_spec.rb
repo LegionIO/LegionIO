@@ -173,12 +173,12 @@ RSpec.describe Legion::Tools::Discovery do
     it 'calls sticky() on the created tool class' do
       allow(ext).to receive(:sticky_tools?).and_return(false)
       tool_class = Legion::Tools::Discovery.send(:build_tool_class,
-                     ext: ext,
-                     runner_mod: double(name: 'Ext::Runners::Test', respond_to?: false),
-                     func_name: :do_thing,
-                     meta: { desc: 'test', options: {} },
-                     defn: nil,
-                     deferred: false)
+                                                 ext:        ext,
+                                                 runner_mod: double(name: 'Ext::Runners::Test', respond_to?: false),
+                                                 func_name:  :do_thing,
+                                                 meta:       { desc: 'test', options: {} },
+                                                 defn:       nil,
+                                                 deferred:   false)
       expect(tool_class.sticky).to eq(false)
     end
   end

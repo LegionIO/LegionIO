@@ -12,6 +12,7 @@ RSpec.describe Legion::Extensions::Core do
     it 'can be overridden to false on extension module' do
       mod = Module.new do
         extend Legion::Extensions::Core
+
         def self.sticky_tools?
           false
         end

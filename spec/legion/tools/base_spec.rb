@@ -104,7 +104,7 @@ RSpec.describe Legion::Tools::Base do
 
     it 'is a no-op read when called with nil' do
       tool_class.sticky(false)
-      tool_class.sticky(nil)  # should NOT reset to true
+      tool_class.sticky(nil) # should NOT reset to true
       expect(tool_class.sticky).to eq(false)
     end
   end
