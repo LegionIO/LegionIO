@@ -85,6 +85,30 @@ RSpec.describe Legion::Tools::Base do
     end
   end
 
+  describe '.sticky' do
+    let(:tool_class) { Class.new(described_class) }
+
+    it 'defaults to true when never set' do
+      expect(tool_class.sticky).to eq(true)
+    end
+
+    it 'returns false when set to false' do
+      tool_class.sticky(false)
+      expect(tool_class.sticky).to eq(false)
+    end
+
+    it 'returns true when set to true' do
+      tool_class.sticky(true)
+      expect(tool_class.sticky).to eq(true)
+    end
+
+    it 'is a no-op read when called with nil' do
+      tool_class.sticky(false)
+      tool_class.sticky(nil)  # should NOT reset to true
+      expect(tool_class.sticky).to eq(false)
+    end
+  end
+
   describe '.call' do
     it 'raises NotImplementedError on base class' do
       expect { described_class.call }.to raise_error(NotImplementedError)
