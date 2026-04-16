@@ -75,6 +75,12 @@ module Legion
           @trigger_words = val
         end
 
+        def sticky(val = nil)
+          return @sticky.nil? || @sticky if val.nil?
+
+          @sticky = val
+        end
+
         def call(**_args)
           raise NotImplementedError, "#{name} must implement .call"
         end

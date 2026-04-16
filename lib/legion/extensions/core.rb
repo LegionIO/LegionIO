@@ -127,6 +127,10 @@ module Legion
         true
       end
 
+      def sticky_tools?
+        true
+      end
+
       def trigger_words
         lex_name.split('_')
       end
