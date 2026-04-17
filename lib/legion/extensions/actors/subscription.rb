@@ -15,6 +15,12 @@ module Legion
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Helpers::Transport
 
+        # Absorber-style routing pattern hint. Subscription actors may call
+        # `pattern` to declare their routing key for documentation and tooling.
+        # This is a no-op at the Subscription level — actual routing is handled
+        # by the queue binding — but its absence raises NoMethodError on load.
+        def self.pattern(*); end
+
         define_dsl_accessor :consumers, default: 1
         define_dsl_accessor :manual_ack, default: true
         define_dsl_accessor :delay_start, default: 0

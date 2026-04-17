@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.8.7] - 2026-04-17
+### Fixed
+- Add no-op `pattern(*) ` class method to `Actors::Subscription` — subscription actors that call `pattern` for routing hint documentation raised `NoMethodError` on class load, causing absorber build failures
+
 ## [1.8.6] - 2026-04-15
 
 ### Added
