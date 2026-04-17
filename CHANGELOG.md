@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.8.10] - 2026-04-17
+
+### Fixed
+- `Legion::CLI::Chat::WebFetch#convert_links!` polynomial regex on uncontrolled data (CodeQL `rb/polynomial-redos`) — replaced backtracking `<a[^>]*href=...>` regex with index-based scanner that walks tag boundaries without backtracking
+- Thor `[WARNING] Attempted to create command` noise during rspec — prepend `RSpec::Mocks::AnyInstance::Recorder` to wrap `observe!`, `mark_invoked!`, `restore_original_method!`, and `remove_dummy_method!` inside `Thor.no_commands_context` when the target class is a Thor subclass
+
 ## [1.8.9] - 2026-04-17
 
 ### Fixed
