@@ -94,7 +94,21 @@ module Legion
 
         def strip_invisible!(text)
           %w[script style nav footer].each { |tag| strip_tag_blocks!(text, tag) }
-          text.gsub!(/<!--.*?-->/m, '')
+          strip_html_comments!(text)
+        end
+
+        def strip_html_comments!(text)
+          loop do
+            open_idx = text.index('<!--')
+            break unless open_idx
+
+            close_idx = text.index('-->', open_idx + 4)
+            if close_idx
+              text[open_idx..(close_idx + 2)] = ''
+            else
+              text[open_idx..] = ''
+            end
+          end
         end
 
         def strip_tag_blocks!(text, tag)
