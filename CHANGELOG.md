@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.8.11] - 2026-04-17
+
+### Fixed
+- `Legion::CLI::Chat::WebFetch` — eliminated all remaining polynomial regex patterns (CodeQL `rb/polynomial-redos`): replaced `convert_blocks!`, `convert_headings!`, `convert_lists!`, `convert_formatting!`, and `strip_remaining_tags!` with index-based tag scanning helpers (`replace_tag_blocks!`, `replace_open_tags!`, `replace_close_tags!`, `replace_self_closing!`). No regex with `[^>]*` or `[^>]+` remains in the HTML-to-markdown pipeline.
+
 ## [1.8.10] - 2026-04-17
 
 ### Fixed
