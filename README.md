@@ -14,7 +14,11 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
          ╰──────────────────────────────────────╯
 ```
 
-**Ruby >= 3.4** | **v1.7.21** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+[![Gem Version](https://img.shields.io/gem/v/legionio.svg)](https://rubygems.org/gems/legionio)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.4-red.svg)](https://www.ruby-lang.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+**Ruby >= 3.4** | **v1.8.10** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -547,9 +551,33 @@ Each phase registers with `Legion::Readiness`. All phases are individually toggl
 git clone https://github.com/LegionIO/LegionIO.git
 cd LegionIO
 bundle install
-bundle exec rspec       # 0 failures
+bundle exec rspec       # ~3500+ examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
+
+Always run `bundle exec rspec` and `bundle exec rubocop -A` and fix all errors before committing.
+
+### Project Structure
+
+| Path | Purpose |
+|------|---------|
+| `lib/legion.rb` | Entry point: `Legion.start`, `.shutdown`, `.reload` |
+| `lib/legion/service.rb` | 15-phase startup orchestrator |
+| `lib/legion/cli.rb` | Thor CLI: 40+ subcommands across two binaries |
+| `lib/legion/api.rb` | Sinatra REST API with middleware stack |
+| `lib/legion/extensions/` | LEX discovery, loading, actors, builders |
+| `lib/legion/tools/` | Canonical tool layer (Registry, Discovery, EmbeddingCache) |
+| `lib/legion/digital_worker/` | AI-as-labor governance platform |
+| `lib/legion/cli/chat/` | Interactive AI REPL with 40 tools |
+| `spec/` | RSpec suite (~3500+ examples) |
+
+### Contributing
+
+1. Fork the repo and create a feature branch
+2. Write specs for new functionality
+3. Ensure `bundle exec rspec` passes with 0 failures
+4. Ensure `bundle exec rubocop` passes with 0 offenses
+5. Open a PR targeting `main`
 
 ## License
 
