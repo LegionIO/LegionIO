@@ -120,7 +120,38 @@ module Legion
         end
 
         def convert_links!(text)
-          text.gsub!(%r{<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)</a>}mi, '[\\2](\\1)')
+          result = String.new
+          pos = 0
+          while pos < text.length
+            open_idx = text.index(/<a[\s>]/mi, pos)
+            break unless open_idx
+
+            close_idx = text.index(%r{</a\s*>}mi, open_idx)
+            unless close_idx
+              result << text[pos..]
+              pos = text.length
+              break
+            end
+
+            result << text[pos...open_idx]
+
+            tag_end = text.index('>', open_idx)
+            if tag_end && tag_end < close_idx
+              tag = text[open_idx..tag_end]
+              href = tag[/href=["']([^"']*)["']/i, 1]
+              inner = text[(tag_end + 1)...close_idx]
+              result << if href
+                          "[#{inner}](#{href})"
+                        else
+                          inner
+                        end
+            end
+
+            close_end = text.index('>', close_idx)
+            pos = close_end ? close_end + 1 : close_idx + 4
+          end
+          result << text[pos..] if pos < text.length
+          text.replace(result)
         end
 
         def convert_lists!(text)
