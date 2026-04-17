@@ -140,7 +140,32 @@ module Legion
 
         raise InvalidRunnerClass, "invalid runner_class format: #{runner_class}" unless runner_class.match?(RUNNER_CLASS_PATTERN)
 
-        Kernel.const_get(runner_class)
+        resolved = registered_runner_modules[runner_class]
+        raise InvalidRunnerClass, "unregistered runner_class: #{runner_class}" unless resolved
+
+        resolved
+      end
+
+      def registered_runner_modules
+        return @registered_runner_modules if defined?(@registered_runner_modules) && @registered_runner_modules
+
+        modules = {}
+        if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:loaded_extension_modules)
+          Legion::Extensions.loaded_extension_modules.each do |mod|
+            modules[mod.to_s] = mod
+          end
+        end
+        if defined?(Legion::Extensions) && Legion::Extensions.local_tasks.is_a?(Array)
+          Legion::Extensions.local_tasks.each do |t|
+            mod = t[:runner_module]
+            modules[mod.to_s] = mod if mod
+          end
+        end
+        @registered_runner_modules = modules
+      end
+
+      def reset_runner_cache!
+        @registered_runner_modules = nil
       end
 
       def parse_payload(payload)

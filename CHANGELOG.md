@@ -2,13 +2,17 @@
 
 ## [Unreleased]
 
+## [1.8.8] - 2026-04-17
+
+### Fixed
+- `Legion::Ingress` code injection (CodeQL `rb/code-injection`) — replaced `Kernel.const_get` with allowlist lookup against registered extension modules; `resolve_runner_class` now only resolves classes present in `loaded_extension_modules` or `local_tasks`
+- `Legion::Graph::Exporter#to_dot` incomplete string escaping (CodeQL `rb/incomplete-sanitization`) — extracted `dot_escape` helper using char-by-char escaping of backslashes and quotes for DOT labels
+- `Legion::CLI::Chat::WebFetch#strip_invisible!` polynomial regex / incomplete sanitization / bad tag filter (CodeQL `rb/polynomial-redos`, `rb/incomplete-multi-character-sanitization`, `rb/bad-tag-filter`) — replaced regex `gsub!` with iterative `strip_tag_blocks!` that finds open/close tags by index, eliminating backtracking and handling malformed closing tags
+
 ## [1.8.7] - 2026-04-17
 
 ### Fixed
-- `Legion::Ingress` code injection alerts (CodeQL `rb/code-injection`) — extracted `resolve_runner_class` private helper that validates `RUNNER_CLASS_PATTERN` immediately before `Kernel.const_get`, replacing bare `const_get` calls at lines 84 and 130
 - `Legion::CLI::Chat::WebSearch#extract_real_url` incomplete URL substring sanitization (CodeQL `rb/incomplete-url-substring-sanitization`) — replaced `include?('duckduckgo.com')` with `URI.parse` host check using `end_with?`
-- `Legion::Graph::Exporter#to_dot` incomplete string escaping (CodeQL `rb/incomplete-sanitization`) — escape backslashes before quotes in DOT node labels and edge labels
-- `Legion::CLI::Chat::WebFetch#strip_invisible!` bad HTML filtering regexp (CodeQL `rb/bad-tag-filter`) — closing tag patterns now allow optional whitespace before `>` (e.g. `</script >`)
 - `Legion::Tools::EmbeddingCache.clear` now flushes L1/L2 cache tiers in addition to L0 memory, preventing stale lookups after clear
 
 ## [1.8.6] - 2026-04-15

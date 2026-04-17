@@ -93,11 +93,23 @@ module Legion
         end
 
         def strip_invisible!(text)
-          text.gsub!(%r{<script[^>]*>.*?</script\s*>}mi, '')
-          text.gsub!(%r{<style[^>]*>.*?</style\s*>}mi, '')
-          text.gsub!(%r{<nav[^>]*>.*?</nav\s*>}mi, '')
-          text.gsub!(%r{<footer[^>]*>.*?</footer\s*>}mi, '')
+          %w[script style nav footer].each { |tag| strip_tag_blocks!(text, tag) }
           text.gsub!(/<!--.*?-->/m, '')
+        end
+
+        def strip_tag_blocks!(text, tag)
+          loop do
+            open_idx = text.index(/<#{tag}[\s>]/mi)
+            break unless open_idx
+
+            close_pat = %r{</#{tag}\s*>}mi
+            close_match = close_pat.match(text, open_idx)
+            if close_match
+              text[open_idx..(close_match.end(0) - 1)] = ''
+            else
+              text[open_idx..] = ''
+            end
+          end
         end
 
         def convert_headings!(text)
