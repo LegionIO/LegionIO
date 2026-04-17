@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.8.9] - 2026-04-17
+
+### Fixed
+- `Legion::DigitalWorker::Registry#emit_blocked` passed positional hash to `Legion::Events.emit` which expects kwargs — caused `ArgumentError` masking intended domain exceptions (`WorkerNotFound`, `WorkerNotActive`, `InsufficientConsent`). Fixes #114
+
+### Added
+- `Legion::Audit::HashChain` now includes `seq` in `CANONICAL_FIELDS` and `verify_chain` detects gaps in sequence numbers, preventing undetected record deletion from the tamper-evident audit chain. Backwards-compatible: gap check is skipped when `seq` is absent. Fixes #149
+
 ## [1.8.8] - 2026-04-17
 
 ### Fixed

@@ -5,7 +5,7 @@ require 'legion/audit/hash_chain'
 
 RSpec.describe Legion::Audit::HashChain do
   let(:base_record) do
-    { principal_id: 'w1', action: 'test', resource: 'task', source: 'mcp',
+    { seq: 1, principal_id: 'w1', action: 'test', resource: 'task', source: 'mcp',
       status: 'success', detail: '{}', created_at: '2026-03-16T00:00:00Z',
       previous_hash: described_class::GENESIS_HASH }
   end
@@ -70,6 +70,32 @@ RSpec.describe Legion::Audit::HashChain do
       result = described_class.verify_chain([])
       expect(result[:valid]).to be true
       expect(result[:records_checked]).to eq(0)
+    end
+
+    it 'detects a gap in sequence numbers' do
+      r1 = { id: 1, seq: 1, record_hash: 'aaa', previous_hash: described_class::GENESIS_HASH }
+      r2 = { id: 2, seq: 3, record_hash: 'bbb', previous_hash: 'aaa' }
+      result = described_class.verify_chain([r1, r2])
+      expect(result[:valid]).to be false
+      gap = result[:broken_links].find { |b| b[:type] == :gap }
+      expect(gap).not_to be_nil
+      expect(gap[:expected_seq]).to eq(2)
+      expect(gap[:got_seq]).to eq(3)
+    end
+
+    it 'passes when sequence numbers are contiguous' do
+      r1 = { id: 1, seq: 1, record_hash: 'aaa', previous_hash: described_class::GENESIS_HASH }
+      r2 = { id: 2, seq: 2, record_hash: 'bbb', previous_hash: 'aaa' }
+      r3 = { id: 3, seq: 3, record_hash: 'ccc', previous_hash: 'bbb' }
+      result = described_class.verify_chain([r1, r2, r3])
+      expect(result[:valid]).to be true
+    end
+
+    it 'skips gap check when seq is absent for backwards compatibility' do
+      r1 = { id: 1, record_hash: 'aaa', previous_hash: described_class::GENESIS_HASH }
+      r2 = { id: 2, record_hash: 'bbb', previous_hash: 'aaa' }
+      result = described_class.verify_chain([r1, r2])
+      expect(result[:valid]).to be true
     end
   end
 end

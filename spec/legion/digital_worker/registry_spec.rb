@@ -85,6 +85,38 @@ RSpec.describe Legion::DigitalWorker::Registry do
     end
   end
 
+  describe '.validate_execution! blocked paths' do
+    before do
+      allow(Legion::Events).to receive(:emit)
+    end
+
+    it 'raises WorkerNotFound and emits worker.blocked when worker is missing' do
+      allow(Legion::Data::Model::DigitalWorker).to receive(:first).and_return(nil)
+      expect { described_class.validate_execution!(worker_id: 'missing') }
+        .to raise_error(described_class::WorkerNotFound)
+      expect(Legion::Events).to have_received(:emit)
+        .with('worker.blocked', hash_including(worker_id: 'missing', reason: 'unregistered'))
+    end
+
+    it 'raises WorkerNotActive and emits worker.blocked when worker is not active' do
+      worker = double('worker', active?: false, lifecycle_state: 'paused')
+      allow(Legion::Data::Model::DigitalWorker).to receive(:first).and_return(worker)
+      expect { described_class.validate_execution!(worker_id: 'w-paused') }
+        .to raise_error(described_class::WorkerNotActive)
+      expect(Legion::Events).to have_received(:emit)
+        .with('worker.blocked', hash_including(worker_id: 'w-paused'))
+    end
+
+    it 'raises InsufficientConsent and emits worker.blocked when consent is too low' do
+      worker = double('worker', active?: true, consent_tier: 'supervised', lifecycle_state: 'active')
+      allow(Legion::Data::Model::DigitalWorker).to receive(:first).and_return(worker)
+      expect { described_class.validate_execution!(worker_id: 'w-low', required_consent: 'autonomous') }
+        .to raise_error(described_class::InsufficientConsent)
+      expect(Legion::Events).to have_received(:emit)
+        .with('worker.blocked', hash_including(worker_id: 'w-low'))
+    end
+  end
+
   describe 'thread safety' do
     let(:worker) do
       double('worker', active?: true, consent_tier: 'autonomous', lifecycle_state: 'active')

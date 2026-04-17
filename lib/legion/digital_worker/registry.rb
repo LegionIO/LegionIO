@@ -57,11 +57,10 @@ module Legion
       def self.emit_blocked(worker_id:, reason:)
         return unless defined?(Legion::Events)
 
-        Legion::Events.emit('worker.blocked', {
-                              worker_id: worker_id,
-                              reason:    reason,
-                              at:        Time.now.utc
-                            })
+        Legion::Events.emit('worker.blocked',
+                            worker_id: worker_id,
+                            reason:    reason,
+                            at:        Time.now.utc)
       end
 
       private_class_method :emit_blocked
