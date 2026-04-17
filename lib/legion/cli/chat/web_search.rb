@@ -78,7 +78,8 @@ module Legion
         end
 
         def extract_real_url(ddg_url)
-          return ddg_url unless ddg_url.include?('duckduckgo.com')
+          uri = URI.parse(ddg_url)
+          return ddg_url unless uri.host&.end_with?('.duckduckgo.com') || uri.host == 'duckduckgo.com'
 
           match = ddg_url.match(/uddg=([^&]+)/)
           return nil unless match

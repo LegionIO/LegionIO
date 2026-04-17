@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.8.7] - 2026-04-17
+
+### Fixed
+- `Legion::Ingress` code injection alerts (CodeQL `rb/code-injection`) — extracted `resolve_runner_class` private helper that validates `RUNNER_CLASS_PATTERN` immediately before `Kernel.const_get`, replacing bare `const_get` calls at lines 84 and 130
+- `Legion::CLI::Chat::WebSearch#extract_real_url` incomplete URL substring sanitization (CodeQL `rb/incomplete-url-substring-sanitization`) — replaced `include?('duckduckgo.com')` with `URI.parse` host check using `end_with?`
+- `Legion::Graph::Exporter#to_dot` incomplete string escaping (CodeQL `rb/incomplete-sanitization`) — escape backslashes before quotes in DOT node labels and edge labels
+- `Legion::CLI::Chat::WebFetch#strip_invisible!` bad HTML filtering regexp (CodeQL `rb/bad-tag-filter`) — closing tag patterns now allow optional whitespace before `>` (e.g. `</script >`)
+- `Legion::Tools::EmbeddingCache.clear` now flushes L1/L2 cache tiers in addition to L0 memory, preventing stale lookups after clear
+
 ## [1.8.6] - 2026-04-15
 
 ### Added

@@ -93,10 +93,10 @@ module Legion
         end
 
         def strip_invisible!(text)
-          text.gsub!(%r{<script[^>]*>.*?</script>}mi, '')
-          text.gsub!(%r{<style[^>]*>.*?</style>}mi, '')
-          text.gsub!(%r{<nav[^>]*>.*?</nav>}mi, '')
-          text.gsub!(%r{<footer[^>]*>.*?</footer>}mi, '')
+          text.gsub!(%r{<script[^>]*>.*?</script\s*>}mi, '')
+          text.gsub!(%r{<style[^>]*>.*?</style\s*>}mi, '')
+          text.gsub!(%r{<nav[^>]*>.*?</nav\s*>}mi, '')
+          text.gsub!(%r{<footer[^>]*>.*?</footer\s*>}mi, '')
           text.gsub!(/<!--.*?-->/m, '')
         end
 

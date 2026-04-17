@@ -81,7 +81,7 @@ module Legion
 
         if local_runner?(rc)
           Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
-          klass = rc.is_a?(String) ? Kernel.const_get(rc) : rc
+          klass = resolve_runner_class(rc)
           ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
           return Legion::Context.with_task_context(ctx) { klass.send(fn.to_sym, **message) }
         end
@@ -127,13 +127,21 @@ module Legion
       def local_runner?(runner_class)
         return false unless defined?(Legion::Extensions) && Legion::Extensions.local_tasks.is_a?(Array)
 
-        klass = runner_class.is_a?(String) ? Kernel.const_get(runner_class) : runner_class
+        klass = resolve_runner_class(runner_class)
         Legion::Extensions.local_tasks.any? { |t| t[:runner_module] == klass }
-      rescue NameError
+      rescue NameError, InvalidRunnerClass
         false
       end
 
       private
+
+      def resolve_runner_class(runner_class)
+        return runner_class unless runner_class.is_a?(String)
+
+        raise InvalidRunnerClass, "invalid runner_class format: #{runner_class}" unless runner_class.match?(RUNNER_CLASS_PATTERN)
+
+        Kernel.const_get(runner_class)
+      end
 
       def parse_payload(payload)
         case payload

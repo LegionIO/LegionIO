@@ -37,13 +37,14 @@ module Legion
           lines = ['digraph legion_tasks {', '  rankdir=LR;']
 
           graph[:nodes].each do |key, node|
-            label = node[:label].gsub('"', '\\"')
+            label = node[:label].gsub('\\', '\\\\\\\\').gsub('"', '\\"')
             shape = node[:type] == 'trigger' ? 'box' : 'ellipse'
             lines << "  \"#{key}\" [label=\"#{label}\" shape=#{shape}];"
           end
 
           graph[:edges].each do |edge|
-            label = edge[:label] && !edge[:label].empty? ? " [label=\"#{edge[:label]}\"]" : ''
+            edge_label = edge[:label]&.gsub('\\', '\\\\\\\\')&.gsub('"', '\\"')
+            label = edge_label && !edge_label.empty? ? " [label=\"#{edge_label}\"]" : ''
             lines << "  \"#{edge[:from]}\" -> \"#{edge[:to]}\"#{label};"
           end
 
