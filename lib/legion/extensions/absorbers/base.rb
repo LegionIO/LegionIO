@@ -45,7 +45,9 @@ module Legion
 
         def absorb_to_knowledge(content:, tags: [], scope: :global, **opts)
           return fallback_absorb(:chunker, content, tags, scope, opts) unless chunker_available?
-          return fallback_absorb(:apollo, content, tags, scope, opts) unless apollo_available?
+
+          target = resolve_apollo_target(scope)
+          return fallback_absorb(:apollo, content, tags, scope, opts) unless target
 
           sections = [{ heading:      opts.delete(:heading) || 'absorbed',
                         content:      content,
@@ -57,11 +59,27 @@ module Legion
         end
 
         def absorb_raw(content:, tags: [], scope: :global, **)
-          if apollo_available?
-            Legion::Apollo.ingest(content: content, tags: Array(tags), scope: scope, **)
+          target = resolve_apollo_target(scope)
+          unless target
+            Legion::Logging.warn("absorb_raw: Apollo not available for scope=#{scope}") if defined?(Legion::Logging)
+            return { success: false, error: :apollo_not_available }
+          end
+
+          target.ingest(content: content, tags: Array(tags), scope: scope, **)
+        end
+
+        def query_knowledge(text:, limit: 5, scope: :all, **)
+          case scope.to_sym
+          when :local
+            return { success: false, error: :apollo_not_available } unless apollo_local_available?
+
+            Legion::Apollo::Local.query(text: text, limit: limit, **)
+          when :global
+            return { success: false, error: :apollo_not_available } unless apollo_available?
+
+            Legion::Apollo.query(text: text, limit: limit, **)
           else
-            Legion::Logging.warn('absorb_raw: Apollo not available') if defined?(Legion::Logging)
-            { success: false, error: :apollo_not_available }
+            query_all_scopes(text: text, limit: limit, **)
           end
         end
 
@@ -110,6 +128,46 @@ module Legion
             (!Legion::Apollo.respond_to?(:started?) || Legion::Apollo.started?)
         end
 
+        def apollo_local_available?
+          defined?(Legion::Apollo::Local) &&
+            Legion::Apollo::Local.respond_to?(:ingest) &&
+            (!Legion::Apollo::Local.respond_to?(:started?) || Legion::Apollo::Local.started?)
+        rescue NameError
+          false
+        end
+
+        def resolve_apollo_target(scope)
+          case scope.to_sym
+          when :local
+            apollo_local_available? ? Legion::Apollo::Local : nil
+          else
+            apollo_available? ? Legion::Apollo : nil
+          end
+        end
+
+        def query_all_scopes(text:, limit:, **)
+          local_results  = apollo_local_available? ? Array((Legion::Apollo::Local.query(text: text, limit: limit, **) || {})[:results]) : []
+          global_results = apollo_available? ? Array((Legion::Apollo.query(text: text, limit: limit, **) || {})[:results]) : []
+
+          if local_results.empty? && global_results.empty? && !apollo_local_available? && !apollo_available?
+            return { success: false, error: :apollo_not_available }
+          end
+
+          seen = {}
+          merged = []
+          local_results.each do |r|
+            key = r[:content_hash] || r[:content]
+            seen[key] = true
+            merged << r
+          end
+          global_results.each do |r|
+            key = r[:content_hash] || r[:content]
+            merged << r unless seen[key]
+          end
+
+          { success: true, results: merged.first(limit), count: [merged.size, limit].min, scope: :all }
+        end
+
         def fallback_absorb(reason, content, tags, scope, opts)
           if defined?(Legion::Logging)
             label = reason == :chunker ? 'lex-knowledge not available' : 'Apollo not available'
@@ -127,12 +185,15 @@ module Legion
         end
 
         def ingest_chunks(chunks, embeddings, tags, scope, opts)
+          target = resolve_apollo_target(scope)
+          return unless target
+
           chunks.each_with_index do |chunk, idx|
             vector  = embeddings.is_a?(Array) ? embeddings.dig(idx, :vector) : nil
             payload = build_chunk_payload(chunk, tags, opts)
             payload[:embedding] = vector if vector
-            Legion::Apollo.ingest(content: payload[:content], tags: payload[:tags],
-                                  scope: scope, **payload.except(:content, :tags))
+            target.ingest(content: payload[:content], tags: payload[:tags],
+                          scope: scope, **payload.except(:content, :tags))
           end
         end
 

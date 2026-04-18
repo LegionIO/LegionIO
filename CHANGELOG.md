@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.8.13] - 2026-04-17
+
+### Added
+- `Absorbers::Base#query_knowledge` — scope-aware knowledge retrieval (`:local`, `:global`, `:all`) with deduplication, matching the pattern established by `Helpers::Knowledge`
+
+### Fixed
+- `Absorbers::Base` now routes ingestion by scope: `absorb_to_knowledge`, `absorb_raw`, and `ingest_chunks` resolve `Legion::Apollo::Local` for `:local` scope and `Legion::Apollo` for `:global`, instead of always hitting the global store
+- Added `apollo_local_available?` and `resolve_apollo_target` private helpers for scope-driven Apollo target selection
+
 ## [1.8.12] - 2026-04-17
 
 ### Fixed
