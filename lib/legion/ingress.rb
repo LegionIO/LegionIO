@@ -79,18 +79,23 @@ module Legion
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
+        resolved_rc = begin
+          resolve_runner_class(rc)
+        rescue InvalidRunnerClass
+          rc
+        end
+
         if local_runner?(rc)
           Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
-          klass = rc.is_a?(String) ? Kernel.const_get(rc) : rc
           ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
-          return Legion::Context.with_task_context(ctx) { klass.send(fn.to_sym, **message) }
+          return Legion::Context.with_task_context(ctx) { resolved_rc.send(fn.to_sym, **message) }
         end
 
         runner_block = lambda {
           ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
           Legion::Context.with_task_context(ctx) do
             Legion::Runner.run(
-              runner_class:  rc,
+              runner_class:  resolved_rc,
               function:      fn,
               check_subtask: check_subtask,
               generate_task: generate_task,
@@ -127,13 +132,46 @@ module Legion
       def local_runner?(runner_class)
         return false unless defined?(Legion::Extensions) && Legion::Extensions.local_tasks.is_a?(Array)
 
-        klass = runner_class.is_a?(String) ? Kernel.const_get(runner_class) : runner_class
+        klass = resolve_runner_class(runner_class)
         Legion::Extensions.local_tasks.any? { |t| t[:runner_module] == klass }
-      rescue NameError
+      rescue NameError, InvalidRunnerClass
         false
       end
 
       private
+
+      def resolve_runner_class(runner_class)
+        return runner_class unless runner_class.is_a?(String)
+
+        raise InvalidRunnerClass, "invalid runner_class format: #{runner_class}" unless runner_class.match?(RUNNER_CLASS_PATTERN)
+
+        resolved = registered_runner_modules[runner_class]
+        raise InvalidRunnerClass, "unregistered runner_class: #{runner_class}" unless resolved
+
+        resolved
+      end
+
+      def registered_runner_modules
+        return @registered_runner_modules if defined?(@registered_runner_modules) && @registered_runner_modules
+
+        modules = {}
+        if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:loaded_extension_modules)
+          Legion::Extensions.loaded_extension_modules.each do |mod|
+            modules[mod.to_s] = mod
+          end
+        end
+        if defined?(Legion::Extensions) && Legion::Extensions.local_tasks.is_a?(Array)
+          Legion::Extensions.local_tasks.each do |t|
+            mod = t[:runner_module]
+            modules[mod.to_s] = mod if mod
+          end
+        end
+        @registered_runner_modules = modules
+      end
+
+      def reset_runner_cache!
+        @registered_runner_modules = nil
+      end
 
       def parse_payload(payload)
         case payload

@@ -13,7 +13,7 @@ RSpec.describe Legion::Extensions::Absorbers::Base do
       pattern :url, 'example.com/files/*', priority: 50
       description 'Test absorber for specs'
 
-      def handle(url: nil, content: nil, _metadata: {}, _context: {})
+      def absorb(url: nil, content: nil, **)
         { absorbed: true, url: url, content: content }
       end
     end
@@ -50,12 +50,24 @@ RSpec.describe Legion::Extensions::Absorbers::Base do
     end
   end
 
-  describe '#handle' do
+  describe '#absorb' do
     it 'raises NotImplementedError on base class' do
-      expect { described_class.new.handle }.to raise_error(NotImplementedError)
+      expect { described_class.new.absorb }.to raise_error(NotImplementedError)
     end
 
     it 'accepts url keyword' do
+      result = test_absorber.new.absorb(url: 'https://example.com/docs/a')
+      expect(result[:url]).to eq('https://example.com/docs/a')
+    end
+
+    it 'accepts content keyword' do
+      result = test_absorber.new.absorb(content: 'raw text')
+      expect(result[:content]).to eq('raw text')
+    end
+  end
+
+  describe '#handle (deprecated)' do
+    it 'delegates to #absorb and returns its result' do
       result = test_absorber.new.handle(url: 'https://example.com/docs/a')
       expect(result[:url]).to eq('https://example.com/docs/a')
     end

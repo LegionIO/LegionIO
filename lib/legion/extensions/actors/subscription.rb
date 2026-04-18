@@ -20,6 +20,13 @@ module Legion
         define_dsl_accessor :delay_start, default: 0
         define_dsl_accessor :block, default: false
         define_dsl_accessor :prefetch, default: 2
+        define_dsl_accessor :routing_key_hint, default: nil
+
+        def self.pattern(routing_key = nil)
+          return routing_key_hint unless routing_key
+
+          routing_key_hint(routing_key)
+        end
 
         def initialize(**_options)
           super()

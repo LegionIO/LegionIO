@@ -93,46 +93,175 @@ module Legion
         end
 
         def strip_invisible!(text)
-          text.gsub!(%r{<script[^>]*>.*?</script>}mi, '')
-          text.gsub!(%r{<style[^>]*>.*?</style>}mi, '')
-          text.gsub!(%r{<nav[^>]*>.*?</nav>}mi, '')
-          text.gsub!(%r{<footer[^>]*>.*?</footer>}mi, '')
-          text.gsub!(/<!--.*?-->/m, '')
+          %w[script style nav footer].each { |tag| strip_tag_blocks!(text, tag) }
+          strip_html_comments!(text)
+        end
+
+        def strip_html_comments!(text)
+          loop do
+            open_idx = text.index('<!--')
+            break unless open_idx
+
+            close_idx = text.index('-->', open_idx + 4)
+            if close_idx
+              text[open_idx..(close_idx + 2)] = ''
+            else
+              text[open_idx..] = ''
+            end
+          end
+        end
+
+        def strip_tag_blocks!(text, tag)
+          loop do
+            open_idx = text.index(/<#{tag}[\s>]/mi)
+            break unless open_idx
+
+            close_pat = %r{</#{tag}\s*>}mi
+            close_match = close_pat.match(text, open_idx)
+            if close_match
+              text[open_idx..(close_match.end(0) - 1)] = ''
+            else
+              text[open_idx..] = ''
+            end
+          end
+        end
+
+        def replace_tag_blocks!(text, tag)
+          loop do
+            open_idx = text.index(/<#{tag}[\s>]/mi)
+            break unless open_idx
+
+            tag_end = text.index('>', open_idx)
+            break unless tag_end
+
+            close_pat = %r{</#{tag}\s*>}mi
+            close_match = close_pat.match(text, tag_end)
+            if close_match
+              inner = text[(tag_end + 1)...close_match.begin(0)]
+              replacement = yield(inner)
+              text[open_idx..(close_match.end(0) - 1)] = replacement
+            else
+              text[open_idx..] = ''
+            end
+          end
+        end
+
+        def replace_open_tags!(text, tag, replacement)
+          loop do
+            idx = text.index(/<#{tag}[\s>]/mi)
+            break unless idx
+
+            close = text.index('>', idx)
+            break unless close
+
+            text[idx..close] = replacement
+          end
+        end
+
+        def replace_close_tags!(text, tag, replacement)
+          pat = %r{</#{tag}\s*>}mi
+          loop do
+            match = pat.match(text)
+            break unless match
+
+            text[match.begin(0)..(match.end(0) - 1)] = replacement
+          end
+        end
+
+        def replace_self_closing!(text, tag, replacement)
+          loop do
+            idx = text.index(%r{<#{tag}[\s>/]}mi)
+            break unless idx
+
+            close = text.index('>', idx)
+            break unless close
+
+            text[idx..close] = replacement
+          end
         end
 
         def convert_headings!(text)
           (1..6).each do |n|
             prefix = '#' * n
-            text.gsub!(%r{<h#{n}[^>]*>(.*?)</h#{n}>}mi, "\n#{prefix} \\1\n")
+            replace_tag_blocks!(text, "h#{n}") { |inner| "\n#{prefix} #{inner}\n" }
           end
         end
 
         def convert_links!(text)
-          text.gsub!(%r{<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)</a>}mi, '[\\2](\\1)')
+          result = String.new
+          pos = 0
+          while pos < text.length
+            open_idx = text.index(/<a[\s>]/mi, pos)
+            break unless open_idx
+
+            close_idx = text.index(%r{</a\s*>}mi, open_idx)
+            unless close_idx
+              result << text[pos..]
+              pos = text.length
+              break
+            end
+
+            result << text[pos...open_idx]
+
+            tag_end = text.index('>', open_idx)
+            if tag_end && tag_end < close_idx
+              tag = text[open_idx..tag_end]
+              href = tag[/href=["']([^"']*)["']/i, 1]
+              inner = text[(tag_end + 1)...close_idx]
+              result << if href
+                          "[#{inner}](#{href})"
+                        else
+                          inner
+                        end
+            else
+              # Malformed opening tag — preserve the inner text up to the closing tag
+              result << text[open_idx...close_idx]
+            end
+
+            close_end = text.index('>', close_idx)
+            pos = close_end ? close_end + 1 : close_idx + 4
+          end
+          result << text[pos..] if pos < text.length
+          text.replace(result)
         end
 
         def convert_lists!(text)
-          text.gsub!(%r{<li[^>]*>(.*?)</li>}mi, "\n- \\1")
-          text.gsub!(%r{</?[ou]l[^>]*>}mi, "\n")
+          replace_tag_blocks!(text, 'li') { |inner| "\n- #{inner}" }
+          replace_open_tags!(text, 'ul', "\n")
+          replace_close_tags!(text, 'ul', "\n")
+          replace_open_tags!(text, 'ol', "\n")
+          replace_close_tags!(text, 'ol', "\n")
         end
 
         def convert_formatting!(text)
-          text.gsub!(%r{<(b|strong)[^>]*>(.*?)</\1>}mi, '**\\2**')
-          text.gsub!(%r{<(i|em)[^>]*>(.*?)</\1>}mi, '*\\2*')
-          text.gsub!(%r{<code[^>]*>(.*?)</code>}mi, '`\\1`')
+          %w[b strong].each { |t| replace_tag_blocks!(text, t) { |inner| "**#{inner}**" } }
+          %w[i em].each { |t| replace_tag_blocks!(text, t) { |inner| "*#{inner}*" } }
+          replace_tag_blocks!(text, 'code') { |inner| "`#{inner}`" }
         end
 
         def convert_blocks!(text)
-          text.gsub!(%r{<pre[^>]*>(.*?)</pre>}mi, "\n```\n\\1\n```\n")
-          text.gsub!(%r{<blockquote[^>]*>(.*?)</blockquote>}mi, "\n> \\1\n")
-          text.gsub!(/<p[^>]*>/mi, "\n\n")
-          text.gsub!(%r{</p>}mi, "\n")
-          text.gsub!(%r{<br\s*/?>}, "\n")
-          text.gsub!(%r{<hr\s*/?>}, "\n---\n")
+          replace_tag_blocks!(text, 'pre') { |inner| "\n```\n#{inner}\n```\n" }
+          replace_tag_blocks!(text, 'blockquote') { |inner| "\n> #{inner}\n" }
+          replace_open_tags!(text, 'p', "\n\n")
+          replace_close_tags!(text, 'p', "\n")
+          replace_self_closing!(text, 'br', "\n")
+          replace_self_closing!(text, 'hr', "\n---\n")
         end
 
         def strip_remaining_tags!(text)
-          text.gsub!(/<[^>]+>/, '')
+          result = String.new(capacity: text.length)
+          pos = 0
+          while pos < text.length
+            open_idx = text.index('<', pos)
+            unless open_idx
+              result << text[pos..]
+              break
+            end
+            result << text[pos...open_idx]
+            close_idx = text.index('>', open_idx)
+            pos = close_idx ? close_idx + 1 : text.length
+          end
+          text.replace(result)
         end
 
         def clean_whitespace(text)

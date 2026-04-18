@@ -172,6 +172,7 @@ module Legion
 
         def clear
           clear_memory
+          clear_cache_tiers
         rescue StandardError => e
           handle_exception(e, level: :warn, handled: true, operation: :embedding_cache_clear)
         end
@@ -242,6 +243,13 @@ module Legion
             Legion::Data.connection.table_exists?(:tool_embedding_cache)
         rescue StandardError
           false
+        end
+
+        def clear_cache_tiers
+          Legion::Cache.local.flush if cache_local_available? && Legion::Cache.local.respond_to?(:flush)
+          Legion::Cache.flush if cache_global_available? && Legion::Cache.respond_to?(:flush)
+        rescue StandardError => e
+          handle_exception(e, level: :debug, handled: true, operation: :clear_cache_tiers)
         end
 
         # --- Cache tier helpers ---

@@ -1,7 +1,7 @@
 # LegionIO: Async Job Engine and Task Framework
 
 **Repository Level 3 Documentation**
-- **Parent**: `/Users/miverso2/rubymine/legion/CLAUDE.md`
+- **Parent**: `../CLAUDE.md`
 
 ## Purpose
 
@@ -9,7 +9,7 @@ The primary gem for the LegionIO framework. An extensible async job engine for s
 
 **GitHub**: https://github.com/LegionIO/LegionIO
 **Gem**: `legionio`
-**Version**: 1.7.34
+**Version**: 1.8.12
 **License**: Apache-2.0
 **Docker**: `legionio/legion`
 **Ruby**: >= 3.4
@@ -795,6 +795,8 @@ bundle install
 bundle exec rspec       # ~3500+ examples, 0 failures
 bundle exec rubocop     # 0 offenses
 ```
+
+**Always run a full `bundle exec rspec` and `bundle exec rubocop -A` and fix all errors before committing.**
 
 Specs use `rack-test` for API testing. `Legion::JSON.load` returns symbol keys — use `body[:data]` not `body['data']` in specs.
 

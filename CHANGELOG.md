@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+## [1.8.13] - 2026-04-17
+
+### Added
+- `Absorbers::Base#query_knowledge` — scope-aware knowledge retrieval (`:local`, `:global`, `:all`) with deduplication, matching the pattern established by `Helpers::Knowledge`
+
+### Fixed
+- `Absorbers::Base` now routes ingestion by scope: `absorb_to_knowledge`, `absorb_raw`, and `ingest_chunks` resolve `Legion::Apollo::Local` for `:local` scope and `Legion::Apollo` for `:global`, instead of always hitting the global store
+- Added `apollo_local_available?` and `resolve_apollo_target` private helpers for scope-driven Apollo target selection
+
+## [1.8.12] - 2026-04-17
+
+### Fixed
+- `Actors::Subscription` now supports `pattern` class method as a DSL accessor for routing key hints, delegating to `routing_key_hint` — extensions calling `pattern 'some.routing.key'` no longer raise `NoMethodError`. Fixes #143
+- `Absorbers::Base` removed deprecated `alias handle absorb` — use `#absorb` directly
+- Generator template (`legion generate absorber`) now emits `def absorb(...)` instead of `def handle(...)`
+- `Matchers::File` is now required and registered alongside `Matchers::Url` in the absorber loader
+- Absorber base spec updated to use `#absorb` instead of removed `#handle` alias
+
+## [1.8.11] - 2026-04-17
+
+### Fixed
+- `Legion::CLI::Chat::WebFetch` — eliminated all remaining polynomial regex patterns (CodeQL `rb/polynomial-redos`): replaced `convert_blocks!`, `convert_headings!`, `convert_lists!`, `convert_formatting!`, and `strip_remaining_tags!` with index-based tag scanning helpers (`replace_tag_blocks!`, `replace_open_tags!`, `replace_close_tags!`, `replace_self_closing!`). No regex with `[^>]*` or `[^>]+` remains in the HTML-to-markdown pipeline.
+
+## [1.8.10] - 2026-04-17
+
+### Fixed
+- `Legion::CLI::Chat::WebFetch#convert_links!` polynomial regex on uncontrolled data (CodeQL `rb/polynomial-redos`) — replaced backtracking `<a[^>]*href=...>` regex with index-based scanner that walks tag boundaries without backtracking
+- Thor `[WARNING] Attempted to create command` noise during rspec — prepend `RSpec::Mocks::AnyInstance::Recorder` to wrap `observe!`, `mark_invoked!`, `restore_original_method!`, and `remove_dummy_method!` inside `Thor.no_commands_context` when the target class is a Thor subclass
+
+## [1.8.9] - 2026-04-17
+
+### Fixed
+- `Legion::DigitalWorker::Registry#emit_blocked` passed positional hash to `Legion::Events.emit` which expects kwargs — caused `ArgumentError` masking intended domain exceptions (`WorkerNotFound`, `WorkerNotActive`, `InsufficientConsent`). Fixes #114
+
+### Added
+- `Legion::Audit::HashChain` now includes `seq` in `CANONICAL_FIELDS` and `verify_chain` detects gaps in sequence numbers, preventing undetected record deletion from the tamper-evident audit chain. Backwards-compatible: gap check is skipped when `seq` is absent. Fixes #149
+
+## [1.8.8] - 2026-04-17
+
+### Fixed
+- `Legion::Ingress` code injection (CodeQL `rb/code-injection`) — replaced `Kernel.const_get` with allowlist lookup against registered extension modules; `resolve_runner_class` now only resolves classes present in `loaded_extension_modules` or `local_tasks`
+- `Legion::Graph::Exporter#to_dot` incomplete string escaping (CodeQL `rb/incomplete-sanitization`) — extracted `dot_escape` helper using char-by-char escaping of backslashes and quotes for DOT labels
+- `Legion::CLI::Chat::WebFetch#strip_invisible!` polynomial regex / incomplete sanitization / bad tag filter (CodeQL `rb/polynomial-redos`, `rb/incomplete-multi-character-sanitization`, `rb/bad-tag-filter`) — replaced regex `gsub!` with iterative `strip_tag_blocks!` that finds open/close tags by index, eliminating backtracking and handling malformed closing tags
+
+## [1.8.7] - 2026-04-17
+
+### Fixed
+- `Legion::CLI::Chat::WebSearch#extract_real_url` incomplete URL substring sanitization (CodeQL `rb/incomplete-url-substring-sanitization`) — replaced `include?('duckduckgo.com')` with `URI.parse` host check using `end_with?`
+- `Legion::Tools::EmbeddingCache.clear` now flushes L1/L2 cache tiers in addition to L0 memory, preventing stale lookups after clear
+
 ## [1.8.6] - 2026-04-15
 
 ### Added

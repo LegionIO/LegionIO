@@ -28,3 +28,8 @@ legionio_wallpaper*.svg
 legionio_overview*
 # git worktrees
 .worktrees/
+# local-only directories
+docs/
+config/tls/
+# generated integration specs
+spec/integration/self_generate_spec.rb
