@@ -398,11 +398,11 @@ module Legion
                       pattern :url, #{escaped_pat}
                       description 'TODO: describe what this absorber handles'
 
-                      def handle(url: nil, content: nil, metadata: {}, context: {})
+                      def absorb(url: nil, content: nil, metadata: {}, context: {})
                         report_progress(message: 'starting absorption')
 
                         # TODO: implement content acquisition and processing
-                        # absorb_to_knowledge(content: text, tags: ['tag'])
+                        # absorb_to_knowledge(content: content, tags: ['tag'])
 
                         report_progress(message: 'done', percent: 100)
                         { success: true }

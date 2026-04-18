@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.8.12] - 2026-04-17
+
+### Fixed
+- `Actors::Subscription` now supports `pattern` class method as a DSL accessor for routing key hints, delegating to `routing_key_hint` — extensions calling `pattern 'some.routing.key'` no longer raise `NoMethodError`. Fixes #143
+- `Absorbers::Base` removed deprecated `alias handle absorb` — use `#absorb` directly
+- Generator template (`legion generate absorber`) now emits `def absorb(...)` instead of `def handle(...)`
+- `Matchers::File` is now required and registered alongside `Matchers::Url` in the absorber loader
+- Absorber base spec updated to use `#absorb` instead of removed `#handle` alias
+
 ## [1.8.11] - 2026-04-17
 
 ### Fixed

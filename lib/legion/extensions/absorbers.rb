@@ -2,6 +2,7 @@
 
 require_relative 'absorbers/matchers/base'
 require_relative 'absorbers/matchers/url'
+require_relative 'absorbers/matchers/file'
 require_relative 'absorbers/base'
 require_relative 'absorbers/pattern_matcher'
 
