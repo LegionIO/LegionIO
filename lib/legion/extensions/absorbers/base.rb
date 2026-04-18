@@ -37,6 +37,12 @@ module Legion
           raise NotImplementedError, "#{self.class.name} must implement #absorb"
         end
 
+        # @deprecated Use {#absorb} instead. Will be removed in a future major release.
+        def handle(url: nil, content: nil, metadata: {}, context: {})
+          Legion::Logging.warn("#{self.class.name}#handle is deprecated — use #absorb instead") if defined?(Legion::Logging)
+          absorb(url: url, content: content, metadata: metadata, context: context)
+        end
+
         def absorb_to_knowledge(content:, tags: [], scope: :global, **opts)
           return fallback_absorb(:chunker, content, tags, scope, opts) unless chunker_available?
           return fallback_absorb(:apollo, content, tags, scope, opts) unless apollo_available?

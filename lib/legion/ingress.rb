@@ -79,18 +79,23 @@ module Legion
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
+        resolved_rc = begin
+          resolve_runner_class(rc)
+        rescue InvalidRunnerClass
+          rc
+        end
+
         if local_runner?(rc)
           Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
-          klass = resolve_runner_class(rc)
           ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
-          return Legion::Context.with_task_context(ctx) { klass.send(fn.to_sym, **message) }
+          return Legion::Context.with_task_context(ctx) { resolved_rc.send(fn.to_sym, **message) }
         end
 
         runner_block = lambda {
           ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
           Legion::Context.with_task_context(ctx) do
             Legion::Runner.run(
-              runner_class:  rc,
+              runner_class:  resolved_rc,
               function:      fn,
               check_subtask: check_subtask,
               generate_task: generate_task,

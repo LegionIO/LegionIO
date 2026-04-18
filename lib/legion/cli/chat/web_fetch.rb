@@ -213,6 +213,9 @@ module Legion
                         else
                           inner
                         end
+            else
+              # Malformed opening tag — preserve the inner text up to the closing tag
+              result << text[open_idx...close_idx]
             end
 
             close_end = text.index('>', close_idx)

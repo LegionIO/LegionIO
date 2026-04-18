@@ -66,6 +66,18 @@ RSpec.describe Legion::Extensions::Absorbers::Base do
     end
   end
 
+  describe '#handle (deprecated)' do
+    it 'delegates to #absorb and returns its result' do
+      result = test_absorber.new.handle(url: 'https://example.com/docs/a')
+      expect(result[:url]).to eq('https://example.com/docs/a')
+    end
+
+    it 'accepts content keyword' do
+      result = test_absorber.new.handle(content: 'raw text')
+      expect(result[:content]).to eq('raw text')
+    end
+  end
+
   describe '#absorb_to_knowledge' do
     it 'responds to absorb_to_knowledge' do
       expect(test_absorber.new).to respond_to(:absorb_to_knowledge)
