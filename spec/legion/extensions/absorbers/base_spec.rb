@@ -13,7 +13,7 @@ RSpec.describe Legion::Extensions::Absorbers::Base do
       pattern :url, 'example.com/files/*', priority: 50
       description 'Test absorber for specs'
 
-      def absorb(url: nil, content: nil, metadata: {}, context: {})
+      def absorb(url: nil, content: nil, **)
         { absorbed: true, url: url, content: content }
       end
     end
