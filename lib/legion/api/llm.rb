@@ -2,6 +2,9 @@
 
 require 'securerandom'
 require 'open3'
+require 'resolv'
+require 'ipaddr'
+require 'uri'
 
 module Legion
   class API < Sinatra::Base
@@ -69,13 +72,32 @@ module Legion
                     Dir.glob(pattern).first(100).join("\n")
                   when 'web_fetch'
                     url = kwargs[:url] || kwargs.values.first.to_s
-                    max_length = (kwargs[:maxLength] || kwargs[:max_length])&.to_i
+                    raw_length = (kwargs[:maxLength] || kwargs[:max_length])&.to_i
+                    max_length = raw_length&.positive? ? raw_length : nil
+                    parsed = begin
+                      URI.parse(url)
+                    rescue StandardError
+                      nil
+                    end
+                    raise 'Invalid or non-HTTP URL' unless parsed.is_a?(URI::HTTP)
+
+                    addr = begin
+                      ::Resolv.getaddress(parsed.host)
+                    rescue StandardError
+                      nil
+                    end
+                    if addr
+                      ip = ::IPAddr.new(addr)
+                      raise 'SSRF: private/loopback targets are not permitted' if
+                        ip.loopback? || ip.private? || ip.link_local?
+                    end
                     require 'legion/cli/chat/web_fetch'
                     content = Legion::CLI::Chat::WebFetch.fetch(url)
                     max_length ? content[0, max_length] : content
                   when 'web_search'
                     query = kwargs[:query] || kwargs.values.first.to_s
-                    max_results = (kwargs[:max_results] || kwargs[:maxResults] || 5).to_i
+                    raw_results = (kwargs[:max_results] || kwargs[:maxResults]).to_i
+                    max_results = raw_results.positive? ? [raw_results, 50].min : 5
                     require 'legion/cli/chat/web_search'
                     results = Legion::CLI::Chat::WebSearch.search(query, max_results: max_results,
                                                                          auto_fetch:  false)

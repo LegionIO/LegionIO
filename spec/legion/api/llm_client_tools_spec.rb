@@ -57,6 +57,8 @@ RSpec.describe 'LLM API client tool dispatch (web_fetch / web_search)' do
     before do
       require 'legion/cli/chat/web_fetch'
       allow(Legion::CLI::Chat::WebFetch).to receive(:fetch).and_return('# Example Page\n\nSome content here.')
+      # Stub DNS resolution so specs don't hit the network and bypass SSRF guard
+      allow(Resolv).to receive(:getaddress).and_return('93.184.216.34')
     end
 
     it 'delegates to WebFetch.fetch' do
@@ -92,6 +94,38 @@ RSpec.describe 'LLM API client tool dispatch (web_fetch / web_search)' do
       klass = build_tool('web_fetch')
       result = klass.new.execute(url: 'https://example.com')
       expect(result.length).to eq(500)
+    end
+
+    it 'treats zero maxLength as no-op (returns full content)' do
+      long_content = 'D' * 300
+      allow(Legion::CLI::Chat::WebFetch).to receive(:fetch).and_return(long_content)
+      klass = build_tool('web_fetch')
+      result = klass.new.execute(url: 'https://example.com', maxLength: 0)
+      expect(result.length).to eq(300)
+    end
+
+    it 'treats negative maxLength as no-op (returns full content)' do
+      long_content = 'E' * 300
+      allow(Legion::CLI::Chat::WebFetch).to receive(:fetch).and_return(long_content)
+      klass = build_tool('web_fetch')
+      result = klass.new.execute(url: 'https://example.com', maxLength: -10)
+      expect(result.length).to eq(300)
+    end
+
+    it 'returns a Tool error for private IP addresses (SSRF guard)' do
+      allow(Resolv).to receive(:getaddress).and_return('192.168.1.1')
+      klass = build_tool('web_fetch')
+      result = klass.new.execute(url: 'https://internal.example.com')
+      expect(result).to start_with('Tool error:')
+      expect(Legion::CLI::Chat::WebFetch).not_to have_received(:fetch)
+    end
+
+    it 'returns a Tool error for loopback addresses (SSRF guard)' do
+      allow(Resolv).to receive(:getaddress).and_return('127.0.0.1')
+      klass = build_tool('web_fetch')
+      result = klass.new.execute(url: 'https://localhost')
+      expect(result).to start_with('Tool error:')
+      expect(Legion::CLI::Chat::WebFetch).not_to have_received(:fetch)
     end
   end
 
@@ -157,6 +191,27 @@ RSpec.describe 'LLM API client tool dispatch (web_fetch / web_search)' do
       klass.new.execute(q: 'fallback query')
       expect(Legion::CLI::Chat::WebSearch).to have_received(:search)
         .with('fallback query', max_results: 5, auto_fetch: false)
+    end
+
+    it 'defaults to 5 when max_results is 0' do
+      klass = build_tool('web_search')
+      klass.new.execute(query: 'test', max_results: 0)
+      expect(Legion::CLI::Chat::WebSearch).to have_received(:search)
+        .with('test', max_results: 5, auto_fetch: false)
+    end
+
+    it 'defaults to 5 when max_results is negative' do
+      klass = build_tool('web_search')
+      klass.new.execute(query: 'test', max_results: -3)
+      expect(Legion::CLI::Chat::WebSearch).to have_received(:search)
+        .with('test', max_results: 5, auto_fetch: false)
+    end
+
+    it 'caps max_results at 50' do
+      klass = build_tool('web_search')
+      klass.new.execute(query: 'test', max_results: 999)
+      expect(Legion::CLI::Chat::WebSearch).to have_received(:search)
+        .with('test', max_results: 50, auto_fetch: false)
     end
   end
 end
