@@ -69,9 +69,17 @@ module Legion
                     Dir.glob(pattern).first(100).join("\n")
                   when 'web_fetch'
                     url = kwargs[:url] || kwargs.values.first.to_s
-                    require 'net/http'
-                    uri = URI(url)
-                    Net::HTTP.get(uri)
+                    max_length = (kwargs[:maxLength] || kwargs[:max_length])&.to_i
+                    require 'legion/cli/chat/web_fetch'
+                    content = Legion::CLI::Chat::WebFetch.fetch(url)
+                    max_length ? content[0, max_length] : content
+                  when 'web_search'
+                    query = kwargs[:query] || kwargs.values.first.to_s
+                    max_results = (kwargs[:max_results] || kwargs[:maxResults] || 5).to_i
+                    require 'legion/cli/chat/web_search'
+                    results = Legion::CLI::Chat::WebSearch.search(query, max_results: max_results,
+                                                                         auto_fetch:  false)
+                    results[:results].map { |r| "### #{r[:title]}\n#{r[:url]}\n#{r[:snippet]}" }.join("\n\n")
                   else
                     "Tool #{tool_ref} is not executable server-side. Use a legion_ prefixed tool instead."
                   end
