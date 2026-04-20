@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.8.14] - 2026-04-18
+
+### Fixed
+- Optional subsystem `LoadError`s (RBAC, Data, LLM, Apollo, Gaia, Telemetry) now log at the caller-specified level instead of always ERROR with a full stack trace — `handle_exception` respects the `level:` kwarg. Fixes #155
+- `web_fetch` tool in `/api/llm/*` endpoints now delegates to `Legion::CLI::Chat::WebFetch.fetch` instead of bare `Net::HTTP.get`, gaining SSL, redirect-following, HTML-to-markdown conversion, and `maxLength` support. Fixes #153
+- `web_search` tool in `/api/llm/*` endpoints no longer falls through to the generic "not executable server-side" error — added dispatch branch delegating to `Legion::CLI::Chat::WebSearch.search`. Fixes #154
+
 ## [1.8.13] - 2026-04-17
 
 ### Added
