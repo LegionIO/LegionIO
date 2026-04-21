@@ -91,9 +91,19 @@ module Legion
           end
 
           def truncate_output(text)
-            return text if text.length <= MAX_OUTPUT_CHARS
+            max_chars = max_output_chars
+            return text if text.length <= max_chars
 
-            "#{text[0, MAX_OUTPUT_CHARS]}\n\n[... truncated at #{MAX_OUTPUT_CHARS} characters (#{text.length} total)]"
+            "#{text[0, max_chars]}\n\n[... truncated at #{max_chars} characters (#{text.length} total)]"
+          end
+
+          # Returns the max output chars from settings with fallback to constant.
+          # Memory usage note: Still reads entire command output before truncation - this is intentional
+          # to avoid complex streaming logic. For verbose commands, consider output redirection.
+          def max_output_chars
+            Legion::Settings.dig(:chat, :tools, :max_output_chars) || MAX_OUTPUT_CHARS
+          rescue StandardError
+            MAX_OUTPUT_CHARS
           end
         end
       end

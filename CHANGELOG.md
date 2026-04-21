@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.8.15] - 2026-04-21
+
+### Fixed
+- **CLI Chat Tool Security**: `Chat::Permissions::Gate#call` now returns `RubyLLM::Tool::Halt.new('Tool execution denied by user.')` instead of a plain string to properly signal tool execution loop termination and prevent infinite retry cycles
+- **Output Truncation**: `ReadFile` and `RunCommand` tools now make `MAX_OUTPUT_CHARS` (48K) configurable via `Legion::Settings[:chat][:tools][:max_output_chars]` with fallback to constant
+- **Terminal Control Sequences**: `Chat::StatusIndicator#stop_spinner` now checks `$stderr.tty?` before printing ANSI escape sequences to avoid control characters in CI logs
+- **Vault Secret Resolution**: `Connection#ensure_llm` replaced `ensure_crypt rescue nil` with proper error logging to avoid silently swallowing vault:// resolution failures
+
+### Added
+- **Before Prompt Hook**: `Chat::Permissions.before_prompt` callback support - called before permission confirmation prompts (used to pause spinners during interactive prompts)
+- **Test Coverage**: Added comprehensive specs for `ReadFile` and `RunCommand` output truncation behavior, `StatusIndicator` TTY handling, and `Permissions` before_prompt callback functionality
+
 ## [1.8.14] - 2026-04-18
 
 ### Fixed

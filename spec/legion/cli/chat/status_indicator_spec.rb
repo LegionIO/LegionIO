@@ -88,11 +88,34 @@ RSpec.describe Legion::CLI::Chat::StatusIndicator do
     end
   end
 
-  describe 'non-TTY output' do
-    it 'does not raise when output is not a TTY' do
+  describe 'TTY handling' do
+    it 'only prints control sequences when stderr is a TTY' do
+      allow($stderr).to receive(:tty?).and_return(true)
+      allow($stderr).to receive(:print)
+
       indicator
-      expect { session.emit(:llm_start, { turn: 1 }) }.not_to raise_error
-      expect { session.emit(:llm_complete, { turn: 1 }) }.not_to raise_error
+      session.emit(:llm_start, { turn: 1 })
+      session.emit(:llm_complete, { turn: 1 })
+
+      expect($stderr).to have_received(:print).with("\r\e[2K")
+    end
+
+    it 'skips control sequences when stderr is not a TTY' do
+      allow($stderr).to receive(:tty?).and_return(false)
+      allow($stderr).to receive(:print)
+
+      indicator
+      session.emit(:llm_start, { turn: 1 })
+      session.emit(:llm_complete, { turn: 1 })
+
+      expect($stderr).not_to have_received(:print).with("\r\e[2K")
+    end
+
+    it 'calls pause method to stop spinner' do
+      indicator
+      session.emit(:llm_start, { turn: 1 })
+
+      expect { indicator.pause }.not_to raise_error
     end
   end
 end

@@ -103,7 +103,11 @@ module Legion
           return if @llm_ready
 
           ensure_settings
-          ensure_crypt rescue nil
+          begin
+            ensure_crypt
+          rescue StandardError => e
+            Legion::Logging.warn("ensure_crypt failed during LLM init: #{e.message}") if defined?(Legion::Logging)
+          end
           Legion::Settings.resolve_secrets! if Legion::Settings.respond_to?(:resolve_secrets!)
           require 'legion/llm'
           Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)

@@ -26,6 +26,33 @@ RSpec.describe Legion::CLI::Chat::Tools::RunCommand do
     expect(result).to include('timed out')
   end
 
+  describe 'output truncation' do
+    it 'truncates long output at MAX_OUTPUT_CHARS' do
+      # Create a large output that exceeds the default limit
+      large_text = 'A' * 25_000
+      result = tool.execute(command: "echo '#{large_text}#{large_text}'")
+
+      expect(result).to include('truncated at 48000 characters')
+      expect(result.length).to be < 50_000
+    end
+
+    it 'respects settings-based max_output_chars override' do
+      allow(Legion::Settings).to receive(:dig).with(:chat, :tools, :max_output_chars).and_return(200)
+
+      result = tool.execute(command: 'echo "this is a test output that should exceed 200 characters when combined with the command header and exit code"')
+
+      expect(result).to include('truncated at 200 characters')
+    end
+
+    it 'does not truncate short output' do
+      result = tool.execute(command: 'echo short')
+
+      expect(result).not_to include('truncated')
+      expect(result).to include('short')
+      expect(result).to include('exit code: 0')
+    end
+  end
+
   describe 'sandbox routing' do
     it 'defaults to direct execution when sandboxed_commands not enabled' do
       allow(Legion::Settings).to receive(:dig).with(:chat, :sandboxed_commands, :enabled).and_return(nil)

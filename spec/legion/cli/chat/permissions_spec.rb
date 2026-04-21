@@ -84,7 +84,8 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stderr).to receive(:print)
 
       result = tool.call({ path: path, content: 'hello' })
-      expect(result).to eq('Tool execution denied by user.')
+      expect(result).to be_a(RubyLLM::Tool::Halt)
+      expect(result.message).to eq('Tool execution denied by user.')
       expect(File.exist?(path)).to be false
     end
 
@@ -109,7 +110,8 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stderr).to receive(:print)
 
       result = tool.call({ path: path, old_text: 'world', new_text: 'legion' })
-      expect(result).to eq('Tool execution denied by user.')
+      expect(result).to be_a(RubyLLM::Tool::Halt)
+      expect(result.message).to eq('Tool execution denied by user.')
       expect(File.read(path)).to eq('hello world')
     end
 
@@ -133,7 +135,8 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stderr).to receive(:print)
 
       result = tool.call({ command: 'echo hello' })
-      expect(result).to eq('Tool execution denied by user.')
+      expect(result).to be_a(RubyLLM::Tool::Halt)
+      expect(result.message).to eq('Tool execution denied by user.')
     end
 
     it 'allows when user approves' do
@@ -178,6 +181,38 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       expect($stdin).not_to receive(:gets)
       result = tool.call({ pattern: '*.rb', directory: tmpdir })
       expect(result).to include('findme.rb')
+    end
+  end
+
+  describe '.before_prompt callback' do
+    let(:tool) { Legion::CLI::Chat::Tools::WriteFile.new }
+    let(:path) { File.join(tmpdir, 'callback_test.txt') }
+    let(:callback_called) { [] }
+
+    before do
+      described_class.before_prompt = -> { callback_called << :called }
+    end
+
+    after do
+      described_class.before_prompt = nil
+    end
+
+    it 'calls the before_prompt callback before showing confirmation' do
+      described_class.mode = :interactive
+      allow($stdin).to receive(:gets).and_return("y\n")
+      allow($stderr).to receive(:print)
+
+      tool.call({ path: path, content: 'hello' })
+
+      expect(callback_called).to eq([:called])
+    end
+
+    it 'does not call the callback in auto_approve mode' do
+      described_class.mode = :auto_approve
+
+      tool.call({ path: path, content: 'hello' })
+
+      expect(callback_called).to be_empty
     end
   end
 end

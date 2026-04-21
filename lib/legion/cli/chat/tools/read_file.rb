@@ -30,12 +30,24 @@ module Legion
             end
 
             result = "#{expanded} (#{lines.length} lines total)\n#{numbered.join}"
-            return result if result.length <= MAX_OUTPUT_CHARS
+            max_chars = max_output_chars
+            return result if result.length <= max_chars
 
-            "#{result[0, MAX_OUTPUT_CHARS]}\n\n[... truncated at #{MAX_OUTPUT_CHARS} characters — use offset/limit params to read specific sections]"
+            "#{result[0, max_chars]}\n\n[... truncated at #{max_chars} characters — use offset/limit params to read specific sections]"
           rescue StandardError => e
             Legion::Logging.warn("ReadFile#execute failed for #{path}: #{e.message}") if defined?(Legion::Logging)
             "Error reading #{path}: #{e.message}"
+          end
+
+          private
+
+          # Returns the max output chars from settings with fallback to constant.
+          # Memory usage note: Still reads entire file before truncation - this is intentional
+          # to avoid complex streaming logic. For very large files, use offset/limit params.
+          def max_output_chars
+            Legion::Settings.dig(:chat, :tools, :max_output_chars) || MAX_OUTPUT_CHARS
+          rescue StandardError
+            MAX_OUTPUT_CHARS
           end
         end
       end
