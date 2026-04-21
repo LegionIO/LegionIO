@@ -197,6 +197,7 @@ module Legion
           say_status :partial, "Wire: #{result[:wire]}, Test: #{result[:integration_test]}", :yellow
         end
       rescue StandardError => e
+        Legion::Logging.error(e.message) if defined?(Legion::Logging)
         say_status :error, e.message, :red
       end
 
