@@ -22,6 +22,9 @@ RSpec.describe Legion::CLI::MindGrowth do
     stub_const('Legion::Extensions::MindGrowth::Runners::Proposer', Module.new do
       def self.get_proposal_object(_id); end
     end)
+    stub_const('Legion::Extensions::MindGrowth::Runners::Orchestrator', Module.new do
+      def self.post_build_pipeline(**_kwargs); end
+    end)
     allow(Legion::Extensions::MindGrowth::Client).to receive(:new).and_return(client)
   end
 
@@ -184,6 +187,69 @@ RSpec.describe Legion::CLI::MindGrowth do
       it 'shows failure warning' do
         output = capture_stdout { described_class.start(['build', proposal_id, '--no-color']) }
         expect(output).to include('Build failed')
+      end
+    end
+  end
+
+  describe '#wire' do
+    let(:proposal_id) { 'c0ffee00-0000-0000-0000-000000000000' }
+    let(:orchestrator) { Legion::Extensions::MindGrowth::Runners::Orchestrator }
+
+    context 'when wire and activate succeed' do
+      let(:result) { { wire: { success: true }, integration_test: { success: true }, activated: true } }
+
+      before { allow(orchestrator).to receive(:post_build_pipeline).with(proposal_id: proposal_id).and_return(result) }
+
+      it 'shows activated status' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to include('activated')
+      end
+
+      it 'includes the proposal id in the output' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to include(proposal_id)
+      end
+    end
+
+    context 'when proposal is skipped' do
+      let(:result) { { skipped: true, reason: 'proposal not found' } }
+
+      before { allow(orchestrator).to receive(:post_build_pipeline).with(proposal_id: proposal_id).and_return(result) }
+
+      it 'shows skipped status with reason' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to match(/skipped|not found/)
+      end
+    end
+
+    context 'when an error is returned' do
+      let(:result) { { error: 'build artifact missing' } }
+
+      before { allow(orchestrator).to receive(:post_build_pipeline).with(proposal_id: proposal_id).and_return(result) }
+
+      it 'shows error status' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to include('build artifact missing')
+      end
+    end
+
+    context 'when wire completes but activation is pending' do
+      let(:result) { { wire: { success: true }, integration_test: { success: false } } }
+
+      before { allow(orchestrator).to receive(:post_build_pipeline).with(proposal_id: proposal_id).and_return(result) }
+
+      it 'shows partial status' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to match(/partial|Wire/)
+      end
+    end
+
+    context 'when the orchestrator raises' do
+      before { allow(orchestrator).to receive(:post_build_pipeline).and_raise(StandardError, 'unexpected failure') }
+
+      it 'shows error status and does not re-raise' do
+        output = capture_stdout { described_class.start(['wire', proposal_id, '--no-color']) }
+        expect(output).to include('unexpected failure')
       end
     end
   end

@@ -179,6 +179,27 @@ module Legion
         end
       end
 
+      desc 'wire ID', 'Wire a built extension into the cognitive tick cycle'
+      option :phase, type: :string, desc: 'Override phase (auto-detected if omitted)'
+      def wire(proposal_id)
+        require_mind_growth!
+        result = Legion::Extensions::MindGrowth::Runners::Orchestrator.post_build_pipeline(
+          proposal_id: proposal_id
+        )
+
+        if result[:skipped]
+          say_status :skipped, result[:reason], :yellow
+        elsif result[:activated]
+          say_status :activated, "#{proposal_id} wired and activated", :green
+        elsif result[:error]
+          say_status :error, result[:error], :red
+        else
+          say_status :partial, "Wire: #{result[:wire]}, Test: #{result[:integration_test]}", :yellow
+        end
+      rescue StandardError => e
+        say_status :error, e.message, :red
+      end
+
       desc 'history', 'Show recent proposal history'
       option :limit, type: :numeric, default: 50, desc: 'Max results'
       def history
