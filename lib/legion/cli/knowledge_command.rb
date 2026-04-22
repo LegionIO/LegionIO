@@ -320,8 +320,9 @@ module Legion
       option :force,   type: :boolean, default: false, desc: 'Re-ingest even unchanged files'
       option :dry_run, type: :boolean, default: false, desc: 'Preview without writing'
       def ingest(path)
-        result = api_post('/api/knowledge/ingest',
-                          path: ::File.expand_path(path), force: options[:force], dry_run: options[:dry_run])
+        payload = { path: ::File.expand_path(path), force: options[:force] }
+        payload[:dry_run] = options[:dry_run] if options[:dry_run]
+        result = api_post('/api/knowledge/ingest', **payload)
         out = formatter
         if options[:json]
           out.json(result)
