@@ -238,6 +238,13 @@ RSpec.describe Legion::CLI::Knowledge do
           .and_return(ingest_file_result_success)
         described_class.start(['ingest', tmpfile, '--dry-run', '--no-color'])
       end
+
+      it 'omits dry_run from payload when --dry-run not given' do
+        expect_any_instance_of(described_class).to receive(:api_post)
+          .with('/api/knowledge/ingest', hash_excluding(:dry_run))
+          .and_return(ingest_file_result_success)
+        described_class.start(['ingest', tmpfile, '--no-color'])
+      end
     end
 
     context 'with a directory path' do

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- `legionio knowledge ingest <file>` no longer returns `API 500 for /api/knowledge/ingest`. Two halves of the same contract mismatch: (a) the CLI previously forwarded `dry_run:` on every call (now only when `--dry-run` is passed), and (b) the `/api/knowledge/ingest` route forwarded `dry_run:` to `Legion::Extensions::Knowledge::Runners::Ingest.ingest_file`, whose signature in `lex-knowledge` 0.6.7 is `ingest_file(file_path:, force:)` — causing `ArgumentError: unknown keyword: :dry_run`. The kwarg remains honored for directory (corpus) ingests, which support preview scans. Adds regression coverage in `spec/legion/cli/knowledge_command_spec.rb` (negative-case for file ingest) and a new `spec/api/knowledge_spec.rb` covering the file/directory/dry_run branches of the route.
+
 ## [1.8.14] - 2026-04-18
 
 ### Fixed
