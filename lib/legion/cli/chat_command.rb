@@ -24,8 +24,8 @@ module Legion
       class_option :max_budget_usd, type: :numeric, desc: 'Maximum estimated cost in USD (stops when exceeded)'
       class_option :incognito, type: :boolean, default: false,
                                desc: 'Disable automatic session history saving'
-      class_option :tui, type: :boolean, default: false, aliases: ['-t'],
-                         desc: 'Use split-pane TUI (fixed input/output/status regions)'
+      class_option :no_tui, type: :boolean, default: false,
+                           desc: 'Disable TUI, use basic REPL (for non-interactive terminals)'
       class_option :continue, type: :boolean, default: false, aliases: ['-c'],
                               desc: 'Resume the most recent session'
       class_option :resume,         type: :string, desc: 'Resume a saved session by name'
@@ -193,6 +193,8 @@ module Legion
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_settings
 
+          require 'legion/llm'
+          Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)
           require 'legion/llm/daemon_client'
           return if Legion::LLM::DaemonClient.available?
 
@@ -337,51 +339,80 @@ module Legion
         end
 
         def use_tui?
-          options[:tui] || chat_setting(:tui) == true
+          return false if options[:no_tui]
+          return false unless $stdout.tty?
+
+          chat_setting(:tui) != false
         end
 
         def run_tui
           require 'legion/cli/chat/tui/app'
+          require 'legion/cli/chat/tui/formatter'
 
-          slash_completions = %w[/help /quit /exit /model /status /permissions /history /clear /edit /save /export]
+          slash_completions = %w[
+            /help /quit /exit /cost /status /clear /new
+            /save /load /sessions /compact /context
+            /fetch /search /diff /copy /rewind
+            /memory /agent /agents /plan /swarm
+            /review /permissions /personality
+            /model /commit /workers /dream /edit
+          ]
           banner = "Legion v#{Legion::VERSION}  |  Model: #{@session.model_id}  |  /help for commands, /quit to exit"
 
-          tui_app = Chat::TUI::App.new(
-            session: @session,
-            model_id: @session.model_id,
+          @tui_app = Chat::TUI::App.new(
+            session:          @session,
+            model_id:         @session.model_id,
             permissions_mode: Chat::Permissions.mode.to_s,
-            slash_handler: method(:handle_tui_slash),
-            completions: slash_completions,
-            banner: banner
+            slash_handler:    method(:handle_tui_slash),
+            completions:      slash_completions,
+            banner:           banner
           )
 
-          tui_app.run
+          @tui_app.run
           show_session_stats(formatter)
         end
 
         def handle_tui_slash(text)
           cmd = text.strip.split(/\s+/, 2)
+
+          # TUI-specific overrides
           case cmd[0]
-          when '/help'
-            true # TODO: show help overlay
-          when '/model'
-            true # TODO: switch model
-          when '/status'
-            true # TODO: show status
-          when '/permissions'
-            if cmd[1]
-              sym = cmd[1].strip.to_sym
-              valid = %i[interactive auto_approve read_only]
-              if valid.include?(sym)
-                Chat::Permissions.mode = sym
-              end
-            end
-            true
+          when '/quit', '/exit', '/q'
+            @tui_app.stop
+            return true
           when '/clear'
-            true # TODO: clear output
-          else
-            false # Not handled — send to LLM
+            @tui_app.output.clear
+            @session.chat.reset_messages!
+            chat_log.info 'conversation cleared'
+            return true
+          when '/edit', '/e'
+            @tui_app.output.add_info('/edit requires terminal mode — not available in TUI')
+            return true
+          when '/commit'
+            @tui_app.output.add_info('/commit requires interactive confirmation — not available in TUI yet')
+            return true
           end
+
+          tui_out = Chat::TUI::Formatter.new(@tui_app.output)
+
+          # Capture any direct puts/print calls from slash command handlers
+          require 'stringio'
+          captured = StringIO.new
+          original_stdout = $stdout
+          begin
+            $stdout = captured
+            handle_slash_command(text, tui_out)
+          rescue SystemExit
+            @tui_app.stop
+          ensure
+            $stdout = original_stdout
+          end
+
+          # Feed captured stdout output to TUI pane
+          captured.string.lines.each { |l| @tui_app.output.add_raw(l.chomp) } unless captured.string.empty?
+
+          @tui_app.output.add_raw('')
+          true
         end
 
         def create_chat

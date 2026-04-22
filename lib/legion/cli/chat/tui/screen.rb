@@ -26,12 +26,22 @@ module Legion
             @cursor = TTY::Cursor
             @prev_frame = []
             @dirty = true
-            detect_size
+            refresh_size
           end
 
-          def detect_size
+          # Refresh terminal size from the OS. Call sparingly — uses ioctl/stty.
+          def refresh_size
             @height, @width = TTY::Screen.size
             @dirty = true
+          end
+
+          # Mark the screen as needing a full redraw.
+          def mark_dirty
+            @dirty = true
+          end
+
+          def dirty?
+            @dirty
           end
 
           def output_height(input_height = INPUT_MIN_HEIGHT)
@@ -51,8 +61,6 @@ module Legion
           # status_line:  String        — the status bar content
           # input_lines:  Array[String] — visible lines for the input region
           def render(output_lines, status_line, input_lines)
-            detect_size
-
             inp_h = [input_lines.length, INPUT_MIN_HEIGHT].max
             out_h = output_height(inp_h)
             s_row = status_row(inp_h)

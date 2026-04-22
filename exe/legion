@@ -22,19 +22,18 @@ end
 
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
-# Bare `legion` (no args, interactive terminal) launches the TTY shell
+# Bare `legion` (no args, interactive terminal) launches the chat TUI
 # Bare `legion` (piped stdin) goes to headless chat prompt
 # `legion <subcommand>` routes to the Interactive CLI (dev-workflow commands)
+require 'legion/cli'
+
 if ARGV.empty?
   if $stdin.tty?
-    require 'legion/tty'
-    Legion::TTY::App.run
+    Legion::CLI::Chat.start(['interactive'])
   else
-    require 'legion/cli'
     ARGV.replace(['chat', 'prompt', ''])
     Legion::CLI::Main.start(ARGV)
   end
 else
-  require 'legion/cli'
   Legion::CLI::Interactive.start(ARGV)
 end

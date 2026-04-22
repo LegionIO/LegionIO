@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.8.15] - 2026-04-22
+
+### Added
+- Split-pane TUI is now the default for `legion chat` (disable with `--no-tui`)
+- `legion` bare command now launches chat TUI instead of legacy TTY shell
+- `legion tty` aliased to `legion chat` for backwards compatibility
+- TUI Formatter — routes slash command output to TUI panes instead of stdout
+- Full slash command support in TUI mode (all 30+ commands routed through TUI output)
+- TUI screen `refresh_size` / `mark_dirty` / `dirty?` API for efficient resize handling
+
+### Fixed
+- `setup_connection` now initializes `Legion::LLM` before checking `DaemonClient.available?` — fixes "daemon is not running" false negative when daemon is healthy
+- TUI `--tui` flag replaced with `--no-tui` (TUI on by default when `chat.tui` setting is not false)
+- TUI escape sequence reader uses `io.wait_readable` instead of `IO.select` for fiber scheduler compatibility
+- TUI screen no longer calls `detect_size` on every render frame — only on SIGWINCH
+- RuboCop compliance for all TUI modules
+
 ## [1.8.14] - 2026-04-18
 
 ### Fixed

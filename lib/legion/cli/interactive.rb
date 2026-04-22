@@ -43,8 +43,10 @@ module Legion
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
 
-      desc 'tty', 'Launch the rich terminal UI'
-      subcommand 'tty', Legion::CLI::Tty
+      desc 'tty', 'Launch the rich terminal UI (alias for chat)'
+      def tty(*args)
+        Legion::CLI::Chat.start(['interactive'] + args + ARGV.select { |a| a.start_with?('--') })
+      end
 
       desc 'ask TEXT', 'Quick AI prompt (shortcut for chat prompt)'
       map %w[-p --prompt] => :ask
