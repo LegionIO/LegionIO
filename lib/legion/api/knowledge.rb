@@ -55,8 +55,7 @@ module Legion
                        else
                          Legion::Extensions::Knowledge::Runners::Ingest.ingest_file(
                            file_path: body[:path],
-                           force:     body[:force] || false,
-                           dry_run:   body[:dry_run] || false
+                           force:     body[:force] || false
                          )
                        end
                      else
