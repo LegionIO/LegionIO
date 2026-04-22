@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+
+## [1.8.16] - 2026-04-22
+
+### Added
+- `legion mind-growth wire ID` CLI command — wires a built extension into the cognitive tick cycle via `Orchestrator.post_build_pipeline`; accepts `--phase` override option
+
+### Fixed
+- `MindGrowth#wire` rescue block now logs errors via `Legion::Logging.error` before displaying them, ensuring errors are captured in the daemon log and not only printed to the terminal
+
 ## [1.8.15] - 2026-04-22
 
 ### Fixed
