@@ -267,6 +267,9 @@ module Legion
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
 
+      desc 'detect SUBCOMMAND', 'Scan environment and recommend extensions'
+      subcommand 'detect', Legion::CLI::Detect
+
       # --- Interactive & shortcuts ---
       desc 'knowledge SUBCOMMAND', 'Search and manage the document knowledge base'
       subcommand 'knowledge', Legion::CLI::Knowledge
