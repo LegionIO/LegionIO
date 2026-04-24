@@ -498,7 +498,7 @@ RSpec.describe Legion::Identity::Broker do
   # leases
   # ---------------------------------------------------------------------------
   describe '.leases' do
-    it 'returns a hash of provider -> lease.to_h' do
+    it 'returns a nested hash of provider -> qualifier -> lease.to_h' do
       lease = make_lease(token: 'mytok')
       renewer = make_renewer(lease: lease)
       allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
@@ -506,15 +506,16 @@ RSpec.describe Legion::Identity::Broker do
       described_class.register_provider(:vault, provider: double, lease: make_lease)
 
       result = described_class.leases
-      expect(result[:vault]).to eq({ token: 'mytok', valid: true })
+      expect(result[:vault]).to be_a(Hash)
+      expect(result[:vault][:default]).to eq({ token: 'mytok', valid: true })
     end
 
-    it 'returns nil for providers with no current lease' do
+    it 'returns nil for qualifiers with no current lease' do
       renewer = make_renewer(lease: nil)
       allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
       described_class.register_provider(:vault, provider: double, lease: make_lease)
 
-      expect(described_class.leases[:vault]).to be_nil
+      expect(described_class.leases[:vault][:default]).to be_nil
     end
   end
 
@@ -582,6 +583,269 @@ RSpec.describe Legion::Identity::Broker do
       described_class.reset!
       flag = described_class.instance_variable_get(:@groups_fetch_in_progress)
       expect(flag.true?).to be(false)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # backward-compatible registration (no qualifier)
+  # ---------------------------------------------------------------------------
+  describe 'backward-compatible registration (no qualifier)' do
+    it 'registers and retrieves a token without specifying qualifier' do
+      renewer = make_renewer(lease: make_lease(token: 'compat.tok'))
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:test, provider: double('p'), lease: make_lease)
+
+      expect(described_class.token_for(:test)).to eq('compat.tok')
+    end
+
+    it 'includes the provider in the providers list' do
+      renewer = make_renewer
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:test, provider: double('p'), lease: make_lease)
+
+      expect(described_class.providers).to include(:test)
+    end
+
+    it 'returns a lease from lease_for without qualifier' do
+      lease = make_lease(token: 'compat.lease')
+      renewer = make_renewer(lease: lease)
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:test, provider: double('p'), lease: make_lease)
+
+      expect(described_class.lease_for(:test).token).to eq('compat.lease')
+    end
+
+    it 'returns credentials from credentials_for without qualifier' do
+      renewer = make_renewer(lease: make_lease(token: 'compat.cred'))
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:test, provider: double('p'), lease: make_lease)
+
+      result = described_class.credentials_for(:test)
+      expect(result[:token]).to eq('compat.cred')
+      expect(result[:provider]).to eq(:test)
+    end
+
+    it 'returns the renewer from renewer_for without qualifier' do
+      renewer = make_renewer
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:test, provider: double('p'), lease: make_lease)
+
+      expect(described_class.renewer_for(:test)).to equal(renewer)
+    end
+
+    it 'works with static credentials without qualifier' do
+      described_class.register_provider(:api, provider: double('p'), lease: make_static_lease(token: 'sk-compat'))
+      expect(described_class.token_for(:api)).to eq('sk-compat')
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # multi-instance registration (with qualifier)
+  # ---------------------------------------------------------------------------
+  describe 'multi-instance registration (with qualifier)' do
+    let(:delegated_lease) { make_static_lease(token: 'entra.delegated.tok') }
+    let(:app_lease)       { make_static_lease(token: 'entra.app.tok') }
+
+    before do
+      described_class.register_provider(:entra,
+                                        provider:  double('EntraProvider'),
+                                        lease:     delegated_lease,
+                                        qualifier: :delegated,
+                                        default:   true)
+      described_class.register_provider(:entra,
+                                        provider:  double('EntraProvider'),
+                                        lease:     app_lease,
+                                        qualifier: :app)
+    end
+
+    it 'returns the default qualifier token when no qualifier specified' do
+      expect(described_class.token_for(:entra)).to eq('entra.delegated.tok')
+    end
+
+    it 'returns the app qualifier token when qualifier: :app specified' do
+      expect(described_class.token_for(:entra, qualifier: :app)).to eq('entra.app.tok')
+    end
+
+    it 'returns the delegated qualifier token when qualifier: :delegated specified' do
+      expect(described_class.token_for(:entra, qualifier: :delegated)).to eq('entra.delegated.tok')
+    end
+
+    it 'lists both qualifiers via credentials_available' do
+      expect(described_class.credentials_available(:entra)).to contain_exactly(:delegated, :app)
+    end
+
+    it 'includes :entra in providers exactly once' do
+      expect(described_class.providers).to eq([:entra])
+    end
+
+    it 'returns nil for a non-existent qualifier' do
+      expect(described_class.token_for(:entra, qualifier: :nonexistent)).to be_nil
+    end
+
+    it 'returns credentials_for with explicit qualifier' do
+      result = described_class.credentials_for(:entra, qualifier: :app)
+      expect(result[:token]).to eq('entra.app.tok')
+      expect(result[:provider]).to eq(:entra)
+    end
+
+    it 'returns credentials_for using the default qualifier' do
+      result = described_class.credentials_for(:entra)
+      expect(result[:token]).to eq('entra.delegated.tok')
+    end
+
+    it 'returns an empty list for credentials_available on unregistered provider' do
+      expect(described_class.credentials_available(:unknown)).to eq([])
+    end
+
+    it 'stops existing renewer for same tuple when re-registering' do
+      renewer = make_renewer(lease: make_lease(token: 'dyn.tok'))
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
+      described_class.register_provider(:multi, provider: double('p'), lease: make_lease, qualifier: :slot_a)
+
+      expect(renewer).to receive(:stop!)
+      new_renewer = make_renewer(lease: make_lease(token: 'dyn.tok.new'))
+      allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(new_renewer)
+      described_class.register_provider(:multi, provider: double('p'), lease: make_lease, qualifier: :slot_a)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # context-based routing (for_context)
+  # ---------------------------------------------------------------------------
+  describe 'context-based routing (for_context)' do
+    let(:legion_lease) { make_static_lease(token: 'gh.legion.tok') }
+    let(:personal_lease) { make_static_lease(token: 'gh.personal.tok') }
+
+    let(:routing_provider) do
+      provider = double('GitHubProvider')
+      allow(provider).to receive(:resolve_qualifier) do |ctx|
+        case ctx[:org]
+        when 'LegionIO' then :legion
+        when 'Personal' then :personal
+        end
+      end
+      provider
+    end
+
+    before do
+      described_class.register_provider(:github,
+                                        provider:  routing_provider,
+                                        lease:     legion_lease,
+                                        qualifier: :legion,
+                                        default:   true)
+      described_class.register_provider(:github,
+                                        provider:  routing_provider,
+                                        lease:     personal_lease,
+                                        qualifier: :personal)
+    end
+
+    it 'routes to the correct qualifier based on for_context' do
+      token = described_class.token_for(:github, for_context: { org: 'LegionIO' })
+      expect(token).to eq('gh.legion.tok')
+    end
+
+    it 'routes to a different qualifier based on for_context' do
+      token = described_class.token_for(:github, for_context: { org: 'Personal' })
+      expect(token).to eq('gh.personal.tok')
+    end
+
+    it 'falls back to default when resolve_qualifier returns nil' do
+      token = described_class.token_for(:github, for_context: { org: 'Unknown' })
+      expect(token).to eq('gh.legion.tok')
+    end
+
+    it 'falls back to default when provider does not respond to resolve_qualifier' do
+      plain_provider = double('PlainProvider')
+      described_class.register_provider(:plain,
+                                        provider:  plain_provider,
+                                        lease:     make_static_lease(token: 'plain.default'),
+                                        qualifier: :default)
+
+      token = described_class.token_for(:plain, for_context: { org: 'Anything' })
+      expect(token).to eq('plain.default')
+    end
+
+    it 'prefers explicit qualifier over for_context' do
+      token = described_class.token_for(:github, qualifier: :personal, for_context: { org: 'LegionIO' })
+      expect(token).to eq('gh.personal.tok')
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # credentials_for with qualifier
+  # ---------------------------------------------------------------------------
+  describe 'credentials_for with qualifier' do
+    before do
+      described_class.register_provider(:gh,
+                                        provider:  double('GHProvider'),
+                                        lease:     make_static_lease(token: 'gh.default.tok'),
+                                        qualifier: :default)
+      described_class.register_provider(:gh,
+                                        provider:  double('GHProvider'),
+                                        lease:     make_static_lease(token: 'gh.esity.tok'),
+                                        qualifier: :esity)
+    end
+
+    it 'returns default credentials when no qualifier given' do
+      result = described_class.credentials_for(:gh)
+      expect(result[:token]).to eq('gh.default.tok')
+      expect(result[:provider]).to eq(:gh)
+    end
+
+    it 'returns specific credentials when qualifier given' do
+      result = described_class.credentials_for(:gh, qualifier: :esity)
+      expect(result[:token]).to eq('gh.esity.tok')
+      expect(result[:provider]).to eq(:gh)
+    end
+
+    it 'returns nil when qualifier does not exist' do
+      expect(described_class.credentials_for(:gh, qualifier: :nonexistent)).to be_nil
+    end
+
+    it 'passes service through to the result' do
+      result = described_class.credentials_for(:gh, qualifier: :esity, service: 'api.github.com')
+      expect(result[:service]).to eq('api.github.com')
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # audit emission in token_for
+  # ---------------------------------------------------------------------------
+  describe 'audit emission in token_for' do
+    it 'pushes an audit event to the queue on successful token_for' do
+      described_class.register_provider(:aud, provider: double('p'), lease: make_static_lease(token: 'aud.tok'))
+      described_class.token_for(:aud, purpose: 'api_call', context: { request_id: '123' })
+
+      queue = described_class.instance_variable_get(:@audit_queue)
+      expect(queue.size).to be >= 1
+      event = queue.first
+      expect(event[:provider]).to eq(:aud)
+      expect(event[:qualifier]).to eq(:default)
+      expect(event[:purpose]).to eq('api_call')
+      expect(event[:context]).to eq({ request_id: '123' })
+      expect(event[:granted]).to be(true)
+      expect(event[:timestamp]).to be_a(Time)
+    end
+
+    it 'pushes an audit event with granted: false when token is nil' do
+      described_class.token_for(:nonexistent, purpose: 'test')
+
+      queue = described_class.instance_variable_get(:@audit_queue)
+      event = queue.last
+      expect(event[:granted]).to be(false)
+    end
+
+    it 'drops events when audit queue is full' do
+      described_class.register_provider(:flood, provider: double('p'), lease: make_static_lease(token: 'f.tok'))
+
+      # Fill the queue to capacity
+      queue = described_class.instance_variable_get(:@audit_queue)
+      Legion::Identity::Broker::AUDIT_QUEUE_MAX.times { queue.push({ filler: true }) }
+
+      # This call should drop rather than push
+      described_class.token_for(:flood)
+      drops = described_class.instance_variable_get(:@audit_drops)
+      expect(drops.value).to be >= 1
     end
   end
 end

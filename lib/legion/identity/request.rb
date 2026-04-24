@@ -44,7 +44,9 @@ module Legion
       # The source value is normalized via SOURCE_NORMALIZATION at construction time.
       def self.from_auth_context(claims_hash)
         raw_name = claims_hash[:name] || claims_hash[:preferred_username] || ''
-        canonical = raw_name.to_s.strip.downcase.gsub('.', '-')
+        stripped = raw_name.to_s.strip.downcase
+        stripped = stripped.split('@', 2).first if stripped.include?('@')
+        canonical = stripped.gsub('.', '-').gsub(/[^a-z0-9_-]/, '')
         raw_source = claims_hash[:source]&.to_sym
         normalized_source = SOURCE_NORMALIZATION.fetch(raw_source, raw_source)
 

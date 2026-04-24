@@ -14,7 +14,11 @@ module Legion
         source:         nil,
         persistent:     false,
         groups:         [].freeze,
-        metadata:       {}.freeze
+        metadata:       {}.freeze,
+        trust:          nil,
+        aliases:        {}.freeze,
+        providers:      {}.freeze,
+        profile:        {}.freeze
       }.freeze
 
       class << self
@@ -58,6 +62,22 @@ module Legion
           @state.get[:source]
         end
 
+        def trust
+          @state.get[:trust]
+        end
+
+        def aliases
+          @state.get[:aliases] || {}.freeze
+        end
+
+        def providers
+          @state.get[:providers] || {}.freeze
+        end
+
+        def profile
+          @state.get[:profile] || {}.freeze
+        end
+
         def identity_hash
           {
             id:             id,
@@ -69,7 +89,11 @@ module Legion
             resolved:       resolved?,
             persistent:     persistent?,
             groups:         @state.get[:groups] || [],
-            metadata:       @state.get[:metadata] || {}
+            metadata:       @state.get[:metadata] || {},
+            trust:          trust,
+            aliases:        aliases,
+            providers:      providers,
+            profile:        profile
           }
         end
 
@@ -83,7 +107,11 @@ module Legion
                        source:         identity_hash.key?(:source) ? identity_hash[:source] : provider_source,
                        persistent:     identity_hash.fetch(:persistent, true),
                        groups:         Array(identity_hash[:groups]).compact.freeze,
-                       metadata:       identity_hash[:metadata].is_a?(Hash) ? identity_hash[:metadata].dup.freeze : {}.freeze
+                       metadata:       identity_hash[:metadata].is_a?(Hash) ? identity_hash[:metadata].dup.freeze : {}.freeze,
+                       trust:          identity_hash[:trust],
+                       aliases:        identity_hash[:aliases].is_a?(Hash) ? identity_hash[:aliases].dup.freeze : {}.freeze,
+                       providers:      identity_hash[:providers].is_a?(Hash) ? identity_hash[:providers].dup.freeze : {}.freeze,
+                       profile:        identity_hash[:profile].is_a?(Hash) ? identity_hash[:profile].dup.freeze : {}.freeze
                      })
           @resolved.make_true
         end
@@ -97,7 +125,11 @@ module Legion
                        source:         :system,
                        persistent:     false,
                        groups:         [].freeze,
-                       metadata:       {}.freeze
+                       metadata:       {}.freeze,
+                       trust:          nil,
+                       aliases:        {}.freeze,
+                       providers:      {}.freeze,
+                       profile:        {}.freeze
                      })
           @resolved.make_false
         end

@@ -115,13 +115,22 @@ module Legion
       end
 
       def system_principal
-        @system_principal ||= Identity::Request.new(
-          principal_id:   'system:local',
-          canonical_name: 'system',
-          kind:           :service,
-          groups:         [],
-          source:         :local
-        )
+        canonical = if defined?(Legion::Identity::Process) && Legion::Identity::Process.resolved?
+                      Legion::Identity::Process.canonical_name
+                    else
+                      'system'
+                    end
+
+        if @system_principal&.canonical_name != canonical
+          @system_principal = Identity::Request.new(
+            principal_id:   "system:#{canonical}",
+            canonical_name: canonical,
+            kind:           :service,
+            groups:         [],
+            source:         :local
+          )
+        end
+        @system_principal
       end
     end
   end

@@ -154,14 +154,20 @@ RSpec.describe Legion::Identity::Middleware do
       expect(captured['legion.principal']).to be_a(Legion::Identity::Request)
     end
 
-    it 'sets principal_id to system:local' do
+    it 'sets principal_id to system:<canonical>' do
       captured = nil
       app = described_class.new(lambda { |e|
         captured = e
         [200, {}, []]
       })
       app.call(env)
-      expect(captured['legion.principal'].principal_id).to eq('system:local')
+      principal = captured['legion.principal']
+      expected_canonical = if defined?(Legion::Identity::Process) && Legion::Identity::Process.resolved?
+                             Legion::Identity::Process.canonical_name
+                           else
+                             'system'
+                           end
+      expect(principal.principal_id).to eq("system:#{expected_canonical}")
     end
 
     it 'sets kind to :service' do
