@@ -275,8 +275,6 @@ module Legion
         has_logger = extension.respond_to?(:log)
         extension.autobuild
 
-        register_identity_provider(extension, entry) if identity_provider?(extension)
-
         require 'legion/transport/messages/lex_register'
         registration = Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners)
         if @pending_registrations
@@ -433,39 +431,6 @@ module Legion
       end
 
       private
-
-      def identity_provider?(extension)
-        extension.respond_to?(:provider_name) &&
-          extension.respond_to?(:provider_type) &&
-          extension.respond_to?(:facing)
-      end
-
-      def register_identity_provider(extension, entry)
-        return unless defined?(Legion::Data) && Legion::Data.connected?
-        return unless defined?(Legion::Data::Model::IdentityProvider)
-
-        name = extension.provider_name.to_s
-        attrs = {
-          provider_type: extension.provider_type.to_s,
-          facing:        extension.facing.to_s,
-          priority:      extension.respond_to?(:priority) ? extension.priority : 100,
-          trust_weight:  extension.respond_to?(:trust_weight) ? extension.trust_weight : 50,
-          capabilities:  extension.respond_to?(:capabilities) ? Array(extension.capabilities).map(&:to_s) : [],
-          source:        'gem',
-          enabled:       true
-        }
-
-        existing = Legion::Data::Model::IdentityProvider.where(name: name).first
-        if existing
-          diverged = attrs.any? { |k, v| existing.send(k).to_s != v.to_s }
-          Legion::Logging.info "[identity][provider] name=#{name} source=db/gem diverged=#{diverged}" if defined?(Legion::Logging)
-        else
-          Legion::Data::Model::IdentityProvider.insert_conflict(target: :name, update: attrs).insert(attrs.merge(name: name))
-          Legion::Logging.info "[identity][provider] name=#{name} registered" if defined?(Legion::Logging)
-        end
-      rescue StandardError => e
-        Legion::Logging.warn "[identity][provider] registration failed for #{entry[:gem_name]}: #{e.message}" if defined?(Legion::Logging)
-      end
 
       def write_lex_cli_manifest(entry, extension)
         require 'legion/cli/lex_cli_manifest'

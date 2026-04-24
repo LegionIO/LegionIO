@@ -161,6 +161,8 @@ module Legion
       setup_safety_metrics
       setup_supervision if supervision
 
+      require_relative 'identity' if File.exist?(File.expand_path('identity.rb', __dir__))
+
       if extensions
         load_extensions
         Legion::Readiness.mark_ready(:extensions)
@@ -168,8 +170,9 @@ module Legion
       end
 
       # Identity resolution — after extensions so lex-identity-* providers are loaded
-      setup_identity if transport
-      register_credential_providers if extensions && transport
+      db_available = defined?(Legion::Data) && Legion::Data.respond_to?(:connected?) && Legion::Data.connected?
+      setup_identity if transport || db_available
+      register_credential_providers if extensions && (transport || db_available)
 
       register_core_tools
 
@@ -506,10 +509,17 @@ module Legion
       require_relative 'identity/middleware'
 
       # Resolve identity from available providers (Phase 4 adds real providers)
-      resolved = resolve_identity_providers
-      unless resolved
-        Legion::Identity::Process.bind_fallback!
-        log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
+      require_relative 'identity' unless defined?(Legion::Identity::Resolver)
+
+      Legion::Identity::Resolver.resolve!
+
+      # Transitional fallback: if no providers self-registered yet, try old tree-walk discovery
+      unless Legion::Identity::Resolver.resolved?
+        resolved = resolve_identity_providers
+        unless resolved
+          Legion::Identity::Process.bind_fallback!
+          log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
+        end
       end
 
       # Phase 5: Swap from bootstrap RMQ credentials to identity-scoped credentials.
@@ -897,15 +907,18 @@ module Legion
         Legion::Readiness.mark_skipped(:gaia)
       end
 
-      # Phase 5: re-run identity resolution + credential swap so the reloaded
-      # process gets identity-scoped RMQ creds (not stale bootstrap creds).
+      # Phase 5: re-run identity resolution with existing providers.
+      # reset! clears composite but preserves provider registrations (require is idempotent).
+      Legion::Identity::Resolver.reset! if defined?(Legion::Identity::Resolver)
       setup_identity
 
       setup_supervision
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
 
-      register_credential_providers
+      db_available = defined?(Legion::Data) && Legion::Data.respond_to?(:connected?) && Legion::Data.connected?
+      transport_available = defined?(Legion::Transport::Connection) && Legion::Transport::Connection.respond_to?(:session_open?) && Legion::Transport::Connection.session_open?
+      register_credential_providers if transport_available || db_available
       Legion::Extensions.flush_pending_registrations! if defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:flush_pending_registrations!)
 
       register_core_tools
