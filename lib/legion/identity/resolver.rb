@@ -33,6 +33,7 @@ module Legion
 
           unless winning_provider
             @resolved.make_false
+            @composite.set(nil)
             return nil
           end
 
@@ -61,6 +62,19 @@ module Legion
           new_canonical = result[:canonical_name] || current[:canonical_name]
           canonical_changed = new_canonical != current[:canonical_name]
 
+          # Only promote the composite trust level when the new provider's trust
+          # is strictly higher (lower rank index) than the current level.
+          # This prevents an accidental downgrade if upgrade! is called with a
+          # lower-trust provider such as one with :unverified trust.
+          current_trust = current[:trust]
+          effective_trust = if defined?(Legion::Identity::Trust) &&
+                               Legion::Identity::Trust.respond_to?(:above?) &&
+                               Legion::Identity::Trust.above?(new_trust, current_trust)
+                              new_trust
+                            else
+                              current_trust
+                            end
+
           new_aliases = current[:aliases].dup
           provider_identity = result[:provider_identity]
           if provider_identity
@@ -77,7 +91,7 @@ module Legion
 
           updated = current.merge(
             canonical_name: new_canonical,
-            trust:          new_trust,
+            trust:          effective_trust,
             source:         provider.provider_name,
             aliases:        new_aliases,
             providers:      new_providers
@@ -162,19 +176,13 @@ module Legion
             Concurrent::Promises.future { provider.resolve }
           end
 
+          deadline = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) + timeout
           provider_results = {}
           auth_providers.zip(futures).each do |provider, future|
-            result = future.value(timeout)
-
-            status = if future.rejected?
-                       :failed
-                     elsif !future.resolved?
-                       :timeout
-                     elsif result.is_a?(Hash) && result[:canonical_name]
-                       :resolved
-                     else
-                       :no_identity
-                     end
+            remaining = deadline - ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+            future.wait(remaining.positive? ? remaining : 0)
+            result = future.value(0) if future.resolved?
+            status = auth_future_status(future, result)
 
             provider_results[provider.provider_name] = {
               status:      status,
@@ -199,6 +207,18 @@ module Legion
           end
         end
 
+        def auth_future_status(future, result)
+          if future.rejected?
+            :failed
+          elsif !future.resolved?
+            :timeout
+          elsif result.is_a?(Hash) && result[:canonical_name]
+            :resolved
+          else
+            :no_identity
+          end
+        end
+
         def resolve_profiles(profile_providers, canonical, timeout:)
           return { groups: [], profile: {}, provider_results: {} } if profile_providers.empty?
 
@@ -206,12 +226,16 @@ module Legion
             Concurrent::Promises.future { resolve_profile_provider(provider, canonical) }
           end
 
+          deadline = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) + timeout
           groups = []
           profile = {}
           pr = {}
 
           profile_providers.zip(futures).each do |provider, future|
-            result = future.value(timeout)
+            remaining = deadline - ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+            future.wait(remaining.positive? ? remaining : 0)
+            result = future.value(0) if future.resolved?
+
             if future.fulfilled? && result.is_a?(Hash)
               groups.concat(Array(result[:groups])) if result[:groups]
               profile.merge!(result[:profile]) if result[:profile].is_a?(Hash)
@@ -292,7 +316,7 @@ module Legion
           @resolved.make_true
         end
 
-        def persist_to_db(composite) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
+        def persist_to_db(composite) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
           return unless defined?(Legion::Data) && Legion::Data.respond_to?(:connected?) && Legion::Data.connected?
           return unless defined?(Legion::Data::Connection) &&
                         Legion::Data::Connection.respond_to?(:adapter) &&
@@ -338,10 +362,21 @@ module Legion
 
           # insert audit log
           Legion::Data.db[:identity_audit_log].insert(
-            principal_id: principal_id,
-            event:        'identity.resolved',
-            details:      Legion::JSON.dump({ source: composite[:source], trust: composite[:trust] }),
-            created_at:   Time.now
+            principal_id:  principal_id,
+            event_type:    'identity.resolved',
+            provider_name: composite[:source].to_s,
+            trust_level:   composite[:trust]&.to_s,
+            detail:        Legion::JSON.dump(
+              {
+                source:     composite[:source],
+                trust:      composite[:trust],
+                node_id:    composite[:node_id],
+                session_id: @session_id
+              }
+            ),
+            node_id:       composite[:node_id],
+            session_id:    @session_id,
+            created_at:    Time.now
           )
         rescue StandardError => e
           log_warn("DB persistence failed: #{e.message}")
@@ -378,10 +413,11 @@ module Legion
           # Audit the canonical change
           old_row = Legion::Data.db[:principals].where(canonical_name: old_canonical).first
           Legion::Data.db[:identity_audit_log].insert(
-            principal_id: old_row&.dig(:id),
-            event:        'identity.canonical_changed',
-            details:      Legion::JSON.dump({ old: old_canonical, new: new_canonical }),
-            created_at:   Time.now
+            principal_id:  old_row&.dig(:id),
+            event_type:    'identity.canonical_changed',
+            provider_name: '',
+            detail:        Legion::JSON.dump({ old: old_canonical, new: new_canonical }),
+            created_at:    Time.now
           )
         rescue StandardError => e
           log_warn("canonical change handling failed: #{e.message}")

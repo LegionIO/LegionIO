@@ -296,7 +296,8 @@ RSpec.describe 'Identity Integration' do
       Legion::Identity::Broker.register_provider(:openai, provider: provider, lease: static_lease)
       leases = Legion::Identity::Broker.leases
       expect(leases[:openai]).to be_a(Hash)
-      expect(leases[:openai][:valid]).to be(true)
+      expect(leases[:openai][:default]).to be_a(Hash)
+      expect(leases[:openai][:default][:valid]).to be(true)
     end
 
     it 'shutdown clears static leases' do

@@ -498,7 +498,7 @@ RSpec.describe Legion::Identity::Broker do
   # leases
   # ---------------------------------------------------------------------------
   describe '.leases' do
-    it 'returns a hash of provider -> lease.to_h' do
+    it 'returns a nested hash of provider -> qualifier -> lease.to_h' do
       lease = make_lease(token: 'mytok')
       renewer = make_renewer(lease: lease)
       allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
@@ -506,15 +506,16 @@ RSpec.describe Legion::Identity::Broker do
       described_class.register_provider(:vault, provider: double, lease: make_lease)
 
       result = described_class.leases
-      expect(result[:vault]).to eq({ token: 'mytok', valid: true })
+      expect(result[:vault]).to be_a(Hash)
+      expect(result[:vault][:default]).to eq({ token: 'mytok', valid: true })
     end
 
-    it 'returns nil for providers with no current lease' do
+    it 'returns nil for qualifiers with no current lease' do
       renewer = make_renewer(lease: nil)
       allow(Legion::Identity::LeaseRenewer).to receive(:new).and_return(renewer)
       described_class.register_provider(:vault, provider: double, lease: make_lease)
 
-      expect(described_class.leases[:vault]).to be_nil
+      expect(described_class.leases[:vault][:default]).to be_nil
     end
   end
 

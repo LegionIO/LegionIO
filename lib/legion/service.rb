@@ -903,14 +903,15 @@ module Legion
         Legion::Readiness.mark_skipped(:gaia)
       end
 
-      # Phase 5: re-run identity resolution with existing providers.
-      # reset! clears composite but preserves provider registrations (require is idempotent).
-      Legion::Identity::Resolver.reset! if defined?(Legion::Identity::Resolver)
-      setup_identity
-
       setup_supervision
       load_extensions
       Legion::Readiness.mark_ready(:extensions)
+
+      # Phase 5: re-run identity resolution after extensions are loaded so that
+      # any identity providers registered by lex-identity-* extensions are
+      # available to the resolver (mirrors the boot-time ordering).
+      Legion::Identity::Resolver.reset! if defined?(Legion::Identity::Resolver)
+      setup_identity
 
       db_available = defined?(Legion::Data) && Legion::Data.respond_to?(:connected?) && Legion::Data.connected?
       transport_available = defined?(Legion::Transport::Connection) && Legion::Transport::Connection.respond_to?(:session_open?) && Legion::Transport::Connection.session_open?

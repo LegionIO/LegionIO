@@ -8,6 +8,7 @@ module Legion
           app.helpers IdentityAuditHelpers
 
           app.get '/api/identity/audit' do
+            require_data!
             halt 503, json_error('unavailable', 'identity audit log not available') unless defined?(Legion::Data::Model::IdentityAuditLog)
 
             dataset = Legion::Data::Model::IdentityAuditLog.dataset

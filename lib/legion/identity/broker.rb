@@ -147,12 +147,14 @@ module Legion
         def leases
           result = {}
           renewers.each do |key, renewer|
-            provider_name = key.first
-            result[provider_name] = renewer.current_lease&.to_h
+            provider_name, qualifier = key
+            result[provider_name] ||= {}
+            result[provider_name][qualifier] = renewer.current_lease&.to_h
           end
           static_leases.each do |key, ref|
-            provider_name = key.first
-            result[provider_name] = ref.get&.to_h unless result.key?(provider_name)
+            provider_name, qualifier = key
+            result[provider_name] ||= {}
+            result[provider_name][qualifier] = ref.get&.to_h unless result[provider_name].key?(qualifier)
           end
           result
         end
@@ -240,38 +242,23 @@ module Legion
         end
 
         def ensure_audit_drainer_started
-          @audit_drainer_started ||= Concurrent::AtomicBoolean.new(false)
-          return if @audit_drainer_started.true?
-          return unless @audit_drainer_started.make_true
-
-          @audit_drainer = Thread.new do
-            loop do
-              break if Thread.current[:stop]
-
-              event = audit_queue.shift
-              if event
-                publish_audit_event(event)
-              else
-                sleep(0.1)
-              end
-            end
-          end
-          @audit_drainer.name = 'identity-broker-audit-drainer'
+          # Intentionally a no-op until publish_audit_event has a real
+          # implementation. Starting a drainer before a durable sink exists
+          # causes queued audit events to be silently discarded.
+          @ensure_audit_drainer_started ||= Concurrent::AtomicBoolean.new(false)
         end
 
         def stop_audit_drainer
-          if @audit_drainer&.alive?
-            @audit_drainer[:stop] = true
-            @audit_drainer.join(2)
-            @audit_drainer.kill if @audit_drainer.alive?
-          end
+          # No background drainer is started until publish_audit_event has a
+          # real implementation. Keep this method for API compatibility.
           @audit_drainer = nil
           @audit_drainer_started = Concurrent::AtomicBoolean.new(false)
         end
 
         def publish_audit_event(event)
-          # Future: publish to transport / log store
-          # For now, this is a hook point for downstream consumers
+          # Future: publish to transport / log store.
+          # Until then, events remain in the queue for inspection and are not
+          # drained by a background thread.
           event
         end
 
