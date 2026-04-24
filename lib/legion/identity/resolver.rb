@@ -234,7 +234,7 @@ module Legion
           profile_providers.zip(futures).each do |provider, future|
             remaining = deadline - ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
             future.wait(remaining.positive? ? remaining : 0)
-            result = future.value(0) if future.resolved?
+            result = future.resolved? ? future.value(0) : nil
 
             if future.fulfilled? && result.is_a?(Hash)
               groups.concat(Array(result[:groups])) if result[:groups]
