@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-04-24
+
+### Added
+- `Legion::Identity::Resolver` — composite identity resolution chain with parallel provider execution, DB persistence, and transport event publishing
+- `Legion::Identity::Trust` — trust level enum (verified, authenticated, configured, cached, unverified)
+- `Legion::Identity::Grant` — frozen value object for credential access auditing
+- `Identity::Process` extended with trust, aliases, providers, profile composite state
+- `Identity::Broker` upgraded to `[provider, qualifier]` tuple-keyed multi-instance storage with `for_context` routing and bounded async audit queue
+- `Resolver.upgrade!` for post-boot identity trust escalation with canonical_name change support
+- Settings client name updated from resolved identity for correct queue naming
+
+### Changed
+- `setup_identity` gate relaxed to run with DB-only nodes (not just transport)
+- `register_credential_providers` gate relaxed for DB-only nodes
+- Reload lifecycle: `Resolver.reset!` preserves providers, re-resolves with existing registrations
+- Middleware `system_principal` uses Resolver identity when available
+
+### Fixed
+- `Request.from_auth_context` canonical normalization now matches DB constraint `^[a-z0-9][a-z0-9_-]*$`
+- `/api/identity/audit` reads from `identity_audit_log` table instead of `AuditRecord`
+
+### Removed
+- Legacy tree-walk identity discovery (`resolve_identity_providers`, `find_identity_providers`, `collect_identity_providers`)
+- `identity_provider?` and `register_identity_provider` from extensions.rb
 
 ## [1.8.16] - 2026-04-22
 
