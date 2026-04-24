@@ -123,7 +123,7 @@ RSpec.describe Legion::Identity::Request do
     end
 
     it 'maps name to canonical_name' do
-      expect(described_class.from_auth_context(claims).canonical_name).to eq('worker bot')
+      expect(described_class.from_auth_context(claims).canonical_name).to eq('workerbot')
     end
 
     it 'maps kind' do
@@ -140,7 +140,7 @@ RSpec.describe Legion::Identity::Request do
 
     it 'normalizes canonical_name to lowercase' do
       req = described_class.from_auth_context(claims.merge(name: 'UPPER CASE'))
-      expect(req.canonical_name).to eq('upper case')
+      expect(req.canonical_name).to eq('uppercase')
     end
 
     it 'strips leading and trailing whitespace from canonical_name' do
@@ -161,7 +161,7 @@ RSpec.describe Legion::Identity::Request do
         groups:             [],
         source:             :entra
       )
-      expect(req.canonical_name).to eq('jdoe@example-com')
+      expect(req.canonical_name).to eq('jdoe')
     end
 
     it 'defaults kind to :human when not provided' do
@@ -182,6 +182,23 @@ RSpec.describe Legion::Identity::Request do
     it 'defaults roles to [] when resolved_roles is absent' do
       req = described_class.from_auth_context(claims)
       expect(req.roles).to eq([])
+    end
+  end
+
+  describe '.from_auth_context canonical normalization' do
+    it 'strips domain from email-style names' do
+      req = described_class.from_auth_context(sub: 'uid', name: 'matt.iverson@optum.com')
+      expect(req.canonical_name).to eq('matt-iverson')
+    end
+
+    it 'removes characters outside the allowed set' do
+      req = described_class.from_auth_context(sub: 'uid', name: 'user name!')
+      expect(req.canonical_name).to match(/\A[a-z0-9][a-z0-9_-]*\z/)
+    end
+
+    it 'handles uppercase' do
+      req = described_class.from_auth_context(sub: 'uid', name: 'Matt.Iverson@OPTUM.COM')
+      expect(req.canonical_name).to eq('matt-iverson')
     end
   end
 
