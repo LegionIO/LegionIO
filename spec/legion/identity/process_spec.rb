@@ -242,8 +242,8 @@ RSpec.describe Legion::Identity::Process do
       expect(hash[:metadata]).to eq({})
     end
 
-    it 'returns a Hash with exactly 10 keys' do
-      expect(hash.keys).to match_array(%i[id canonical_name kind source mode queue_prefix resolved persistent groups metadata])
+    it 'returns a Hash with exactly 14 keys' do
+      expect(hash.keys).to match_array(%i[id canonical_name kind source mode queue_prefix resolved persistent groups metadata trust aliases providers profile])
     end
 
     context 'when the provider exposes provider_name' do
@@ -392,6 +392,83 @@ RSpec.describe Legion::Identity::Process do
 
       results = Array.new(10) { Thread.new { described_class.resolved? } }.map(&:value)
       expect(results).to all(be(true))
+    end
+  end
+
+  describe 'composite state' do
+    let(:composite) do
+      {
+        id: 'test-id',
+        canonical_name: 'miverso2',
+        kind: :human,
+        source: :kerberos,
+        persistent: true,
+        trust: :verified,
+        groups: ['admins'],
+        aliases: { kerberos: ['miverso2@MS.DS.UHC.COM'], entra: ['eb282cc7'] },
+        providers: { kerberos: { status: :resolved, trust: :verified } },
+        profile: { email: 'matt@optum.com', title: 'Engineer' },
+        metadata: {}
+      }
+    end
+
+    before do
+      described_class.reset!
+      described_class.bind!(nil, composite)
+    end
+
+    it 'stores trust level' do
+      expect(described_class.trust).to eq(:verified)
+    end
+
+    it 'stores aliases as arrays per provider' do
+      expect(described_class.aliases[:kerberos]).to eq(['miverso2@MS.DS.UHC.COM'])
+    end
+
+    it 'stores providers map' do
+      expect(described_class.providers[:kerberos][:status]).to eq(:resolved)
+    end
+
+    it 'stores profile' do
+      expect(described_class.profile[:email]).to eq('matt@optum.com')
+    end
+
+    it 'includes trust in identity_hash' do
+      expect(described_class.identity_hash[:trust]).to eq(:verified)
+    end
+
+    it 'includes aliases in identity_hash' do
+      expect(described_class.identity_hash[:aliases]).to include(:kerberos)
+    end
+
+    it 'includes providers in identity_hash' do
+      expect(described_class.identity_hash[:providers]).to have_key(:kerberos)
+    end
+
+    it 'includes profile in identity_hash' do
+      expect(described_class.identity_hash[:profile][:email]).to eq('matt@optum.com')
+    end
+
+    it 'defaults trust to nil when unset' do
+      described_class.reset!
+      expect(described_class.trust).to be_nil
+    end
+
+    it 'defaults aliases to empty hash when unset' do
+      described_class.reset!
+      expect(described_class.aliases).to eq({})
+    end
+
+    it 'freezes aliases' do
+      expect(described_class.aliases).to be_frozen
+    end
+
+    it 'freezes providers' do
+      expect(described_class.providers).to be_frozen
+    end
+
+    it 'freezes profile' do
+      expect(described_class.profile).to be_frozen
     end
   end
 end
