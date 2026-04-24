@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-04-27
+
+### Fixed
+- `POST /api/knowledge/status` no longer silently defaults to the daemon's cwd. Uses `knowledge.default_corpus_path` setting or `LEGION_CORPUS_PATH` env var; returns 400 when unresolvable. Prevents `Errno::EPERM` crashes on macOS when the daemon is launched from `~` and `Find.find` walks into TCC-protected subdirs like `~/Library/Accounts`.
+
 ## [1.9.1] - 2026-04-25
 
 ### Added
