@@ -51,5 +51,4 @@ RSpec.describe Legion::Service do
       end
     end
   end
-
 end
