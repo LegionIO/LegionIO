@@ -6,23 +6,26 @@ require 'legion/identity/resolver'
 require 'legion/identity/process'
 require 'legion/identity/trust'
 
-RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLength
+RSpec.describe Legion::Identity::Resolver do
   before { described_class.reset_all! }
   after  { described_class.reset_all! }
 
   let(:kerberos_provider) do
     Module.new do
       extend self
+
       def provider_name  = :kerberos
       def provider_type  = :auth
       def priority       = 100
       def trust_weight   = 30
       def trust_level    = :verified
       def capabilities   = [:authenticate]
+
       def resolve
         { canonical_name: 'miverso2', kind: :human, source: :kerberos,
           provider_identity: 'miverso2@MS.DS.UHC.COM' }
       end
+
       def normalize(val) = val.to_s.split('@').first.downcase.gsub(/[^a-z0-9_-]/, '')
     end
   end
@@ -30,16 +33,19 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:low_priority_auth) do
     Module.new do
       extend self
+
       def provider_name  = :entra
       def provider_type  = :auth
       def priority       = 50
       def trust_weight   = 50
       def trust_level    = :authenticated
       def capabilities   = [:authenticate]
+
       def resolve
         { canonical_name: 'miverso2-entra', kind: :human, source: :entra,
           provider_identity: 'eb282cc7-uuid' }
       end
+
       def normalize(val) = val.to_s.downcase
     end
   end
@@ -47,16 +53,19 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:system_provider) do
     Module.new do
       extend self
+
       def provider_name  = :system
       def provider_type  = :fallback
       def priority       = 0
       def trust_weight   = 200
       def trust_level    = :unverified
       def capabilities   = [:profile]
+
       def resolve
         { canonical_name: 'testuser', kind: :human, source: :system,
           provider_identity: 'testuser' }
       end
+
       def normalize(val) = val.to_s.downcase.gsub(/[^a-z0-9_-]/, '')
     end
   end
@@ -64,15 +73,18 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:profile_provider) do
     Module.new do
       extend self
+
       def provider_name  = :ldap
       def provider_type  = :profile
       def priority       = 0
       def trust_weight   = 10
       def trust_level    = :verified
       def capabilities   = %i[profile groups]
-      def resolve(canonical_name:)
+
+      def resolve(canonical_name:) # rubocop:disable Lint/UnusedMethodArgument
         { groups: ['devs'], profile: { department: 'Engineering' } }
       end
+
       def normalize(val) = val.to_s.downcase
     end
   end
@@ -80,17 +92,20 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:timeout_provider) do
     Module.new do
       extend self
+
       def provider_name  = :slow_provider
       def provider_type  = :auth
       def priority       = 200
       def trust_weight   = 10
       def trust_level    = :verified
       def capabilities   = [:authenticate]
+
       def resolve
         sleep 10
         { canonical_name: 'slow-user', kind: :human, source: :slow_provider,
           provider_identity: 'slow@example.com' }
       end
+
       def normalize(val) = val.to_s.downcase
     end
   end
@@ -98,15 +113,18 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:failing_provider) do
     Module.new do
       extend self
+
       def provider_name  = :broken
       def provider_type  = :auth
       def priority       = 150
       def trust_weight   = 20
       def trust_level    = :verified
       def capabilities   = [:authenticate]
+
       def resolve
         raise StandardError, 'connection refused'
       end
+
       def normalize(val) = val.to_s.downcase
     end
   end
@@ -114,6 +132,7 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
   let(:nil_provider) do
     Module.new do
       extend self
+
       def provider_name  = :empty
       def provider_type  = :auth
       def priority       = 80
@@ -406,12 +425,14 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
     it 'uses trust_weight for tiebreak when priorities are equal' do
       provider_a = Module.new do
         extend self
+
         def provider_name  = :provider_a
         def provider_type  = :auth
         def priority       = 100
         def trust_weight   = 50
         def trust_level    = :authenticated
         def capabilities   = [:authenticate]
+
         def resolve
           { canonical_name: 'user-a', kind: :human, source: :provider_a,
             provider_identity: 'user-a@example.com' }
@@ -420,12 +441,14 @@ RSpec.describe Legion::Identity::Resolver do # rubocop:disable Metrics/BlockLeng
 
       provider_b = Module.new do
         extend self
+
         def provider_name  = :provider_b
         def provider_type  = :auth
         def priority       = 100
         def trust_weight   = 10
         def trust_level    = :verified
         def capabilities   = [:authenticate]
+
         def resolve
           { canonical_name: 'user-b', kind: :human, source: :provider_b,
             provider_identity: 'user-b@example.com' }

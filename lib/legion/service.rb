@@ -513,13 +513,9 @@ module Legion
 
       Legion::Identity::Resolver.resolve!
 
-      # Transitional fallback: if no providers self-registered yet, try old tree-walk discovery
       unless Legion::Identity::Resolver.resolved?
-        resolved = resolve_identity_providers
-        unless resolved
-          Legion::Identity::Process.bind_fallback!
-          log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
-        end
+        Legion::Identity::Process.bind_fallback!
+        log.info "[Identity] fallback identity: #{Legion::Identity::Process.canonical_name}"
       end
 
       # Phase 5: Swap from bootstrap RMQ credentials to identity-scoped credentials.
@@ -1101,64 +1097,6 @@ module Legion
       Legion::Crypt.fetch_bootstrap_rmq_creds
     end
 
-    def resolve_identity_providers
-      # Phase 4 adds lex-identity-* providers. For now, check if any are loaded.
-      return false unless defined?(Legion::Extensions)
-
-      providers = find_identity_providers
-      return false if providers.empty?
-
-      # Parallel resolution with 5s per-provider timeout (NO Timeout.timeout — uses future.value)
-      pool = Concurrent::FixedThreadPool.new([providers.size, 4].min)
-      futures = providers.map do |provider|
-        Concurrent::Promises.future_on(pool, provider, &:resolve)
-      end
-
-      winner_pair = providers.zip(futures).find do |_provider, future|
-        result = begin
-          future.value(5) # 5s timeout per provider
-        rescue StandardError => e
-          handle_exception(e, level: :debug, operation: 'service.resolve_identity_providers.future')
-          nil
-        end
-        result.is_a?(Hash) && result[:canonical_name]
-      end
-
-      if winner_pair
-        provider, future = winner_pair
-        identity = future.value
-        Legion::Identity::Process.bind!(provider, identity)
-        log.info "[Identity] resolved via #{provider.class.name}: #{identity[:canonical_name]}"
-
-        # Phase 8: Register winning auth provider with Broker so extensions can
-        # call Broker.token_for(:provider_name) without managing tokens themselves.
-        register_provider_with_broker(provider)
-
-        true
-      else
-        false
-      end
-    rescue StandardError => e
-      handle_exception(e, level: :warn, operation: 'service.resolve_identity_providers')
-      false
-    ensure
-      pool&.shutdown
-      pool&.kill unless pool&.wait_for_termination(2)
-    end
-
-    def register_provider_with_broker(provider)
-      return unless provider.respond_to?(:provide_token) && defined?(Legion::Identity::Broker)
-
-      lease = provider.provide_token
-      return unless lease
-
-      provider_name = provider.respond_to?(:provider_name) ? provider.provider_name : provider.class.name.to_sym
-      Legion::Identity::Broker.register_provider(provider_name, provider: provider, lease: lease)
-      log.info "[Identity] registered provider #{provider_name} with Broker"
-    rescue StandardError => e
-      handle_exception(e, level: :warn, operation: 'service.register_provider_with_broker')
-    end
-
     def register_credential_providers
       return unless defined?(Legion::Identity::Broker) && defined?(Legion::Extensions)
 
@@ -1187,32 +1125,6 @@ module Legion
       return nil unless identity.respond_to?(:provide_token)
 
       identity
-    end
-
-    def find_identity_providers
-      return [] unless defined?(Legion::Extensions)
-
-      collect_identity_providers(Legion::Extensions)
-    end
-
-    def collect_identity_providers(namespace, visited = Set.new)
-      return [] unless namespace.is_a?(Module)
-      return [] if visited.include?(namespace.object_id)
-
-      visited.add(namespace.object_id)
-      providers = []
-
-      namespace.constants(false).each do |const_name|
-        mod = namespace.const_get(const_name, false)
-        next unless mod.is_a?(Module)
-
-        providers << mod if mod.respond_to?(:resolve) && mod.respond_to?(:provider_name)
-        providers.concat(collect_identity_providers(mod, visited))
-      rescue StandardError
-        next
-      end
-
-      providers
     end
 
     def bootstrap_log_level(cli_level)

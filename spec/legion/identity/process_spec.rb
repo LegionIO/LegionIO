@@ -398,17 +398,17 @@ RSpec.describe Legion::Identity::Process do
   describe 'composite state' do
     let(:composite) do
       {
-        id: 'test-id',
+        id:             'test-id',
         canonical_name: 'miverso2',
-        kind: :human,
-        source: :kerberos,
-        persistent: true,
-        trust: :verified,
-        groups: ['admins'],
-        aliases: { kerberos: ['miverso2@MS.DS.UHC.COM'], entra: ['eb282cc7'] },
-        providers: { kerberos: { status: :resolved, trust: :verified } },
-        profile: { email: 'matt@optum.com', title: 'Engineer' },
-        metadata: {}
+        kind:           :human,
+        source:         :kerberos,
+        persistent:     true,
+        trust:          :verified,
+        groups:         ['admins'],
+        aliases:        { kerberos: ['miverso2@MS.DS.UHC.COM'], entra: ['eb282cc7'] },
+        providers:      { kerberos: { status: :resolved, trust: :verified } },
+        profile:        { email: 'matt@optum.com', title: 'Engineer' },
+        metadata:       {}
       }
     end
 
