@@ -88,6 +88,11 @@ module Legion
           @composite.set(updated)
           Legion::Identity::Process.bind!(provider, updated) if defined?(Legion::Identity::Process)
 
+          if defined?(Legion::Settings) && Legion::Settings.respond_to?(:loader) && Legion::Settings.loader.respond_to?(:settings)
+            Legion::Settings.loader.settings[:client] ||= {}
+            Legion::Settings.loader.settings[:client][:name] = Legion::Identity::Process.queue_prefix
+          end
+
           persist_identity_json(new_canonical, updated[:kind]) unless new_trust == :unverified
 
           updated
@@ -274,6 +279,11 @@ module Legion
 
         def bind_and_persist(winning_provider, composite, trust_level)
           Legion::Identity::Process.bind!(winning_provider, composite) if defined?(Legion::Identity::Process)
+
+          if defined?(Legion::Settings) && Legion::Settings.respond_to?(:loader) && Legion::Settings.loader.respond_to?(:settings)
+            Legion::Settings.loader.settings[:client] ||= {}
+            Legion::Settings.loader.settings[:client][:name] = Legion::Identity::Process.queue_prefix
+          end
 
           persist_to_db(composite)
           persist_identity_json(composite[:canonical_name], composite[:kind]) unless trust_level == :unverified
