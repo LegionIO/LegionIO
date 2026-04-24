@@ -8,12 +8,22 @@ module Legion
           app.helpers IdentityAuditHelpers
 
           app.get '/api/identity/audit' do
-            halt 503, json_error('unavailable', 'audit records not available') unless defined?(Legion::Data::Model::AuditRecord)
+            halt 503, json_error('unavailable', 'identity audit log not available') unless defined?(Legion::Data::Model::IdentityAuditLog)
 
-            dataset = Legion::Data::Model::AuditRecord.where(entity_type: 'identity')
+            dataset = Legion::Data::Model::IdentityAuditLog.dataset
 
             principal = params[:principal]
-            dataset = dataset.where(Sequel.lit("metadata->>'principal' = ?", principal)) if principal
+            if principal && defined?(Legion::Data::Model::Principal)
+              principal_record = Legion::Data::Model::Principal.where(canonical_name: principal).first
+              halt 404, json_error('not_found', "principal '#{principal}' not found") unless principal_record
+              dataset = dataset.where(principal_id: principal_record.id)
+            end
+
+            provider = params[:provider]
+            dataset = dataset.where(provider_name: provider) if provider
+
+            event_type = params[:event_type]
+            dataset = dataset.where(event_type: event_type) if event_type
 
             since = params[:since]
             if since
@@ -23,7 +33,9 @@ module Legion
 
             records = dataset.order(Sequel.desc(:created_at)).limit(100).all
             json_collection(records.map do |r|
-              { id: r.id, action: r.action, entity_type: r.entity_type, metadata: r.parsed_metadata, created_at: r.created_at }
+              { id: r.id, event_type: r.event_type, provider_name: r.provider_name,
+                trust_level: r.trust_level, detail: r.detail,
+                node_id: r.node_id, session_id: r.session_id, created_at: r.created_at }
             end)
           end
         end
