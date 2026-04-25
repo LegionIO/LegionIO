@@ -144,5 +144,28 @@ RSpec.describe Legion::Ingress do
         expect(result[:error]).to be_nil
       end
     end
+
+    context 'when an extension handle is quiescing' do
+      before do
+        Legion::Extensions.reset_runtime_handles!
+        Legion::Extensions.register_extension_handle('lex-example', state: :running, reload_state: :updating)
+      end
+
+      after { Legion::Extensions.reset_runtime_handles! }
+
+      it 'blocks runner dispatch for that extension before Runner.run' do
+        result = described_class.run(
+          payload:      {},
+          runner_class: 'Legion::Extensions::Example::Runners::Worker',
+          function:     'do_work',
+          source:       'test'
+        )
+
+        expect(result[:success]).to be false
+        expect(result[:status]).to eq('task.blocked')
+        expect(result[:error][:code]).to eq('extension_quiescing')
+        expect(Legion::Runner).not_to have_received(:run)
+      end
+    end
   end
 end

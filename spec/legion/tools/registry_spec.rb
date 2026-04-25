@@ -73,6 +73,25 @@ RSpec.describe Legion::Tools::Registry do
       expect(described_class.for_extension('node')).to include(tool)
       expect(described_class.for_extension('other')).to be_empty
     end
+
+    it 'unregisters all tools owned by an extension' do
+      node_tool = Class.new(Legion::Tools::Base) do
+        tool_name 'test.node_tool'
+        extension 'node'
+      end
+      other_tool = Class.new(Legion::Tools::Base) do
+        tool_name 'test.other_tool'
+        extension 'other'
+      end
+      described_class.register(node_tool)
+      described_class.register(other_tool)
+
+      removed = described_class.unregister_extension('node')
+
+      expect(removed).to eq(1)
+      expect(described_class.for_extension('node')).to be_empty
+      expect(described_class.for_extension('other')).to include(other_tool)
+    end
   end
 
   describe '.tagged' do

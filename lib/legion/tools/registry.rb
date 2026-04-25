@@ -56,7 +56,8 @@ module Legion
         end
 
         def for_extension(ext_name)
-          all_tools.select { |t| t.respond_to?(:extension) && t.extension == ext_name }
+          normalized = normalize_extension(ext_name)
+          all_tools.select { |t| t.respond_to?(:extension) && normalize_extension(t.extension) == normalized }
         end
 
         def for_runner(runner_name)
@@ -72,6 +73,22 @@ module Legion
             @always.clear
             @deferred.clear
           end
+        end
+
+        def unregister_extension(ext_name)
+          normalized = normalize_extension(ext_name)
+          @mutex.synchronize do
+            before = @always.size + @deferred.size
+            @always.reject! { |t| t.respond_to?(:extension) && normalize_extension(t.extension) == normalized }
+            @deferred.reject! { |t| t.respond_to?(:extension) && normalize_extension(t.extension) == normalized }
+            before - (@always.size + @deferred.size)
+          end
+        end
+
+        private
+
+        def normalize_extension(ext_name)
+          ext_name.to_s.delete_prefix('lex-').tr('-', '_')
         end
       end
     end

@@ -214,6 +214,11 @@ module Legion
         end
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
+          unless extension_dispatch_allowed?
+            log.warn "[Subscription] rejecting #{lex_name}/#{function}: extension is not accepting new work" if defined?(log)
+            return { success: false, status: 'task.blocked', error: { code: 'extension_quiescing' } }
+          end
+
           run_block = lambda {
             ctx = message.merge(runner_class: runner_cls.to_s, function: function.to_s)
             Legion::Context.with_task_context(ctx) do
@@ -230,6 +235,12 @@ module Legion
           else
             run_block.call
           end
+        end
+
+        def extension_dispatch_allowed?
+          return true unless defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:dispatch_allowed?)
+
+          Legion::Extensions.dispatch_allowed?(lex_name)
         end
 
         def reject_or_retry(delivery_info, metadata, payload)

@@ -62,10 +62,22 @@ RSpec.describe Legion::API::Routes::Extensions do
 
   before do
     Legion::Extensions::Catalog.reset!
+    Legion::Extensions.reset_runtime_handles!
     Legion::Extensions::Catalog.register('lex-fake_ext', state: :running)
     Legion::Extensions::Catalog.transition('lex-fake_ext', :running)
+    Legion::Extensions.register_extension_handle('lex-fake_ext',
+                                                 state:                    :running,
+                                                 active_version:           '1.2.3',
+                                                 latest_installed_version: '1.2.4',
+                                                 reload_state:             :pending,
+                                                 hot_reloadable:           true,
+                                                 runners:                  ['things'])
 
     allow(Legion::Extensions).to receive(:loaded_extension_modules).and_return([fake_extension])
+  end
+
+  after do
+    Legion::Extensions.reset_runtime_handles!
   end
 
   let(:test_app) do
@@ -85,13 +97,20 @@ RSpec.describe Legion::API::Routes::Extensions do
   end
 
   describe 'GET /api/extension_catalog' do
-    it 'returns loaded extensions from catalog' do
+    it 'returns runtime handles as the authoritative loaded extensions' do
       get '/api/extension_catalog'
       expect(last_response.status).to eq(200)
       body = Legion::JSON.load(last_response.body)
       expect(body[:data]).to be_an(Array)
-      names = body[:data].map { |e| e[:name] }
-      expect(names).to include('lex-fake_ext')
+      entry = body[:data].find { |e| e[:name] == 'lex-fake_ext' }
+      expect(entry).to include(
+        state:                    'running',
+        active_version:           '1.2.3',
+        latest_installed_version: '1.2.4',
+        reload_state:             'pending',
+        pending_reload:           true,
+        hot_reloadable:           true
+      )
     end
 
     it 'filters by state when ?state= param given' do
@@ -129,6 +148,8 @@ RSpec.describe Legion::API::Routes::Extensions do
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:name]).to eq('lex-fake_ext')
       expect(body[:data][:state]).to eq('running')
+      expect(body[:data][:active_version]).to eq('1.2.3')
+      expect(body[:data][:pending_reload]).to be true
       expect(body[:data][:runners]).to be_an(Array)
     end
 
