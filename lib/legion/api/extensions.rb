@@ -22,33 +22,21 @@ module Legion
 
         def self.register_extension_routes(app)
           app.get '/api/extension_catalog' do
-            entries = Legion::Extensions::Catalog.all.map do |name, entry|
-              { name: name, state: entry[:state].to_s,
-                registered_at: entry[:registered_at]&.iso8601,
-                started_at: entry[:started_at]&.iso8601 }
-            end
+            entries = Routes::Extensions.extension_entries
             entries = entries.select { |e| e[:state] == params[:state] } if params[:state]
             json_response(entries)
           end
 
           app.get '/api/extension_catalog/:name' do
             name = params[:name]
-            entry = Legion::Extensions::Catalog.entry(name)
+            entry = Routes::Extensions.extension_entry(name)
             halt_not_found("extension '#{name}' not found") unless entry
 
             ext_mod = find_extension_module(name)
-            version = ext_mod&.const_defined?(:VERSION) ? ext_mod::VERSION : nil
 
             runners = ext_mod ? runner_summaries(ext_mod) : []
 
-            json_response({
-              name:          name,
-              state:         entry[:state].to_s,
-              version:       version,
-              registered_at: entry[:registered_at]&.iso8601,
-              started_at:    entry[:started_at]&.iso8601,
-              runners:       runners
-            }.compact)
+            json_response(entry.merge(runners: runners).compact)
           end
         end
 
@@ -154,6 +142,52 @@ module Legion
         end
 
         class << self
+          def extension_entries
+            handles = if Legion::Extensions.respond_to?(:extension_handles)
+                        Legion::Extensions.extension_handles
+                      else
+                        []
+                      end
+            return handles.map { |handle| serialize_handle(handle) } unless handles.empty?
+
+            Legion::Extensions::Catalog.all.filter_map do |name, entry|
+              serialize_catalog_entry(name, entry)
+            end
+          end
+
+          def extension_entry(name)
+            handle = Legion::Extensions.extension_handle(name) if Legion::Extensions.respond_to?(:extension_handle)
+            return serialize_handle(handle) if handle
+
+            serialize_catalog_entry(name, Legion::Extensions::Catalog.entry(name))
+          end
+
+          def serialize_handle(handle)
+            {
+              name:                     handle.lex_name,
+              state:                    handle.state.to_s,
+              active_version:           handle.active_version&.to_s,
+              latest_installed_version: handle.latest_installed_version&.to_s,
+              reload_state:             handle.reload_state.to_s,
+              pending_reload:           handle.pending_reload?,
+              hot_reloadable:           handle.hot_reloadable,
+              loaded_at:                handle.loaded_at&.iso8601,
+              last_error:               handle.last_error,
+              routes:                   handle.routes,
+              tools:                    handle.tools,
+              absorbers:                handle.absorbers,
+              owned_runners:            handle.runners
+            }.compact
+          end
+
+          def serialize_catalog_entry(name, entry)
+            return nil unless entry
+
+            { name: name, state: entry[:state].to_s,
+              registered_at: entry[:registered_at]&.iso8601,
+              started_at: entry[:started_at]&.iso8601 }
+          end
+
           private :register_available_route, :register_extension_routes,
                   :register_runner_routes, :register_function_routes, :register_invoke_route
         end

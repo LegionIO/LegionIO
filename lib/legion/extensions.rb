@@ -2,6 +2,7 @@
 
 require 'legion/extensions/core'
 require 'legion/extensions/catalog'
+require 'legion/extensions/handle_registry'
 require 'legion/extensions/permissions'
 require 'legion/runner'
 
@@ -22,6 +23,7 @@ module Legion
         @actors = []
         @running_instances = Concurrent::Array.new
         @loaded_extensions = []
+        reset_runtime_handles!
         @pending_registrations = Concurrent::Array.new
 
         find_extensions
@@ -33,7 +35,7 @@ module Legion
           hook_phase_actors(phase_num)
         end
 
-        @loaded_extensions&.each { |name| Catalog.transition(name, :running) }
+        transition_loaded_extensions(:running)
         Catalog.flush_persisted_transitions
 
         load_yaml_agents
@@ -47,7 +49,7 @@ module Legion
         deadline = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
         shutdown_start = Time.now
 
-        @loaded_extensions.each { |name| Catalog.transition(name, :stopping) }
+        transition_loaded_extensions(:stopping)
 
         if @subscription_pool
           @subscription_pool.shutdown
@@ -100,10 +102,7 @@ module Legion
 
         Legion::Dispatch.shutdown if defined?(Legion::Dispatch) && Legion::Dispatch.instance_variable_get(:@dispatcher)
 
-        @loaded_extensions.each do |name|
-          Catalog.transition(name, :stopped)
-          unregister_capabilities(name)
-        end
+        transition_loaded_extensions(:stopped) { |name| unregister_capabilities(name) }
         Legion::Logging.info "Successfully shut down all actors (#{(Time.now - shutdown_start).round(1)}s)"
       end
 
@@ -146,6 +145,8 @@ module Legion
           end
 
           Catalog.register(gem_name)
+          register_extension_handle(gem_name, state:                    :registered,
+                                              latest_installed_version: latest_installed_version(gem_name))
           entry
         end
 
@@ -211,9 +212,11 @@ module Legion
         results.each_with_index do |result, idx|
           if result
             Catalog.transition(result[:gem_name], :loaded)
+            transition_extension_handle(result[:gem_name], :loaded)
             register_in_registry(gem_name: result[:gem_name], version: result[:version])
             @loaded_extensions.push(result[:gem_name])
           else
+            transition_extension_handle(eligible[idx][:gem_name], :failed)
             Legion::Logging.warn("#{eligible[idx][:gem_name]} failed to load")
           end
         end
@@ -275,14 +278,6 @@ module Legion
         has_logger = extension.respond_to?(:log)
         extension.autobuild
 
-        require 'legion/transport/messages/lex_register'
-        registration = Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners)
-        if @pending_registrations
-          @pending_registrations << registration
-        else
-          registration.publish
-        end
-
         register_capabilities(entry[:gem_name], extension.runners) if extension.respond_to?(:runners)
         write_lex_cli_manifest(entry, extension)
         register_absorber_capabilities(entry[:gem_name], extension.absorbers) if extension.respond_to?(:absorbers)
@@ -300,6 +295,14 @@ module Legion
         end
         extension.log.info "Loaded v#{extension::VERSION}"
         Legion::Events.emit('extension.loaded', name: ext_name, version: entry[:gem_name])
+
+        require 'legion/transport/messages/lex_register'
+        registration = Legion::Transport::Messages::LexRegister.new(function: 'save', opts: extension.runners)
+        if @pending_registrations
+          @pending_registrations << registration
+        else
+          registration.publish
+        end
 
         begin
           if defined?(Legion::Data) && defined?(Legion::Data::Model::DigitalWorker)
@@ -320,6 +323,8 @@ module Legion
           Legion::Logging.debug "Extensions#load_extension failed to register digital worker for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
+        register_extension_handle(entry[:gem_name], spec: entry[:spec], state: :loaded, loaded_at: Time.now,
+                                                    latest_installed_version: latest_installed_version(entry[:gem_name]))
         true
       rescue StandardError => e
         Legion::Logging.log_exception(e, lex: entry[:gem_name], component_type: :boot)
@@ -599,9 +604,12 @@ module Legion
       public
 
       def loaded_extension_modules
+        handles = extension_handles
+        active_names = handles.select(&:dispatchable?).map(&:lex_name)
         constants(false).filter_map do |const_name|
           mod = const_get(const_name, false)
           next nil unless mod.is_a?(Module) && mod.respond_to?(:runner_modules)
+          next nil if handles.any? && !active_names.include?(module_lex_name(mod))
 
           mod
         rescue StandardError => e
@@ -611,7 +619,11 @@ module Legion
       end
 
       # Legacy capability registration - now handled by Tools::Discovery
-      def unregister_capabilities(_gem_name); end
+      def unregister_capabilities(gem_name)
+        return unless defined?(Legion::Tools::Registry) && Legion::Tools::Registry.respond_to?(:unregister_extension)
+
+        Legion::Tools::Registry.unregister_extension(gem_name)
+      end
 
       def register_absorber_capabilities(_gem_name, _absorbers); end
 
@@ -620,7 +632,10 @@ module Legion
       def gem_load(entry)
         gem_name     = entry[:gem_name]
         require_path = entry[:require_path]
-        gem_dir      = Gem::Specification.find_by_name(gem_name).gem_dir
+        spec         = Gem::Specification.find_by_name(gem_name)
+        gem_dir      = spec.gem_dir
+        entry[:spec] = spec
+        entry[:version] = spec.version.to_s
         require "#{gem_dir}/lib/#{require_path}"
         true
       rescue Gem::MissingSpecError => e
@@ -762,6 +777,82 @@ module Legion
         @extensions
       end
 
+      def loaded_extensions
+        extension_handle_registry.loaded.map(&:lex_name)
+      end
+
+      def extension_handles
+        extension_handle_registry.all
+      end
+
+      def extension_handle(name)
+        extension_handle_registry.fetch(name)
+      end
+
+      def register_extension_handle(name, **attrs)
+        extension_handle_registry.register(name, **attrs)
+      end
+
+      def transition_extension_handle(name, state)
+        extension_handle_registry.transition(name, state)
+      end
+
+      def update_extension_handle(name, **attrs)
+        extension_handle_registry.update(name, **attrs)
+      end
+
+      def reset_runtime_handles!
+        extension_handle_registry.reset!
+      end
+
+      def dispatch_allowed?(lex_name)
+        extension_handle_registry.dispatch_allowed?(normalize_lex_name(lex_name))
+      end
+
+      def dispatch_allowed_for_runner?(runner_class)
+        lex_name = lex_name_for_runner_class(runner_class)
+        return true unless lex_name
+
+        dispatch_allowed?(lex_name)
+      end
+
+      def record_extension_resource(lex_name, resource_type, value)
+        handle = extension_handle(lex_name) || register_extension_handle(normalize_lex_name(lex_name))
+        values = Array(handle.public_send(resource_type))
+        return handle if values.include?(value)
+
+        update_extension_handle(handle.lex_name, resource_type => values + [value])
+      end
+
+      def reload_extension(name)
+        gem_name = normalize_lex_name(name)
+        update_extension_handle(gem_name, reload_state: :updating)
+        unregister_capabilities(gem_name)
+        reset_runner_cache
+
+        entry = @extensions&.find { |candidate| candidate[:gem_name] == gem_name }
+        raise "#{gem_name} failed to reload" if entry && !load_extension(entry)
+
+        update_extension_handle(gem_name, state: :running, reload_state: :idle, last_error: nil,
+                                          latest_installed_version: latest_installed_version(gem_name))
+        true
+      rescue StandardError => e
+        update_extension_handle(gem_name, reload_state: :failed, last_error: e.message)
+        raise
+      end
+
+      def extension_handle_registry
+        @extension_handle_registry ||= HandleRegistry.new
+      end
+
+      def transition_loaded_extensions(state)
+        @loaded_extensions&.each do |name|
+          Catalog.transition(name, state)
+          transition_extension_handle(name, state)
+          yield name if block_given?
+        end
+      end
+
       def load_yaml_agents
         @load_yaml_agents ||= begin
           require 'legion/settings/agent_loader'
@@ -776,6 +867,57 @@ module Legion
       end
 
       private
+
+      def latest_installed_version(gem_name)
+        Gem::Specification.find_all_by_name(gem_name).map(&:version).max
+      rescue StandardError
+        nil
+      end
+
+      def reset_runner_cache
+        return unless defined?(Legion::Ingress) && Legion::Ingress.respond_to?(:reset_runner_cache!)
+
+        Legion::Ingress.reset_runner_cache!
+      end
+
+      def normalize_lex_name(name)
+        str = name.to_s
+        str.start_with?('lex-') ? str : "lex-#{str.tr('.', '-').tr('_', '-')}"
+      end
+
+      def module_lex_name(mod)
+        parts = mod.name.to_s.split('::')
+        idx = parts.index('Extensions')
+        return nil unless idx
+
+        extension_parts = extension_parts_from_const(parts, idx)
+        return nil if extension_parts.empty?
+
+        "lex-#{extension_parts.join('-')}"
+      end
+
+      def lex_name_for_runner_class(runner_class)
+        parts = runner_class.to_s.split('::')
+        idx = parts.index('Extensions')
+        return nil unless idx
+
+        extension_parts = extension_parts_from_const(parts, idx)
+        return nil if extension_parts.empty?
+
+        "lex-#{extension_parts.join('-')}"
+      end
+
+      def extension_parts_from_const(parts, idx)
+        parts[(idx + 1)..].to_a.each_with_object([]) do |part, extension_parts|
+          break extension_parts if %w[Actor Actors Runners Helpers Transport Data Hooks Skills].include?(part)
+
+          extension_parts << camel_to_snake(part).tr('_', '-')
+        end
+      end
+
+      def camel_to_snake(value)
+        value.to_s.gsub(/(?<!^)[A-Z]/) { "_#{Regexp.last_match(0)}" }.downcase
+      end
 
       def default_agents_directory
         custom = Legion::Settings.dig(:agents, :directory)

@@ -64,6 +64,14 @@ module Legion
         fn_str = fn.to_s
         raise InvalidFunction, "invalid function format: #{fn_str}" unless fn_str.match?(FUNCTION_PATTERN)
 
+        unless extension_dispatch_allowed?(rc)
+          return {
+            success: false,
+            status:  'task.blocked',
+            error:   { code: 'extension_quiescing', message: "extension for #{rc} is not accepting new work" }
+          }
+        end
+
         # RAI invariant #2: registration precedes permission
         if defined?(Legion::DigitalWorker::Registry) && message[:worker_id]
           Legion::DigitalWorker::Registry.validate_execution!(
@@ -138,7 +146,17 @@ module Legion
         false
       end
 
+      def reset_runner_cache!
+        @registered_runner_modules = nil
+      end
+
       private
+
+      def extension_dispatch_allowed?(runner_class)
+        return true unless defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:dispatch_allowed_for_runner?)
+
+        Legion::Extensions.dispatch_allowed_for_runner?(runner_class)
+      end
 
       def resolve_runner_class(runner_class)
         return runner_class unless runner_class.is_a?(String)
@@ -167,10 +185,6 @@ module Legion
           end
         end
         @registered_runner_modules = modules
-      end
-
-      def reset_runner_cache!
-        @registered_runner_modules = nil
       end
 
       def parse_payload(payload)

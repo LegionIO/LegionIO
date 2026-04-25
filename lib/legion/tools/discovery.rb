@@ -123,7 +123,9 @@ module Legion
             ext: ext, runner_mod: runner_mod, func_name: func_name,
             meta: meta, defn: defn, deferred: is_deferred
           )
-          Legion::Tools::Registry.register(tool_class)
+          return unless Legion::Tools::Registry.register(tool_class)
+
+          record_tool_owner(ext, tool_class)
         end
 
         def resolve_mcp_tools_enabled(ext, runner_mod)
@@ -212,6 +214,15 @@ module Legion
               error_response(e.message)
             end
           end
+        end
+
+        def record_tool_owner(ext, tool_class)
+          return unless defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:record_extension_resource)
+
+          ext_name = derive_extension_name(ext)
+          Legion::Extensions.record_extension_resource("lex-#{ext_name.tr('_', '-')}", :tools, tool_class.tool_name)
+        rescue StandardError => e
+          handle_exception(e, level: :warn, handled: true, operation: :record_tool_owner)
         end
 
         def merge_trigger_words(ext, runner_mod)

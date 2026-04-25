@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-04-25
+
+### Added
+- Extension runtime handles now expose authoritative active/latest versions, reload state, pending-reload status, hot-reload eligibility, and owned runtime resources through `/api/extension_catalog`.
+- Extension dispatch quiescing now blocks API, ingress, and subscription runner dispatch while an extension is stopping or actively reloading.
+- `Legion::Tools::Registry.unregister_extension` removes callable tools owned by an extension during unload/reload cleanup.
+
+### Fixed
+- Runtime handle `loaded?` no longer reports `stopped` or `failed` extensions as loaded.
+- Extension registration publication now happens after extension autobuild and runtime side effects complete, avoiding durable registration of failed loads.
+- Extension runtime handles now transition to loaded only after `require` and extension side effects succeed, and multi-segment extension modules keep their hyphenated lex identity.
+
 ## [1.9.0] - 2026-04-24
 
 ### Added

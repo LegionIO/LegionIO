@@ -20,21 +20,23 @@ module Legion
           end
         end
 
-        EXTENSION_IVARS = {
-          loaded:       :@loaded_extensions,
+        EXTENSION_TASK_IVARS = {
           discovered:   :@extensions,
           subscription: :@subscription_tasks,
           every:        :@timer_tasks,
           poll:         :@poll_tasks,
           once:         :@once_tasks,
           loop:         :@loop_tasks,
-          running:      :@running_instances
+          actors:       :@running_instances
         }.freeze
 
         class << self
           def collect_extensions
             ext = Legion::Extensions
-            EXTENSION_IVARS.transform_values { |ivar| ext.instance_variable_get(ivar)&.count || 0 }
+            {
+              loaded:  ext.extension_handle_registry.loaded.count,
+              running: ext.extension_handle_registry.running.count
+            }.merge(EXTENSION_TASK_IVARS.transform_values { |ivar| ext.instance_variable_get(ivar)&.count || 0 })
           rescue StandardError => e
             { error: e.message }
           end
