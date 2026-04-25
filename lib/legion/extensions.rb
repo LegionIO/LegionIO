@@ -323,6 +323,8 @@ module Legion
           Legion::Logging.debug "Extensions#load_extension failed to register digital worker for #{ext_name}: #{e.message}" if defined?(Legion::Logging)
           nil
         end
+        register_extension_handle(entry[:gem_name], spec: entry[:spec], state: :loaded, loaded_at: Time.now,
+                                                    latest_installed_version: latest_installed_version(entry[:gem_name]))
         true
       rescue StandardError => e
         Legion::Logging.log_exception(e, lex: entry[:gem_name], component_type: :boot)
@@ -634,8 +636,6 @@ module Legion
         gem_dir      = spec.gem_dir
         entry[:spec] = spec
         entry[:version] = spec.version.to_s
-        register_extension_handle(gem_name, spec: spec, state: :loaded, loaded_at: Time.now,
-                                            latest_installed_version: latest_installed_version(gem_name))
         require "#{gem_dir}/lib/#{require_path}"
         true
       rescue Gem::MissingSpecError => e
@@ -890,10 +890,10 @@ module Legion
         idx = parts.index('Extensions')
         return nil unless idx
 
-        segment = parts[idx + 1]
-        return nil if segment.nil?
+        extension_parts = extension_parts_from_const(parts, idx)
+        return nil if extension_parts.empty?
 
-        "lex-#{camel_to_snake(segment).tr('_', '-')}"
+        "lex-#{extension_parts.join('-')}"
       end
 
       def lex_name_for_runner_class(runner_class)
@@ -901,15 +901,18 @@ module Legion
         idx = parts.index('Extensions')
         return nil unless idx
 
-        extension_parts = []
-        parts[(idx + 1)..].to_a.each do |part|
-          break if %w[Actor Actors Runners Helpers Transport Data Hooks Skills].include?(part)
-
-          extension_parts << camel_to_snake(part)
-        end
+        extension_parts = extension_parts_from_const(parts, idx)
         return nil if extension_parts.empty?
 
         "lex-#{extension_parts.join('-')}"
+      end
+
+      def extension_parts_from_const(parts, idx)
+        parts[(idx + 1)..].to_a.each_with_object([]) do |part, extension_parts|
+          break extension_parts if %w[Actor Actors Runners Helpers Transport Data Hooks Skills].include?(part)
+
+          extension_parts << camel_to_snake(part).tr('_', '-')
+        end
       end
 
       def camel_to_snake(value)

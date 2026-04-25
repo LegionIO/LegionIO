@@ -12,6 +12,7 @@
 ### Fixed
 - Runtime handle `loaded?` no longer reports `stopped` or `failed` extensions as loaded.
 - Extension registration publication now happens after extension autobuild and runtime side effects complete, avoiding durable registration of failed loads.
+- Extension runtime handles now transition to loaded only after `require` and extension side effects succeed, and multi-segment extension modules keep their hyphenated lex identity.
 
 ## [1.9.0] - 2026-04-24
 
