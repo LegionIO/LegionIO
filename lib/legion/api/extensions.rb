@@ -5,11 +5,28 @@ module Legion
     module Routes
       module Extensions
         def self.registered(app)
+          register_loaded_summary_route(app)
           register_available_route(app)
           register_extension_routes(app)
           register_runner_routes(app)
           register_function_routes(app)
           register_invoke_route(app)
+        end
+
+        def self.register_loaded_summary_route(app)
+          app.get '/api/extensions' do
+            items = Legion::Extensions.loaded_extension_modules.map do |mod|
+              version = mod.const_get(:VERSION, false).to_s if mod.const_defined?(:VERSION, false)
+              name = if mod.respond_to?(:lex_name)
+                       mod.lex_name
+                     else
+                       mod.name.to_s.split('::').last.to_s.downcase
+                     end
+              { name: name, module: mod.name, version: version }.compact
+            end
+
+            json_response(items)
+          end
         end
 
         def self.register_available_route(app)
@@ -188,7 +205,7 @@ module Legion
               started_at: entry[:started_at]&.iso8601 }
           end
 
-          private :register_available_route, :register_extension_routes,
+          private :register_loaded_summary_route, :register_available_route, :register_extension_routes,
                   :register_runner_routes, :register_function_routes, :register_invoke_route
         end
       end

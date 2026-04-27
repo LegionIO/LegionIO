@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
 
 RSpec.describe Legion::Extensions::Core do
   describe '.sticky_tools?' do
@@ -41,6 +42,33 @@ RSpec.describe Legion::Extensions::Core do
         end
       end
       expect(mod.trigger_words).to eq(%w[custom words])
+    end
+  end
+
+  describe '.autobuild' do
+    it 'builds extension data when migrations exist even if data_required? is false' do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, 'data', 'migrations'))
+        File.write(File.join(dir, 'data', 'migrations', '001_create_test_table.rb'), '# migration')
+
+        stub_const('Legion::Extensions::MigrationProbe', Module.new { extend Legion::Extensions::Core })
+        allow(Legion::Extensions::MigrationProbe).to receive(:extension_path).and_return(dir)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_settings)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_transport)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_data)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_helpers)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_runners)
+        allow(Legion::Extensions::MigrationProbe).to receive(:generate_messages_from_definitions)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_absorbers)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_actors)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_hooks)
+        allow(Legion::Extensions::MigrationProbe).to receive(:build_routes)
+        allow(Legion::Settings).to receive(:[]).with(:data).and_return({ connected: true })
+
+        Legion::Extensions::MigrationProbe.autobuild
+
+        expect(Legion::Extensions::MigrationProbe).to have_received(:build_data)
+      end
     end
   end
 end

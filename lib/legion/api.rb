@@ -67,6 +67,8 @@ require_relative 'api/graphql' if defined?(GraphQL)
 
 module Legion
   class API < Sinatra::Base
+    START_TIME = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+
     helpers Legion::API::Helpers
     helpers Legion::API::Validators
 
@@ -105,7 +107,8 @@ module Legion
 
     # Health and readiness
     get '/api/health' do
-      json_response({ status: 'ok', version: Legion::VERSION })
+      uptime_seconds = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - START_TIME).to_i
+      json_response({ status: 'ok', version: Legion::VERSION, uptime_seconds: uptime_seconds, uptime: uptime_seconds })
     end
 
     get '/api/ready' do

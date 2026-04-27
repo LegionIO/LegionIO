@@ -123,6 +123,20 @@ RSpec.describe Legion::API::Routes::Extensions do
     end
   end
 
+  describe 'GET /api/extensions' do
+    it 'returns a flat loaded extension summary' do
+      get '/api/extensions'
+
+      expect(last_response.status).to eq(200)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data]).to contain_exactly(
+        name:    'fakeext',
+        module:  'Legion::Extensions::FakeExt',
+        version: '1.2.3'
+      )
+    end
+  end
+
   describe 'GET /api/extension_catalog/available' do
     it 'returns the full ecosystem list' do
       get '/api/extension_catalog/available'

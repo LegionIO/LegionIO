@@ -33,6 +33,31 @@ RSpec.describe Legion::CLI::Doctor do
     end
   end
 
+  describe 'extensions check' do
+    subject(:check) { Legion::CLI::Doctor::ExtensionsCheck.new }
+
+    before do
+      stub_const('Legion::Settings', { extensions: extensions })
+    end
+
+    let(:extensions) do
+      {
+        core:               %w[lex-health],
+        ai:                 %w[lex-openai],
+        categories:         {},
+        blocked:            [],
+        reserved_prefixes:  [],
+        reserved_words:     [],
+        parallel_pool_size: 4,
+        telemetry:          true
+      }
+    end
+
+    it 'ignores loader config keys when deriving configured extension gems' do
+      expect(check.send(:configured_extensions)).to eq(['telemetry'])
+    end
+  end
+
   describe 'settings check (ConfigCheck)' do
     subject(:check) { Legion::CLI::Doctor::ConfigCheck.new }
 

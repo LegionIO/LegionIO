@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../webhooks'
+
 module Legion
   class API < Sinatra::Base
     module Routes

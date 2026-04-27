@@ -5,6 +5,13 @@ module Legion
     module Routes
       module Metering
         def self.registered(app)
+          register_helpers(app)
+          register_summary_route(app)
+          register_rollup_route(app)
+          register_by_model_route(app)
+        end
+
+        def self.register_helpers(app)
           app.helpers do
             define_method(:require_metering!) do
               return if defined?(Legion::Extensions::Metering::Runners::Metering)
@@ -17,18 +24,29 @@ module Legion
                 Legion::Data.connected? && Legion::Data.connection.table_exists?(:metering_records)
             end
           end
+        end
 
+        def self.register_summary_route(app)
           app.get '/api/metering' do
             require_metering!
-            return json_response({ records: [], total: 0, note: 'metering_records table not available' }) unless metering_table?
+            unless metering_table?
+              return json_response({ total_cost_usd: 0.0, total_tokens: 0, total_requests: 0,
+                                     note: 'metering_records table not available' })
+            end
 
-            result = Legion::Extensions::Metering::Runners::Metering.routing_stats
-            json_response(result)
+            ds = Legion::Data.connection[:metering_records]
+            json_response({
+                            total_cost_usd: (ds.sum(:cost_usd) || 0).to_f,
+                            total_tokens:   (ds.sum(:total_tokens) || 0).to_i,
+                            total_requests: ds.count
+                          })
           rescue StandardError => e
             Legion::Logging.log_exception(e, payload_summary: 'GET /api/metering', component_type: :api)
-            json_response({ records: [], total: 0, error: e.message })
+            json_response({ total_cost_usd: 0.0, total_tokens: 0, total_requests: 0, error: e.message })
           end
+        end
 
+        def self.register_rollup_route(app)
           app.get '/api/metering/rollup' do
             require_metering!
             return json_response({ rollup: [], period: 'hourly', note: 'metering_records table not available' }) unless metering_table?
@@ -41,7 +59,9 @@ module Legion
             Legion::Logging.log_exception(e, payload_summary: 'GET /api/metering/rollup', component_type: :api)
             json_response({ rollup: [], period: 'hourly', error: e.message })
           end
+        end
 
+        def self.register_by_model_route(app)
           app.get '/api/metering/by_model' do
             require_metering!
             return json_response({ models: [], note: 'metering_records table not available' }) unless metering_table?
@@ -60,6 +80,8 @@ module Legion
             json_response({ models: [], error: e.message })
           end
         end
+
+        private_class_method :register_helpers, :register_summary_route, :register_rollup_route, :register_by_model_route
       end
     end
   end

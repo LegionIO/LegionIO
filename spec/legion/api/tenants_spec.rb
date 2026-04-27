@@ -73,4 +73,38 @@ RSpec.describe 'Tenants API routes' do
       expect(body[:data][:error]).to eq('tenant_exists')
     end
   end
+
+  describe 'GET /api/tenants' do
+    it 'returns the tenant list positionally through json_response' do
+      tenants_mod = Module.new do
+        def self.list
+          [{ tenant_id: 'askid-001' }]
+        end
+      end
+      stub_const('Legion::Tenants', tenants_mod)
+
+      get '/api/tenants'
+
+      expect(last_response.status).to eq(200)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data]).to eq([{ tenant_id: 'askid-001' }])
+    end
+  end
+
+  describe 'GET /api/tenants/:tenant_id' do
+    it 'returns a structured 404 when a tenant is missing' do
+      tenants_mod = Module.new do
+        def self.find(_tenant_id)
+          nil
+        end
+      end
+      stub_const('Legion::Tenants', tenants_mod)
+
+      get '/api/tenants/missing'
+
+      expect(last_response.status).to eq(404)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:error][:code]).to eq('not_found')
+    end
+  end
 end

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.9.4] - 2026-04-27
+
+### Added
+- `/api/health` now reports `uptime_seconds` and `uptime` for dashboard and monitor consumers. Fixes #168
+- `/api/extensions` now returns a flat loaded-extension summary for dashboard consumers. Fixes #169
+
+### Fixed
+- `legionio doctor` no longer reports extension-loader config keys as missing `lex-*` gems. Fixes #157
+- `/api/metering` now returns dashboard headline totals instead of the routing breakdown shape. Fixes #170
+- Extension autobuild now runs per-extension data migrations when migration files are present, even when an extension does not opt into general data models. Fixes #171
+- `/api/webhooks` now loads its `Legion::Webhooks` runtime dependency before route handlers execute. Fixes #172
+- `/api/tenants` now passes positional response data and uses `json_error` for missing tenants. Fixes #173
+
 ## [1.9.3] - 2026-04-27
 
 ### Added
