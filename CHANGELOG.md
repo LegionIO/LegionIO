@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-04-27
+
+### Fixed
+- Extension catalog persistence now skips no-op startup updates when the stored state already matches, reducing local SQLite write churn. Fixes #176
+
 ## [1.9.2] - 2026-04-27
 
 ### Fixed
