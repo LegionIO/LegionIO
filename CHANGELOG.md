@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-04-27
+
+### Added
+- Extension boot now runs a dedicated LLM load phase so `lex-llm` loads before any `lex-llm-*` extension gems.
+
 ## [1.9.1] - 2026-04-25
 
 ### Added

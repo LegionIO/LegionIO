@@ -29,11 +29,19 @@ module Legion
         find_extensions
 
         phases = group_by_phase
+        llm_base_entries, llm_extension_entries = extract_llm_extension_entries!(phases)
+        llm_phases_loaded = false
         phases.each do |phase_num, entries|
+          unless llm_phases_loaded || before_llm_extension_phase?(phase_num)
+            load_llm_extension_phases(llm_base_entries, llm_extension_entries)
+            llm_phases_loaded = true
+          end
+
           @pending_actors = Concurrent::Array.new
           load_phase_extensions(phase_num, entries)
           hook_phase_actors(phase_num)
         end
+        load_llm_extension_phases(llm_base_entries, llm_extension_entries) unless llm_phases_loaded
 
         transition_loaded_extensions(:running)
         Catalog.flush_persisted_transitions
@@ -348,6 +356,55 @@ module Legion
           cat = entry[:category]
           categories.dig(cat, :phase) || default_phase
         end.sort_by(&:first)
+      end
+
+      def load_llm_extension_phases(base_entries, extension_entries)
+        run_extension_phase(:llm_base, base_entries)
+
+        Legion::Logging.warn 'lex-llm-* extensions discovered without lex-llm; provider loading may fail' if base_entries.empty? && extension_entries.any?
+
+        run_extension_phase(:llm_extensions, extension_entries.sort_by { |entry| entry[:gem_name] })
+      end
+
+      def before_llm_extension_phase?(phase_num)
+        phase_num.is_a?(Numeric) && phase_num < 1
+      end
+
+      def run_extension_phase(phase_num, entries)
+        return if entries.empty?
+
+        @pending_actors = Concurrent::Array.new
+        load_phase_extensions(phase_num, entries)
+        hook_phase_actors(phase_num)
+      end
+
+      def extract_llm_extension_entries!(phases)
+        base_entries = []
+        extension_entries = []
+
+        phases.each do |(_, entries)|
+          entries.delete_if do |entry|
+            next false unless llm_extension_entry?(entry)
+
+            if llm_base_extension_entry?(entry)
+              base_entries << entry
+            else
+              extension_entries << entry
+            end
+            true
+          end
+        end
+        phases.reject! { |_, entries| entries.empty? }
+
+        [base_entries, extension_entries]
+      end
+
+      def llm_extension_entry?(entry)
+        llm_base_extension_entry?(entry) || entry[:gem_name].start_with?('lex-llm-')
+      end
+
+      def llm_base_extension_entry?(entry)
+        entry[:gem_name] == 'lex-llm'
       end
 
       def group_pending_actors

@@ -87,6 +87,70 @@ RSpec.describe Legion::Extensions do
     end
   end
 
+  describe '.hook_extensions' do
+    let(:lex_llm) { { gem_name: 'lex-llm', category: :default, tier: 5 } }
+    let(:lex_llm_openai) { { gem_name: 'lex-llm-openai', category: :default, tier: 5 } }
+    let(:lex_llm_ollama) { { gem_name: 'lex-llm-ollama', category: :default, tier: 5 } }
+    let(:lex_http) { { gem_name: 'lex-http', category: :core, tier: 1 } }
+    let(:lex_identity) { { gem_name: 'lex-identity-system', category: :identity, tier: 0 } }
+
+    before do
+      allow(described_class).to receive(:find_extensions)
+      allow(described_class).to receive(:transition_loaded_extensions)
+      allow(described_class).to receive(:load_yaml_agents)
+      allow(described_class).to receive(:reset_runtime_handles!)
+      allow(Legion::Extensions::Catalog).to receive(:flush_persisted_transitions)
+    end
+
+    it 'loads lex-llm before lex-llm provider extensions and normal phases' do
+      phases = [
+        [0, [lex_identity]],
+        [1, [lex_llm_openai, lex_http, lex_llm, lex_llm_ollama]]
+      ]
+      loaded_phases = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |phase_name, entries|
+        loaded_phases << [phase_name, entries.map { |entry| entry[:gem_name] }]
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_phases).to eq(
+        [
+          [0, ['lex-identity-system']],
+          [:llm_base, ['lex-llm']],
+          [:llm_extensions, %w[lex-llm-ollama lex-llm-openai]],
+          [1, ['lex-http']]
+        ]
+      )
+    end
+
+    it 'keeps normal phase loading unchanged when no lex-llm gems are discovered' do
+      phases = [
+        [0, [lex_identity]],
+        [1, [lex_http]]
+      ]
+      loaded_phases = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |phase_name, entries|
+        loaded_phases << [phase_name, entries.map { |entry| entry[:gem_name] }]
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_phases).to eq(
+        [
+          [0, ['lex-identity-system']],
+          [1, ['lex-http']]
+        ]
+      )
+    end
+  end
+
   describe '.default_category_registry' do
     subject(:registry) { described_class.send(:default_category_registry) }
 
