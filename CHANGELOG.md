@@ -7,6 +7,9 @@
 ### Added
 - Extension boot now runs a dedicated LLM load phase so `lex-llm` loads before any `lex-llm-*` extension gems.
 
+### Fixed
+- `POST /api/knowledge/status` no longer silently defaults to the daemon's cwd. Uses `knowledge.default_corpus_path` setting or `LEGION_CORPUS_PATH` env var; returns 400 when unresolvable. Prevents `Errno::EPERM` crashes on macOS when the daemon is launched from `~` and `Find.find` walks into TCC-protected subdirs like `~/Library/Accounts`.
+
 ## [1.9.1] - 2026-04-25
 
 ### Added

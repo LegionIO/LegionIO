@@ -67,7 +67,15 @@ module Legion
           app.post '/api/knowledge/status' do
             require_knowledge_ingest!
             body = parse_request_body
-            path = body[:path] || Dir.pwd
+            path = body[:path] ||
+                   Legion::Settings.dig(:knowledge, :default_corpus_path) ||
+                   ENV.fetch('LEGION_CORPUS_PATH', nil)
+
+            if path.nil? || path.to_s.empty?
+              halt 400, json_error('missing_param',
+                                   'path is required (no knowledge.default_corpus_path configured)')
+            end
+
             result = Legion::Extensions::Knowledge::Runners::Ingest.scan_corpus(path: path)
             json_response(result)
           end
