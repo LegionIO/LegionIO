@@ -184,5 +184,31 @@ RSpec.describe Legion::Extensions::Catalog do
         path: kind_of(String)
       )
     end
+
+    it 'skips persisted transition updates when the stored state is unchanged' do
+      connection = double('Sequel::Database', tables: [:extension_catalog])
+      existing = double('ExtensionCatalogRow', state: 'loaded')
+      dataset = instance_double('Sequel::Dataset', first: existing)
+      model = double('Sequel::Model', where: dataset)
+      local = Module.new do
+        class << self
+          attr_accessor :connection
+        end
+
+        def self.connected? = true
+        def self.registered_migrations = { extension_catalog: '/tmp/extension_catalog' }
+      end
+      local.connection = connection
+      allow(connection).to receive(:transaction) { |&blk| blk.call }
+      allow(local).to receive(:model).with(:extension_catalog).and_return(model)
+      allow(existing).to receive(:update)
+      stub_const('Legion::Data::Local', local)
+
+      described_class.register('lex-detect')
+      described_class.transition('lex-detect', :loaded)
+      described_class.flush_persisted_transitions
+
+      expect(existing).not_to have_received(:update)
+    end
   end
 end
