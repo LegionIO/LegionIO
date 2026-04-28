@@ -85,6 +85,8 @@ module Legion
             pending.each do |lex_name, new_state|
               existing = model.where(lex_name: lex_name).first
               if existing
+                next if existing.respond_to?(:state) && existing.state == new_state.to_s
+
                 existing.update(state: new_state.to_s, updated_at: now)
               else
                 model.insert(lex_name: lex_name, state: new_state.to_s, created_at: now, updated_at: now)

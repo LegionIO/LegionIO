@@ -5,6 +5,7 @@
 ## [1.9.4] - 2026-04-27
 
 ### Added
+- Extension boot now runs a dedicated LLM load phase so `lex-llm` loads before any `lex-llm-*` extension gems.
 - `/api/health` now reports `uptime_seconds` and `uptime` for dashboard and monitor consumers. Fixes #168
 - `/api/extensions` now returns a flat loaded-extension summary for dashboard consumers. Fixes #169
 
@@ -17,8 +18,8 @@
 
 ## [1.9.3] - 2026-04-27
 
-### Added
-- Extension boot now runs a dedicated LLM load phase so `lex-llm` loads before any `lex-llm-*` extension gems.
+### Fixed
+- Extension catalog persistence now skips no-op startup updates when the stored state already matches, reducing local SQLite write churn. Fixes #176
 
 ## [1.9.2] - 2026-04-27
 
