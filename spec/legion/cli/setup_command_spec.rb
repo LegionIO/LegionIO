@@ -26,9 +26,16 @@ RSpec.describe Legion::CLI::Setup do
       expect(llm_gems).to include(
         'legion-llm',
         'lex-llm',
-        'lex-llm-bedrock',
+        'lex-llm-anthropic',
         'lex-llm-azure-foundry',
-        'lex-llm-vertex'
+        'lex-llm-bedrock',
+        'lex-llm-gemini',
+        'lex-llm-ledger',
+        'lex-llm-mlx',
+        'lex-llm-ollama',
+        'lex-llm-openai',
+        'lex-llm-vertex',
+        'lex-llm-vllm'
       )
     end
   end
