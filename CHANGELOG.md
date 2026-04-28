@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.14] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-tty >= 0.5.4` so packaged installs include the Legion-native LLM probe instead of the legacy direct RubyLLM probe.
+
 ## [1.9.13] - 2026-04-28
 
 ### Fixed
