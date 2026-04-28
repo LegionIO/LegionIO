@@ -6,7 +6,8 @@ gemspec
 
 gem 'legion-data', path: '../legion-data' if File.exist?(File.expand_path('../legion-data', __dir__))
 gem 'legion-gaia', path: '../legion-gaia' if File.exist?(File.expand_path('../legion-gaia', __dir__))
-gem 'legion-llm', path: '../legion-llm' if File.exist?(File.expand_path('../legion-llm', __dir__))
+legion_llm_path = ENV.fetch('LEGION_LLM_PATH', '../legion-llm')
+gem 'legion-llm', path: legion_llm_path if File.exist?(File.expand_path(legion_llm_path, __dir__))
 gem 'legion-logging', path: '../legion-logging' if File.exist?(File.expand_path('../legion-logging', __dir__))
 gem 'legion-mcp', path: '../legion-mcp' if File.exist?(File.expand_path('../legion-mcp', __dir__))
 gem 'legion-settings', path: '../legion-settings' if File.exist?(File.expand_path('../legion-settings', __dir__))

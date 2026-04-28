@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.9.7] - 2026-04-28
+
+### Fixed
+- Extension discovery now maps `lex-llm-azure-foundry` to `Legion::Extensions::Llm::AzureFoundry` and `legion/extensions/llm/azure_foundry`.
+- LegionIO now requires `legion-llm >= 0.8.40` so packaged installs include the native provider bridge needed by the Legion-native LLM stack.
+- README LLM provider documentation now describes the `lex-llm-*` provider stack instead of the retired legacy provider list.
+
 ## [1.9.6] - 2026-04-28
 
 ### Fixed

@@ -429,11 +429,11 @@ Brain-modeled cognitive architecture. 20 core orchestration extensions plus 222 
 
 Coordinated by [legion-gaia](https://github.com/LegionIO/legion-gaia), the cognitive coordination layer with tick-cycle scheduling, channel abstraction, and weighted routing across cognitive modules.
 
-### AI / LLM (7 provider extensions)
+### AI / LLM
 
-`lex-azure-ai` `lex-bedrock` `lex-claude` `lex-foundry` `lex-gemini` `lex-openai` `lex-xai`
+`legion-llm` `lex-llm` `lex-llm-anthropic` `lex-llm-azure-foundry` `lex-llm-bedrock` `lex-llm-gemini` `lex-llm-ledger` `lex-llm-mlx` `lex-llm-ollama` `lex-llm-openai` `lex-llm-vertex` `lex-llm-vllm`
 
-Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with three-tier routing (local Ollama, fleet GPU servers, cloud APIs), intent-based dispatch, health tracking, and automatic model discovery.
+Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with provider-neutral model offerings, local and fleet routing, hosted cloud providers, health tracking, metering, and automatic model discovery.
 
 ### Service Integrations (8 common + 15 additional)
 
