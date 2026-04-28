@@ -39,10 +39,11 @@ module Legion
       def naming_convention(name:, **_)
         return { check: :naming_convention, status: :skip, details: 'no name' } unless name
 
-        if name.match?(/\Alex-[a-z][a-z0-9_]*\z/)
+        if name.match?(/\Alex-[a-z][a-z0-9_]*(?:-[a-z][a-z0-9_]*)*\z/)
           { check: :naming_convention, status: :pass, details: name }
         else
-          { check: :naming_convention, status: :fail, details: "#{name} does not match lex-[a-z][a-z0-9_]*" }
+          { check: :naming_convention, status: :fail,
+            details: "#{name} does not match lex-[a-z][a-z0-9_]*(?:-[a-z][a-z0-9_]*)*" }
         end
       end
 

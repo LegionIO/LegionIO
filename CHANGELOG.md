@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.9] - 2026-04-28
+
+### Fixed
+- Registry governance and security scanning now accept nested `lex-*` extension gem names such as `lex-llm-openai` and `lex-llm-azure-foundry`.
+
 ## [1.9.8] - 2026-04-28
 
 ### Fixed

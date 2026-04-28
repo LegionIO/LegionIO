@@ -7,7 +7,7 @@ module Legion
         require_airb_approval:      false,
         auto_approve_risk_tiers:    %w[low],
         review_required_risk_tiers: %w[medium high critical],
-        naming_convention:          'lex-[a-z][a-z0-9_]*',
+        naming_convention:          'lex-[a-z][a-z0-9_]*(?:-[a-z][a-z0-9_]*)*',
         deprecation_notice_days:    30
       }.freeze
 
