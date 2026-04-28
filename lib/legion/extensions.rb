@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'legion/logging'
 require 'legion/extensions/core'
 require 'legion/extensions/catalog'
 require 'legion/extensions/handle_registry'

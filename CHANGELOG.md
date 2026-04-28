@@ -10,6 +10,7 @@
 ### Fixed
 - Local development Gemfile wiring now points `lex-llm-gateway` at the workspace extension path actually used by LegionIO checkouts.
 - Default setup packs no longer install legacy `lex-llm-gateway`; the extension catalog now labels it as compatibility glue rather than active LLM routing.
+- `require 'legion/extensions'` now loads its logging dependency directly instead of relying on `require 'legion'` order.
 
 ## [1.9.4] - 2026-04-27
 
