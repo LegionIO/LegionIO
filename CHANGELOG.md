@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.10] - 2026-04-28
+
+### Fixed
+- LLM provider health endpoints and CLI health checks now use the native `legion-llm` provider inventory before falling back to legacy `lex-llm-gateway` provider stats.
+
 ## [1.9.9] - 2026-04-28
 
 ### Fixed
