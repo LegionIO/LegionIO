@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.9.8] - 2026-04-28
+
+### Fixed
+- The `agentic` setup pack now installs the Legion-native `lex-llm-*` provider stack without also installing retired legacy LLM provider gems.
+- Role profiles now treat `lex-llm-*` gems as the active AI extension set and exclude legacy LLM providers from default `core`, `dev`, and `cognitive` profile loading.
+- LegionIO now requires `legion-llm >= 0.8.41` so packaged installs get the router dependency cleanup that removes retired legacy provider runtime dependencies.
+
 ## [1.9.7] - 2026-04-28
 
 ### Fixed

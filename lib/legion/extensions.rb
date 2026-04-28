@@ -735,12 +735,32 @@ module Legion
       end
 
       def core_extension_names
-        %w[codegen conditioner exec health lex llm-gateway log metering node ping scheduler tasker task_pruner telemetry
+        %w[codegen conditioner exec health lex log metering node ping scheduler tasker task_pruner telemetry
            transformer].freeze
       end
 
       def ai_extension_names
-        %w[claude gemini openai].freeze
+        native_llm_extension_names
+      end
+
+      def native_llm_extension_names
+        %w[
+          llm
+          llm-anthropic
+          llm-azure-foundry
+          llm-bedrock
+          llm-gemini
+          llm-ledger
+          llm-mlx
+          llm-ollama
+          llm-openai
+          llm-vertex
+          llm-vllm
+        ].freeze
+      end
+
+      def legacy_ai_extension_names
+        %w[azure-ai bedrock claude foundry gemini llm-gateway ollama openai xai].freeze
       end
 
       def service_extension_names
@@ -758,7 +778,10 @@ module Legion
       end
 
       def agentic_extension_names
-        known_gem_names = (core_extension_names + service_extension_names + other_extension_names + ai_extension_names).map { |n| "lex-#{n}" }
+        known_gem_names = (
+          core_extension_names + service_extension_names + other_extension_names +
+            ai_extension_names + legacy_ai_extension_names
+        ).map { |n| "lex-#{n}" }
         Array(@extensions).reject { |entry| known_gem_names.include?(entry[:gem_name]) }.map { |entry| entry[:gem_name] }
       end
 

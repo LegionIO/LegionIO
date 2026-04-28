@@ -20,22 +20,41 @@ RSpec.describe Legion::CLI::Setup do
   end
 
   describe 'LLM pack definition' do
+    let(:native_llm_gems) do
+      %w[
+        legion-llm
+        lex-llm
+        lex-llm-anthropic
+        lex-llm-azure-foundry
+        lex-llm-bedrock
+        lex-llm-gemini
+        lex-llm-ledger
+        lex-llm-mlx
+        lex-llm-ollama
+        lex-llm-openai
+        lex-llm-vertex
+        lex-llm-vllm
+      ]
+    end
+
     it 'includes the Legion-native hosted provider extensions' do
       llm_gems = described_class::PACKS.fetch(:llm).fetch(:gems)
 
-      expect(llm_gems).to include(
-        'legion-llm',
-        'lex-llm',
-        'lex-llm-anthropic',
-        'lex-llm-azure-foundry',
-        'lex-llm-bedrock',
-        'lex-llm-gemini',
-        'lex-llm-ledger',
-        'lex-llm-mlx',
-        'lex-llm-ollama',
-        'lex-llm-openai',
-        'lex-llm-vertex',
-        'lex-llm-vllm'
+      expect(llm_gems).to include(*native_llm_gems)
+    end
+
+    it 'uses the Legion-native provider stack in the agentic pack' do
+      agentic_gems = described_class::PACKS.fetch(:agentic).fetch(:gems)
+
+      expect(agentic_gems).to include(*native_llm_gems)
+      expect(agentic_gems).not_to include(
+        'lex-azure-ai',
+        'lex-bedrock',
+        'lex-claude',
+        'lex-foundry',
+        'lex-gemini',
+        'lex-openai',
+        'lex-xai'
       )
     end
   end

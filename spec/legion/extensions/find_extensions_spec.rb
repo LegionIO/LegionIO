@@ -259,6 +259,9 @@ RSpec.describe Legion::Extensions do
         build_entry('lex-attention', :default, 5),
         build_entry('lex-memory',    :default, 5),
         build_entry('lex-claude',    :ai,      2),
+        build_entry('lex-llm',       :ai,      2),
+        build_entry('lex-llm-gateway', :core,  1),
+        build_entry('lex-llm-openai', :ai,     2),
         build_entry('lex-github',    :default, 5),
         build_entry('lex-slack',     :default, 5)
       ]
@@ -276,7 +279,7 @@ RSpec.describe Legion::Extensions do
       it 'loads all extensions' do
         allow(Legion::Settings).to receive(:[]).with(:role).and_return({ profile: nil })
         described_class.send(:apply_role_filter)
-        expect(described_class.instance_variable_get(:@extensions).count).to eq(8)
+        expect(described_class.instance_variable_get(:@extensions).count).to eq(11)
       end
     end
 
@@ -286,7 +289,17 @@ RSpec.describe Legion::Extensions do
         described_class.send(:apply_role_filter)
         names = ext_gem_names
         expect(names).to include('lex-node', 'lex-tasker', 'lex-health')
-        expect(names).not_to include('lex-attention', 'lex-slack')
+        expect(names).not_to include('lex-attention', 'lex-llm-gateway', 'lex-slack')
+      end
+    end
+
+    context 'when profile is :cognitive' do
+      it 'loads core + agentic extensions without legacy or native LLM providers' do
+        allow(Legion::Settings).to receive(:[]).with(:role).and_return({ profile: 'cognitive' })
+        described_class.send(:apply_role_filter)
+        names = ext_gem_names
+        expect(names).to include('lex-node', 'lex-memory')
+        expect(names).not_to include('lex-claude', 'lex-llm', 'lex-llm-gateway', 'lex-llm-openai')
       end
     end
 
@@ -306,8 +319,8 @@ RSpec.describe Legion::Extensions do
         allow(Legion::Settings).to receive(:[]).with(:role).and_return({ profile: 'dev' })
         described_class.send(:apply_role_filter)
         names = ext_gem_names
-        expect(names).to include('lex-node', 'lex-memory', 'lex-claude')
-        expect(names).not_to include('lex-slack', 'lex-github')
+        expect(names).to include('lex-node', 'lex-memory', 'lex-llm', 'lex-llm-openai')
+        expect(names).not_to include('lex-claude', 'lex-llm-gateway', 'lex-slack', 'lex-github')
       end
     end
 
@@ -315,7 +328,7 @@ RSpec.describe Legion::Extensions do
       it 'loads all extensions' do
         allow(Legion::Settings).to receive(:[]).with(:role).and_return({ profile: 'unknown_thing' })
         described_class.send(:apply_role_filter)
-        expect(described_class.instance_variable_get(:@extensions).count).to eq(8)
+        expect(described_class.instance_variable_get(:@extensions).count).to eq(11)
       end
     end
   end
