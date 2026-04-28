@@ -14,7 +14,7 @@ module Legion
           { name: 'lex-exec',         category: 'core',     description: 'Shell command execution' },
           { name: 'lex-health',       category: 'core',     description: 'Health monitoring and metrics' },
           { name: 'lex-lex',          category: 'core',     description: 'Extension management' },
-          { name: 'lex-llm-gateway',  category: 'core',     description: 'LLM gateway and routing' },
+          { name: 'lex-llm-gateway',  category: 'core',     description: 'Legacy LLM gateway compatibility' },
           { name: 'lex-llm-ledger',   category: 'core',     description: 'LLM cost and usage ledger' },
           { name: 'lex-log',          category: 'core',     description: 'Log shipping and aggregation' },
           { name: 'lex-metering',     category: 'core',     description: 'Resource metering and accounting' },

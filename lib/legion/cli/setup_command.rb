@@ -42,7 +42,7 @@ module Legion
             lex-eval lex-exec lex-extinction lex-factory lex-finops lex-foundry
             lex-gemini lex-governance lex-kerberos lex-knowledge lex-llm
             lex-llm-anthropic lex-llm-azure-foundry lex-llm-bedrock
-            lex-llm-gateway lex-llm-gemini lex-llm-ledger lex-llm-mlx
+            lex-llm-gemini lex-llm-ledger lex-llm-mlx
             lex-llm-ollama lex-llm-openai lex-llm-vertex lex-llm-vllm
             lex-metering lex-mesh lex-microsoft_teams lex-mind-growth lex-node
             lex-onboard lex-openai lex-pilot-infra-monitor
