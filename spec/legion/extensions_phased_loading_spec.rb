@@ -149,6 +149,38 @@ RSpec.describe Legion::Extensions do
         ]
       )
     end
+
+    it 'loads lex-llm before providers discovered through Bundler' do
+      phases = [
+        [1, [lex_llm_openai, lex_http, lex_llm, lex_llm_ollama]]
+      ]
+      loaded_names = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |_phase_name, entries|
+        loaded_names.concat(entries.map { |entry| entry[:gem_name] })
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-openai')
+      expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-ollama')
+    end
+
+    it 'wires local lex-llm provider gems after the base gem in the Gemfile' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+      base_index = gemfile.index("gem 'lex-llm'")
+      provider_list_index = gemfile.index('%w[anthropic gemini mlx ollama openai vllm]')
+      provider_token = ['#', '{provider}'].join
+      provider_gem_index = gemfile.index(%(gem "lex-llm-#{provider_token}"))
+
+      expect(base_index).not_to be_nil
+      expect(provider_list_index).not_to be_nil
+      expect(provider_gem_index).not_to be_nil
+      expect(base_index).to be < provider_list_index
+      expect(base_index).to be < provider_gem_index
+    end
   end
 
   describe '.default_category_registry' do
