@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.9.15] - 2026-04-28
+
+### Fixed
+- The static extension catalog now classifies `lex-llm-gateway` as legacy compatibility, and setup pack tests explicitly prevent it from returning to default LLM or agentic installs.
+- README LLM documentation now calls out `lex-llm-gateway` as legacy-only compatibility glue that is not installed by default.
+
 ## [1.9.14] - 2026-04-28
 
 ### Fixed

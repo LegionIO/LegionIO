@@ -41,6 +41,7 @@ RSpec.describe Legion::CLI::Setup do
       llm_gems = described_class::PACKS.fetch(:llm).fetch(:gems)
 
       expect(llm_gems).to include(*native_llm_gems)
+      expect(llm_gems).not_to include('lex-llm-gateway')
     end
 
     it 'uses the Legion-native provider stack in the agentic pack' do
@@ -53,6 +54,7 @@ RSpec.describe Legion::CLI::Setup do
         'lex-claude',
         'lex-foundry',
         'lex-gemini',
+        'lex-llm-gateway',
         'lex-openai',
         'lex-xai'
       )

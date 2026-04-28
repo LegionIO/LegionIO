@@ -18,7 +18,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.4-red.svg)](https://www.ruby-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Ruby >= 3.4** | **v1.9.12** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.9.15** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -434,6 +434,8 @@ Coordinated by [legion-gaia](https://github.com/LegionIO/legion-gaia), the cogni
 `legion-llm` `lex-llm` `lex-llm-anthropic` `lex-llm-azure-foundry` `lex-llm-bedrock` `lex-llm-gemini` `lex-llm-ledger` `lex-llm-mlx` `lex-llm-ollama` `lex-llm-openai` `lex-llm-vertex` `lex-llm-vllm`
 
 Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with provider-neutral model offerings, local and fleet routing, hosted cloud providers, health tracking, metering, and automatic model discovery.
+
+`lex-llm-gateway` remains available only as legacy compatibility glue for older deployments. New `legion setup llm` and `legion setup agentic` installs use the native `legion-llm` / `lex-llm-*` stack and do not install the gateway by default.
 
 ### Service Integrations (8 common + 15 additional)
 
