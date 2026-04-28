@@ -171,7 +171,7 @@ RSpec.describe Legion::Extensions do
     it 'wires local lex-llm provider gems after the base gem in the Gemfile' do
       gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
       base_index = gemfile.index("gem 'lex-llm'")
-      provider_list_index = gemfile.index('%w[anthropic gemini mlx ollama openai vllm]')
+      provider_list_index = gemfile.index('%w[anthropic azure-foundry bedrock gemini mlx ollama openai vertex vllm]')
       provider_token = ['#', '{provider}'].join
       provider_gem_index = gemfile.index(%(gem "lex-llm-#{provider_token}"))
 
@@ -180,6 +180,14 @@ RSpec.describe Legion::Extensions do
       expect(provider_gem_index).not_to be_nil
       expect(base_index).to be < provider_list_index
       expect(base_index).to be < provider_gem_index
+    end
+
+    it 'wires hosted lex-llm provider gems for local development' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+
+      expect(gemfile).to include('azure-foundry')
+      expect(gemfile).to include('bedrock')
+      expect(gemfile).to include('vertex')
     end
   end
 

@@ -14,7 +14,7 @@ gem 'legion-settings', path: '../legion-settings' if File.exist?(File.expand_pat
 gem 'legion-apollo', path: '../legion-apollo' if File.exist?(File.expand_path('../legion-apollo', __dir__))
 gem 'lex-agentic-memory', path: '../extensions-agentic/lex-agentic-memory' if File.exist?(File.expand_path('../extensions-agentic/lex-agentic-memory', __dir__))
 gem 'lex-llm', path: '../extensions-ai/lex-llm' if File.exist?(File.expand_path('../extensions-ai/lex-llm', __dir__))
-%w[anthropic gemini mlx ollama openai vllm].each do |provider|
+%w[anthropic azure-foundry bedrock gemini mlx ollama openai vertex vllm].each do |provider|
   provider_path = "../extensions-ai/lex-llm-#{provider}"
   gem "lex-llm-#{provider}", path: provider_path if File.exist?(File.expand_path(provider_path, __dir__))
 end

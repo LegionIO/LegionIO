@@ -19,6 +19,20 @@ RSpec.describe Legion::CLI::Setup do
     $stdout = original
   end
 
+  describe 'LLM pack definition' do
+    it 'includes the Legion-native hosted provider extensions' do
+      llm_gems = described_class::PACKS.fetch(:llm).fetch(:gems)
+
+      expect(llm_gems).to include(
+        'legion-llm',
+        'lex-llm',
+        'lex-llm-bedrock',
+        'lex-llm-azure-foundry',
+        'lex-llm-vertex'
+      )
+    end
+  end
+
   describe 'claude-code' do
     let(:settings_path) { File.join(tmpdir, '.claude', 'settings.json') }
     let(:skill_path)    { File.join(tmpdir, '.claude', 'commands', 'legion.md') }

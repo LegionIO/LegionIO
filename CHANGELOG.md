@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.5] - 2026-04-28
+
+### Added
+- Extension catalog, setup packs, and local development wiring now include the Legion-native `lex-llm` provider stack, including Bedrock, Azure Foundry, and Vertex hosted provider extensions.
+
 ## [1.9.4] - 2026-04-27
 
 ### Added
