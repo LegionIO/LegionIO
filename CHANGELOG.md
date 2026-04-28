@@ -7,6 +7,9 @@
 ### Added
 - Extension catalog, setup packs, and local development wiring now include the Legion-native `lex-llm` provider stack, including Bedrock, Azure Foundry, and Vertex hosted provider extensions.
 
+### Fixed
+- Local development Gemfile wiring now points `lex-llm-gateway` at the workspace extension path actually used by LegionIO checkouts.
+
 ## [1.9.4] - 2026-04-27
 
 ### Added
