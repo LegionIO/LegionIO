@@ -52,13 +52,13 @@ RSpec.describe 'POST /api/llm/inference' do
   end
 
   def stub_llm_pipeline(executor_double, pipeline_response)
-    stub_const('Legion::LLM::Pipeline::Request', Module.new do
+    stub_const('Legion::LLM::Inference::Request', Module.new do
       def self.build(**_kwargs)
         :stubbed_request
       end
     end)
 
-    stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+    stub_const('Legion::LLM::Inference::Executor', Class.new do
       define_method(:initialize) { |_req| nil }
       define_method(:call) { pipeline_response }
       define_method(:call_stream) do |&block|
@@ -134,7 +134,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
     it 'passes tool classes (not instances) to the pipeline' do
       received_tools = nil
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         define_singleton_method(:build) do |**kwargs|
           received_tools = kwargs[:tools]
           :stubbed_request
@@ -158,7 +158,7 @@ RSpec.describe 'POST /api/llm/inference' do
         pr.define_singleton_method(:stop)        { { reason: :end_turn } }
       end
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { plain_pr }
       end)
@@ -264,14 +264,14 @@ RSpec.describe 'POST /api/llm/inference' do
     let(:pipeline_response) { build_pipeline_response(content: 'Hello from pipeline') }
 
     before do
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         def self.build(**_kwargs)
           :stubbed_request
         end
       end)
 
       pr = pipeline_response
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
@@ -314,7 +314,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
     it 'emits enrichment event when enrichments are present' do
       pr = build_pipeline_response(enrichments: { 'rag:context' => { docs: 1 } })
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
@@ -337,7 +337,7 @@ RSpec.describe 'POST /api/llm/inference' do
       allow(tool).to receive(:respond_to?) { |m| %i[id name arguments].include?(m) }
 
       pr = build_pipeline_response(tools: [tool])
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) { |_h| nil }
         define_method(:call_stream) do |&block|
@@ -357,7 +357,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
     it 'emits real-time tool-call event via tool_event_handler with camelCase keys' do
       captured_handler = nil
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) { |h| captured_handler = h }
         define_method(:call_stream) do |&block|
@@ -392,7 +392,7 @@ RSpec.describe 'POST /api/llm/inference' do
       end
 
       pr = build_pipeline_response(tools: [])
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) do |h|
           h.call(
@@ -427,7 +427,7 @@ RSpec.describe 'POST /api/llm/inference' do
       allow(tool).to receive(:respond_to?) { |m| %i[id name arguments].include?(m) }
 
       pr = build_pipeline_response(tools: [tool])
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:tool_event_handler=) do |h|
           # Simulate real-time emission with the same ID
@@ -470,7 +470,7 @@ RSpec.describe 'POST /api/llm/inference' do
         pr.define_singleton_method(:stop)        { { reason: :end_turn } }
       end
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { sync_pr }
       end)
@@ -486,7 +486,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
   context 'error mapping' do
     before do
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         def self.build(**_kwargs) = :req
       end)
     end
@@ -506,7 +506,7 @@ RSpec.describe 'POST /api/llm/inference' do
         stub_const('Legion::LLM::ProviderError', err_klass) if error_class == 'ProviderDown'
         stub_const('Legion::LLM::ProviderDown', err_klass)  if error_class == 'ProviderError'
 
-        stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+        stub_const('Legion::LLM::Inference::Executor', Class.new do
           define_method(:initialize) { |_req| nil }
           define_method(:call) { raise err_klass, 'simulated error' }
         end)
@@ -522,7 +522,7 @@ RSpec.describe 'POST /api/llm/inference' do
     end
 
     it 'maps StandardError to 500 inference_error' do
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { raise StandardError, 'boom' }
       end)
@@ -539,7 +539,7 @@ RSpec.describe 'POST /api/llm/inference' do
 
   context 'build_client_tool_class helper' do
     before do
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         def self.build(**_kwargs) = :req
       end)
 
@@ -558,7 +558,7 @@ RSpec.describe 'POST /api/llm/inference' do
         pr.define_singleton_method(:stop)        { { reason: :end_turn } }
       end
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { helper_pr }
       end)
@@ -568,7 +568,7 @@ RSpec.describe 'POST /api/llm/inference' do
       stub_const('RubyLLM::Tool', Class.new)
 
       received_tools = []
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         define_singleton_method(:build) do |**kwargs|
           received_tools.concat(Array(kwargs[:tools]))
           :req

@@ -151,7 +151,7 @@ RSpec.describe 'LLM API routes' do
   describe 'POST /api/llm/chat — gateway path' do
     before do
       stub_llm_started
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
 
       ingress_mod = Module.new
       stub_const('Legion::Ingress', ingress_mod)
@@ -241,7 +241,7 @@ RSpec.describe 'LLM API routes' do
 
       expect(Legion::Ingress).to have_received(:run).with(
         hash_including(
-          runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+          runner_class: 'Legion::Extensions::Llm::Gateway::Runners::Inference',
           function:     'chat',
           source:       'api'
         )
@@ -423,8 +423,8 @@ RSpec.describe 'LLM API routes' do
 
       before do
         stub_llm_started
-        stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
-        stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
       end
 
       it 'returns 200 with providers and summary' do
@@ -452,8 +452,8 @@ RSpec.describe 'LLM API routes' do
 
     before do
       stub_llm_started
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
     end
 
     it 'returns 200 with provider detail' do

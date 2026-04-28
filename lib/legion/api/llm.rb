@@ -29,11 +29,29 @@ module Legion
             end
 
             define_method(:gateway_available?) do
-              defined?(Legion::Extensions::LLM::Gateway::Runners::Inference)
+              defined?(Legion::Extensions::Llm::Gateway::Runners::Inference)
+            end
+
+            define_method(:ruby_llm_tool_base) do
+              return RubyLLM::Tool if defined?(RubyLLM::Tool)
+
+              require 'ruby_llm'
+              return RubyLLM::Tool if defined?(RubyLLM::Tool)
+
+              nil
+            rescue LoadError => e
+              Legion::Logging.warn("[llm][api] RubyLLM tool base unavailable: #{e.message}") if defined?(Legion::Logging)
+              nil
             end
 
             define_method(:build_client_tool_class) do |tname, tdesc, tschema|
-              klass = Class.new(RubyLLM::Tool) do
+              tool_base = ruby_llm_tool_base
+              unless tool_base
+                Legion::Logging.warn("[llm][api] skipping client tool #{tname}: RubyLLM::Tool unavailable") if defined?(Legion::Logging)
+                next nil
+              end
+
+              klass = Class.new(tool_base) do
                 description tdesc
                 define_method(:name) { tname }
                 tool_ref = tname
@@ -173,7 +191,7 @@ module Legion
               ingress_result = Legion::Ingress.run(
                 payload:      { message: message, model: model, provider: provider,
                                 request_id: request_id },
-                runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+                runner_class: 'Legion::Extensions::Llm::Gateway::Runners::Inference',
                 function:     'chat',
                 source:       'api'
               )
@@ -307,8 +325,8 @@ module Legion
             streaming = body[:stream] == true && env['HTTP_ACCEPT']&.include?('text/event-stream')
 
             # Executor handles all registry tool injection — API only passes client-defined tools
-            require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
-            require 'legion/llm/pipeline/executor' unless defined?(Legion::LLM::Pipeline::Executor)
+            require 'legion/llm/inference' unless defined?(Legion::LLM::Inference::Request) &&
+                                                  defined?(Legion::LLM::Inference::Executor)
 
             principal  = defined?(Legion::Identity::Request) && env['legion.principal']
             caller_ctx = if principal
@@ -318,7 +336,7 @@ module Legion
                          end
 
             caller_metadata = body[:metadata].is_a?(Hash) ? body[:metadata] : {}
-            req = Legion::LLM::Pipeline::Request.build(
+            req = Legion::LLM::Inference::Request.build(
               messages:        messages,
               system:          body[:system],
               routing:         { provider: provider, model: model },
@@ -329,7 +347,7 @@ module Legion
               stream:          streaming,
               cache:           { strategy: :default, cacheable: true }
             )
-            executor = Legion::LLM::Pipeline::Executor.new(req)
+            executor = Legion::LLM::Inference::Executor.new(req)
 
             if streaming
               content_type 'text/event-stream'
@@ -476,11 +494,11 @@ module Legion
         def self.register_providers(app)
           app.get '/api/llm/providers' do
             require_llm!
-            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
+            unless gateway_available? && defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
               halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
             end
 
-            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
+            stats = Legion::Extensions::Llm::Gateway::Runners::ProviderStats
             json_response({
                             providers: stats.health_report,
                             summary:   stats.circuit_summary
@@ -489,11 +507,11 @@ module Legion
 
           app.get '/api/llm/providers/:name' do
             require_llm!
-            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
+            unless gateway_available? && defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
               halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
             end
 
-            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
+            stats = Legion::Extensions::Llm::Gateway::Runners::ProviderStats
             detail = stats.provider_detail(provider: params[:name])
             json_response(detail)
           end

@@ -70,8 +70,8 @@ RSpec.describe Legion::API, 'skills routes' do
       request_class = double(:request_class)
       allow(request_class).to receive(:build).and_return(double(:req))
       stub_const('Legion::LLM::ConversationStore', conv_store)
-      stub_const('Legion::LLM::Pipeline::Request', request_class)
-      stub_const('Legion::LLM::Pipeline::Executor', executor_class)
+      stub_const('Legion::LLM::Inference::Request', request_class)
+      stub_const('Legion::LLM::Inference::Executor', executor_class)
     end
 
     it 'returns 200 with content on success' do

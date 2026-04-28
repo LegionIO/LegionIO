@@ -26,7 +26,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
   end
 
   before do
-    stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+    stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
   end
 
   describe '#execute' do
@@ -44,7 +44,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
     end
 
     it 'returns error when gateway not available' do
-      hide_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats')
+      hide_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats')
       result = tool.execute
       expect(result).to eq('LLM gateway not available.')
     end

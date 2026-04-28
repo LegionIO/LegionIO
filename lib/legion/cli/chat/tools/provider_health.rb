@@ -71,11 +71,11 @@ module Legion
           end
 
           def gateway_stats_available?
-            defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
+            defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
           end
 
           def stats_module
-            Legion::Extensions::LLM::Gateway::Runners::ProviderStats
+            Legion::Extensions::Llm::Gateway::Runners::ProviderStats
           end
         end
       end

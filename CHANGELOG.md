@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.9.6] - 2026-04-28
+
+### Fixed
+- LLM API gateway checks now use the `Legion::Extensions::Llm::Gateway` namespace loaded by Legion extension autoloading.
+- LLM inference and skill invocation routes now call the current `Legion::LLM::Inference` request/executor API instead of the retired pipeline constants.
+- `legionio llm ping` now routes through `Legion::LLM.ask_direct` instead of bypassing Legion routing with a raw RubyLLM call.
+- API client tool construction now degrades cleanly when the RubyLLM tool base is unavailable.
+
 ## [1.9.5] - 2026-04-28
 
 ### Added

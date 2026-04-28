@@ -234,10 +234,15 @@ module Legion
           out.header("  Pinging #{name} (#{model})...") unless options[:json]
           t0 = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
 
-          response = RubyLLM.chat(model: model, provider: name).ask('Respond with only the word: pong')
+          response = Legion::LLM.ask_direct(
+            message:  'Respond with only the word: pong',
+            model:    model,
+            provider: name,
+            caller:   { source: 'cli', command: 'llm ping' }
+          )
           elapsed = ((::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - t0) * 1000).round
 
-          content = response.content.to_s.strip
+          content = response_content(response)
           success = content.downcase.include?('pong')
 
           if success
@@ -253,6 +258,16 @@ module Legion
 
           out.error("  #{name}: #{e.message}") unless options[:json]
           { provider: name, status: 'error', message: e.message, model: model, latency_ms: elapsed }
+        end
+
+        def response_content(response)
+          if response.respond_to?(:content)
+            response.content.to_s.strip
+          elsif response.is_a?(Hash)
+            (response[:content] || response['content'] || response[:response] || response['response']).to_s.strip
+          else
+            response.to_s.strip
+          end
         end
 
         def show_status(out, data)

@@ -271,6 +271,29 @@ RSpec.describe Legion::CLI::Llm do
       expect(result[:status]).to eq('skip')
       expect(result[:message]).to include('no default model')
     end
+
+    it 'pings through Legion::LLM native dispatch' do
+      stub_const('Legion::LLM', Module.new) unless defined?(Legion::LLM)
+      response = instance_double('Legion::LLM::Response', content: 'pong')
+      allow(Legion::LLM).to receive(:ask_direct).and_return(response)
+
+      result = instance.send(:ping_one_provider, formatter, :anthropic,
+                             { default_model: 'claude-sonnet-4-6' })
+
+      expect(Legion::LLM).to have_received(:ask_direct).with(
+        message:  'Respond with only the word: pong',
+        model:    'claude-sonnet-4-6',
+        provider: :anthropic,
+        caller:   { source: 'cli', command: 'llm ping' }
+      )
+      expect(result[:status]).to eq('ok')
+      expect(result[:response]).to eq('pong')
+    end
+
+    it 'extracts content from hash responses' do
+      expect(instance.send(:response_content, { content: ' pong ' })).to eq('pong')
+      expect(instance.send(:response_content, { 'response' => ' pong ' })).to eq('pong')
+    end
   end
 
   describe '#show_ping_results' do
