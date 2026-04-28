@@ -189,6 +189,13 @@ RSpec.describe Legion::Extensions do
       expect(gemfile).to include('bedrock')
       expect(gemfile).to include('vertex')
     end
+
+    it 'wires lex-llm-ledger for local development when present' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+
+      expect(gemfile).to include("gem 'lex-llm-ledger', path: '../extensions-ai/lex-llm-ledger'")
+      expect(gemfile).to include("File.exist?(File.expand_path('../extensions-ai/lex-llm-ledger', __dir__))")
+    end
   end
 
   describe '.default_category_registry' do

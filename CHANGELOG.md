@@ -8,6 +8,7 @@
 - Extension catalog, setup packs, and local development wiring now include the Legion-native `lex-llm` provider stack, including Bedrock, Azure Foundry, and Vertex hosted provider extensions.
 
 ### Fixed
+- Local development Gemfile wiring now includes guarded `lex-llm-ledger` resolution so the local bundle matches the LLM setup pack.
 - Local development Gemfile wiring now points `lex-llm-gateway` at the workspace extension path actually used by LegionIO checkouts.
 - Default setup packs no longer install legacy `lex-llm-gateway`; the extension catalog now labels it as compatibility glue rather than active LLM routing.
 - `require 'legion/extensions'` now loads its logging dependency directly instead of relying on `require 'legion'` order.
