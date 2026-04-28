@@ -62,7 +62,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'legion-apollo', '>= 0.4.0'
   spec.add_dependency 'legion-gaia', '>= 0.9.26'
-  spec.add_dependency 'legion-llm', '>= 0.8.41'
+  spec.add_dependency 'legion-llm', '>= 0.8.42'
   spec.add_dependency 'legion-tty', '>= 0.4.35'
   spec.add_dependency 'lex-node'
 end

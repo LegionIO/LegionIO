@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.12] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.42` so packaged installs resolve the validated LLM routing uplift release.
+
 ## [1.9.11] - 2026-04-28
 
 ### Fixed
