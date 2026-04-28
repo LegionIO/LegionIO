@@ -411,9 +411,9 @@ Access Vault secrets inline: `<%= Legion::Crypt.read('pushover/token') %>`
 
 Browse: [LegionIO GitHub](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
 
-### Core (16 operational extensions)
+### Core (14 operational extensions)
 
-`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-synapse` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-telemetry` `lex-audit` `task_pruner`
+`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-telemetry` `lex-task_pruner`
 
 ### Agentic (242 cognitive extensions)
 
@@ -465,7 +465,7 @@ Control which extensions load at startup via `settings/legion.json`:
 | `core` | 14 core operational extensions only |
 | `cognitive` | core + all agentic extensions |
 | `service` | core + service + other integrations |
-| `dev` | core + AI + essential agentic (~20 extensions) |
+| `dev` | core + native LLM providers + essential agentic (~20 extensions) |
 | `custom` | only what's listed in `role.extensions` |
 
 Faster boot and lower memory footprint for dedicated worker roles.
