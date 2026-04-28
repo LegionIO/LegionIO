@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.13] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.43` so packaged installs get the optional RubyLLM compatibility layer and native dispatch fallback defaults.
+
 ## [1.9.12] - 2026-04-28
 
 ### Fixed
