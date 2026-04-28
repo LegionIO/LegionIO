@@ -375,6 +375,20 @@ RSpec.describe 'LLM API routes' do
            'CONTENT_TYPE' => 'application/json'
     end
 
+    it 'prefers native Legion::LLM.chat when the legacy gateway is also loaded' do
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Ingress', Module.new)
+      expect(Legion::Ingress).not_to receive(:run)
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'prefer native' }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(last_response.status).to eq(201)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:response]).to eq('hello from LLM')
+      expect(body[:data][:meta][:routed_via]).to be_nil
+    end
+
     it 'includes meta in response' do
       post '/api/llm/chat', Legion::JSON.dump({ message: 'meta check' }),
            'CONTENT_TYPE' => 'application/json'

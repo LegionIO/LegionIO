@@ -18,7 +18,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.4-red.svg)](https://www.ruby-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Ruby >= 3.4** | **v1.9.10** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.9.11** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 

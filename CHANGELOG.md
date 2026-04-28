@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.11] - 2026-04-28
+
+### Fixed
+- LLM chat API routing now prefers native `Legion::LLM.chat` even when legacy `lex-llm-gateway` compatibility code is loaded.
+
 ## [1.9.10] - 2026-04-28
 
 ### Fixed

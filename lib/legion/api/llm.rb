@@ -245,8 +245,8 @@ module Legion
             model      = body[:model]
             provider   = body[:provider]
 
-            # Route through full Legion pipeline when gateway is available
-            if gateway_available?
+            # Compatibility fallback for legacy gateway installs. Native legion-llm handles routing first.
+            if !Legion::LLM.respond_to?(:chat) && gateway_available?
               ingress_result = Legion::Ingress.run(
                 payload:      { message: message, model: model, provider: provider,
                                 request_id: request_id },
