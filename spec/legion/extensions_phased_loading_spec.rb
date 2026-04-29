@@ -87,6 +87,124 @@ RSpec.describe Legion::Extensions do
     end
   end
 
+  describe '.hook_extensions' do
+    let(:lex_llm) { { gem_name: 'lex-llm', category: :default, tier: 5 } }
+    let(:lex_llm_openai) { { gem_name: 'lex-llm-openai', category: :default, tier: 5 } }
+    let(:lex_llm_ollama) { { gem_name: 'lex-llm-ollama', category: :default, tier: 5 } }
+    let(:lex_http) { { gem_name: 'lex-http', category: :core, tier: 1 } }
+    let(:lex_identity) { { gem_name: 'lex-identity-system', category: :identity, tier: 0 } }
+
+    before do
+      allow(described_class).to receive(:find_extensions)
+      allow(described_class).to receive(:transition_loaded_extensions)
+      allow(described_class).to receive(:load_yaml_agents)
+      allow(described_class).to receive(:reset_runtime_handles!)
+      allow(Legion::Extensions::Catalog).to receive(:flush_persisted_transitions)
+    end
+
+    it 'loads lex-llm before lex-llm provider extensions and normal phases' do
+      phases = [
+        [0, [lex_identity]],
+        [1, [lex_llm_openai, lex_http, lex_llm, lex_llm_ollama]]
+      ]
+      loaded_phases = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |phase_name, entries|
+        loaded_phases << [phase_name, entries.map { |entry| entry[:gem_name] }]
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_phases).to eq(
+        [
+          [0, ['lex-identity-system']],
+          [:llm_base, ['lex-llm']],
+          [:llm_extensions, %w[lex-llm-ollama lex-llm-openai]],
+          [1, ['lex-http']]
+        ]
+      )
+    end
+
+    it 'keeps normal phase loading unchanged when no lex-llm gems are discovered' do
+      phases = [
+        [0, [lex_identity]],
+        [1, [lex_http]]
+      ]
+      loaded_phases = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |phase_name, entries|
+        loaded_phases << [phase_name, entries.map { |entry| entry[:gem_name] }]
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_phases).to eq(
+        [
+          [0, ['lex-identity-system']],
+          [1, ['lex-http']]
+        ]
+      )
+    end
+
+    it 'loads lex-llm before providers discovered through Bundler' do
+      phases = [
+        [1, [lex_llm_openai, lex_http, lex_llm, lex_llm_ollama]]
+      ]
+      loaded_names = []
+
+      allow(described_class).to receive(:group_by_phase).and_return(phases)
+      allow(described_class).to receive(:load_phase_extensions) do |_phase_name, entries|
+        loaded_names.concat(entries.map { |entry| entry[:gem_name] })
+      end
+      allow(described_class).to receive(:hook_phase_actors)
+
+      described_class.hook_extensions
+
+      expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-openai')
+      expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-ollama')
+    end
+
+    it 'wires local lex-llm provider gems after the base gem in the Gemfile' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+      base_index = gemfile.index("gem 'lex-llm'")
+      provider_list_index = gemfile.index('%w[anthropic azure-foundry bedrock gemini mlx ollama openai vertex vllm]')
+      provider_token = ['#', '{provider}'].join
+      provider_gem_index = gemfile.index(%(gem "lex-llm-#{provider_token}"))
+
+      expect(base_index).not_to be_nil
+      expect(provider_list_index).not_to be_nil
+      expect(provider_gem_index).not_to be_nil
+      expect(base_index).to be < provider_list_index
+      expect(base_index).to be < provider_gem_index
+    end
+
+    it 'allows local legion-llm path override for unreleased PR integration testing' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+
+      expect(gemfile).to include("ENV.fetch('LEGION_LLM_PATH', '../legion-llm')")
+      expect(gemfile).to include("gem 'legion-llm', path: legion_llm_path")
+    end
+
+    it 'wires hosted lex-llm provider gems for local development' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+
+      expect(gemfile).to include('azure-foundry')
+      expect(gemfile).to include('bedrock')
+      expect(gemfile).to include('vertex')
+    end
+
+    it 'wires lex-llm-ledger for local development when present' do
+      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
+
+      expect(gemfile).to include("gem 'lex-llm-ledger', path: '../extensions-ai/lex-llm-ledger'")
+      expect(gemfile).to include("File.exist?(File.expand_path('../extensions-ai/lex-llm-ledger', __dir__))")
+    end
+  end
+
   describe '.default_category_registry' do
     subject(:registry) { described_class.send(:default_category_registry) }
 

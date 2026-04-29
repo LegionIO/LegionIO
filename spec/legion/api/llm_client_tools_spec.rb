@@ -49,6 +49,13 @@ RSpec.describe 'LLM API client tool dispatch (web_fetch / web_search)' do
     test_app.new!.instance_eval { build_client_tool_class(name, description, schema) }
   end
 
+  it 'skips client tool construction when RubyLLM tool base is unavailable' do
+    app_instance = test_app.new!
+    allow(app_instance).to receive(:ruby_llm_tool_base).and_return(nil)
+
+    expect(app_instance.instance_eval { build_client_tool_class('web_fetch', 'test tool', nil) }).to be_nil
+  end
+
   # ──────────────────────────────────────────────────────────
   # web_fetch
   # ──────────────────────────────────────────────────────────

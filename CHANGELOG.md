@@ -2,6 +2,94 @@
 
 ## [Unreleased]
 
+## [1.9.16] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.44` so packaged installs include the unified identity migration for LLM caller metadata and Broker token audit context.
+
+## [1.9.15] - 2026-04-28
+
+### Fixed
+- The static extension catalog now classifies `lex-llm-gateway` as legacy compatibility, and setup pack tests explicitly prevent it from returning to default LLM or agentic installs.
+- README LLM documentation now calls out `lex-llm-gateway` as legacy-only compatibility glue that is not installed by default.
+
+## [1.9.14] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-tty >= 0.5.4` so packaged installs include the Legion-native LLM probe instead of the legacy direct RubyLLM probe.
+
+## [1.9.13] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.43` so packaged installs get the optional RubyLLM compatibility layer and native dispatch fallback defaults.
+
+## [1.9.12] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.42` so packaged installs resolve the validated LLM routing uplift release.
+
+## [1.9.11] - 2026-04-28
+
+### Fixed
+- LLM chat API routing now prefers native `Legion::LLM.chat` even when legacy `lex-llm-gateway` compatibility code is loaded.
+
+## [1.9.10] - 2026-04-28
+
+### Fixed
+- LLM provider health endpoints and CLI health checks now use the native `legion-llm` provider inventory before falling back to legacy `lex-llm-gateway` provider stats.
+
+## [1.9.9] - 2026-04-28
+
+### Fixed
+- Registry governance and security scanning now accept nested `lex-*` extension gem names such as `lex-llm-openai` and `lex-llm-azure-foundry`.
+
+## [1.9.8] - 2026-04-28
+
+### Fixed
+- The `agentic` setup pack now installs the Legion-native `lex-llm-*` provider stack without also installing retired legacy LLM provider gems.
+- Role profiles now treat `lex-llm-*` gems as the active AI extension set and exclude legacy LLM providers from default `core`, `dev`, and `cognitive` profile loading.
+- LegionIO now requires `legion-llm >= 0.8.41` so packaged installs get the router dependency cleanup that removes retired legacy provider runtime dependencies.
+
+## [1.9.7] - 2026-04-28
+
+### Fixed
+- Extension discovery now maps `lex-llm-azure-foundry` to `Legion::Extensions::Llm::AzureFoundry` and `legion/extensions/llm/azure_foundry`.
+- LegionIO now requires `legion-llm >= 0.8.40` so packaged installs include the native provider bridge needed by the Legion-native LLM stack.
+- README LLM provider documentation now describes the `lex-llm-*` provider stack instead of the retired legacy provider list.
+
+## [1.9.6] - 2026-04-28
+
+### Fixed
+- LLM API gateway checks now use the `Legion::Extensions::Llm::Gateway` namespace loaded by Legion extension autoloading.
+- LLM inference and skill invocation routes now call the current `Legion::LLM::Inference` request/executor API instead of the retired pipeline constants.
+- `legionio llm ping` now routes through `Legion::LLM.ask_direct` instead of bypassing Legion routing with a raw RubyLLM call.
+- API client tool construction now degrades cleanly when the RubyLLM tool base is unavailable.
+
+## [1.9.5] - 2026-04-28
+
+### Added
+- Extension catalog, setup packs, and local development wiring now include the Legion-native `lex-llm` provider stack, including Bedrock, Azure Foundry, and Vertex hosted provider extensions.
+
+### Fixed
+- Local development Gemfile wiring now includes guarded `lex-llm-ledger` resolution so the local bundle matches the LLM setup pack.
+- Local development Gemfile wiring now points `lex-llm-gateway` at the workspace extension path actually used by LegionIO checkouts.
+- Default setup packs no longer install legacy `lex-llm-gateway`; the extension catalog now labels it as compatibility glue rather than active LLM routing.
+- `require 'legion/extensions'` now loads its logging dependency directly instead of relying on `require 'legion'` order.
+
+## [1.9.4] - 2026-04-27
+
+### Added
+- Extension boot now runs a dedicated LLM load phase so `lex-llm` loads before any `lex-llm-*` extension gems.
+- `/api/health` now reports `uptime_seconds` and `uptime` for dashboard and monitor consumers. Fixes #168
+- `/api/extensions` now returns a flat loaded-extension summary for dashboard consumers. Fixes #169
+
+### Fixed
+- `legionio doctor` no longer reports extension-loader config keys as missing `lex-*` gems. Fixes #157
+- `/api/metering` now returns dashboard headline totals instead of the routing breakdown shape. Fixes #170
+- Extension autobuild now runs per-extension data migrations when migration files are present, even when an extension does not opt into general data models. Fixes #171
+- `/api/webhooks` now loads its `Legion::Webhooks` runtime dependency before route handlers execute. Fixes #172
+- `/api/tenants` now passes positional response data and uses `json_error` for missing tenants. Fixes #173
+
 ## [1.9.3] - 2026-04-27
 
 ### Fixed

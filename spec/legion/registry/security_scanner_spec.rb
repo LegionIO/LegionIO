@@ -22,6 +22,12 @@ RSpec.describe Legion::Registry::SecurityScanner do
       expect(naming[:status]).to eq(:pass)
     end
 
+    it 'passes nested lex extension names' do
+      result = scanner.scan(name: 'lex-llm-azure-foundry')
+      naming = result[:checks].find { |c| c[:check] == :naming_convention }
+      expect(naming[:status]).to eq(:pass)
+    end
+
     it 'fails invalid naming' do
       result = scanner.scan(name: 'bad_name')
       naming = result[:checks].find { |c| c[:check] == :naming_convention }

@@ -24,6 +24,10 @@ RSpec.describe Legion::Extensions::Helpers::Segments do
       expect(described_class.derive_segments('lex-agentic-cognitive-dissonance-resolution'))
         .to eq(%w[agentic cognitive dissonance resolution])
     end
+
+    it 'keeps compound LLM provider suffixes aligned with provider namespaces' do
+      expect(described_class.derive_segments('lex-llm-azure-foundry')).to eq(%w[llm azure_foundry])
+    end
   end
 
   describe '.derive_namespace' do
@@ -42,6 +46,10 @@ RSpec.describe Legion::Extensions::Helpers::Segments do
     it 'handles underscores within a nested segment' do
       expect(described_class.derive_namespace('lex-agentic-attention_spotlight')).to eq(%w[Agentic AttentionSpotlight])
     end
+
+    it 'derives the Azure Foundry LLM provider namespace' do
+      expect(described_class.derive_namespace('lex-llm-azure-foundry')).to eq(%w[Llm AzureFoundry])
+    end
   end
 
   describe '.derive_const_path' do
@@ -59,6 +67,11 @@ RSpec.describe Legion::Extensions::Helpers::Segments do
       expect(described_class.derive_const_path('lex-microsoft_teams'))
         .to eq('Legion::Extensions::MicrosoftTeams')
     end
+
+    it 'derives the Azure Foundry LLM provider constant path' do
+      expect(described_class.derive_const_path('lex-llm-azure-foundry'))
+        .to eq('Legion::Extensions::Llm::AzureFoundry')
+    end
   end
 
   describe '.derive_require_path' do
@@ -75,6 +88,11 @@ RSpec.describe Legion::Extensions::Helpers::Segments do
     it 'preserves underscores in path segments' do
       expect(described_class.derive_require_path('lex-microsoft_teams'))
         .to eq('legion/extensions/microsoft_teams')
+    end
+
+    it 'derives the Azure Foundry LLM provider require path' do
+      expect(described_class.derive_require_path('lex-llm-azure-foundry'))
+        .to eq('legion/extensions/llm/azure_foundry')
     end
   end
 

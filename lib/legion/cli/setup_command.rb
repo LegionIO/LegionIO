@@ -37,20 +37,27 @@ module Legion
             lex-agentic-imagination lex-agentic-inference lex-agentic-integration
             lex-agentic-language lex-agentic-learning lex-agentic-memory
             lex-agentic-self lex-agentic-social lex-apollo lex-audit lex-autofix
-            lex-azure-ai lex-bedrock lex-claude lex-codegen lex-coldstart
+            lex-codegen lex-coldstart
             lex-conditioner lex-cost-scanner lex-dataset lex-detect
-            lex-eval lex-exec lex-extinction lex-factory lex-finops lex-foundry
-            lex-gemini lex-governance lex-kerberos lex-knowledge lex-llm-gateway
+            lex-eval lex-exec lex-extinction lex-factory lex-finops
+            lex-governance lex-kerberos lex-knowledge lex-llm
+            lex-llm-anthropic lex-llm-azure-foundry lex-llm-bedrock
+            lex-llm-gemini lex-llm-ledger lex-llm-mlx
+            lex-llm-ollama lex-llm-openai lex-llm-vertex lex-llm-vllm
             lex-metering lex-mesh lex-microsoft_teams lex-mind-growth lex-node
-            lex-onboard lex-openai lex-pilot-infra-monitor
+            lex-onboard lex-pilot-infra-monitor
             lex-pilot-knowledge-assist lex-privatecore lex-prompt lex-react
             lex-swarm lex-swarm-github lex-synapse lex-telemetry lex-tick
-            lex-transformer lex-xai
+            lex-transformer
           ]
         },
         llm:      {
           description: 'LLM routing and provider integration (no cognitive stack)',
-          gems:        %w[legion-llm]
+          gems:        %w[
+            legion-llm lex-llm lex-llm-anthropic lex-llm-azure-foundry
+            lex-llm-bedrock lex-llm-gemini lex-llm-ledger lex-llm-mlx
+            lex-llm-ollama lex-llm-openai lex-llm-vertex lex-llm-vllm
+          ]
         },
         channels: {
           description: 'Channel adapters for chat platforms',

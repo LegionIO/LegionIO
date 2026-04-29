@@ -4,6 +4,11 @@ module Legion
   module CLI
     class Doctor
       class ExtensionsCheck
+        LOADER_CONFIG_KEYS = %w[
+          agentic ai auto_install blocked categories core gaia identity
+          parallel_pool_size reserved_prefixes reserved_words
+        ].freeze
+
         def name
           'Extensions'
         end
@@ -38,7 +43,11 @@ module Legion
           exts = Legion::Settings[:extensions]
           return [] unless exts.is_a?(Hash) || exts.is_a?(Array)
 
-          exts.is_a?(Array) ? exts.map(&:to_s) : exts.keys.map(&:to_s)
+          if exts.is_a?(Array)
+            exts.map(&:to_s)
+          else
+            exts.keys.map(&:to_s).reject { |key| LOADER_CONFIG_KEYS.include?(key) }
+          end
         rescue StandardError => e
           Legion::Logging.warn("ExtensionsCheck#configured_extensions failed: #{e.message}") if defined?(Legion::Logging)
           []

@@ -29,11 +29,88 @@ module Legion
             end
 
             define_method(:gateway_available?) do
-              defined?(Legion::Extensions::LLM::Gateway::Runners::Inference)
+              defined?(Legion::Extensions::Llm::Gateway::Runners::Inference)
+            end
+
+            define_method(:native_provider_stats_available?) do
+              defined?(Legion::LLM::Inventory) && Legion::LLM::Inventory.respond_to?(:providers)
+            end
+
+            define_method(:provider_health_report) do
+              if native_provider_stats_available?
+                groups = Legion::LLM::Inventory.providers
+                return [] unless groups.respond_to?(:map)
+
+                groups.map do |provider, offerings|
+                  provider_offerings = Array(offerings)
+                  health = provider_offerings.map { |offering| offering[:health] }.find { |entry| entry.is_a?(Hash) } || {}
+                  circuit = health[:circuit_state] || health['circuit_state'] || 'unknown'
+                  {
+                    provider:   provider.to_s,
+                    circuit:    circuit,
+                    adjustment: health[:adjustment] || health['adjustment'] || 0,
+                    healthy:    circuit.to_s != 'open',
+                    offerings:  provider_offerings.size,
+                    models:     provider_offerings.map { |offering| offering[:model] }.compact.uniq,
+                    types:      provider_offerings.map { |offering| offering[:type] }.compact.uniq,
+                    instances:  provider_offerings.map { |offering| offering[:provider_instance] || offering[:instance_id] }.compact.uniq
+                  }
+                end
+              elsif defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
+                Legion::Extensions::Llm::Gateway::Runners::ProviderStats.health_report
+              else
+                []
+              end
+            end
+
+            define_method(:provider_circuit_summary) do
+              report = provider_health_report
+              return Legion::Extensions::Llm::Gateway::Runners::ProviderStats.circuit_summary if
+                report.empty? && defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
+
+              circuits = report.map { |entry| entry[:circuit].to_s }
+              {
+                total:     report.size,
+                closed:    circuits.count('closed'),
+                open:      circuits.count('open'),
+                half_open: circuits.count('half_open')
+              }
+            end
+
+            define_method(:provider_detail) do |provider|
+              provider_name = provider.to_s
+              if native_provider_stats_available?
+                entry = provider_health_report.find { |candidate| candidate[:provider] == provider_name }
+                halt 404, json_error('provider_not_found', "Provider '#{provider_name}' not found", status_code: 404) unless entry
+
+                entry
+              elsif defined?(Legion::Extensions::Llm::Gateway::Runners::ProviderStats)
+                Legion::Extensions::Llm::Gateway::Runners::ProviderStats.provider_detail(provider: provider_name.to_sym)
+              else
+                halt 503, json_error('providers_unavailable', 'LLM provider inventory is not loaded', status_code: 503)
+              end
+            end
+
+            define_method(:ruby_llm_tool_base) do
+              return RubyLLM::Tool if defined?(RubyLLM::Tool)
+
+              require 'ruby_llm'
+              return RubyLLM::Tool if defined?(RubyLLM::Tool)
+
+              nil
+            rescue LoadError => e
+              Legion::Logging.warn("[llm][api] RubyLLM tool base unavailable: #{e.message}") if defined?(Legion::Logging)
+              nil
             end
 
             define_method(:build_client_tool_class) do |tname, tdesc, tschema|
-              klass = Class.new(RubyLLM::Tool) do
+              tool_base = ruby_llm_tool_base
+              unless tool_base
+                Legion::Logging.warn("[llm][api] skipping client tool #{tname}: RubyLLM::Tool unavailable") if defined?(Legion::Logging)
+                next nil
+              end
+
+              klass = Class.new(tool_base) do
                 description tdesc
                 define_method(:name) { tname }
                 tool_ref = tname
@@ -168,12 +245,12 @@ module Legion
             model      = body[:model]
             provider   = body[:provider]
 
-            # Route through full Legion pipeline when gateway is available
-            if gateway_available?
+            # Compatibility fallback for legacy gateway installs. Native legion-llm handles routing first.
+            if !Legion::LLM.respond_to?(:chat) && gateway_available?
               ingress_result = Legion::Ingress.run(
                 payload:      { message: message, model: model, provider: provider,
                                 request_id: request_id },
-                runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+                runner_class: 'Legion::Extensions::Llm::Gateway::Runners::Inference',
                 function:     'chat',
                 source:       'api'
               )
@@ -307,8 +384,8 @@ module Legion
             streaming = body[:stream] == true && env['HTTP_ACCEPT']&.include?('text/event-stream')
 
             # Executor handles all registry tool injection — API only passes client-defined tools
-            require 'legion/llm/pipeline/request' unless defined?(Legion::LLM::Pipeline::Request)
-            require 'legion/llm/pipeline/executor' unless defined?(Legion::LLM::Pipeline::Executor)
+            require 'legion/llm/inference' unless defined?(Legion::LLM::Inference::Request) &&
+                                                  defined?(Legion::LLM::Inference::Executor)
 
             principal  = defined?(Legion::Identity::Request) && env['legion.principal']
             caller_ctx = if principal
@@ -318,7 +395,7 @@ module Legion
                          end
 
             caller_metadata = body[:metadata].is_a?(Hash) ? body[:metadata] : {}
-            req = Legion::LLM::Pipeline::Request.build(
+            req = Legion::LLM::Inference::Request.build(
               messages:        messages,
               system:          body[:system],
               routing:         { provider: provider, model: model },
@@ -329,7 +406,7 @@ module Legion
               stream:          streaming,
               cache:           { strategy: :default, cacheable: true }
             )
-            executor = Legion::LLM::Pipeline::Executor.new(req)
+            executor = Legion::LLM::Inference::Executor.new(req)
 
             if streaming
               content_type 'text/event-stream'
@@ -476,26 +553,17 @@ module Legion
         def self.register_providers(app)
           app.get '/api/llm/providers' do
             require_llm!
-            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
-              halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
-            end
 
-            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
             json_response({
-                            providers: stats.health_report,
-                            summary:   stats.circuit_summary
+                            providers: provider_health_report,
+                            summary:   provider_circuit_summary
                           })
           end
 
           app.get '/api/llm/providers/:name' do
             require_llm!
-            unless gateway_available? && defined?(Legion::Extensions::LLM::Gateway::Runners::ProviderStats)
-              halt 503, json_error('gateway_unavailable', 'LLM gateway is not loaded', status_code: 503)
-            end
 
-            stats = Legion::Extensions::LLM::Gateway::Runners::ProviderStats
-            detail = stats.provider_detail(provider: params[:name])
-            json_response(detail)
+            json_response(provider_detail(params[:name]))
           end
         end
 

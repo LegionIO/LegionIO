@@ -76,12 +76,12 @@ RSpec.describe 'LLM inference API route' do
   end
 
   def stub_pipeline(pipeline_response)
-    stub_const('Legion::LLM::Pipeline::Request', Module.new do
+    stub_const('Legion::LLM::Inference::Request', Module.new do
       def self.build(**_kwargs) = :stubbed_req
     end)
 
     pr = pipeline_response
-    stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+    stub_const('Legion::LLM::Inference::Executor', Class.new do
       define_method(:initialize) { |_req| nil }
       define_method(:call) { pr }
       define_method(:call_stream) do |&block|
@@ -159,7 +159,7 @@ RSpec.describe 'LLM inference API route' do
 
     it 'forwards model and provider via Pipeline::Request.build' do
       received_routing = nil
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         define_singleton_method(:build) do |**kwargs|
           received_routing = kwargs[:routing]
           :stubbed_req
@@ -167,7 +167,7 @@ RSpec.describe 'LLM inference API route' do
       end)
 
       pr = make_pipeline_response(model: 'gpt-4o')
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { pr }
       end)
@@ -185,7 +185,7 @@ RSpec.describe 'LLM inference API route' do
 
     it 'passes tool classes (not instances) when tools provided' do
       received_tools = nil
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         define_singleton_method(:build) do |**kwargs|
           received_tools = kwargs[:tools]
           :stubbed_req
@@ -194,7 +194,7 @@ RSpec.describe 'LLM inference API route' do
 
       stub_const('RubyLLM::Tool', Class.new)
       pr = make_pipeline_response
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { pr }
       end)
@@ -243,13 +243,13 @@ RSpec.describe 'LLM inference API route' do
   describe 'POST /api/llm/inference — error handling' do
     before do
       stub_llm_started
-      stub_const('Legion::LLM::Pipeline::Request', Module.new do
+      stub_const('Legion::LLM::Inference::Request', Module.new do
         def self.build(**_kwargs) = :req
       end)
     end
 
     it 'returns 500 when pipeline executor raises StandardError' do
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { raise StandardError, 'provider exploded' }
       end)
@@ -268,7 +268,7 @@ RSpec.describe 'LLM inference API route' do
       auth_err = Class.new(StandardError)
       stub_const('Legion::LLM::AuthError', auth_err)
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { raise auth_err, 'unauthorized' }
       end)
@@ -286,7 +286,7 @@ RSpec.describe 'LLM inference API route' do
       rate_err = Class.new(StandardError)
       stub_const('Legion::LLM::RateLimitError', rate_err)
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { raise rate_err, 'slow down' }
       end)
@@ -303,7 +303,7 @@ RSpec.describe 'LLM inference API route' do
       stub_const('Legion::LLM::ProviderError', provider_err)
       stub_const('Legion::LLM::ProviderDown',  Class.new(StandardError))
 
-      stub_const('Legion::LLM::Pipeline::Executor', Class.new do
+      stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
         define_method(:call) { raise provider_err, 'provider down' }
       end)

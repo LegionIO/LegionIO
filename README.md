@@ -18,7 +18,7 @@ Schedule tasks, chain services into dependency graphs, run them concurrently via
 [![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.4-red.svg)](https://www.ruby-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Ruby >= 3.4** | **v1.8.12** | **Apache-2.0** | [@Esity](https://github.com/Esity)
+**Ruby >= 3.4** | **v1.9.16** | **Apache-2.0** | [@Esity](https://github.com/Esity)
 
 ---
 
@@ -411,9 +411,9 @@ Access Vault secrets inline: `<%= Legion::Crypt.read('pushover/token') %>`
 
 Browse: [LegionIO GitHub](https://github.com/LegionIO) | [legionio topic](https://github.com/topics/legionio?l=ruby)
 
-### Core (16 operational extensions)
+### Core (14 operational extensions)
 
-`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-synapse` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-telemetry` `lex-audit` `task_pruner`
+`lex-node` `lex-tasker` `lex-conditioner` `lex-transformer` `lex-scheduler` `lex-health` `lex-log` `lex-ping` `lex-exec` `lex-lex` `lex-codegen` `lex-metering` `lex-telemetry` `lex-task_pruner`
 
 ### Agentic (242 cognitive extensions)
 
@@ -429,11 +429,13 @@ Brain-modeled cognitive architecture. 20 core orchestration extensions plus 222 
 
 Coordinated by [legion-gaia](https://github.com/LegionIO/legion-gaia), the cognitive coordination layer with tick-cycle scheduling, channel abstraction, and weighted routing across cognitive modules.
 
-### AI / LLM (7 provider extensions)
+### AI / LLM
 
-`lex-azure-ai` `lex-bedrock` `lex-claude` `lex-foundry` `lex-gemini` `lex-openai` `lex-xai`
+`legion-llm` `lex-llm` `lex-llm-anthropic` `lex-llm-azure-foundry` `lex-llm-bedrock` `lex-llm-gemini` `lex-llm-ledger` `lex-llm-mlx` `lex-llm-ollama` `lex-llm-openai` `lex-llm-vertex` `lex-llm-vllm`
 
-Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with three-tier routing (local Ollama, fleet GPU servers, cloud APIs), intent-based dispatch, health tracking, and automatic model discovery.
+Powered by [legion-llm](https://github.com/LegionIO/legion-llm) with provider-neutral model offerings, local and fleet routing, hosted cloud providers, health tracking, metering, and automatic model discovery.
+
+`lex-llm-gateway` remains available only as legacy compatibility glue for older deployments. New `legion setup llm` and `legion setup agentic` installs use the native `legion-llm` / `lex-llm-*` stack and do not install the gateway by default.
 
 ### Service Integrations (8 common + 15 additional)
 
@@ -465,7 +467,7 @@ Control which extensions load at startup via `settings/legion.json`:
 | `core` | 14 core operational extensions only |
 | `cognitive` | core + all agentic extensions |
 | `service` | core + service + other integrations |
-| `dev` | core + AI + essential agentic (~20 extensions) |
+| `dev` | core + native LLM providers + essential agentic (~20 extensions) |
 | `custom` | only what's listed in `role.extensions` |
 
 Faster boot and lower memory footprint for dedicated worker roles.

@@ -72,7 +72,7 @@ module Legion
         @messages = {}
         build_settings
         build_transport
-        if Legion::Settings[:data][:connected] && data_required?
+        if Legion::Settings[:data][:connected] && (data_required? || data_migrations_available?)
           Legion::Logging.debug "[Core] building data for #{name}" if defined?(Legion::Logging)
           build_data
         end
@@ -88,6 +88,13 @@ module Legion
       end
 
       def data_required?
+        false
+      end
+
+      def data_migrations_available?
+        Dir[File.join(extension_path.to_s, 'data', 'migrations', '*.rb')].any?
+      rescue StandardError => e
+        log.debug "[Core] data migration discovery failed for #{name}: #{e.message}" if defined?(log)
         false
       end
 

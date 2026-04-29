@@ -9,7 +9,7 @@ module Legion
         def self.registered(app)
           app.get '/api/tenants' do
             tenants = Legion::Tenants.list
-            json_response(data: tenants)
+            json_response(tenants)
           end
 
           app.post '/api/tenants' do
@@ -24,13 +24,13 @@ module Legion
 
           app.get '/api/tenants/:tenant_id' do
             tenant = Legion::Tenants.find(params[:tenant_id])
-            halt 404, json_response(error: 'not_found') unless tenant
-            json_response(data: tenant)
+            halt 404, json_error('not_found', 'Tenant not found', status_code: 404) unless tenant
+            json_response(tenant)
           end
 
           app.post '/api/tenants/:tenant_id/suspend' do
             result = Legion::Tenants.suspend(tenant_id: params[:tenant_id])
-            json_response(data: result)
+            json_response(result)
           end
 
           app.get '/api/tenants/:tenant_id/quota/:resource' do
@@ -38,7 +38,7 @@ module Legion
               tenant_id: params[:tenant_id],
               resource:  params[:resource].to_sym
             )
-            json_response(data: result)
+            json_response(result)
           end
         end
       end

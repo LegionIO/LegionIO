@@ -6,8 +6,13 @@ module Legion
       module Segments
         module_function
 
+        COMPOUND_SUFFIXES = {
+          %w[llm azure foundry] => %w[llm azure_foundry]
+        }.freeze
+
         def derive_segments(gem_name)
-          gem_name.delete_prefix('lex-').split('-')
+          segments = gem_name.delete_prefix('lex-').split('-')
+          COMPOUND_SUFFIXES.fetch(segments, segments)
         end
 
         def derive_namespace(gem_name)

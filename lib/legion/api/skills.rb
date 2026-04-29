@@ -64,13 +64,16 @@ module Legion
             conv_id = body[:conversation_id] || "conv_#{SecureRandom.hex(8)}"
             begin
               Legion::LLM::ConversationStore.set_skill_state(conv_id, skill_key: skill_name, resume_at: 0)
-              req = Legion::LLM::Pipeline::Request.build(
+              require 'legion/llm/inference' unless defined?(Legion::LLM::Inference::Request) &&
+                                                    defined?(Legion::LLM::Inference::Executor)
+
+              req = Legion::LLM::Inference::Request.build(
                 messages:        [{ role: :user, content: body[:initial_message] || 'start skill' }],
                 conversation_id: conv_id,
                 metadata:        (body[:metadata].is_a?(Hash) ? body[:metadata] : {}).merge(skill_invoke: true),
                 stream:          false
               )
-              result = Legion::LLM::Pipeline::Executor.new(req).call
+              result = Legion::LLM::Inference::Executor.new(req).call
               json_response({ conversation_id: conv_id, content: result.message[:content],
                               skill_name: skill_name })
             rescue StandardError => e

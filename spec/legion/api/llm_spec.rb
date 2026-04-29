@@ -151,7 +151,7 @@ RSpec.describe 'LLM API routes' do
   describe 'POST /api/llm/chat — gateway path' do
     before do
       stub_llm_started
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
 
       ingress_mod = Module.new
       stub_const('Legion::Ingress', ingress_mod)
@@ -241,7 +241,7 @@ RSpec.describe 'LLM API routes' do
 
       expect(Legion::Ingress).to have_received(:run).with(
         hash_including(
-          runner_class: 'Legion::Extensions::LLM::Gateway::Runners::Inference',
+          runner_class: 'Legion::Extensions::Llm::Gateway::Runners::Inference',
           function:     'chat',
           source:       'api'
         )
@@ -375,6 +375,20 @@ RSpec.describe 'LLM API routes' do
            'CONTENT_TYPE' => 'application/json'
     end
 
+    it 'prefers native Legion::LLM.chat when the legacy gateway is also loaded' do
+      stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+      stub_const('Legion::Ingress', Module.new)
+      expect(Legion::Ingress).not_to receive(:run)
+
+      post '/api/llm/chat', Legion::JSON.dump({ message: 'prefer native' }),
+           'CONTENT_TYPE' => 'application/json'
+
+      expect(last_response.status).to eq(201)
+      body = Legion::JSON.load(last_response.body)
+      expect(body[:data][:response]).to eq('hello from LLM')
+      expect(body[:data][:meta][:routed_via]).to be_nil
+    end
+
     it 'includes meta in response' do
       post '/api/llm/chat', Legion::JSON.dump({ message: 'meta check' }),
            'CONTENT_TYPE' => 'application/json'
@@ -396,12 +410,63 @@ RSpec.describe 'LLM API routes' do
       end
     end
 
-    context 'when gateway not loaded' do
+    context 'when provider inventory is not loaded' do
       before { stub_llm_started }
 
-      it 'returns 503 with gateway_unavailable' do
+      it 'returns an empty provider list' do
         get '/api/llm/providers'
-        expect(last_response.status).to eq(503)
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:providers]).to eq([])
+        expect(body[:data][:summary]).to include(total: 0, closed: 0, open: 0, half_open: 0)
+      end
+    end
+
+    context 'when native provider inventory is loaded' do
+      let(:inventory_mod) do
+        Module.new do
+          def self.providers
+            {
+              anthropic: [
+                {
+                  model:             'claude-sonnet-4-6',
+                  type:              :inference,
+                  provider_instance: 'bedrock-east-2',
+                  health:            { circuit_state: 'closed', adjustment: 0 }
+                }
+              ],
+              openai:    [
+                {
+                  model:       'gpt-4.1',
+                  type:        :chat,
+                  instance_id: 'frontier-openai',
+                  health:      { circuit_state: 'open', adjustment: -50 }
+                }
+              ]
+            }
+          end
+        end
+      end
+
+      before do
+        stub_llm_started
+        stub_const('Legion::LLM::Inventory', inventory_mod)
+      end
+
+      it 'returns provider health derived from inventory offerings' do
+        get '/api/llm/providers'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        providers = body[:data][:providers]
+        expect(providers.length).to eq(2)
+        expect(providers.first).to include(provider:   'anthropic',
+                                           circuit:    'closed',
+                                           adjustment: 0,
+                                           healthy:    true,
+                                           offerings:  1)
+        expect(providers.first[:models]).to eq(['claude-sonnet-4-6'])
+        expect(providers.first[:instances]).to eq(['bedrock-east-2'])
+        expect(body[:data][:summary]).to include(total: 2, closed: 1, open: 1, half_open: 0)
       end
     end
 
@@ -423,8 +488,8 @@ RSpec.describe 'LLM API routes' do
 
       before do
         stub_llm_started
-        stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
-        stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
       end
 
       it 'returns 200 with providers and summary' do
@@ -442,26 +507,68 @@ RSpec.describe 'LLM API routes' do
   # ──────────────────────────────────────────────────────────
 
   describe 'GET /api/llm/providers/:name' do
-    let(:stats_mod) do
-      Module.new do
-        def self.provider_detail(provider:)
-          { provider: provider.to_s, circuit: 'closed', adjustment: 0, healthy: true }
+    context 'when native provider inventory is loaded' do
+      let(:inventory_mod) do
+        Module.new do
+          def self.providers
+            {
+              anthropic: [
+                {
+                  model:             'claude-sonnet-4-6',
+                  type:              :inference,
+                  provider_instance: 'bedrock-east-2',
+                  health:            { circuit_state: 'closed', adjustment: 0 }
+                }
+              ]
+            }
+          end
         end
+      end
+
+      before do
+        stub_llm_started
+        stub_const('Legion::LLM::Inventory', inventory_mod)
+      end
+
+      it 'returns 200 with provider detail' do
+        get '/api/llm/providers/anthropic'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:provider]).to eq('anthropic')
+        expect(body[:data][:healthy]).to be true
+        expect(body[:data][:models]).to eq(['claude-sonnet-4-6'])
+      end
+
+      it 'returns 404 for an unknown provider' do
+        get '/api/llm/providers/openai'
+        expect(last_response.status).to eq(404)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:error][:code]).to eq('provider_not_found')
       end
     end
 
-    before do
-      stub_llm_started
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::Inference', Module.new)
-      stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
-    end
+    context 'when only gateway provider stats are loaded' do
+      let(:stats_mod) do
+        Module.new do
+          def self.provider_detail(provider:)
+            { provider: provider.to_s, circuit: 'closed', adjustment: 0, healthy: true }
+          end
+        end
+      end
 
-    it 'returns 200 with provider detail' do
-      get '/api/llm/providers/anthropic'
-      expect(last_response.status).to eq(200)
-      body = Legion::JSON.load(last_response.body)
-      expect(body[:data][:provider]).to eq('anthropic')
-      expect(body[:data][:healthy]).to be true
+      before do
+        stub_llm_started
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::Inference', Module.new)
+        stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
+      end
+
+      it 'returns 200 with provider detail' do
+        get '/api/llm/providers/anthropic'
+        expect(last_response.status).to eq(200)
+        body = Legion::JSON.load(last_response.body)
+        expect(body[:data][:provider]).to eq('anthropic')
+        expect(body[:data][:healthy]).to be true
+      end
     end
   end
 end

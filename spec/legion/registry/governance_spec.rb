@@ -24,7 +24,7 @@ RSpec.describe Legion::Registry::Governance do
     end
 
     it 'includes naming_convention' do
-      expect(described_class.config[:naming_convention]).to eq('lex-[a-z][a-z0-9_]*')
+      expect(described_class.config[:naming_convention]).to eq('lex-[a-z][a-z0-9_]*(?:-[a-z][a-z0-9_]*)*')
     end
 
     it 'includes deprecation_notice_days defaulting to 30' do
@@ -39,6 +39,11 @@ RSpec.describe Legion::Registry::Governance do
 
     it 'accepts names with digits and underscores after the first character' do
       expect(described_class.check_name('lex-my_ext2')).to be true
+    end
+
+    it 'accepts nested lex extension names' do
+      expect(described_class.check_name('lex-llm-openai')).to be true
+      expect(described_class.check_name('lex-llm-azure-foundry')).to be true
     end
 
     it 'rejects names not matching convention' do

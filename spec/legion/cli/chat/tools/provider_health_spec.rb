@@ -26,10 +26,61 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
   end
 
   before do
-    stub_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats', stats_mod)
+    stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
   end
 
   describe '#execute' do
+    context 'when native provider inventory is loaded' do
+      let(:inventory_mod) do
+        Module.new do
+          def self.providers
+            {
+              anthropic: [
+                {
+                  model:             'claude-sonnet-4-6',
+                  type:              :inference,
+                  provider_instance: 'bedrock-east-2',
+                  health:            { circuit_state: 'closed', adjustment: 0 }
+                }
+              ],
+              openai:    [
+                {
+                  model:       'gpt-4.1',
+                  type:        :chat,
+                  instance_id: 'frontier-openai',
+                  health:      { circuit_state: 'open', adjustment: -50 }
+                }
+              ]
+            }
+          end
+        end
+      end
+
+      before do
+        stub_const('Legion::LLM::Inventory', inventory_mod)
+      end
+
+      it 'returns health report from inventory before gateway stats' do
+        result = tool.execute
+        expect(result).to include('Provider Health Report')
+        expect(result).to include('anthropic')
+        expect(result).to include('openai')
+        expect(result).to include('offerings=1')
+        expect(result).to include('models=1')
+      end
+
+      it 'returns detail for a specific native provider' do
+        result = tool.execute(provider: 'anthropic')
+        expect(result).to include('Provider: anthropic')
+        expect(result).to include('Healthy:    YES')
+      end
+
+      it 'returns not found for unknown native providers' do
+        result = tool.execute(provider: 'bedrock')
+        expect(result).to eq('Provider not found: bedrock')
+      end
+    end
+
     it 'returns health report by default' do
       result = tool.execute
       expect(result).to include('Provider Health Report')
@@ -43,10 +94,10 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
       expect(result).to include('Healthy:    YES')
     end
 
-    it 'returns error when gateway not available' do
-      hide_const('Legion::Extensions::LLM::Gateway::Runners::ProviderStats')
+    it 'returns error when provider inventory is not available' do
+      hide_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats')
       result = tool.execute
-      expect(result).to eq('LLM gateway not available.')
+      expect(result).to eq('LLM provider inventory not available.')
     end
 
     it 'includes circuit summary in report' do

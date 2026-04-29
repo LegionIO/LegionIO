@@ -18,6 +18,8 @@ RSpec.describe 'Health and Readiness API' do
       body = Legion::JSON.load(last_response.body)
       expect(body[:data][:status]).to eq('ok')
       expect(body[:data][:version]).to eq(Legion::VERSION)
+      expect(body[:data][:uptime_seconds]).to be_an(Integer)
+      expect(body[:data][:uptime]).to eq(body[:data][:uptime_seconds])
     end
   end
 
