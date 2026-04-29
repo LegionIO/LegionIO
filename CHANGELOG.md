@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.16] - 2026-04-28
+
+### Fixed
+- LegionIO now requires `legion-llm >= 0.8.44` so packaged installs include the unified identity migration for LLM caller metadata and Broker token audit context.
+
 ## [1.9.15] - 2026-04-28
 
 ### Fixed
