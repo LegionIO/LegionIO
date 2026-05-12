@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/arbitrage_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::ArbitrageStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:arb_mod) do
     Module.new do
@@ -36,7 +35,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ArbitrageStatus do
 
   describe '#execute' do
     it 'returns overview with cost table' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('LLM Cost Arbitrage')
       expect(result).to include('gpt-4o')
       expect(result).to include('gpt-4o-mini')
@@ -44,26 +43,26 @@ RSpec.describe Legion::CLI::Chat::Tools::ArbitrageStatus do
     end
 
     it 'shows cheapest per tier when enabled' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Cheapest per tier')
       expect(result).to include('basic')
       expect(result).to include('reasoning')
     end
 
     it 'returns specific tier info' do
-      result = tool.execute(capability: 'reasoning')
+      result = tool.call(capability: 'reasoning')
       expect(result).to include('tier: reasoning')
       expect(result).to include('gpt-4o')
     end
 
     it 'returns error for invalid tier' do
-      result = tool.execute(capability: 'invalid')
+      result = tool.call(capability: 'invalid')
       expect(result).to include('Invalid tier')
     end
 
     it 'returns unavailable when module not defined' do
       hide_const('Legion::LLM::Arbitrage')
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('LLM arbitrage module not available.')
     end
   end

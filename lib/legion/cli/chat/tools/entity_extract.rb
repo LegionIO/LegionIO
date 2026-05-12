@@ -4,25 +4,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class EntityExtract < RubyLLM::Tool
+        class EntityExtract < Legion::Tools::Base
+          tool_name 'legion.entity_extract'
           description 'Extract named entities (people, services, repos, concepts) from text using Apollo'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           text:           { type: 'string' },
+                           entity_types:   { type: 'string' },
+                           min_confidence: { type: 'number' }
+                         },
+                         required:   ['text']
+                       })
 
-          param :text,
-                type:     :string,
-                desc:     'Text to extract entities from',
-                required: true
-
-          param :entity_types,
-                type:     :string,
-                desc:     'Comma-separated entity types to extract (default: person,service,repository,concept)',
-                required: false
-
-          param :min_confidence,
-                type:     :number,
-                desc:     'Minimum confidence threshold 0.0-1.0 (default: 0.7)',
-                required: false
-
-          def execute(text:, entity_types: nil, min_confidence: 0.7)
+          def self.call(text:, entity_types: nil, min_confidence: 0.7)
             return 'Apollo entity extractor not available.' unless extractor_available?
 
             types = parse_types(entity_types)
@@ -30,19 +25,17 @@ module Legion
             format_result(result)
           end
 
-          private
-
-          def extractor_available?
+          def self.extractor_available?
             defined?(Legion::Extensions::Apollo::Runners::EntityExtractor)
           end
 
-          def parse_types(types_str)
+          def self.parse_types(types_str)
             return nil if types_str.nil? || types_str.strip.empty?
 
             types_str.split(',').map(&:strip)
           end
 
-          def run_extraction(text, types, min_confidence)
+          def self.run_extraction(text, types, min_confidence)
             extractor = Object.new.extend(Legion::Extensions::Apollo::Runners::EntityExtractor)
             extractor.extract_entities(
               text:           text,
@@ -51,7 +44,7 @@ module Legion
             )
           end
 
-          def format_result(result)
+          def self.format_result(result)
             return format('Entity extraction failed: %<err>s', err: result[:error] || 'unknown error') unless result[:success]
 
             entities = result[:entities]

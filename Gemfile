@@ -49,6 +49,5 @@ group :test do
   gem 'rubocop'
   gem 'rubocop-legion'
   gem 'rubocop-rspec'
-  gem 'ruby_llm'
   gem 'simplecov'
 end

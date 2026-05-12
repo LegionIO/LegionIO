@@ -1,19 +1,25 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class ReadFile < RubyLLM::Tool
+        class ReadFile < Legion::Tools::Base
+          tool_name 'legion.read_file'
           description 'Read the contents of a file. Returns the file content with line numbers.'
-          param :path, type: 'string', desc: 'Absolute or relative path to the file'
-          param :offset, type: 'integer', desc: 'Line number to start reading from (1-based)', required: false
-          param :limit, type: 'integer', desc: 'Maximum number of lines to read', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           path:   { type: 'string', description: 'Absolute or relative path to the file' },
+                           offset: { type: 'integer', description: 'Line number to start reading from (1-based)' },
+                           limit:  { type: 'integer', description: 'Maximum number of lines to read' }
+                         },
+                         required:   ['path']
+                       })
 
-          def execute(path:, offset: nil, limit: nil)
+          def self.call(path:, offset: nil, limit: nil)
             expanded = File.expand_path(path)
             return "Error: file not found: #{path}" unless File.exist?(expanded)
             return "Error: path is a directory: #{path}" if File.directory?(expanded)

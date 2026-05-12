@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/knowledge_stats'
 
 RSpec.describe Legion::CLI::Chat::Tools::KnowledgeStats do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -30,7 +30,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeStats do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Total entries: 42')
       expect(result).to include('Recent (24h): 8')
       expect(result).to include('Avg confidence: 0.782')
@@ -47,7 +47,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeStats do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Total entries: 0')
       expect(result).not_to include('By Status')
     end
@@ -59,14 +59,14 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeStats do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Apollo error: apollo_entries table not available')
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Apollo unavailable')
     end
 
@@ -77,7 +77,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeStats do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Total entries: 0')
       expect(result).to include('Avg confidence: 0.0')
     end

@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/knowledge_maintenance'
 
 RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -22,7 +22,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'decay_cycle')
+      result = tool.call(action: 'decay_cycle')
       expect(result).to include('Decay cycle complete')
       expect(result).to include('Entries decayed: 12')
       expect(result).to include('Entries removed (below threshold): 3')
@@ -36,14 +36,14 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'corroboration')
+      result = tool.call(action: 'corroboration')
       expect(result).to include('Corroboration check complete')
       expect(result).to include('Entries checked: 100')
       expect(result).to include('Entries boosted (mutually supporting): 15')
     end
 
     it 'rejects invalid actions' do
-      result = tool.execute(action: 'delete_all')
+      result = tool.call(action: 'delete_all')
       expect(result).to include('Invalid action: delete_all')
       expect(result).to include('decay_cycle')
       expect(result).to include('corroboration')
@@ -56,14 +56,14 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'decay_cycle')
+      result = tool.call(action: 'decay_cycle')
       expect(result).to include('Apollo error: table not available')
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute(action: 'decay_cycle')
+      result = tool.call(action: 'decay_cycle')
       expect(result).to include('Apollo unavailable')
     end
 
@@ -74,7 +74,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'decay_cycle')
+      result = tool.call(action: 'decay_cycle')
       expect(result).to include('Entries decayed: 5')
       expect(result).not_to include('Duration')
     end
@@ -86,7 +86,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: '  corroboration  ')
+      result = tool.call(action: '  corroboration  ')
       expect(result).to include('Corroboration check complete')
     end
 
@@ -97,7 +97,7 @@ RSpec.describe Legion::CLI::Chat::Tools::KnowledgeMaintenance do
       )
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'decay_cycle')
+      result = tool.call(action: 'decay_cycle')
       expect(result).to include('Entries decayed: 7')
       expect(result).to include('Entries removed (below threshold): 2')
     end

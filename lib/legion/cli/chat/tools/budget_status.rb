@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
-
 begin
   require 'legion/cli/chat_command'
 rescue LoadError
@@ -12,15 +10,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class BudgetStatus < RubyLLM::Tool
+        class BudgetStatus < Legion::Tools::Base
+          tool_name 'legion.budget_status'
           description 'Check the current LLM session cost budget status. Shows how much has been spent, ' \
                       'remaining budget, and whether the budget guard is enforcing limits. Works locally ' \
                       'without needing the Legion daemon. Use this when the user asks about spending or budget.'
-          param :action, type:     'string',
-                         desc:     'Action: "status" (default), "summary" (cost breakdown by model)',
-                         required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string' }
+                         },
+                         required:   ['action']
+                       })
 
-          def execute(action: 'status')
+          def self.call(action: 'status')
             return 'Legion::LLM not available.' unless llm_available?
 
             case action.to_s
@@ -32,9 +35,7 @@ module Legion
             "Error checking budget: #{e.message}"
           end
 
-          private
-
-          def format_status
+          def self.format_status
             guard = budget_guard_status
             tracker = cost_summary
             lines = ["Session Budget Status:\n"]
@@ -49,7 +50,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_summary
+          def self.format_summary
             tracker = cost_summary
             return 'No LLM requests recorded this session.' if tracker[:total_requests].zero?
 
@@ -63,7 +64,7 @@ module Legion
             lines.join("\n")
           end
 
-          def append_model_breakdown(lines, by_model)
+          def self.append_model_breakdown(lines, by_model)
             return unless by_model&.any?
 
             lines << "\n  By Model:"
@@ -73,31 +74,31 @@ module Legion
             end
           end
 
-          def budget_guard_status
+          def self.budget_guard_status
             return { enforcing: false, budget_usd: 0.0, ratio: 0.0 } unless budget_guard_available?
 
             Legion::LLM::Hooks::BudgetGuard.status
           end
 
-          def cost_summary
+          def self.cost_summary
             return empty_summary unless cost_tracker_available?
 
             Legion::LLM::CostTracker.summary
           end
 
-          def budget_guard_available?
+          def self.budget_guard_available?
             defined?(Legion::LLM::Hooks::BudgetGuard)
           end
 
-          def cost_tracker_available?
+          def self.cost_tracker_available?
             defined?(Legion::LLM::CostTracker)
           end
 
-          def llm_available?
+          def self.llm_available?
             defined?(Legion::LLM)
           end
 
-          def empty_summary
+          def self.empty_summary
             { total_cost_usd: 0.0, total_requests: 0, total_input_tokens: 0, total_output_tokens: 0, by_model: {} }
           end
         end

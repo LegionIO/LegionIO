@@ -24,7 +24,7 @@ module Legion
           def collect_tool_classes(tools_module)
             tools_module.constants.filter_map do |const_name|
               klass = tools_module.const_get(const_name)
-              klass if klass.is_a?(Class) && klass < RubyLLM::Tool
+              klass if klass.is_a?(Class) && klass < Legion::Tools::Base
             end
           end
 

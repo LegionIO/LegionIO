@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/extension_tool_loader'
 
 RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
@@ -47,18 +46,18 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
 
   describe '.effective_tier' do
     let(:read_tool) do
-      klass = Class.new(RubyLLM::Tool)
+      klass = Class.new(Legion::Tools::Base)
       klass.define_singleton_method(:declared_permission_tier) { :read }
       klass
     end
 
     let(:write_tool) do
-      klass = Class.new(RubyLLM::Tool)
+      klass = Class.new(Legion::Tools::Base)
       klass.define_singleton_method(:declared_permission_tier) { :write }
       klass
     end
 
-    let(:bare_tool) { Class.new(RubyLLM::Tool) }
+    let(:bare_tool) { Class.new(Legion::Tools::Base) }
 
     before do
       allow(described_class).to receive(:settings_tier_for).and_return(nil)
@@ -84,9 +83,9 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
   end
 
   describe '.collect_tool_classes' do
-    it 'finds RubyLLM::Tool subclasses' do
+    it 'finds Legion::Tools::Base subclasses' do
       tools_mod = Module.new
-      tool_class = Class.new(RubyLLM::Tool)
+      tool_class = Class.new(Legion::Tools::Base)
       non_tool = Class.new
       tools_mod.const_set(:MyTool, tool_class)
       tools_mod.const_set(:Helper, non_tool)

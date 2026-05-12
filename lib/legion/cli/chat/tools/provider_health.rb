@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
-
 begin
   require 'legion/cli/chat_command'
 rescue LoadError
@@ -12,13 +10,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ProviderHealth < RubyLLM::Tool
+        class ProviderHealth < Legion::Tools::Base
+          tool_name 'legion.provider_health'
           description 'Check the health status of configured LLM providers. Shows circuit breaker state, ' \
                       'routing adjustments, and overall availability. Use this when the user asks about ' \
                       'provider status, LLM health, or routing problems.'
-          param :provider, type: 'string', desc: 'Specific provider to check (optional)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           provider: { type: 'string', description: 'Specific provider to check (optional)' }
+                         },
+                         required:   []
+                       })
 
-          def execute(provider: nil)
+          def self.call(provider: nil)
             return 'LLM provider inventory not available.' unless provider_stats_available?
 
             if provider
@@ -31,9 +36,7 @@ module Legion
             "Error checking provider health: #{e.message}"
           end
 
-          private
-
-          def format_report
+          def self.format_report
             report = provider_health_report
             return "Router not available: #{report[:error]}" if report.is_a?(Hash) && report[:error]
             return 'No providers configured.' if report.empty?
@@ -46,7 +49,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_detail(provider)
+          def self.format_detail(provider)
             entry = provider_detail(provider)
             return "Router not available: #{entry[:error]}" if entry[:error]
             return "Provider not found: #{provider}" if entry.empty?
@@ -58,13 +61,13 @@ module Legion
             lines.join("\n")
           end
 
-          def format_circuit_summary(summary)
+          def self.format_circuit_summary(summary)
             format('  Circuits: %<closed>d closed, %<open>d open, %<half>d half-open (of %<total>d)',
                    closed: summary[:closed], open: summary[:open],
                    half: summary[:half_open], total: summary[:total])
           end
 
-          def format_entry(entry)
+          def self.format_entry(entry)
             icon = entry[:healthy] ? '+' : '!'
             suffix = +''
             suffix << " offerings=#{entry[:offerings]}" if entry.key?(:offerings)
@@ -74,19 +77,19 @@ module Legion
                    circuit: entry[:circuit], adj: entry[:adjustment], suffix: suffix)
           end
 
-          def provider_stats_available?
+          def self.provider_stats_available?
             native_provider_stats_available?
           end
 
-          def native_provider_stats_available?
+          def self.native_provider_stats_available?
             defined?(Legion::LLM::Inventory) && Legion::LLM::Inventory.respond_to?(:providers)
           end
 
-          def provider_health_report
+          def self.provider_health_report
             native_provider_health_report
           end
 
-          def native_provider_health_report
+          def self.native_provider_health_report
             groups = Legion::LLM::Inventory.providers
             return [] unless groups.respond_to?(:map)
 
@@ -110,7 +113,7 @@ module Legion
             end
           end
 
-          def provider_circuit_summary(report)
+          def self.provider_circuit_summary(report)
             circuits = report.map { |entry| entry[:circuit].to_s }
             {
               total:     report.size,
@@ -120,12 +123,12 @@ module Legion
             }
           end
 
-          def provider_detail(provider)
+          def self.provider_detail(provider)
             provider_name = provider.to_s
             provider_health_report.find { |entry| entry[:provider] == provider_name } || {}
           end
 
-          def offering_value(offering, key)
+          def self.offering_value(offering, key)
             return unless offering.respond_to?(:[])
 
             offering[key] || offering[key.to_s]

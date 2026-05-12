@@ -1,19 +1,25 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class WebSearch < RubyLLM::Tool
+        class WebSearch < Legion::Tools::Base
+          tool_name 'legion.web_search'
           description 'Search the web for information. Returns titles, URLs, and snippets from search results, ' \
                       'plus the full content of the top result.'
-          param :query, type: 'string', desc: 'The search query'
-          param :max_results, type: 'integer', desc: 'Maximum number of results (default 5)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           query:       { type: 'string', description: 'The search query' },
+                           max_results: { type: 'integer', description: 'Maximum number of results (default 5)' }
+                         },
+                         required:   ['query']
+                       })
 
-          def execute(query:, max_results: 5)
+          def self.call(query:, max_results: 5)
             require 'legion/cli/chat/web_search'
             results = Chat::WebSearch.search(query, max_results: max_results)
 

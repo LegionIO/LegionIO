@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 require 'open3'
 require 'timeout'
@@ -9,13 +8,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class RunCommand < RubyLLM::Tool
+        class RunCommand < Legion::Tools::Base
+          tool_name 'legion.run_command'
           description 'Execute a shell command and return its output. Use for running tests, builds, git commands, etc.'
-          param :command, type: 'string', desc: 'The shell command to execute'
-          param :timeout, type: 'integer', desc: 'Timeout in seconds (default: 120)', required: false
-          param :working_directory, type: 'string', desc: 'Working directory (default: current dir)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           command:           { type: 'string', description: 'The shell command to execute' },
+                           timeout:           { type: 'integer', description: 'Timeout in seconds (default: 120)' },
+                           working_directory: { type: 'string', description: 'Working directory (default: current dir)' }
+                         },
+                         required:   ['command']
+                       })
 
-          def execute(command:, timeout: 120, working_directory: nil)
+          def self.call(command:, timeout: 120, working_directory: nil)
             dir = working_directory ? File.expand_path(working_directory) : Dir.pwd
 
             if sandbox_enabled? && sandbox_available?
@@ -25,19 +31,17 @@ module Legion
             end
           end
 
-          private
-
-          def sandbox_enabled?
+          def self.sandbox_enabled?
             Legion::Settings.dig(:chat, :sandboxed_commands, :enabled) == true
           rescue StandardError
             false
           end
 
-          def sandbox_available?
+          def self.sandbox_available?
             defined?(Legion::Extensions::Exec::Runners::Shell)
           end
 
-          def execute_sandboxed(command:, timeout:, dir:)
+          def self.execute_sandboxed(command:, timeout:, dir:)
             timeout_ms = timeout * 1000
             result = Legion::Extensions::Exec::Runners::Shell.execute(
               command: command, cwd: dir, timeout: timeout_ms
@@ -56,7 +60,7 @@ module Legion
             "Error executing command: #{e.message}"
           end
 
-          def execute_direct(command:, timeout:, dir:)
+          def self.execute_direct(command:, timeout:, dir:)
             stdout, stderr, status = Open3.popen3(command, chdir: dir) do |stdin, out, err, wait_thr|
               stdin.close
               out_reader = Thread.new { out.read }
@@ -80,7 +84,7 @@ module Legion
             "Error executing command: #{e.message}"
           end
 
-          def format_output(command, stdout, stderr, exit_code)
+          def self.format_output(command, stdout, stderr, exit_code)
             output = String.new
             output << "$ #{command}\n"
             output << stdout.to_s unless stdout.to_s.empty?

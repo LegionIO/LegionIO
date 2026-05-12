@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
-
 begin
   require 'legion/cli/chat_command'
 rescue LoadError
@@ -12,13 +10,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class SummarizeTraces < RubyLLM::Tool
+        class SummarizeTraces < Legion::Tools::Base
+          tool_name 'legion.summarize_traces'
           description 'Get aggregate statistics from the metering database: total records, token usage, cost, ' \
                       'latency, status breakdown, and top extensions/workers. Use natural language queries like ' \
                       '"failed tasks today" or "most expensive calls this week".'
-          param :query, type: 'string', desc: 'Natural language query describing what to summarize'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           query: { type: 'string', description: 'Natural language query describing what to summarize' }
+                         },
+                         required:   ['query']
+                       })
 
-          def execute(query:)
+          def self.call(query:)
             require 'legion/trace_search'
             result = Legion::TraceSearch.summarize(query)
             return "Error: #{result[:error]}" if result[:error]
@@ -31,9 +36,7 @@ module Legion
             "Error summarizing traces: #{e.message}"
           end
 
-          private
-
-          def format_summary(data)
+          def self.format_summary(data)
             lines = ["Trace Summary (#{data[:total_records]} records):\n"]
             lines << "  Tokens: #{data[:total_tokens_in]} in / #{data[:total_tokens_out]} out"
             lines << "  Cost: $#{data[:total_cost]}"
@@ -47,20 +50,20 @@ module Legion
             lines.compact.join("\n")
           end
 
-          def format_time_range(range)
+          def self.format_time_range(range)
             return nil unless range && (range[:from] || range[:to])
 
             "  Time range: #{range[:from] || '?'} to #{range[:to] || '?'}"
           end
 
-          def format_status_counts(counts)
+          def self.format_status_counts(counts)
             return nil if counts.nil? || counts.empty?
 
             parts = counts.map { |status, count| "#{status}: #{count}" }
             "  Status: #{parts.join(', ')}"
           end
 
-          def format_top(title, items, key)
+          def self.format_top(title, items, key)
             return nil if items.nil? || items.empty?
 
             parts = items.map { |item| "#{item[key]} (#{item[:count]})" }

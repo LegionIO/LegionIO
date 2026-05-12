@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,19 +13,25 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class RelateKnowledge < RubyLLM::Tool
+        class RelateKnowledge < Legion::Tools::Base
+          tool_name 'legion.relate_knowledge'
           description 'Find related knowledge entries in the Apollo knowledge graph. ' \
                       'Use this to discover connections between concepts, find supporting or contradicting facts, ' \
                       'or explore the knowledge neighborhood of a specific entry.'
-          param :entry_id, type: 'integer', desc: 'The ID of the knowledge entry to find relations for'
-          param :relation_types, type: 'string',
-                desc: 'Comma-separated relation types to filter (supports, contradicts, related, derived_from)', required: false
-          param :depth, type: 'integer', desc: 'Depth of relation traversal (1-3, default: 2)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           entry_id:       { type: 'integer', description: 'The ID of the knowledge entry to find relations for' },
+                           relation_types: { type: 'string' },
+                           depth:          { type: 'integer', description: 'Depth of relation traversal (1-3, default: 2)' }
+                         },
+                         required:   ['entry_id']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(entry_id:, relation_types: nil, depth: nil)
+          def self.call(entry_id:, relation_types: nil, depth: nil)
             depth = (depth || 2).clamp(1, 3)
             params = { depth: depth }
             params[:relation_types] = relation_types if relation_types
@@ -45,9 +50,7 @@ module Legion
             "Error finding related entries: #{e.message}"
           end
 
-          private
-
-          def apollo_related(entry_id, params)
+          def self.apollo_related(entry_id, params)
             query_string = params.map { |k, v| "#{k}=#{v}" }.join('&')
             path = "/api/apollo/entries/#{entry_id}/related"
             path += "?#{query_string}" unless query_string.empty?
@@ -61,7 +64,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT
@@ -69,7 +72,7 @@ module Legion
             DEFAULT_PORT
           end
 
-          def format_related(entry_id, entries, depth)
+          def self.format_related(entry_id, entries, depth)
             header = "Related entries for ##{entry_id} (depth: #{depth}, found: #{entries.size}):\n\n"
             parts = entries.map.with_index(1) do |entry, idx|
               relation = entry[:relation_type] ? " [#{entry[:relation_type]}]" : ''

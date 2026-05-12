@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,21 +13,25 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class WorkerStatus < RubyLLM::Tool
+        class WorkerStatus < Legion::Tools::Base
+          tool_name 'legion.worker_status'
           description 'View digital worker status on the running Legion daemon. List all workers, ' \
                       'show details for a specific worker, or check worker health. Digital workers ' \
                       'are AI-as-labor entities with lifecycle states, risk tiers, and cost tracking.'
-          param :action, type:     'string',
-                         desc:     'Action: "list" (default), "show", or "health"',
-                         required: false
-          param :worker_id, type: 'string', desc: 'Worker ID (for show action)', required: false
-          param :status_filter, type: 'string', desc: 'Filter by lifecycle state (active/paused/retired)',
-                                required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action:        { type: 'string' },
+                           worker_id:     { type: 'string', description: 'Worker ID (for show action)' },
+                           status_filter: { type: 'string', description: 'Filter by lifecycle state (active/paused/retired)' }
+                         },
+                         required:   %w[action status_filter]
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(action: 'list', worker_id: nil, status_filter: nil)
+          def self.call(action: 'list', worker_id: nil, status_filter: nil)
             case action.to_s
             when 'show'
               return 'worker_id is required for the "show" action.' unless worker_id
@@ -46,9 +49,7 @@ module Legion
             "Error fetching worker data: #{e.message}"
           end
 
-          private
-
-          def handle_list(status_filter)
+          def self.handle_list(status_filter)
             path = '/api/workers'
             path += "?lifecycle_state=#{status_filter}" if status_filter && !status_filter.strip.empty?
             data = api_get(path)
@@ -66,7 +67,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_show(worker_id)
+          def self.handle_show(worker_id)
             data = api_get("/api/workers/#{worker_id}")
             w = data[:data] || data
             return "Worker #{worker_id} not found." if w[:error]
@@ -76,7 +77,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_health
+          def self.handle_health
             data = api_get('/api/workers?health_status=unhealthy')
             unhealthy = extract_collection(data)
 
@@ -101,19 +102,19 @@ module Legion
             lines.join("\n")
           end
 
-          def display_fields(worker)
+          def self.display_fields(worker)
             %i[name lifecycle_state risk_tier team extension_name owner_msid health_status
                created_at].filter_map do |key|
               [key, worker[key]] if worker[key]
             end
           end
 
-          def extract_collection(data)
+          def self.extract_collection(data)
             entries = data[:data] || data
             entries.is_a?(Array) ? entries : []
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -122,7 +123,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

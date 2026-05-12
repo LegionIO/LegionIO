@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,22 +13,27 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ManageSchedules < RubyLLM::Tool
+        class ManageSchedules < Legion::Tools::Base
+          tool_name 'legion.manage_schedules'
           description 'Manage scheduled tasks on the running Legion daemon. List active schedules, ' \
                       'show schedule details, view run logs, or create new cron/interval schedules. ' \
                       'Use this to automate recurring tasks.'
-          param :action, type:     'string',
-                         desc:     'Action: "list", "show", "logs", or "create"',
-                         required: true
-          param :schedule_id, type: 'string', desc: 'Schedule ID (for show/logs)', required: false
-          param :function_id, type: 'string', desc: 'Function ID to schedule (for create)', required: false
-          param :cron, type: 'string', desc: 'Cron expression (for create, e.g. "0 * * * *")', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action:      { type: 'string' },
+                           schedule_id: { type: 'string', description: 'Schedule ID (for show/logs)' },
+                           function_id: { type: 'string', description: 'Function ID to schedule (for create)' },
+                           cron:        { type: 'string', description: 'Cron expression (for create, e.g. "0 * * * *")' }
+                         },
+                         required:   ['action']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
           VALID_ACTIONS = %w[list show logs create].freeze
 
-          def execute(action:, **)
+          def self.call(action:, **)
             action = action.to_s.strip
             return "Invalid action: #{action}. Use: #{VALID_ACTIONS.join(', ')}" unless VALID_ACTIONS.include?(action)
 
@@ -41,9 +45,7 @@ module Legion
             "Error managing schedules: #{e.message}"
           end
 
-          private
-
-          def handle_list(**)
+          def self.handle_list(**)
             data = api_get('/api/schedules')
             entries = extract_collection(data)
             return 'No schedules found.' if entries.empty?
@@ -58,7 +60,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_show(schedule_id: nil, **)
+          def self.handle_show(schedule_id: nil, **)
             return 'schedule_id is required for the "show" action.' unless schedule_id
 
             data = api_get("/api/schedules/#{schedule_id}")
@@ -70,7 +72,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_logs(schedule_id: nil, **)
+          def self.handle_logs(schedule_id: nil, **)
             return 'schedule_id is required for the "logs" action.' unless schedule_id
 
             data = api_get("/api/schedules/#{schedule_id}/logs")
@@ -84,7 +86,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_create(function_id: nil, cron: nil, **)
+          def self.handle_create(function_id: nil, cron: nil, **)
             return 'function_id is required for the "create" action.' unless function_id
             return 'cron expression is required for the "create" action.' unless cron
 
@@ -95,13 +97,13 @@ module Legion
             "Schedule created (id: #{s[:id]}, cron: #{cron}, function: #{function_id})"
           end
 
-          def extract_collection(data)
+          def self.extract_collection(data)
             entries = data[:data] || data
             entries = [entries] if entries.is_a?(Hash) && !entries.key?(:error)
             Array(entries).reject { |e| e.is_a?(Hash) && e.key?(:error) }
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -110,7 +112,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_post(path, body)
+          def self.api_post(path, body)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -121,7 +123,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

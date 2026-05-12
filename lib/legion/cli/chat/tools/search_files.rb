@@ -1,18 +1,24 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class SearchFiles < RubyLLM::Tool
+        class SearchFiles < Legion::Tools::Base
+          tool_name 'legion.search_files'
           description 'Find files matching a glob pattern. Returns matching file paths.'
-          param :pattern, type: 'string', desc: 'Glob pattern (e.g., "**/*.rb", "src/**/*.ts")'
-          param :directory, type: 'string', desc: 'Directory to search in (default: current dir)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           pattern:   { type: 'string', description: 'Glob pattern (e.g., "**/*.rb", "src/**/*.ts")' },
+                           directory: { type: 'string', description: 'Directory to search in (default: current dir)' }
+                         },
+                         required:   ['pattern']
+                       })
 
-          def execute(pattern:, directory: nil)
+          def self.call(pattern:, directory: nil)
             dir = File.expand_path(directory || Dir.pwd)
             return "Error: directory not found: #{dir}" unless Dir.exist?(dir)
 

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
-
 begin
   require 'legion/cli/chat_command'
   require 'legion/cli/chat/memory_store'
@@ -13,12 +11,19 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ConsolidateMemory < RubyLLM::Tool
+        class ConsolidateMemory < Legion::Tools::Base
+          tool_name 'legion.consolidate_memory'
           description 'Consolidate and organize memory entries by removing duplicates, merging related items, ' \
                       'and creating cleaner summaries. Use this when memory has grown cluttered or has redundant entries. ' \
                       'Pass scope "project" or "global" to target the right memory file.'
-          param :scope, type: 'string', desc: 'Memory scope: "project" or "global" (default: project)'
-          param :dry_run, type: 'string', desc: 'Set to "true" to preview without writing (default: false)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           scope:   { type: 'string', description: 'Memory scope: "project" or "global" (default: project)' },
+                           dry_run: { type: 'string', description: 'Set to "true" to preview without writing (default: false)' }
+                         },
+                         required:   ['scope']
+                       })
 
           CONSOLIDATION_PROMPT = <<~PROMPT
             You are a memory consolidation engine. Given a list of memory entries, produce a cleaned-up version that:
@@ -34,7 +39,7 @@ module Legion
             Do NOT add headers, explanations, or commentary.
           PROMPT
 
-          def execute(scope: 'project', dry_run: nil)
+          def self.call(scope: 'project', dry_run: nil)
             dry_run = dry_run.to_s == 'true'
             scope_sym = scope.to_s == 'global' ? :global : :project
 
@@ -60,9 +65,7 @@ module Legion
             "Error consolidating memory: #{e.message}"
           end
 
-          private
-
-          def consolidate_entries(entries)
+          def self.consolidate_entries(entries)
             return nil unless defined?(Legion::LLM) && Legion::LLM.respond_to?(:chat_direct)
 
             numbered = entries.map.with_index(1) { |e, i| "#{i}. #{e}" }.join("\n")
@@ -72,7 +75,7 @@ module Legion
             response.content
           end
 
-          def parse_consolidated(text)
+          def self.parse_consolidated(text)
             text.lines
                 .map(&:strip)
                 .select { |line| line.start_with?('- ') }
@@ -80,7 +83,7 @@ module Legion
                 .reject(&:empty?)
           end
 
-          def write_consolidated(entries, scope_sym)
+          def self.write_consolidated(entries, scope_sym)
             path = scope_sym == :global ? MemoryStore.global_path : MemoryStore.project_path
             header = scope_sym == :global ? "# Global Memory\n" : "# Project Memory\n"
             timestamp = Time.now.strftime('%Y-%m-%d %H:%M')

@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/worker_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:stub_http) { instance_double(Net::HTTP) }
 
@@ -26,7 +26,7 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'returns formatted worker list' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('Digital Workers (1)')
         expect(result).to include('w-1')
         expect(result).to include('Sync Bot')
@@ -41,7 +41,7 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'returns no workers message' do
-        result = tool.execute
+        result = tool.call
         expect(result).to eq('No digital workers found.')
       end
     end
@@ -55,7 +55,7 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'passes the filter to the API' do
-        tool.execute(status_filter: 'paused')
+        tool.call(status_filter: 'paused')
         expect(stub_http).to have_received(:get).with('/api/workers?lifecycle_state=paused')
       end
     end
@@ -71,14 +71,14 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'returns worker details' do
-        result = tool.execute(action: 'show', worker_id: 'w-1')
+        result = tool.call(action: 'show', worker_id: 'w-1')
         expect(result).to include('Worker: w-1')
         expect(result).to include('name: Sync Bot')
         expect(result).to include('team: ops')
       end
 
       it 'requires worker_id' do
-        result = tool.execute(action: 'show')
+        result = tool.call(action: 'show')
         expect(result).to include('worker_id is required')
       end
     end
@@ -101,7 +101,7 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'returns health summary' do
-        result = tool.execute(action: 'health')
+        result = tool.call(action: 'health')
         expect(result).to include('Worker Health Summary')
         expect(result).to include('Total:     3')
         expect(result).to include('Active:    2')
@@ -117,7 +117,7 @@ RSpec.describe Legion::CLI::Chat::Tools::WorkerStatus do
       end
 
       it 'returns daemon not running message' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('daemon not running')
       end
     end

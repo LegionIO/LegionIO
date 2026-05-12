@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/provider_health'
 
 RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   describe '#execute' do
     context 'when native provider inventory is loaded' do
@@ -38,7 +38,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
       end
 
       it 'returns health report from inventory' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('Provider Health Report')
         expect(result).to include('anthropic')
         expect(result).to include('openai')
@@ -47,19 +47,19 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
       end
 
       it 'returns detail for a specific native provider' do
-        result = tool.execute(provider: 'anthropic')
+        result = tool.call(provider: 'anthropic')
         expect(result).to include('Provider: anthropic')
         expect(result).to include('Healthy:    YES')
       end
 
       it 'returns not found for unknown native providers' do
-        result = tool.execute(provider: 'bedrock')
+        result = tool.call(provider: 'bedrock')
         expect(result).to eq('Provider not found: bedrock')
       end
     end
 
     it 'returns error when provider inventory is not available' do
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('LLM provider inventory not available.')
     end
 
@@ -71,7 +71,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ProviderHealth do
       end
       stub_const('Legion::Extensions::Llm::Gateway::Runners::ProviderStats', stats_mod)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('LLM provider inventory not available.')
     end
   end

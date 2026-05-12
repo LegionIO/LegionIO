@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/search_traces'
 
 RSpec.describe Legion::CLI::Chat::Tools::SearchTraces do
-  let(:tool) { described_class.new }
+  let(:tool) { described_class }
 
   let(:now) { Time.now.utc }
 
@@ -79,72 +79,72 @@ RSpec.describe Legion::CLI::Chat::Tools::SearchTraces do
 
   describe '#execute' do
     it 'returns results matching a keyword query' do
-      result = tool.execute(query: 'deployment timeline')
+      result = tool.call(query: 'deployment timeline')
       expect(result).to include('deployment')
       expect(result).to include('Bob Smith')
     end
 
     it 'filters by person name' do
-      result = tool.execute(query: 'deployment', person: 'Bob Smith')
+      result = tool.call(query: 'deployment', person: 'Bob Smith')
       expect(result).to include('Bob Smith')
     end
 
     it 'filters by domain tag' do
-      result = tool.execute(query: 'sprint', domain: 'meeting')
+      result = tool.call(query: 'sprint', domain: 'meeting')
       expect(result).to include('Sprint Planning')
     end
 
     it 'filters by trace type' do
-      result = tool.execute(query: 'SRE', trace_type: 'semantic')
+      result = tool.call(query: 'SRE', trace_type: 'semantic')
       expect(result).to include('Alice Johnson')
     end
 
     it 'returns no-match message when query has zero keyword hits' do
-      result = tool.execute(query: 'xyznonexistent')
+      result = tool.call(query: 'xyznonexistent')
       expect(result).to include('No traces matched')
     end
 
     it 'returns unavailable message when trace store is not loaded' do
       allow(Legion::Extensions::Agentic::Memory::Trace).to receive(:respond_to?).with(:shared_store).and_return(false)
-      result = tool.execute(query: 'test')
+      result = tool.call(query: 'test')
       expect(result).to include('not available')
     end
 
     it 'attempts to require the gem when constant is not defined' do
       hide_const('Legion::Extensions::Agentic::Memory::Trace')
       allow(tool).to receive(:load_trace_gem)
-      tool.execute(query: 'test')
+      tool.call(query: 'test')
       expect(tool).to have_received(:load_trace_gem)
     end
 
     it 'respects limit parameter' do
-      result = tool.execute(query: 'Bob Alice Grid Sprint', limit: 1)
+      result = tool.call(query: 'Bob Alice Grid Sprint', limit: 1)
       expect(result).to include('Found 1 matching')
     end
 
     it 'clamps limit to valid range' do
-      result = tool.execute(query: 'teams', limit: 100)
+      result = tool.call(query: 'teams', limit: 100)
       expect(result).not_to include('Found 100')
     end
 
     it 'displays trace metadata' do
-      result = tool.execute(query: 'deployment')
+      result = tool.call(query: 'deployment')
       expect(result).to include('tags:')
       expect(result).to include('strength:')
     end
 
     it 'formats age for recent traces' do
-      result = tool.execute(query: 'Grid Infrastructure')
+      result = tool.call(query: 'Grid Infrastructure')
       expect(result).to include('m ago')
     end
 
     it 'formats age for hour-old traces' do
-      result = tool.execute(query: 'deployment')
+      result = tool.call(query: 'deployment')
       expect(result).to include('h ago')
     end
 
     it 'formats age for day-old traces' do
-      result = tool.execute(query: 'Sprint Planning')
+      result = tool.call(query: 'Sprint Planning')
       expect(result).to include('d ago')
     end
   end
@@ -158,7 +158,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SearchTraces do
         associated_traces: []
       }
       all_traces.push(plain_trace)
-      result = tool.execute(query: 'servers')
+      result = tool.call(query: 'servers')
       expect(result).to include('servers')
     end
 
@@ -170,7 +170,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SearchTraces do
         associated_traces: []
       }
       all_traces.push(hash_trace)
-      result = tool.execute(query: 'Carol Engineer')
+      result = tool.call(query: 'Carol Engineer')
       expect(result).to include('Carol')
     end
   end

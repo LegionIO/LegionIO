@@ -7,7 +7,7 @@ require 'legion/cli/chat/extension_tool'
 
 RSpec.describe Legion::CLI::Chat::Permissions do
   let(:read_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'Read tool'
@@ -16,7 +16,7 @@ RSpec.describe Legion::CLI::Chat::Permissions do
   end
 
   let(:write_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'Write tool'

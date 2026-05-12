@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/detect_anomalies'
 
 RSpec.describe Legion::CLI::Chat::Tools::DetectAnomalies do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:api_port) { 4567 }
 
@@ -19,7 +19,7 @@ RSpec.describe Legion::CLI::Chat::Tools::DetectAnomalies do
         recent_period: 'last 1 hour', baseline_period: 'previous 23 hours'
       )
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('No anomalies detected')
       expect(result).to include('50 records')
     end
@@ -34,7 +34,7 @@ RSpec.describe Legion::CLI::Chat::Tools::DetectAnomalies do
         recent_period: 'last 1 hour', baseline_period: 'previous 23 hours'
       )
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('2 anomalies detected')
       expect(result).to include('[CRITICAL] Average cost')
       expect(result).to include('[WARNING] Average latency')
@@ -44,21 +44,21 @@ RSpec.describe Legion::CLI::Chat::Tools::DetectAnomalies do
     it 'passes custom threshold' do
       stub_api_response_for_threshold(3.5, anomalies: [], recent_count: 10, baseline_count: 100)
 
-      result = tool.execute(threshold: 3.5)
+      result = tool.call(threshold: 3.5)
       expect(result).to include('No anomalies detected')
     end
 
     it 'handles API error response' do
       stub_api_error('trace_search_unavailable', 'TraceSearch requires LLM subsystem')
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('TraceSearch requires LLM subsystem')
     end
 
     it 'handles connection refused' do
       allow(tool).to receive(:api_get).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Legion daemon not running')
     end
 
@@ -68,7 +68,7 @@ RSpec.describe Legion::CLI::Chat::Tools::DetectAnomalies do
         recent_count: 15, baseline_count: 200
       )
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('1 anomaly detected')
     end
   end

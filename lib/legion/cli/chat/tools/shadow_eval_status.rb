@@ -4,15 +4,18 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ShadowEvalStatus < RubyLLM::Tool
+        class ShadowEvalStatus < Legion::Tools::Base
+          tool_name 'legion.shadow_eval_status'
           description 'Show shadow evaluation results comparing primary vs cheaper models'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string' }
+                         },
+                         required:   ['action']
+                       })
 
-          param :action,
-                type:     :string,
-                desc:     'Action: "summary" (default) or "history" (recent evaluations)',
-                required: false
-
-          def execute(action: 'summary')
+          def self.call(action: 'summary')
             return 'Shadow evaluation not available.' unless shadow_available?
 
             case action.to_s
@@ -21,13 +24,11 @@ module Legion
             end
           end
 
-          private
-
-          def shadow_available?
+          def self.shadow_available?
             defined?(Legion::LLM::ShadowEval)
           end
 
-          def format_summary
+          def self.format_summary
             s = Legion::LLM::ShadowEval.summary
             lines = ["Shadow Evaluation Summary:\n"]
             lines << format('  Evaluations:      %<v>d', v: s[:total_evaluations])
@@ -54,7 +55,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_history
+          def self.format_history
             entries = Legion::LLM::ShadowEval.history
             return 'No shadow evaluation history.' if entries.empty?
 
@@ -74,7 +75,7 @@ module Legion
             lines.join("\n")
           end
 
-          def truncate(str, max)
+          def self.truncate(str, max)
             str.length > max ? "#{str[0, max - 1]}~" : str
           end
         end

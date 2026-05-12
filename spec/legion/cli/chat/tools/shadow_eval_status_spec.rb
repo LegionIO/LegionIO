@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/shadow_eval_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::ShadowEvalStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:shadow_mod) do
     Module.new do
@@ -35,14 +34,14 @@ RSpec.describe Legion::CLI::Chat::Tools::ShadowEvalStatus do
 
   describe '#execute' do
     it 'returns summary by default' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Shadow Evaluation Summary')
       expect(result).to include('Evaluations:      3')
       expect(result).to include('65.0%')
     end
 
     it 'returns history when requested' do
-      result = tool.execute(action: 'history')
+      result = tool.call(action: 'history')
       expect(result).to include('Shadow Evaluation History')
       expect(result).to include('gpt-4o')
       expect(result).to include('gpt-4o-mini')
@@ -50,7 +49,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ShadowEvalStatus do
 
     it 'returns unavailable when module not defined' do
       hide_const('Legion::LLM::ShadowEval')
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('Shadow evaluation not available.')
     end
 
@@ -64,7 +63,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ShadowEvalStatus do
         end
       end
       stub_const('Legion::LLM::ShadowEval', empty_mod)
-      result = tool.execute
+      result = tool.call
       expect(result).to include('llm.shadow.enabled')
     end
   end

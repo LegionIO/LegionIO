@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,15 +13,17 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class SystemStatus < RubyLLM::Tool
+        class SystemStatus < Legion::Tools::Base
+          tool_name 'legion.system_status'
           description 'Check the health and status of the Legion daemon. Shows component readiness ' \
                       '(settings, crypt, transport, cache, data, gaia, extensions, api), ' \
                       'extension count, uptime, and version info. Use this to diagnose issues or verify the system is healthy.'
+          input_schema({ type: 'object', properties: {}, required: [] })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute
+          def self.call
             health = fetch_health
             ready = fetch_ready
             format_status(health, ready)
@@ -33,9 +34,7 @@ module Legion
             "Error checking system status: #{e.message}"
           end
 
-          private
-
-          def fetch_health
+          def self.fetch_health
             api_get('/api/health')
           rescue Errno::ECONNREFUSED
             raise
@@ -44,7 +43,7 @@ module Legion
             nil
           end
 
-          def fetch_ready
+          def self.fetch_ready
             api_get('/api/ready')
           rescue Errno::ECONNREFUSED
             raise
@@ -53,7 +52,7 @@ module Legion
             nil
           end
 
-          def format_status(health, ready)
+          def self.format_status(health, ready)
             lines = ["Legion System Status\n"]
 
             if health
@@ -84,7 +83,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_uptime(seconds)
+          def self.format_uptime(seconds)
             return 'unknown' unless seconds
 
             seconds = seconds.to_i
@@ -99,7 +98,7 @@ module Legion
             parts.join(' ')
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -108,7 +107,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

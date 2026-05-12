@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/manage_tasks'
 
 RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -17,7 +17,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
   describe '#execute' do
     context 'invalid action' do
       it 'returns error for unknown action' do
-        result = tool.execute(action: 'destroy')
+        result = tool.call(action: 'destroy')
         expect(result).to include('Invalid action: destroy')
         expect(result).to include('list, show, logs, trigger')
       end
@@ -38,7 +38,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         )
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute(action: 'list')
+        result = tool.call(action: 'list')
         expect(result).to include('Recent Tasks (2)')
         expect(result).to include('#1 [completed]')
         expect(result).to include('#2 [failed]')
@@ -53,7 +53,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
           response
         end
 
-        tool.execute(action: 'list', status: 'failed')
+        tool.call(action: 'list', status: 'failed')
       end
 
       it 'returns message when no tasks found' do
@@ -61,7 +61,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         allow(response).to receive(:body).and_return(JSON.generate({ data: [] }))
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute(action: 'list')
+        result = tool.call(action: 'list')
         expect(result).to include('No tasks found')
       end
     end
@@ -85,7 +85,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         )
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute(action: 'show', task_id: 42)
+        result = tool.call(action: 'show', task_id: 42)
         expect(result).to include('Task #42')
         expect(result).to include('Status: completed')
         expect(result).to include('Metering:')
@@ -94,7 +94,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
       end
 
       it 'requires task_id' do
-        result = tool.execute(action: 'show')
+        result = tool.call(action: 'show')
         expect(result).to include('task_id is required')
       end
     end
@@ -112,14 +112,14 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         )
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute(action: 'logs', task_id: 42)
+        result = tool.call(action: 'logs', task_id: 42)
         expect(result).to include('Logs for Task #42 (2 entries)')
         expect(result).to include('Task started')
         expect(result).to include('Task completed')
       end
 
       it 'requires task_id' do
-        result = tool.execute(action: 'logs')
+        result = tool.call(action: 'logs')
         expect(result).to include('task_id is required')
       end
 
@@ -128,7 +128,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         allow(response).to receive(:body).and_return(JSON.generate({ data: [] }))
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute(action: 'logs', task_id: 99)
+        result = tool.call(action: 'logs', task_id: 99)
         expect(result).to include('No logs found for task 99')
       end
     end
@@ -145,18 +145,18 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
         allow(Net::HTTP::Post).to receive(:new).and_return(request)
         allow(mock_http).to receive(:request).and_return(response)
 
-        result = tool.execute(action: 'trigger', runner_class: 'Node::Runners::Info', function: 'execute')
+        result = tool.call(action: 'trigger', runner_class: 'Node::Runners::Info', function: 'execute')
         expect(result).to include('Task triggered successfully')
         expect(result).to include('Task ID: 100')
       end
 
       it 'requires runner_class' do
-        result = tool.execute(action: 'trigger', function: 'execute')
+        result = tool.call(action: 'trigger', function: 'execute')
         expect(result).to include('runner_class is required')
       end
 
       it 'requires function' do
-        result = tool.execute(action: 'trigger', runner_class: 'Node::Runners::Info')
+        result = tool.call(action: 'trigger', runner_class: 'Node::Runners::Info')
         expect(result).to include('function is required')
       end
 
@@ -176,14 +176,14 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
           expect(parsed[:target]).to eq('localhost')
         end
 
-        tool.execute(action: 'trigger', runner_class: 'Node::Runners::Info',
-                     function: 'execute', payload: '{"target":"localhost"}')
+        tool.call(action: 'trigger', runner_class: 'Node::Runners::Info',
+                  function: 'execute', payload: '{"target":"localhost"}')
       end
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
-      result = tool.execute(action: 'list')
+      result = tool.call(action: 'list')
       expect(result).to include('daemon not running')
     end
 
@@ -192,7 +192,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ManageTasks do
       allow(response).to receive(:body).and_return(JSON.generate({ error: 'service unavailable' }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(action: 'list')
+      result = tool.call(action: 'list')
       expect(result).to include('API error: service unavailable')
     end
   end

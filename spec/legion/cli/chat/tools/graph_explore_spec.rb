@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/graph_explore'
 
 RSpec.describe Legion::CLI::Chat::Tools::GraphExplore do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -61,7 +60,7 @@ RSpec.describe Legion::CLI::Chat::Tools::GraphExplore do
       response = instance_double(Net::HTTPOK, body: graph_body)
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Knowledge Graph Topology')
       expect(result).to include('general')
       expect(result).to include('claims_optimization')
@@ -73,7 +72,7 @@ RSpec.describe Legion::CLI::Chat::Tools::GraphExplore do
       response = instance_double(Net::HTTPOK, body: expertise_body)
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(action: 'expertise')
+      result = tool.call(action: 'expertise')
       expect(result).to include('Expertise Map')
       expect(result).to include('claude-agent')
       expect(result).to include('85.0%')
@@ -83,7 +82,7 @@ RSpec.describe Legion::CLI::Chat::Tools::GraphExplore do
       response = instance_double(Net::HTTPOK, body: disputed_body)
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'disputed')
+      result = tool.call(action: 'disputed')
       expect(result).to include('Disputed Knowledge Entries')
       expect(result).to include('#42')
       expect(result).to include('Disputed claim about caching')
@@ -93,14 +92,14 @@ RSpec.describe Legion::CLI::Chat::Tools::GraphExplore do
       response = instance_double(Net::HTTPOK, body: JSON.generate({ data: { entries: [], count: 0 } }))
       allow(mock_http).to receive(:request).and_return(response)
 
-      result = tool.execute(action: 'disputed')
+      result = tool.call(action: 'disputed')
       expect(result).to eq('No disputed entries in the knowledge graph.')
     end
 
     it 'handles connection refused' do
       allow(mock_http).to receive(:get).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('Apollo unavailable (daemon not running).')
     end
   end

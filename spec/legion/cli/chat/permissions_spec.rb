@@ -51,19 +51,18 @@ RSpec.describe Legion::CLI::Chat::Permissions do
   end
 
   describe 'Gate module on WriteFile' do
-    let(:tool) { Legion::CLI::Chat::Tools::WriteFile.new }
     let(:path) { File.join(tmpdir, 'gated.txt') }
 
     it 'auto-allows in headless mode' do
       described_class.mode = :headless
-      result = tool.call({ path: path, content: 'hello' })
+      result = Legion::CLI::Chat::Tools::WriteFile.call(path: path, content: 'hello')
       expect(File.read(path)).to eq('hello')
       expect(result).to include('Wrote')
     end
 
     it 'auto-allows in auto_approve mode' do
       described_class.mode = :auto_approve
-      result = tool.call({ path: path, content: 'hello' })
+      result = Legion::CLI::Chat::Tools::WriteFile.call(path: path, content: 'hello')
       expect(File.read(path)).to eq('hello')
       expect(result).to include('Wrote')
     end
@@ -73,7 +72,7 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("y\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ path: path, content: 'hello' })
+      result = Legion::CLI::Chat::Tools::WriteFile.call(path: path, content: 'hello')
       expect(File.read(path)).to eq('hello')
       expect(result).to include('Wrote')
     end
@@ -83,8 +82,8 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("n\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ path: path, content: 'hello' })
-      expect(result).to eq('Tool execution denied by user.')
+      result = Legion::CLI::Chat::Tools::WriteFile.call(path: path, content: 'hello')
+      expect(result).to eq({ content: [{ type: 'text', text: '{"error":"Tool execution denied by user."}' }], error: true })
       expect(File.exist?(path)).to be false
     end
 
@@ -93,12 +92,11 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("y\n")
 
       expect($stderr).to receive(:print).with(a_string_including(path))
-      tool.call({ path: path, content: 'hello' })
+      Legion::CLI::Chat::Tools::WriteFile.call(path: path, content: 'hello')
     end
   end
 
   describe 'Gate module on EditFile' do
-    let(:tool) { Legion::CLI::Chat::Tools::EditFile.new }
     let(:path) { File.join(tmpdir, 'edit_gated.txt') }
 
     before { File.write(path, 'hello world') }
@@ -108,8 +106,8 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("n\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ path: path, old_text: 'world', new_text: 'legion' })
-      expect(result).to eq('Tool execution denied by user.')
+      result = Legion::CLI::Chat::Tools::EditFile.call(path: path, old_text: 'world', new_text: 'legion')
+      expect(result).to eq({ content: [{ type: 'text', text: '{"error":"Tool execution denied by user."}' }], error: true })
       expect(File.read(path)).to eq('hello world')
     end
 
@@ -118,22 +116,20 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("yes\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ path: path, old_text: 'world', new_text: 'legion' })
+      result = Legion::CLI::Chat::Tools::EditFile.call(path: path, old_text: 'world', new_text: 'legion')
       expect(result).to include('Replaced')
       expect(File.read(path)).to eq('hello legion')
     end
   end
 
   describe 'Gate module on RunCommand' do
-    let(:tool) { Legion::CLI::Chat::Tools::RunCommand.new }
-
     it 'blocks when user denies' do
       described_class.mode = :interactive
       allow($stdin).to receive(:gets).and_return("n\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ command: 'echo hello' })
-      expect(result).to eq('Tool execution denied by user.')
+      result = Legion::CLI::Chat::Tools::RunCommand.call(command: 'echo hello')
+      expect(result).to eq({ content: [{ type: 'text', text: '{"error":"Tool execution denied by user."}' }], error: true })
     end
 
     it 'allows when user approves' do
@@ -141,7 +137,7 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("y\n")
       allow($stderr).to receive(:print)
 
-      result = tool.call({ command: 'echo hello' })
+      result = Legion::CLI::Chat::Tools::RunCommand.call(command: 'echo hello')
       expect(result).to include('hello')
     end
 
@@ -150,33 +146,29 @@ RSpec.describe Legion::CLI::Chat::Permissions do
       allow($stdin).to receive(:gets).and_return("y\n")
 
       expect($stderr).to receive(:print).with(a_string_including('echo hello'))
-      tool.call({ command: 'echo hello' })
+      Legion::CLI::Chat::Tools::RunCommand.call(command: 'echo hello')
     end
   end
 
   describe 'ReadFile is NOT gated' do
-    let(:tool) { Legion::CLI::Chat::Tools::ReadFile.new }
-
     it 'executes without prompting in interactive mode' do
       described_class.mode = :interactive
       path = File.join(tmpdir, 'readable.txt')
       File.write(path, 'content here')
 
       expect($stdin).not_to receive(:gets)
-      result = tool.call({ path: path })
+      result = Legion::CLI::Chat::Tools::ReadFile.call(path: path)
       expect(result).to include('content here')
     end
   end
 
   describe 'SearchFiles is NOT gated' do
-    let(:tool) { Legion::CLI::Chat::Tools::SearchFiles.new }
-
     it 'executes without prompting in interactive mode' do
       described_class.mode = :interactive
       File.write(File.join(tmpdir, 'findme.rb'), '')
 
       expect($stdin).not_to receive(:gets)
-      result = tool.call({ pattern: '*.rb', directory: tmpdir })
+      result = Legion::CLI::Chat::Tools::SearchFiles.call(pattern: '*.rb', directory: tmpdir)
       expect(result).to include('findme.rb')
     end
   end

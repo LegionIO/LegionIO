@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,14 +13,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class Reflect < RubyLLM::Tool
+        class Reflect < Legion::Tools::Base
+          tool_name 'legion.reflect'
           description 'Reflect on the current conversation to extract useful knowledge, patterns, or decisions ' \
                       'worth remembering. Analyzes the provided text and ingests key learnings into the Apollo ' \
                       'knowledge graph and project memory. Use after completing a task or when you notice ' \
                       'something worth preserving for future sessions.'
-          param :text, type: 'string', desc: 'Text to reflect on (conversation excerpt, decision rationale, or lesson learned)'
-          param :domain, type: 'string', desc: 'Knowledge domain (e.g., "architecture", "debugging", "patterns")',
-                         required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           text:   { type: 'string', description: 'Text to reflect on (conversation excerpt, decision rationale, or lesson learned)' },
+                           domain: { type: 'string', description: 'Knowledge domain (e.g., "architecture", "debugging", "patterns")' }
+                         },
+                         required:   ['text']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
@@ -41,7 +46,7 @@ module Legion
             Return ONLY the entries, no headers or commentary.
           PROMPT
 
-          def execute(text:, domain: nil)
+          def self.call(text:, domain: nil)
             entries = extract_entries(text)
             return 'No actionable knowledge found to reflect on.' if entries.empty?
 
@@ -52,9 +57,7 @@ module Legion
             "Error during reflection: #{e.message}"
           end
 
-          private
-
-          def extract_entries(text)
+          def self.extract_entries(text)
             return [text] unless llm_available?
 
             response = Legion::LLM.chat_direct(
@@ -66,7 +69,7 @@ module Legion
             [text]
           end
 
-          def parse_entries(content)
+          def self.parse_entries(content)
             content.lines
                    .map(&:strip)
                    .select { |line| line.start_with?('- ') }
@@ -75,7 +78,7 @@ module Legion
                    .first(5)
           end
 
-          def ingest_entries(entries, domain)
+          def self.ingest_entries(entries, domain)
             results = { apollo: 0, memory: 0 }
             entries.each do |entry|
               results[:apollo] += 1 if ingest_to_apollo(entry, domain)
@@ -84,7 +87,7 @@ module Legion
             results
           end
 
-          def ingest_to_apollo(content, domain)
+          def self.ingest_to_apollo(content, domain)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}/api/apollo/ingest")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -104,7 +107,7 @@ module Legion
             false
           end
 
-          def save_to_memory(entry)
+          def self.save_to_memory(entry)
             require 'legion/cli/chat/memory_store'
             MemoryStore.add(entry, scope: :project)
             true
@@ -112,7 +115,7 @@ module Legion
             false
           end
 
-          def format_results(entries, results)
+          def self.format_results(entries, results)
             lines = ["Reflected on #{entries.size} knowledge entries:\n"]
             entries.each_with_index { |e, i| lines << "  #{i + 1}. #{e}" }
             lines << ''
@@ -120,11 +123,11 @@ module Legion
             lines.join("\n")
           end
 
-          def llm_available?
+          def self.llm_available?
             defined?(Legion::LLM) && Legion::LLM.respond_to?(:chat_direct)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

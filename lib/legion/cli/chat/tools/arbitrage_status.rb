@@ -4,17 +4,20 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ArbitrageStatus < RubyLLM::Tool
+        class ArbitrageStatus < Legion::Tools::Base
+          tool_name 'legion.arbitrage_status'
           description 'Show LLM cost arbitrage status: model pricing table, cheapest model per capability tier'
-
-          param :capability,
-                type:     :string,
-                desc:     'Capability tier to check: basic, moderate, or reasoning (default: show all)',
-                required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           capability: { type: 'string' }
+                         },
+                         required:   ['capability']
+                       })
 
           TIERS = %i[basic moderate reasoning].freeze
 
-          def execute(capability: nil)
+          def self.call(capability: nil)
             return 'LLM arbitrage module not available.' unless arbitrage_available?
 
             if capability
@@ -24,13 +27,11 @@ module Legion
             end
           end
 
-          private
-
-          def arbitrage_available?
+          def self.arbitrage_available?
             defined?(Legion::LLM::Arbitrage)
           end
 
-          def format_overview
+          def self.format_overview
             arb = Legion::LLM::Arbitrage
             lines = ["LLM Cost Arbitrage\n"]
             lines << format('  Enabled: %<v>s', v: arb.enabled? ? 'YES' : 'no')
@@ -56,7 +57,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_tier(tier)
+          def self.format_tier(tier)
             arb = Legion::LLM::Arbitrage
             return format('Invalid tier: %<t>s. Use: %<valid>s', t: tier, valid: TIERS.join(', ')) unless TIERS.include?(tier)
 

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,15 +13,17 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class KnowledgeStats < RubyLLM::Tool
+        class KnowledgeStats < Legion::Tools::Base
+          tool_name 'legion.knowledge_stats'
           description 'Get statistics about the Apollo knowledge graph including total entries, ' \
                       'breakdowns by status and content type, recent activity, and average confidence. ' \
                       'Use this to understand the current state of the knowledge base.'
+          input_schema({ type: 'object', properties: {}, required: [] })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute
+          def self.call
             data = fetch_stats
             return "Apollo error: #{data[:error]}" if data[:error]
 
@@ -34,9 +35,7 @@ module Legion
             "Error fetching knowledge stats: #{e.message}"
           end
 
-          private
-
-          def fetch_stats
+          def self.fetch_stats
             uri = URI("http://#{DEFAULT_HOST}:#{apollo_port}/api/apollo/stats")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 3
@@ -46,7 +45,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT
@@ -54,7 +53,7 @@ module Legion
             DEFAULT_PORT
           end
 
-          def format_stats(data)
+          def self.format_stats(data)
             lines = ["Apollo Knowledge Graph Statistics:\n"]
             lines << "  Total entries: #{data[:total_entries] || 0}"
             lines << "  Recent (24h): #{data[:recent_24h] || 0}"
@@ -66,7 +65,7 @@ module Legion
             lines.compact.join("\n")
           end
 
-          def format_breakdown(title, hash)
+          def self.format_breakdown(title, hash)
             return nil if hash.nil? || hash.empty?
 
             parts = hash.map { |key, count| "    #{key}: #{count}" }

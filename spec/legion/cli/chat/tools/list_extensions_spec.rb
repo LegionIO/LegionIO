@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/list_extensions'
 
 RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -29,7 +29,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
         )
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute
+        result = tool.call
         expect(result).to include('Loaded Extensions (3)')
         expect(result).to include('lex-node (running)')
         expect(result).to include('lex-detect (stopped)')
@@ -40,7 +40,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
         allow(response).to receive(:body).and_return(JSON.generate({ data: [] }))
         allow(mock_http).to receive(:get).and_return(response)
 
-        result = tool.execute
+        result = tool.call
         expect(result).to include('No extensions found')
       end
 
@@ -52,7 +52,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
           response
         end
 
-        tool.execute(state: 'running')
+        tool.call(state: 'running')
       end
     end
 
@@ -80,7 +80,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
           call_count == 1 ? ext_response : runners_response
         end
 
-        result = tool.execute(extension_name: 'lex-node')
+        result = tool.call(extension_name: 'lex-node')
         expect(result).to include('Extension: lex-node')
         expect(result).to include('State: running')
         expect(result).to include('Runners (1)')
@@ -102,14 +102,14 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
           call_count == 1 ? ext_response : runners_response
         end
 
-        result = tool.execute(extension_name: 'lex-empty')
+        result = tool.call(extension_name: 'lex-empty')
         expect(result).to include('No runners registered')
       end
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
-      result = tool.execute
+      result = tool.call
       expect(result).to include('daemon not running')
     end
 
@@ -118,7 +118,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ListExtensions do
       allow(response).to receive(:body).and_return(JSON.generate({ error: 'data unavailable' }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('API error: data unavailable')
     end
   end

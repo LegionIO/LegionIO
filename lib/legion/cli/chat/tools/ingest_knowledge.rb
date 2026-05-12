@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,21 +13,27 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class IngestKnowledge < RubyLLM::Tool
+        class IngestKnowledge < Legion::Tools::Base
+          tool_name 'legion.ingest_knowledge'
           description 'Save a fact, observation, or concept to the Apollo knowledge graph for long-term retention. ' \
                       'Use this when the user shares important information, when you discover a project convention, ' \
                       'or when a key decision is made that should be remembered across sessions.'
-          param :content, type: 'string', desc: 'The knowledge to store (a clear, concise statement)'
-          param :content_type, type: 'string',
-                desc: 'Type: fact, observation, concept, procedure, decision (default: observation)', required: false
-          param :tags, type: 'string', desc: 'Comma-separated tags for categorization (optional)', required: false
-          param :knowledge_domain, type: 'string', desc: 'Domain category (optional)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           content:          { type: 'string', description: 'The knowledge to store (a clear, concise statement)' },
+                           content_type:     { type: 'string' },
+                           tags:             { type: 'string', description: 'Comma-separated tags for categorization (optional)' },
+                           knowledge_domain: { type: 'string', description: 'Domain category (optional)' }
+                         },
+                         required:   ['content']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
           VALID_TYPES = %w[fact observation concept procedure decision].freeze
 
-          def execute(content:, content_type: nil, tags: nil, knowledge_domain: nil)
+          def self.call(content:, content_type: nil, tags: nil, knowledge_domain: nil)
             content_type = sanitize_type(content_type)
             tag_list = parse_tags(tags)
 
@@ -50,20 +55,18 @@ module Legion
             "Error saving to knowledge graph: #{e.message}"
           end
 
-          private
-
-          def sanitize_type(content_type)
+          def self.sanitize_type(content_type)
             type = (content_type || 'observation').to_s.downcase
             VALID_TYPES.include?(type) ? type : 'observation'
           end
 
-          def parse_tags(tags)
+          def self.parse_tags(tags)
             return [] unless tags.is_a?(String) && !tags.empty?
 
             tags.split(',').map(&:strip).reject(&:empty?)
           end
 
-          def apollo_ingest(content:, content_type:, tags:, knowledge_domain:)
+          def self.apollo_ingest(content:, content_type:, tags:, knowledge_domain:)
             body = {
               content:        content,
               content_type:   content_type,
@@ -84,7 +87,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

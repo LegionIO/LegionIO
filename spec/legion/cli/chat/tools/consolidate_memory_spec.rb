@@ -6,7 +6,7 @@ require 'legion/cli/chat/memory_store'
 require 'legion/cli/chat/tools/consolidate_memory'
 
 RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:tmpdir) { Dir.mktmpdir('consolidate-test') }
 
@@ -19,14 +19,14 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
 
   describe '#execute' do
     it 'returns message when no entries exist' do
-      result = tool.execute(scope: 'project')
+      result = tool.call(scope: 'project')
       expect(result).to include('No memory entries found')
     end
 
     it 'returns message when fewer than 3 entries' do
       2.times { |i| Legion::CLI::Chat::MemoryStore.add("entry #{i}", scope: :project, base_dir: tmpdir) }
       allow(Legion::CLI::Chat::MemoryStore).to receive(:list).and_return(%w[one two])
-      result = tool.execute(scope: 'project')
+      result = tool.call(scope: 'project')
       expect(result).to include('no consolidation needed')
     end
 
@@ -46,7 +46,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
       stub_const('Legion::LLM', llm_mod)
       allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
 
-      result = tool.execute(scope: 'project')
+      result = tool.call(scope: 'project')
       expect(result).to include('4 -> 2')
       expect(result).to include('2 removed/merged')
     end
@@ -63,7 +63,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
       stub_const('Legion::LLM', llm_mod)
       allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
 
-      result = tool.execute(scope: 'project', dry_run: 'true')
+      result = tool.call(scope: 'project', dry_run: 'true')
       expect(result).to include('Preview')
       expect(result).to include('3 -> 2')
     end
@@ -73,7 +73,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:list).and_return(entries)
 
       hide_const('Legion::LLM')
-      result = tool.execute(scope: 'project')
+      result = tool.call(scope: 'project')
       expect(result).to include('could not generate summary')
     end
 
@@ -89,7 +89,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
       stub_const('Legion::LLM', llm_mod)
       allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
 
-      result = tool.execute(scope: 'global')
+      result = tool.call(scope: 'global')
       expect(result).to include('global memory')
       expect(result).to include('3 -> 1')
     end
@@ -106,7 +106,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
       stub_const('Legion::LLM', llm_mod)
       allow(Legion::LLM).to receive(:chat_direct).and_return(fake_session)
 
-      tool.execute(scope: 'project')
+      tool.call(scope: 'project')
 
       path = Legion::CLI::Chat::MemoryStore.project_path
       expect(File).to exist(path)
@@ -118,7 +118,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ConsolidateMemory do
 
     it 'handles errors gracefully' do
       allow(Legion::CLI::Chat::MemoryStore).to receive(:list).and_raise(StandardError, 'disk full')
-      result = tool.execute(scope: 'project')
+      result = tool.call(scope: 'project')
       expect(result).to include('Error consolidating memory')
       expect(result).to include('disk full')
     end

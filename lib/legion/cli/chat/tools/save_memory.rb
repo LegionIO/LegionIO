@@ -1,24 +1,30 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class SaveMemory < RubyLLM::Tool
+        class SaveMemory < Legion::Tools::Base
+          tool_name 'legion.save_memory'
           description 'Save important information to persistent memory for future sessions. ' \
                       'Also ingests into the Apollo knowledge graph when available for semantic search. ' \
                       'Use this when you learn something important about the project, user preferences, ' \
                       'key decisions, or recurring patterns that should be remembered.'
-          param :text, type: 'string', desc: 'The information to remember'
-          param :scope, type: 'string', desc: 'Memory scope: "project" (default) or "global"', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           text:  { type: 'string', description: 'The information to remember' },
+                           scope: { type: 'string', description: 'Memory scope: "project" (default) or "global"' }
+                         },
+                         required:   ['text']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(text:, scope: 'project')
+          def self.call(text:, scope: 'project')
             require 'legion/cli/chat/memory_store'
             sym_scope = scope.to_s == 'global' ? :global : :project
             path = MemoryStore.add(text, scope: sym_scope)
@@ -32,9 +38,7 @@ module Legion
             "Error saving memory: #{e.message}"
           end
 
-          private
-
-          def ingest_to_apollo(text, scope)
+          def self.ingest_to_apollo(text, scope)
             require 'net/http'
             require 'json'
 
@@ -59,7 +63,7 @@ module Legion
             nil
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

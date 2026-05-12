@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/system_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -50,7 +50,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
         call_count == 1 ? health_response : ready_response
       end
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Legion System Status')
       expect(result).to include('Status: ok')
       expect(result).to include('Version: 1.4.150')
@@ -66,14 +66,14 @@ RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
     it 'handles daemon not running' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('daemon not running')
     end
 
     it 'handles both endpoints failing gracefully' do
       allow(mock_http).to receive(:get).and_raise(StandardError.new('timeout'))
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Health endpoint: unreachable')
     end
 
@@ -91,7 +91,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
         call_count == 1 ? health_response : ready_response
       end
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('1d 1h 1m')
     end
 
@@ -109,7 +109,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
         call_count == 1 ? health_response : ready_response
       end
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('45s')
     end
 
@@ -127,7 +127,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SystemStatus do
         call_count == 1 ? health_response : ready_response
       end
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Status: ok')
       expect(result).not_to include('Components:')
     end

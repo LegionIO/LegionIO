@@ -5,23 +5,23 @@ require 'legion/cli/chat/tool_registry'
 
 RSpec.describe Legion::CLI::Chat::ToolRegistry do
   describe '.builtin_tools' do
-    it 'returns an array of RubyLLM::Tool subclasses' do
+    it 'returns an array of Legion::Tools::Base subclasses' do
       tools = described_class.builtin_tools
       expect(tools).to be_an(Array)
       expect(tools).not_to be_empty
       tools.each do |tool|
-        expect(tool).to be < RubyLLM::Tool
+        expect(tool).to be < Legion::Tools::Base
       end
     end
 
     it 'includes file and shell tools' do
-      names = described_class.builtin_tools.map { |t| t.new.name }
-      expect(names.any? { |n| n.end_with?('read_file') }).to be true
-      expect(names.any? { |n| n.end_with?('write_file') }).to be true
-      expect(names.any? { |n| n.end_with?('edit_file') }).to be true
-      expect(names.any? { |n| n.end_with?('search_files') }).to be true
-      expect(names.any? { |n| n.end_with?('search_content') }).to be true
-      expect(names.any? { |n| n.end_with?('run_command') }).to be true
+      names = described_class.builtin_tools.map(&:tool_name)
+      expect(names).to include('legion.read_file')
+      expect(names).to include('legion.write_file')
+      expect(names).to include('legion.edit_file')
+      expect(names).to include('legion.search_files')
+      expect(names).to include('legion.search_content')
+      expect(names).to include('legion.run_command')
     end
 
     it 'returns a mutable copy of the constants array' do

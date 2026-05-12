@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/cost_summary'
 
 RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:stub_http) { instance_double(Net::HTTP) }
 
@@ -26,7 +26,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns formatted cost summary' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('Cost Summary')
         expect(result).to include('$0.1234')
         expect(result).to include('$0.5678')
@@ -48,7 +48,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns top cost consumers' do
-        result = tool.execute(action: 'top', limit: 5)
+        result = tool.call(action: 'top', limit: 5)
         expect(result).to include('Top')
         expect(result).to include('w-1')
       end
@@ -65,7 +65,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns worker cost details' do
-        result = tool.execute(action: 'worker', worker_id: 'w-1')
+        result = tool.call(action: 'worker', worker_id: 'w-1')
         expect(result).to include('Worker: w-1')
         expect(result).to include('total_cost_usd')
       end
@@ -73,7 +73,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
 
     context 'with worker action and missing worker_id' do
       it 'returns error message' do
-        result = tool.execute(action: 'worker')
+        result = tool.call(action: 'worker')
         expect(result).to include('worker_id is required')
       end
     end
@@ -85,7 +85,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns no workers message' do
-        result = tool.execute(action: 'top')
+        result = tool.call(action: 'top')
         expect(result).to eq('No workers found.')
       end
     end
@@ -96,7 +96,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns daemon not running message' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('daemon not running')
       end
     end
@@ -108,7 +108,7 @@ RSpec.describe Legion::CLI::Chat::Tools::CostSummary do
       end
 
       it 'returns the error message' do
-        result = tool.execute
+        result = tool.call
         expect(result).to include('API error: internal')
       end
     end

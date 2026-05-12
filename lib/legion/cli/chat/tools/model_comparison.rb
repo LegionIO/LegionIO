@@ -4,20 +4,19 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ModelComparison < RubyLLM::Tool
+        class ModelComparison < Legion::Tools::Base
+          tool_name 'legion.model_comparison'
           description 'Compare LLM model pricing and capabilities side-by-side'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           models: { type: 'string' },
+                           tokens: { type: 'integer' }
+                         },
+                         required:   %w[models tokens]
+                       })
 
-          param :models,
-                type:     :string,
-                desc:     'Comma-separated model names to compare (blank = show all known models)',
-                required: false
-
-          param :tokens,
-                type:     :integer,
-                desc:     'Hypothetical token count for cost projection (default: 1000)',
-                required: false
-
-          def execute(models: nil, tokens: 1000)
+          def self.call(models: nil, tokens: 1000)
             pricing = load_pricing
             selected = filter_models(pricing, models)
             return 'No matching models found.' if selected.empty?
@@ -25,16 +24,14 @@ module Legion
             format_comparison(selected, tokens.to_i)
           end
 
-          private
-
-          def load_pricing
+          def self.load_pricing
             base = cost_tracker_pricing
             return base unless base.empty?
 
             default_pricing
           end
 
-          def cost_tracker_pricing
+          def self.cost_tracker_pricing
             return {} unless defined?(Legion::LLM::CostTracker)
 
             Legion::LLM::CostTracker::DEFAULT_PRICING.transform_values do |v|
@@ -45,7 +42,7 @@ module Legion
             {}
           end
 
-          def default_pricing
+          def self.default_pricing
             {
               'claude-sonnet-4-6' => { input: 3.0,  output: 15.0 },
               'claude-haiku-4-5'  => { input: 0.80, output: 4.0  },
@@ -55,14 +52,14 @@ module Legion
             }
           end
 
-          def filter_models(pricing, models_str)
+          def self.filter_models(pricing, models_str)
             return pricing if models_str.nil? || models_str.strip.empty?
 
             names = models_str.split(',').map(&:strip).map(&:downcase)
             pricing.select { |k, _| names.any? { |n| k.downcase.include?(n) } }
           end
 
-          def format_comparison(selected, tokens)
+          def self.format_comparison(selected, tokens)
             lines = ["Model Comparison (per 1M tokens pricing):\n"]
             lines << '  Model                        Input/$   Output/$    Est. Cost'
             lines << "  #{'—' * 59}"
@@ -88,7 +85,7 @@ module Legion
             lines.join("\n")
           end
 
-          def estimate_cost(price, tokens)
+          def self.estimate_cost(price, tokens)
             ((tokens * price[:input] / 1_000_000.0) + (tokens * price[:output] / 1_000_000.0)).round(6)
           end
         end

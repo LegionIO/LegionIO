@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/memory_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   before do
     allow(tool).to receive(:api_port).and_return(4567)
@@ -18,7 +17,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
         allow(tool).to receive(:session_list).and_return([{ name: 'session1' }])
         allow(tool).to receive(:apollo_stats).and_return(nil)
 
-        result = tool.execute
+        result = tool.call
         expect(result).to include('Memory & Knowledge Overview')
         expect(result).to include('2 project, 1 global')
         expect(result).to include('Saved Sessions: 1')
@@ -31,7 +30,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
           { total: 500, confirmed: 400, disputed: 5, candidates: 95 }
         )
 
-        result = tool.execute
+        result = tool.call
         expect(result).to include('500 entries')
         expect(result).to include('400 confirmed')
         expect(result).to include('5 disputed')
@@ -44,7 +43,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
           "Persistent Memory Detail:\n\n  Project Memory:\n    1. use bun for install\n    2. prefer postgres\n\n  Global Memory:\n    1. timezone: CT"
         )
 
-        result = tool.execute(action: 'memories')
+        result = tool.call(action: 'memories')
         expect(result).to include('use bun for install')
         expect(result).to include('prefer postgres')
         expect(result).to include('timezone: CT')
@@ -59,7 +58,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
             domains: { 'infrastructure' => 120, 'security' => 80 } }
         )
 
-        result = tool.execute(action: 'apollo')
+        result = tool.call(action: 'apollo')
         expect(result).to include('Total Entries:  300')
         expect(result).to include('Avg Confidence: 0.87')
         expect(result).to include('infrastructure')
@@ -68,7 +67,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
       it 'handles apollo unavailable' do
         allow(tool).to receive(:apollo_stats).and_return(nil)
 
-        result = tool.execute(action: 'apollo')
+        result = tool.call(action: 'apollo')
         expect(result).to include('not available')
       end
     end
@@ -84,7 +83,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
         ].join("\n")
         allow(tool).to receive(:format_sessions).and_return(session_output)
 
-        result = tool.execute(action: 'sessions')
+        result = tool.call(action: 'sessions')
         expect(result).to include('debug-cache')
         expect(result).to include('feature-auth')
         expect(result).to include('Debugging cache')
@@ -93,7 +92,7 @@ RSpec.describe Legion::CLI::Chat::Tools::MemoryStatus do
       it 'handles no sessions' do
         allow(tool).to receive(:format_sessions).and_return('No saved sessions found.')
 
-        result = tool.execute(action: 'sessions')
+        result = tool.call(action: 'sessions')
         expect(result).to include('No saved sessions')
       end
     end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,18 +13,25 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class QueryKnowledge < RubyLLM::Tool
+        class QueryKnowledge < Legion::Tools::Base
+          tool_name 'legion.query_knowledge'
           description 'Query the Apollo knowledge graph for facts, observations, concepts, and procedures. ' \
                       'Use this when the user asks about known facts, project knowledge, system behavior, ' \
                       'or anything that may have been ingested into the knowledge base.'
-          param :query, type: 'string', desc: 'Natural language search query'
-          param :domain, type: 'string', desc: 'Filter by knowledge domain (optional)', required: false
-          param :limit, type: 'integer', desc: 'Max results (default: 10)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           query:  { type: 'string', description: 'Natural language search query' },
+                           domain: { type: 'string', description: 'Filter by knowledge domain (optional)' },
+                           limit:  { type: 'integer', description: 'Max results (default: 10)' }
+                         },
+                         required:   ['query']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(query:, domain: nil, limit: nil)
+          def self.call(query:, domain: nil, limit: nil)
             limit = (limit || 10).clamp(1, 50)
             data = apollo_query(query: query, domain: domain, limit: limit)
 
@@ -40,9 +46,7 @@ module Legion
             "Error querying knowledge graph: #{e.message}"
           end
 
-          private
-
-          def apollo_query(query:, domain:, limit:)
+          def self.apollo_query(query:, domain:, limit:)
             body = { query: query, limit: limit, status: %w[confirmed candidate] }
             body[:domain] = domain if domain
 
@@ -57,7 +61,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT
@@ -65,7 +69,7 @@ module Legion
             DEFAULT_PORT
           end
 
-          def format_entries(entries)
+          def self.format_entries(entries)
             parts = entries.map.with_index(1) do |entry, idx|
               confidence = entry[:confidence] ? " (confidence: #{entry[:confidence]})" : ''
               tags = entry[:tags]&.any? ? " [#{entry[:tags].join(', ')}]" : ''

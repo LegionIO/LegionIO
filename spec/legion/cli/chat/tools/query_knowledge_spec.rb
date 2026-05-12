@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/query_knowledge'
 
 RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
-  let(:tool) { described_class.new }
+  let(:tool) { described_class }
   let(:mock_http) { instance_double(Net::HTTP) }
 
   let(:query_response_body) do
@@ -42,27 +42,27 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'returns formatted entries' do
-        result = tool.execute(query: 'how does legion communicate')
+        result = tool.call(query: 'how does legion communicate')
         expect(result).to include('Found 2 knowledge entries')
       end
 
       it 'includes content type' do
-        result = tool.execute(query: 'messaging')
+        result = tool.call(query: 'messaging')
         expect(result).to include('[fact]')
       end
 
       it 'includes confidence score' do
-        result = tool.execute(query: 'messaging')
+        result = tool.call(query: 'messaging')
         expect(result).to include('confidence: 0.95')
       end
 
       it 'includes content text' do
-        result = tool.execute(query: 'amqp')
+        result = tool.call(query: 'amqp')
         expect(result).to include('Legion uses AMQP')
       end
 
       it 'includes tags' do
-        result = tool.execute(query: 'amqp')
+        result = tool.call(query: 'amqp')
         expect(result).to include('architecture')
       end
     end
@@ -74,7 +74,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'returns no results message' do
-        result = tool.execute(query: 'nonexistent topic')
+        result = tool.call(query: 'nonexistent topic')
         expect(result).to include('No knowledge entries found')
       end
     end
@@ -86,7 +86,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'returns error message' do
-        result = tool.execute(query: 'anything')
+        result = tool.call(query: 'anything')
         expect(result).to include('apollo not available')
       end
     end
@@ -97,7 +97,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'returns error message' do
-        result = tool.execute(query: 'test')
+        result = tool.call(query: 'test')
         expect(result).to include('Error querying knowledge graph')
       end
     end
@@ -114,7 +114,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'passes domain to API' do
-        tool.execute(query: 'test', domain: 'architecture')
+        tool.call(query: 'test', domain: 'architecture')
       end
     end
 
@@ -130,7 +130,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
       end
 
       it 'passes limit to API' do
-        tool.execute(query: 'test', limit: 5)
+        tool.call(query: 'test', limit: 5)
       end
     end
 
@@ -142,7 +142,7 @@ RSpec.describe Legion::CLI::Chat::Tools::QueryKnowledge do
         response
       end
 
-      tool.execute(query: 'test', limit: 999)
+      tool.call(query: 'test', limit: 999)
     end
   end
 end

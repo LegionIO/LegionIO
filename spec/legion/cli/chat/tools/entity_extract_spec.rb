@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/entity_extract'
 
 RSpec.describe Legion::CLI::Chat::Tools::EntityExtract do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:extractor_mod) do
     Module.new do
@@ -28,21 +27,21 @@ RSpec.describe Legion::CLI::Chat::Tools::EntityExtract do
 
   describe '#execute' do
     it 'returns extracted entities' do
-      result = tool.execute(text: 'Alice works on LegionIO')
+      result = tool.call(text: 'Alice works on LegionIO')
       expect(result).to include('Extracted 2 entities')
       expect(result).to include('Alice')
       expect(result).to include('LegionIO')
     end
 
     it 'filters by entity type' do
-      result = tool.execute(text: 'Alice works on LegionIO', entity_types: 'person')
+      result = tool.call(text: 'Alice works on LegionIO', entity_types: 'person')
       expect(result).to include('Alice')
       expect(result).not_to include('LegionIO')
     end
 
     it 'returns unavailable when extractor not loaded' do
       hide_const('Legion::Extensions::Apollo::Runners::EntityExtractor')
-      result = tool.execute(text: 'test')
+      result = tool.call(text: 'test')
       expect(result).to eq('Apollo entity extractor not available.')
     end
 
@@ -53,12 +52,12 @@ RSpec.describe Legion::CLI::Chat::Tools::EntityExtract do
         end
       end
       stub_const('Legion::Extensions::Apollo::Runners::EntityExtractor', empty_mod)
-      result = tool.execute(text: 'nothing here', min_confidence: 0.99)
+      result = tool.call(text: 'nothing here', min_confidence: 0.99)
       expect(result).to eq('No entities found in the provided text.')
     end
 
     it 'shows confidence percentages' do
-      result = tool.execute(text: 'Alice')
+      result = tool.call(text: 'Alice')
       expect(result).to include('95%')
     end
   end

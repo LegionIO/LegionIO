@@ -29,9 +29,9 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
   end
 
   describe '.collect_tool_classes' do
-    it 'collects RubyLLM::Tool subclasses from a module' do
+    it 'collects Legion::Tools::Base subclasses from a module' do
       mod = Module.new
-      tool_class = Class.new(RubyLLM::Tool) do
+      tool_class = Class.new(Legion::Tools::Base) do
         include Legion::CLI::Chat::ExtensionTool
 
         description 'Test tool'
@@ -68,7 +68,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionToolLoader do
 
   describe '.effective_tier' do
     let(:tool_class) do
-      Class.new(RubyLLM::Tool) do
+      Class.new(Legion::Tools::Base) do
         include Legion::CLI::Chat::ExtensionTool
 
         description 'Test'

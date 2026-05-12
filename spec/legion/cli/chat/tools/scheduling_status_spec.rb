@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/scheduling_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::SchedulingStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:scheduling_mod) do
     Module.new do
@@ -44,14 +43,14 @@ RSpec.describe Legion::CLI::Chat::Tools::SchedulingStatus do
 
   describe '#execute' do
     it 'returns overview by default' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Scheduling & Batch Overview')
       expect(result).to include('peak now')
       expect(result).to include('Queue Depth: 5')
     end
 
     it 'shows scheduling detail' do
-      result = tool.execute(action: 'scheduling')
+      result = tool.call(action: 'scheduling')
       expect(result).to include('Scheduling Detail')
       expect(result).to include('14..22')
       expect(result).to include('Max Defer Hours:  8')
@@ -59,7 +58,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SchedulingStatus do
     end
 
     it 'shows batch detail' do
-      result = tool.execute(action: 'batch')
+      result = tool.call(action: 'batch')
       expect(result).to include('Batch Queue Detail')
       expect(result).to include('Queue Size:     5')
       expect(result).to include('normal')
@@ -68,13 +67,13 @@ RSpec.describe Legion::CLI::Chat::Tools::SchedulingStatus do
 
     it 'handles missing scheduling module' do
       hide_const('Legion::LLM::Scheduling')
-      result = tool.execute(action: 'scheduling')
+      result = tool.call(action: 'scheduling')
       expect(result).to eq('Scheduling module not available.')
     end
 
     it 'handles missing batch module' do
       hide_const('Legion::LLM::Batch')
-      result = tool.execute(action: 'batch')
+      result = tool.call(action: 'batch')
       expect(result).to eq('Batch module not available.')
     end
   end

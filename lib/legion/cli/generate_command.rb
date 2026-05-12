@@ -332,31 +332,38 @@ module Legion
         end
 
         def tool_template(lex, lex_class, _name, class_name)
+          tool_snake = class_name.gsub(/([a-z\d])([A-Z])/, '\1_\2').gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').downcase
           <<~RUBY
             # frozen_string_literal: true
 
-            require 'ruby_llm'
             require 'legion/cli/chat/extension_tool'
 
             module Legion
               module Extensions
                 module #{lex_class}
                   module Tools
-                    class #{class_name} < RubyLLM::Tool
+                    class #{class_name} < Legion::Tools::Base
                       include Legion::CLI::Chat::ExtensionTool
 
+                      tool_name 'legion.#{lex}.#{tool_snake}'
                       description 'TODO: Describe what this tool does'
-                      param :example, type: 'string', desc: 'TODO: Describe this parameter'
+                      input_schema({
+                        type: 'object',
+                        properties: {
+                          example: { type: 'string', description: 'TODO: Describe this parameter' }
+                        },
+                        required: ['example']
+                      })
 
                       permission_tier :write
 
-                      def execute(example:)
+                      def self.call(example:)
                         settings = Legion::Settings[:extensions][:#{lex}] || {}
                         client = Legion::Extensions::#{lex_class}::Client.new(**settings)
                         # TODO: implement
-                        'Not yet implemented'
+                        text_response('Not yet implemented')
                       rescue StandardError => e
-                        "Error: \#{e.message}"
+                        error_response(e.message)
                       end
                     end
                   end

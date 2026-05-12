@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/reflect'
 
 RSpec.describe Legion::CLI::Chat::Tools::Reflect do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:stub_http) { instance_double(Net::HTTP) }
   let(:success_response) { instance_double(Net::HTTPSuccess, is_a?: true) }
@@ -28,7 +28,7 @@ RSpec.describe Legion::CLI::Chat::Tools::Reflect do
       end
 
       it 'ingests the raw text as a single entry' do
-        result = tool.execute(text: 'Ruby blocks capture their enclosing scope')
+        result = tool.call(text: 'Ruby blocks capture their enclosing scope')
         expect(result).to include('Reflected on 1 knowledge entries')
         expect(result).to include('Ruby blocks capture their enclosing scope')
       end
@@ -62,14 +62,14 @@ RSpec.describe Legion::CLI::Chat::Tools::Reflect do
       end
 
       it 'extracts and ingests multiple entries' do
-        result = tool.execute(text: 'We used **opts pattern and snake_case conventions')
+        result = tool.call(text: 'We used **opts pattern and snake_case conventions')
         expect(result).to include('Reflected on 2 knowledge entries')
         expect(result).to include('Pattern: use **opts for extensible params')
         expect(result).to include('Convention: snake_case for methods')
       end
 
       it 'reports save counts' do
-        result = tool.execute(text: 'We used **opts pattern')
+        result = tool.call(text: 'We used **opts pattern')
         expect(result).to include('Saved: 2 to Apollo, 2 to memory')
       end
     end
@@ -85,7 +85,7 @@ RSpec.describe Legion::CLI::Chat::Tools::Reflect do
       end
 
       it 'saves to memory only' do
-        result = tool.execute(text: 'Important finding')
+        result = tool.call(text: 'Important finding')
         expect(result).to include('0 to Apollo')
         expect(result).to include('1 to memory')
       end
@@ -109,7 +109,7 @@ RSpec.describe Legion::CLI::Chat::Tools::Reflect do
       end
 
       it 'returns no actionable knowledge message' do
-        result = tool.execute(text: 'Just chatting about nothing')
+        result = tool.call(text: 'Just chatting about nothing')
         expect(result).to include('No actionable knowledge')
       end
     end
@@ -126,7 +126,7 @@ RSpec.describe Legion::CLI::Chat::Tools::Reflect do
       end
 
       it 'passes domain to apollo ingest' do
-        tool.execute(text: 'Database indexes speed up queries', domain: 'database')
+        tool.call(text: 'Database indexes speed up queries', domain: 'database')
         expect(stub_http).to have_received(:request).with(
           an_object_having_attributes(body: a_string_including('"knowledge_domain":"database"'))
         )

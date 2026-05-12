@@ -4,15 +4,18 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class EscalationStatus < RubyLLM::Tool
+        class EscalationStatus < Legion::Tools::Base
+          tool_name 'legion.escalation_status'
           description 'Show model escalation history: how often cheaper models get upgraded to more capable ones'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string' }
+                         },
+                         required:   ['action']
+                       })
 
-          param :action,
-                type:     :string,
-                desc:     'Action: "summary" (default) or "rate" (escalation frequency)',
-                required: false
-
-          def execute(action: 'summary')
+          def self.call(action: 'summary')
             return 'Escalation tracker not available.' unless tracker_available?
 
             case action.to_s
@@ -21,13 +24,11 @@ module Legion
             end
           end
 
-          private
-
-          def tracker_available?
+          def self.tracker_available?
             defined?(Legion::LLM::EscalationTracker)
           end
 
-          def format_summary
+          def self.format_summary
             s = Legion::LLM::EscalationTracker.summary
             lines = ["Model Escalation Summary:\n"]
             lines << format('  Total Escalations: %<v>d', v: s[:total_escalations])
@@ -65,7 +66,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_rate
+          def self.format_rate
             rate = Legion::LLM::EscalationTracker.escalation_rate
             format('Escalation Rate: %<c>d escalations in the last %<m>d minutes',
                    c: rate[:count], m: rate[:window_seconds] / 60)

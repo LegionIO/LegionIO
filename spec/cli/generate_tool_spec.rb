@@ -33,9 +33,9 @@ RSpec.describe 'legion generate tool' do
     generator.tool('get_key')
     path = File.join(tmpdir, 'lib/legion/extensions/redis/tools/get_key.rb')
     content = File.read(path)
-    expect(content).to include('class GetKey < RubyLLM::Tool')
+    expect(content).to include('class GetKey < Legion::Tools::Base')
     expect(content).to include('permission_tier :write')
-    expect(content).to include('def execute')
+    expect(content).to include('def self.call')
     expect(content).to include('Legion::Extensions::Redis::Client')
   end
 

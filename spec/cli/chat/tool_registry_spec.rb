@@ -20,7 +20,7 @@ RSpec.describe Legion::CLI::Chat::ToolRegistry do
     end
 
     it 'includes extension tools when available' do
-      fake_tool = Class.new(RubyLLM::Tool) do
+      fake_tool = Class.new(Legion::Tools::Base) do
         description 'Fake extension tool'
         def execute = 'ok'
       end

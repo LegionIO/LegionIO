@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/budget_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   before do
     stub_const('Legion::LLM', Module.new)
@@ -37,7 +37,7 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
 
   describe '#execute' do
     it 'returns budget status by default' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Session Budget Status')
       expect(result).to include('Enforcing:  YES')
       expect(result).to include('Budget:')
@@ -45,7 +45,7 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
     end
 
     it 'returns cost summary when requested' do
-      result = tool.execute(action: 'summary')
+      result = tool.call(action: 'summary')
       expect(result).to include('Session Cost Summary')
       expect(result).to include('claude-sonnet-4-6')
       expect(result).to include('gpt-4o-mini')
@@ -53,7 +53,7 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
 
     it 'returns error when LLM not available' do
       hide_const('Legion::LLM')
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('Legion::LLM not available.')
     end
   end
@@ -68,7 +68,7 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
     end
 
     it 'shows enforcing as no' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Enforcing:  no')
     end
   end
@@ -83,7 +83,7 @@ RSpec.describe Legion::CLI::Chat::Tools::BudgetStatus do
     end
 
     it 'returns no requests message' do
-      result = tool.execute(action: 'summary')
+      result = tool.call(action: 'summary')
       expect(result).to eq('No LLM requests recorded this session.')
     end
   end

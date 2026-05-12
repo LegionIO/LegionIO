@@ -6,7 +6,7 @@ require 'legion/cli/chat/extension_tool'
 
 RSpec.describe Legion::CLI::Chat::ExtensionTool do
   let(:read_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'A read tool'
@@ -15,7 +15,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
   end
 
   let(:default_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'A default tool'
@@ -23,7 +23,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
   end
 
   let(:shell_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'A shell tool'
@@ -45,7 +45,7 @@ RSpec.describe Legion::CLI::Chat::ExtensionTool do
 
   it 'rejects invalid tiers' do
     expect do
-      Class.new(RubyLLM::Tool) do
+      Class.new(Legion::Tools::Base) do
         include Legion::CLI::Chat::ExtensionTool
 
         permission_tier :admin

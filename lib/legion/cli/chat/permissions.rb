@@ -58,16 +58,15 @@ module Legion
           def apply!(tool_classes)
             tool_classes.each do |klass|
               tier = tier_for(klass)
-              klass.prepend(Gate) unless tier == :read
+              klass.singleton_class.prepend(Gate) unless tier == :read
             end
           end
         end
 
         module Gate
-          def call(args)
-            normalized = normalize_args(args)
-            desc = permission_description(normalized)
-            return 'Tool execution denied by user.' unless Permissions.confirm?(desc)
+          def call(**args)
+            desc = permission_description(args)
+            return error_response('Tool execution denied by user.') unless Permissions.confirm?(desc)
 
             super
           end
@@ -75,11 +74,11 @@ module Legion
           private
 
           def permission_description(args)
-            tier = Permissions.tier_for(self.class)
+            tier = Permissions.tier_for(self)
             case tier
             when :write
               path = args[:path] || '(unknown)'
-              action = self.class.name.split('::').last.gsub(/([a-z])([A-Z])/, '\1 \2')
+              action = name.split('::').last.gsub(/([a-z])([A-Z])/, '\1 \2')
               "#{action}: #{path}"
             when :shell
               "Run command: #{args[:command]}"

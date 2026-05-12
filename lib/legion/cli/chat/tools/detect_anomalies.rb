@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,18 +13,23 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class DetectAnomalies < RubyLLM::Tool
+        class DetectAnomalies < Legion::Tools::Base
+          tool_name 'legion.detect_anomalies'
           description 'Detect anomalies in recent task execution metrics by comparing the last hour against ' \
                       'the previous 23-hour baseline. Reports cost spikes, latency increases, and failure rate ' \
                       'changes. Use this proactively to check system health or when investigating issues.'
-          param :threshold, type:     'number',
-                            desc:     'Anomaly detection threshold multiplier (default: 2.0, higher = less sensitive)',
-                            required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           threshold: { type: 'number' }
+                         },
+                         required:   ['threshold']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(threshold: 2.0)
+          def self.call(threshold: 2.0)
             data = api_get("/api/traces/anomalies?threshold=#{threshold.to_f}")
             return "API error: #{data[:error][:message]}" if data[:error]
 
@@ -37,9 +41,7 @@ module Legion
             "Error detecting anomalies: #{e.message}"
           end
 
-          private
-
-          def format_report(data)
+          def self.format_report(data)
             anomalies = data[:anomalies] || []
             lines = ["Anomaly Report (threshold: #{data[:threshold] || '2.0'}x)\n"]
             lines << "  Recent period:   #{data[:recent_period] || 'last 1 hour'} (#{data[:recent_count] || 0} records)"
@@ -60,7 +62,7 @@ module Legion
             lines.join("\n")
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -69,7 +71,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,22 +13,23 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class GraphExplore < RubyLLM::Tool
+        class GraphExplore < Legion::Tools::Base
+          tool_name 'legion.graph_explore'
           description 'Explore the Apollo knowledge graph topology: view domains, agent expertise, ' \
                       'relation types, and disputed entries. Use this to understand the structure ' \
                       'and health of the knowledge graph beyond basic stats.'
-
-          param :action,
-                type:     :string,
-                desc:     'Action: "topology" (domain/agent/relation overview), ' \
-                          '"expertise" (agent proficiency per domain), ' \
-                          '"disputed" (show disputed entries)',
-                required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string', description: 'Action: "topology", "expertise", or "disputed"' }
+                         },
+                         required:   []
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(action: 'topology')
+          def self.call(action: 'topology')
             case action.to_s
             when 'expertise' then format_expertise
             when 'disputed'  then format_disputed
@@ -42,9 +42,7 @@ module Legion
             "Error exploring knowledge graph: #{e.message}"
           end
 
-          private
-
-          def format_topology
+          def self.format_topology
             data = fetch_json('/api/apollo/graph')
             return "Apollo error: #{data[:error]}" if data[:error]
 
@@ -75,7 +73,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_expertise
+          def self.format_expertise
             data = fetch_json('/api/apollo/expertise')
             return "Apollo error: #{data[:error]}" if data[:error]
 
@@ -96,7 +94,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_disputed
+          def self.format_disputed
             data = fetch_json('/api/apollo/query', method: :post,
                                                    body:   { status: ['disputed'], limit: 20, query: '*',
                                                            min_confidence: 0.0 })
@@ -117,7 +115,7 @@ module Legion
             lines.join("\n")
           end
 
-          def fetch_json(path, method: :get, body: nil)
+          def self.fetch_json(path, method: :get, body: nil)
             uri = URI("http://#{DEFAULT_HOST}:#{apollo_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 3
@@ -135,7 +133,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT
@@ -143,12 +141,12 @@ module Legion
             DEFAULT_PORT
           end
 
-          def proficiency_bar(value)
+          def self.proficiency_bar(value)
             filled = (value * 10).round.clamp(0, 10)
             ('#' * filled) + ('-' * (10 - filled))
           end
 
-          def truncate(text, max)
+          def self.truncate(text, max)
             return '' if text.nil?
 
             text.length > max ? "#{text[0...max]}..." : text

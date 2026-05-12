@@ -1,22 +1,28 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class SearchMemory < RubyLLM::Tool
+        class SearchMemory < Legion::Tools::Base
+          tool_name 'legion.search_memory'
           description 'Search persistent memory and the Apollo knowledge graph for previously saved information. ' \
                       'Returns matching memory entries (substring match) and related Apollo knowledge entries when available. ' \
                       'Use this to recall project conventions, user preferences, past decisions, or learned facts.'
-          param :query, type: 'string', desc: 'Search text (case-insensitive substring match for memory, semantic for Apollo)'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           query: { type: 'string', description: 'Search text (case-insensitive substring match for memory, semantic for Apollo)' }
+                         },
+                         required:   ['query']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(query:)
+          def self.call(query:)
             require 'legion/cli/chat/memory_store'
             sections = []
 
@@ -40,9 +46,7 @@ module Legion
             "Error searching memory: #{e.message}"
           end
 
-          private
-
-          def search_apollo(query)
+          def self.search_apollo(query)
             require 'net/http'
             require 'json'
 
@@ -59,7 +63,7 @@ module Legion
             nil
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

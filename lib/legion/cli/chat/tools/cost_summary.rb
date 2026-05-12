@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,20 +13,25 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class CostSummary < RubyLLM::Tool
+        class CostSummary < Legion::Tools::Base
+          tool_name 'legion.cost_summary'
           description 'Get cost and token usage summary from the running Legion daemon. Shows spending ' \
                       'for today, this week, and this month, plus top cost consumers by worker. ' \
                       'Use this to monitor LLM spending and identify expensive operations.'
-          param :action, type:     'string',
-                         desc:     'Action: "summary" (default), "top" (top consumers), or "worker" (specific worker)',
-                         required: false
-          param :worker_id, type: 'string', desc: 'Worker ID (required for "worker" action)', required: false
-          param :limit, type: 'integer', desc: 'Number of top consumers to show (default: 5)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action:    { type: 'string' },
+                           worker_id: { type: 'string', description: 'Worker ID (required for "worker" action)' },
+                           limit:     { type: 'integer', description: 'Number of top consumers to show (default: 5)' }
+                         },
+                         required:   ['action']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(action: 'summary', worker_id: nil, limit: 5)
+          def self.call(action: 'summary', worker_id: nil, limit: 5)
             case action.to_s
             when 'top'
               handle_top(limit.to_i.clamp(1, 20))
@@ -45,9 +49,7 @@ module Legion
             "Error fetching cost data: #{e.message}"
           end
 
-          private
-
-          def handle_summary
+          def self.handle_summary
             data = api_get('/api/costs/summary?period=month')
             return "API error: #{data[:error]}" if data[:error]
 
@@ -60,7 +62,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_top(limit)
+          def self.handle_top(limit)
             data = api_get('/api/workers')
             return "API error: #{data[:error]}" if data[:error]
 
@@ -77,7 +79,7 @@ module Legion
             lines.join("\n")
           end
 
-          def handle_worker(worker_id)
+          def self.handle_worker(worker_id)
             data = api_get("/api/workers/#{worker_id}/value")
             return "API error: #{data[:error]}" if data[:error]
 
@@ -91,7 +93,7 @@ module Legion
             lines.join("\n")
           end
 
-          def fetch_worker_cost(worker_id)
+          def self.fetch_worker_cost(worker_id)
             data = api_get("/api/workers/#{worker_id}/value")
             data = data[:data] || data
             (data[:total_cost_usd] || 0).to_f
@@ -99,7 +101,7 @@ module Legion
             0.0
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -108,7 +110,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

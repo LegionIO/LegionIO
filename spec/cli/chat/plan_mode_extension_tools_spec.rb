@@ -7,7 +7,7 @@ require 'legion/cli/chat/extension_tool'
 
 RSpec.describe 'Plan mode with extension tools' do
   let(:read_ext_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'Read ext tool'
@@ -16,7 +16,7 @@ RSpec.describe 'Plan mode with extension tools' do
   end
 
   let(:write_ext_tool) do
-    Class.new(RubyLLM::Tool) do
+    Class.new(Legion::Tools::Base) do
       include Legion::CLI::Chat::ExtensionTool
 
       description 'Write ext tool'

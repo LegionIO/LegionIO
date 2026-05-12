@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'ruby_llm'
 require 'legion/cli/chat/tools/escalation_status'
 
 RSpec.describe Legion::CLI::Chat::Tools::EscalationStatus do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:tracker_mod) do
     Module.new do
@@ -31,27 +30,27 @@ RSpec.describe Legion::CLI::Chat::Tools::EscalationStatus do
 
   describe '#execute' do
     it 'returns summary by default' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Model Escalation Summary')
       expect(result).to include('Total Escalations: 3')
       expect(result).to include('quality')
     end
 
     it 'shows escalated-to models' do
-      result = tool.execute
+      result = tool.call
       expect(result).to include('gpt-4o')
       expect(result).to include('Escalated To')
     end
 
     it 'shows rate when requested' do
-      result = tool.execute(action: 'rate')
+      result = tool.call(action: 'rate')
       expect(result).to include('Escalation Rate')
       expect(result).to include('3 escalations')
     end
 
     it 'returns unavailable when tracker not defined' do
       hide_const('Legion::LLM::EscalationTracker')
-      result = tool.execute
+      result = tool.call
       expect(result).to eq('Escalation tracker not available.')
     end
   end

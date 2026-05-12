@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/view_trends'
 
 RSpec.describe Legion::CLI::Chat::Tools::ViewTrends do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   before { allow(tool).to receive(:api_port).and_return(4567) }
 
@@ -18,7 +18,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewTrends do
         hours: 4, bucket_minutes: 120
       )
 
-      result = tool.execute(hours: 4, buckets: 2)
+      result = tool.call(hours: 4, buckets: 2)
       expect(result).to include('Trend (last 4h')
       expect(result).to include('Count')
       expect(result).to include('Avg Cost')
@@ -34,7 +34,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewTrends do
         hours: 24, bucket_minutes: 720
       )
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('rising')
     end
 
@@ -45,28 +45,28 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewTrends do
         hours: 24, bucket_minutes: 720
       )
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('stable')
     end
 
     it 'handles empty trend data' do
       stub_trend(buckets: [], hours: 24, bucket_minutes: 120)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('No trend data available')
     end
 
     it 'handles connection refused' do
       allow(tool).to receive(:api_get).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Legion daemon not running')
     end
 
     it 'handles API error response' do
       allow(tool).to receive(:api_get).and_return({ error: { message: 'LLM unavailable' } })
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('LLM unavailable')
     end
   end

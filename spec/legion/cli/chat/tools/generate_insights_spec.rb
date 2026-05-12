@@ -4,14 +4,14 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/generate_insights'
 
 RSpec.describe Legion::CLI::Chat::Tools::GenerateInsights do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   before { allow(tool).to receive(:api_port).and_return(4567) }
 
   describe '#execute' do
     it 'generates a comprehensive report' do
       stub_all_endpoints
-      result = tool.execute
+      result = tool.call
       expect(result).to include('System Insights Report')
       expect(result).to include('Health: ok')
       expect(result).to include('Anomalies: None detected')
@@ -22,13 +22,13 @@ RSpec.describe Legion::CLI::Chat::Tools::GenerateInsights do
       stub_all_endpoints(
         anomalies: { data: { anomalies: [{ metric: 'Average cost', ratio: 5.0, severity: 'critical' }] } }
       )
-      result = tool.execute
+      result = tool.call
       expect(result).to include('[CRITICAL] Average cost')
     end
 
     it 'shows trend direction' do
       stub_all_endpoints
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Trend (24h)')
     end
 
@@ -36,27 +36,27 @@ RSpec.describe Legion::CLI::Chat::Tools::GenerateInsights do
       stub_all_endpoints(
         anomalies: { data: { anomalies: [{ metric: 'Average cost', ratio: 3.0, severity: 'warning' }] } }
       )
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Recommendations')
       expect(result).to include('model downgrade')
     end
 
     it 'handles daemon not running' do
       allow(tool).to receive(:safe_fetch).and_return(nil)
-      result = tool.execute
+      result = tool.call
       expect(result).to include('daemon not running')
     end
 
     it 'handles connection refused' do
       allow(tool).to receive(:gather_sections).and_raise(Errno::ECONNREFUSED)
-      result = tool.execute
+      result = tool.call
       expect(result).to include('daemon not running')
     end
 
     it 'handles partial data gracefully' do
       allow(tool).to receive(:safe_fetch).and_return(nil)
       allow(tool).to receive(:safe_fetch).with('/api/health').and_return({ data: { status: 'ok' } })
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Health: ok')
     end
   end

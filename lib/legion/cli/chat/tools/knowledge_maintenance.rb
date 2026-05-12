@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,18 +13,24 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class KnowledgeMaintenance < RubyLLM::Tool
+        class KnowledgeMaintenance < Legion::Tools::Base
+          tool_name 'legion.knowledge_maintenance'
           description 'Run maintenance operations on the Apollo knowledge graph. ' \
                       'Use decay_cycle to reduce confidence of old or uncorroborated entries over time. ' \
                       'Use corroboration to cross-verify entries and boost confidence of mutually supporting facts.'
-          param :action, type: 'string',
-                         desc: 'Maintenance action: "decay_cycle" (age-based confidence decay) or "corroboration" (cross-verify entries)'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string' }
+                         },
+                         required:   ['action']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
           VALID_ACTIONS = %w[decay_cycle corroboration].freeze
 
-          def execute(action:)
+          def self.call(action:)
             action = action.to_s.strip
             return "Invalid action: #{action}. Must be one of: #{VALID_ACTIONS.join(', ')}" unless VALID_ACTIONS.include?(action)
 
@@ -40,9 +45,7 @@ module Legion
             "Error running maintenance: #{e.message}"
           end
 
-          private
-
-          def run_maintenance(action)
+          def self.run_maintenance(action)
             uri = URI("http://#{DEFAULT_HOST}:#{apollo_port}/api/apollo/maintenance")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 3
@@ -54,7 +57,7 @@ module Legion
             parsed[:data] || parsed
           end
 
-          def apollo_port
+          def self.apollo_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT
@@ -62,7 +65,7 @@ module Legion
             DEFAULT_PORT
           end
 
-          def format_result(action, data)
+          def self.format_result(action, data)
             case action
             when 'decay_cycle'
               format_decay_result(data)
@@ -73,7 +76,7 @@ module Legion
             end
           end
 
-          def format_decay_result(data)
+          def self.format_decay_result(data)
             decayed = data[:decayed_count] || data[:decayed] || 0
             removed = data[:removed_count] || data[:removed] || 0
             header = "Decay cycle complete:\n"
@@ -83,7 +86,7 @@ module Legion
             header
           end
 
-          def format_corroboration_result(data)
+          def self.format_corroboration_result(data)
             checked = data[:checked_count] || data[:checked] || 0
             boosted = data[:boosted_count] || data[:boosted] || 0
             header = "Corroboration check complete:\n"

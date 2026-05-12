@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'json'
 
 begin
@@ -13,15 +12,22 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class SearchTraces < RubyLLM::Tool
+        class SearchTraces < Legion::Tools::Base
+          tool_name 'legion.search_traces'
           description 'Search cognitive memory traces for information from Teams messages, conversations, ' \
                       'meetings, people, and other ingested data. Use this when the user asks about what ' \
                       'someone said, conversation topics, meeting details, or any previously observed context.'
-          param :query, type: 'string', desc: 'Natural language search query (e.g., "what did Bob say about deployment")'
-          param :person, type: 'string', desc: 'Filter by person name (matches peer:Name domain tags)', required: false
-          param :domain, type: 'string', desc: 'Filter by domain tag (e.g., "teams", "meeting", "conversation")', required: false
-          param :trace_type, type: 'string', desc: 'Filter by trace type: episodic, semantic, sensory, identity', required: false
-          param :limit, type: 'integer', desc: 'Max results to return (default: 20)', required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           query:      { type: 'string', description: 'Natural language search query (e.g., "what did Bob say about deployment")' },
+                           person:     { type: 'string', description: 'Filter by person name (matches peer:Name domain tags)' },
+                           domain:     { type: 'string', description: 'Filter by domain tag (e.g., "teams", "meeting", "conversation")' },
+                           trace_type: { type: 'string', description: 'Filter by trace type: episodic, semantic, sensory, identity' },
+                           limit:      { type: 'integer', description: 'Max results to return (default: 20)' }
+                         },
+                         required:   ['query']
+                       })
 
           STRUCTURED_FIELDS = [
             ['Person', 'displayName', :displayName, 'peer', :peer],
@@ -31,7 +37,7 @@ module Legion
             ['Job', 'jobTitle', :jobTitle]
           ].freeze
 
-          def execute(query:, person: nil, domain: nil, trace_type: nil, limit: nil, **) # rubocop:disable Metrics/ParameterLists
+          def self.call(query:, person: nil, domain: nil, trace_type: nil, limit: nil, **) # rubocop:disable Metrics/ParameterLists
             return 'Memory trace system not available (lex-agentic-memory not loaded).' unless trace_store_available?
 
             limit = (limit || 20).clamp(1, 50)
@@ -48,25 +54,23 @@ module Legion
             "Error searching traces: #{e.message}"
           end
 
-          private
-
-          def trace_store_available?
+          def self.trace_store_available?
             load_trace_gem unless defined?(Legion::Extensions::Agentic::Memory::Trace)
             defined?(Legion::Extensions::Agentic::Memory::Trace) &&
               Legion::Extensions::Agentic::Memory::Trace.respond_to?(:shared_store)
           end
 
-          def load_trace_gem
+          def self.load_trace_gem
             require 'legion/extensions/agentic/memory/trace'
           rescue LoadError
             nil
           end
 
-          def store
+          def self.store
             Legion::Extensions::Agentic::Memory::Trace.shared_store
           end
 
-          def collect_traces(person:, domain:, trace_type:, limit:)
+          def self.collect_traces(person:, domain:, trace_type:, limit:)
             if person
               candidates = []
               name_variants = person_name_variants(person)
@@ -92,7 +96,7 @@ module Legion
             store.all_traces(min_strength: 0.01).sort_by { |t| -t[:strength] }.first(limit)
           end
 
-          def rank_by_query(traces:, query:)
+          def self.rank_by_query(traces:, query:)
             keywords = query.downcase.split(/\s+/).reject { |w| w.length < 3 }
             return traces if keywords.empty?
 
@@ -109,7 +113,7 @@ module Legion
             scored.sort_by { |s| -s[:score] }.map { |s| s[:trace] }
           end
 
-          def extract_searchable_text(trace)
+          def self.extract_searchable_text(trace)
             payload = trace[:content_payload] || trace[:content]
             text = case payload
                    when String
@@ -127,7 +131,7 @@ module Legion
             text.downcase
           end
 
-          def flatten_to_text(obj)
+          def self.flatten_to_text(obj)
             case obj
             when Hash
               obj.values.map { |v| flatten_to_text(v) }.join(' ')
@@ -138,7 +142,7 @@ module Legion
             end
           end
 
-          def compute_score(text:, keywords:, trace:)
+          def self.compute_score(text:, keywords:, trace:)
             keyword_hits = keywords.count { |kw| text.include?(kw) }
             return 0.0 if keyword_hits.zero?
 
@@ -149,14 +153,14 @@ module Legion
             (keyword_ratio * 10.0) + (strength_bonus * 2.0) + (recency_bonus * 3.0)
           end
 
-          def recency_score(created_at)
+          def self.recency_score(created_at)
             return 0.0 unless created_at.is_a?(Time)
 
             age_hours = (Time.now.utc - created_at) / 3600.0
             1.0 / (1.0 + (age_hours / 24.0))
           end
 
-          def format_results(traces)
+          def self.format_results(traces)
             parts = traces.map.with_index(1) do |trace, idx|
               payload = trace[:content_payload] || trace[:content]
               content = format_payload(payload)
@@ -169,14 +173,14 @@ module Legion
             "Found #{traces.size} matching traces:\n\n#{parts.join("\n\n")}"
           end
 
-          def format_payload(payload)
+          def self.format_payload(payload)
             data = parse_payload(payload)
             return truncate(data, 300) if data.is_a?(String)
 
             format_structured(data)
           end
 
-          def parse_payload(payload)
+          def self.parse_payload(payload)
             case payload
             when String
               ::JSON.parse(payload)
@@ -189,7 +193,7 @@ module Legion
             payload
           end
 
-          def format_structured(data)
+          def self.format_structured(data)
             parts = STRUCTURED_FIELDS.filter_map do |label, *keys|
               val = keys.lazy.filter_map { |k| data[k] }.first
               "#{label}: #{val}" if val
@@ -200,11 +204,11 @@ module Legion
             truncate(flatten_to_text(data), 300)
           end
 
-          def truncate(text, max)
+          def self.truncate(text, max)
             text.length > max ? "#{text[0..(max - 3)]}..." : text
           end
 
-          def format_age(created_at)
+          def self.format_age(created_at)
             return 'age unknown' unless created_at.is_a?(Time)
 
             seconds = Time.now.utc - created_at
@@ -217,7 +221,7 @@ module Legion
             end
           end
 
-          def person_name_variants(name)
+          def self.person_name_variants(name)
             parts = name.strip.split(/[\s,]+/).reject(&:empty?)
             variants = [name]
 
@@ -235,7 +239,7 @@ module Legion
             variants.uniq
           end
 
-          def fuzzy_person_search(person, limit: 60)
+          def self.fuzzy_person_search(person, limit: 60)
             needle = person.downcase
             parts = needle.split(/[\s,]+/).reject(&:empty?)
 

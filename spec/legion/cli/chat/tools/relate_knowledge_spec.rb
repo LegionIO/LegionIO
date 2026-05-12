@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/relate_knowledge'
 
 RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -29,7 +29,7 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(entry_id: 42)
+      result = tool.call(entry_id: 42)
       expect(result).to include('Related entries for #42')
       expect(result).to include('[supports]')
       expect(result).to include('AMQP uses RabbitMQ')
@@ -41,7 +41,7 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
       allow(response).to receive(:body).and_return(JSON.generate({ data: { entries: [] } }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(entry_id: 99)
+      result = tool.call(entry_id: 99)
       expect(result).to include('No related entries found')
     end
 
@@ -50,14 +50,14 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
       allow(response).to receive(:body).and_return(JSON.generate({ data: { error: 'not found' } }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(entry_id: 1)
+      result = tool.call(entry_id: 1)
       expect(result).to include('Apollo error: not found')
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
 
-      result = tool.execute(entry_id: 1)
+      result = tool.call(entry_id: 1)
       expect(result).to include('Apollo unavailable')
     end
 
@@ -69,7 +69,7 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
         response
       end
 
-      tool.execute(entry_id: 1, depth: 10)
+      tool.call(entry_id: 1, depth: 10)
     end
 
     it 'passes relation_types as query param' do
@@ -80,7 +80,7 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
         response
       end
 
-      tool.execute(entry_id: 1, relation_types: 'supports,contradicts')
+      tool.call(entry_id: 1, relation_types: 'supports,contradicts')
     end
 
     it 'includes depth in output header' do
@@ -90,7 +90,7 @@ RSpec.describe Legion::CLI::Chat::Tools::RelateKnowledge do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute(entry_id: 5, depth: 3)
+      result = tool.call(entry_id: 5, depth: 3)
       expect(result).to include('depth: 3')
     end
   end

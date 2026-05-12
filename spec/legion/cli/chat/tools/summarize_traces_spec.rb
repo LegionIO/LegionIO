@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/summarize_traces'
 
 RSpec.describe Legion::CLI::Chat::Tools::SummarizeTraces do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   describe '#execute' do
     before do
@@ -26,7 +26,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SummarizeTraces do
                                                                      top_workers:      [{ id: 'worker-1', count: 60 }]
                                                                    })
 
-      result = tool.execute(query: 'all tasks today')
+      result = tool.call(query: 'all tasks today')
       expect(result).to include('150 records')
       expect(result).to include('45000 in / 12000 out')
       expect(result).to include('$3.4567')
@@ -39,7 +39,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SummarizeTraces do
     it 'returns error when filter generation fails' do
       allow(Legion::TraceSearch).to receive(:summarize).and_return({ error: 'no filter generated' })
 
-      result = tool.execute(query: 'gibberish')
+      result = tool.call(query: 'gibberish')
       expect(result).to include('Error: no filter generated')
     end
 
@@ -57,7 +57,7 @@ RSpec.describe Legion::CLI::Chat::Tools::SummarizeTraces do
                                                                      top_workers:      []
                                                                    })
 
-      result = tool.execute(query: 'empty query')
+      result = tool.call(query: 'empty query')
       expect(result).to include('0 records')
       expect(result).not_to include('Time range')
       expect(result).not_to include('Status')
@@ -68,14 +68,14 @@ RSpec.describe Legion::CLI::Chat::Tools::SummarizeTraces do
       hide_const('Legion::TraceSearch')
       allow(tool).to receive(:require).with('legion/trace_search').and_raise(LoadError)
 
-      result = tool.execute(query: 'test')
+      result = tool.call(query: 'test')
       expect(result).to include('Trace search unavailable')
     end
 
     it 'handles unexpected errors' do
       allow(Legion::TraceSearch).to receive(:summarize).and_raise(StandardError, 'db timeout')
 
-      result = tool.execute(query: 'test')
+      result = tool.call(query: 'test')
       expect(result).to include('Error summarizing traces: db timeout')
     end
   end

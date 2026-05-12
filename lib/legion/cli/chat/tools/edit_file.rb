@@ -1,25 +1,31 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'legion/cli/chat_command'
 
 module Legion
   module CLI
     class Chat
       module Tools
-        class EditFile < RubyLLM::Tool
+        class EditFile < Legion::Tools::Base
+          tool_name 'legion.edit_file'
           description 'Edit a file using either string replacement (old_text → new_text) or ' \
                       'line-number replacement (start_line/end_line → new_text). ' \
                       'String mode requires an exact unique match. ' \
                       'Line mode replaces lines start_line..end_line (1-based, inclusive); ' \
                       'omit end_line to replace a single line.'
-          param :path,       type: 'string',  desc: 'Path to the file to edit'
-          param :new_text,   type: 'string',  desc: 'The replacement text'
-          param :old_text,   type: 'string',  desc: 'The exact text to find and replace (string mode)'
-          param :start_line, type: 'integer', desc: 'First line to replace, 1-based (line mode)'
-          param :end_line,   type: 'integer', desc: 'Last line to replace, 1-based inclusive (line mode; defaults to start_line)'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           path:       { type: 'string', description: 'Path to the file to edit' },
+                           new_text:   { type: 'string', description: 'The replacement text' },
+                           old_text:   { type: 'string', description: 'The exact text to find and replace (string mode)' },
+                           start_line: { type: 'integer', description: 'First line to replace, 1-based (line mode)' },
+                           end_line:   { type: 'integer', description: 'Last line to replace, 1-based inclusive (line mode; defaults to start_line)' }
+                         },
+                         required:   %w[path new_text]
+                       })
 
-          def execute(path:, new_text:, old_text: nil, start_line: nil, end_line: nil)
+          def self.call(path:, new_text:, old_text: nil, start_line: nil, end_line: nil)
             expanded = File.expand_path(path)
             return "Error: file not found: #{path}" unless File.exist?(expanded)
 
@@ -37,9 +43,7 @@ module Legion
             "Error editing #{path}: #{e.message}"
           end
 
-          private
-
-          def string_replace(expanded, old_text, new_text)
+          def self.string_replace(expanded, old_text, new_text)
             content = File.read(expanded, encoding: 'utf-8')
             occurrences = content.scan(old_text).length
 
@@ -51,7 +55,7 @@ module Legion
             "Replaced 1 occurrence in #{expanded}"
           end
 
-          def line_replace(expanded, new_text, start_line, end_line)
+          def self.line_replace(expanded, new_text, start_line, end_line)
             lines = File.readlines(expanded, encoding: 'utf-8')
             total = lines.length
 

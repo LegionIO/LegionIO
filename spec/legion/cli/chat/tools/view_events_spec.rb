@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'legion/cli/chat/tools/view_events'
 
 RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
-  subject(:tool) { described_class.new }
+  subject(:tool) { described_class }
 
   let(:mock_http) { instance_double(Net::HTTP) }
 
@@ -29,7 +29,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('Recent Events (2)')
       expect(result).to include('runner.completed')
       expect(result).to include('extension: lex-node')
@@ -42,7 +42,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
       allow(response).to receive(:body).and_return(JSON.generate({ data: [] }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('No recent events')
     end
 
@@ -54,7 +54,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
         response
       end
 
-      tool.execute(count: 5)
+      tool.call(count: 5)
     end
 
     it 'clamps count to valid range' do
@@ -65,12 +65,12 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
         response
       end
 
-      tool.execute(count: 999)
+      tool.call(count: 999)
     end
 
     it 'handles connection refused' do
       allow(Net::HTTP).to receive(:new).and_raise(Errno::ECONNREFUSED)
-      result = tool.execute
+      result = tool.call
       expect(result).to include('daemon not running')
     end
 
@@ -79,7 +79,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
       allow(response).to receive(:body).and_return(JSON.generate({ error: 'events unavailable' }))
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('API error: events unavailable')
     end
 
@@ -92,7 +92,7 @@ RSpec.describe Legion::CLI::Chat::Tools::ViewEvents do
       )
       allow(mock_http).to receive(:get).and_return(response)
 
-      result = tool.execute
+      result = tool.call
       expect(result).to include('service.ready')
       expect(result).not_to include('—')
     end

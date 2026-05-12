@@ -4,16 +4,19 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class SchedulingStatus < RubyLLM::Tool
+        class SchedulingStatus < Legion::Tools::Base
+          tool_name 'legion.scheduling_status'
           description 'Show LLM scheduling and batch queue status: peak/off-peak state, ' \
                       'batch queue depth, and scheduling configuration'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string' }
+                         },
+                         required:   ['action']
+                       })
 
-          param :action,
-                type:     :string,
-                desc:     'Action: "overview" (default), "scheduling" (peak/off-peak detail), "batch" (queue detail)',
-                required: false
-
-          def execute(action: 'overview')
+          def self.call(action: 'overview')
             case action.to_s
             when 'scheduling' then format_scheduling
             when 'batch'      then format_batch
@@ -21,9 +24,7 @@ module Legion
             end
           end
 
-          private
-
-          def format_overview
+          def self.format_overview
             lines = ["LLM Scheduling & Batch Overview:\n"]
 
             if scheduling_available?
@@ -49,7 +50,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_scheduling
+          def self.format_scheduling
             return 'Scheduling module not available.' unless scheduling_available?
 
             s = Legion::LLM::Scheduling.status
@@ -63,7 +64,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_batch
+          def self.format_batch
             return 'Batch module not available.' unless batch_available?
 
             b = Legion::LLM::Batch.status
@@ -86,11 +87,11 @@ module Legion
             lines.join("\n")
           end
 
-          def scheduling_available?
+          def self.scheduling_available?
             defined?(Legion::LLM::Scheduling)
           end
 
-          def batch_available?
+          def self.batch_available?
             defined?(Legion::LLM::Batch)
           end
         end

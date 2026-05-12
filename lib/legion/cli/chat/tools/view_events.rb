@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'ruby_llm'
 require 'net/http'
 require 'json'
 
@@ -14,18 +13,23 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class ViewEvents < RubyLLM::Tool
+        class ViewEvents < Legion::Tools::Base
+          tool_name 'legion.view_events'
           description 'View recent events from the Legion event bus. Shows system events like task completions, ' \
                       'extension lifecycle, runner failures, worker state changes, and alerts. ' \
                       'Use this to understand what is happening in the running daemon right now.'
-          param :count, type:     'integer',
-                        desc:     'Number of recent events to fetch (default: 15, max: 100)',
-                        required: false
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           count: { type: 'integer' }
+                         },
+                         required:   ['count']
+                       })
 
           DEFAULT_PORT = 4567
           DEFAULT_HOST = '127.0.0.1'
 
-          def execute(count: 15)
+          def self.call(count: 15)
             count = count.to_i.clamp(1, 100)
             data = api_get("/api/events/recent?count=#{count}")
             return "API error: #{data[:error]}" if data[:error]
@@ -42,9 +46,7 @@ module Legion
             "Error fetching events: #{e.message}"
           end
 
-          private
-
-          def format_events(events)
+          def self.format_events(events)
             lines = ["Recent Events (#{events.size}):\n"]
             events.each do |ev|
               name = ev[:event] || ev['event'] || 'unknown'
@@ -57,7 +59,7 @@ module Legion
             lines.join("\n")
           end
 
-          def extract_detail(event)
+          def self.extract_detail(event)
             parts = []
             %i[extension worker_id status severity message rule].each do |key|
               val = event[key] || event[key.to_s]
@@ -66,7 +68,7 @@ module Legion
             parts.empty? ? nil : parts.join(', ')
           end
 
-          def api_get(path)
+          def self.api_get(path)
             uri = URI("http://#{DEFAULT_HOST}:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
             http.open_timeout = 2
@@ -75,7 +77,7 @@ module Legion
             ::JSON.parse(response.body, symbolize_names: true)
           end
 
-          def api_port
+          def self.api_port
             return DEFAULT_PORT unless defined?(Legion::Settings)
 
             Legion::Settings[:api]&.dig(:port) || DEFAULT_PORT

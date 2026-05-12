@@ -4,17 +4,19 @@ module Legion
   module CLI
     class Chat
       module Tools
-        class MemoryStatus < RubyLLM::Tool
+        class MemoryStatus < Legion::Tools::Base
+          tool_name 'legion.memory_status'
           description 'Show persistent memory status: project and global memory entries, ' \
                       'Apollo knowledge store stats, and session history overview'
+          input_schema({
+                         type:       'object',
+                         properties: {
+                           action: { type: 'string', description: 'Action: "overview", "memories", "apollo", or "sessions"' }
+                         },
+                         required:   []
+                       })
 
-          param :action,
-                type:     :string,
-                desc:     'Action: "overview" (default), "memories" (local memory detail), ' \
-                          '"apollo" (knowledge graph stats), "sessions" (saved session list)',
-                required: false
-
-          def execute(action: 'overview')
+          def self.call(action: 'overview')
             case action.to_s
             when 'memories' then format_memories
             when 'apollo'   then format_apollo
@@ -23,9 +25,7 @@ module Legion
             end
           end
 
-          private
-
-          def format_overview
+          def self.format_overview
             lines = ["Memory & Knowledge Overview:\n"]
 
             mem = memory_stats
@@ -45,7 +45,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_memories
+          def self.format_memories
             require 'legion/cli/chat/memory_store'
             lines = ["Persistent Memory Detail:\n"]
 
@@ -73,7 +73,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_apollo
+          def self.format_apollo
             stats = apollo_stats
             return 'Apollo knowledge store is not available.' unless stats
 
@@ -96,7 +96,7 @@ module Legion
             lines.join("\n")
           end
 
-          def format_sessions
+          def self.format_sessions
             require 'legion/cli/chat/session_store'
             sessions = Chat::SessionStore.list
             return 'No saved sessions found.' if sessions.empty?
@@ -113,7 +113,7 @@ module Legion
             lines.join("\n")
           end
 
-          def memory_stats
+          def self.memory_stats
             require 'legion/cli/chat/memory_store'
             {
               project: Chat::MemoryStore.list(scope: :project).size,
@@ -123,7 +123,7 @@ module Legion
             { project: 0, global: 0 }
           end
 
-          def apollo_stats
+          def self.apollo_stats
             return nil unless apollo_available?
 
             data = safe_fetch('/api/apollo/stats')
@@ -134,18 +134,18 @@ module Legion
             nil
           end
 
-          def session_list
+          def self.session_list
             require 'legion/cli/chat/session_store'
             Chat::SessionStore.list
           rescue StandardError
             []
           end
 
-          def apollo_available?
+          def self.apollo_available?
             defined?(Legion::Data)
           end
 
-          def safe_fetch(path)
+          def self.safe_fetch(path)
             require 'net/http'
             uri = URI("http://127.0.0.1:#{api_port}#{path}")
             http = Net::HTTP.new(uri.host, uri.port)
@@ -159,15 +159,15 @@ module Legion
             nil
           end
 
-          def api_port
+          def self.api_port
             (defined?(Legion::Settings) && Legion::Settings[:api] && Legion::Settings[:api][:port]) || 4567
           end
 
-          def truncate(str, max)
+          def self.truncate(str, max)
             str.length > max ? "#{str[0, max]}..." : str
           end
 
-          def time_ago(time)
+          def self.time_ago(time)
             return '?' unless time
 
             seconds = Time.now - time

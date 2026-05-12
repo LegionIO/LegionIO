@@ -192,7 +192,7 @@ RSpec.describe 'LLM inference API route' do
         end
       end)
 
-      stub_const('RubyLLM::Tool', Class.new)
+      stub_const('Legion::Tools::Base', Class.new)
       pr = make_pipeline_response
       stub_const('Legion::LLM::Inference::Executor', Class.new do
         define_method(:initialize) { |_req| nil }
