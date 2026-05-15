@@ -165,7 +165,13 @@ module Legion
         end
 
         def tool_parameters(tool)
-          tool.respond_to?(:parameters) ? tool.parameters : {}
+          if tool.respond_to?(:parameters)
+            tool.parameters
+          elsif tool.respond_to?(:input_schema)
+            tool.input_schema || {}
+          else
+            {}
+          end
         end
 
         def execute_tool_calls(tool_calls, assistant_content)

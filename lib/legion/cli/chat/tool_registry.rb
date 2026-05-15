@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'legion/tools/base'
 require 'legion/cli/chat_command'
 
 require 'legion/cli/chat/tools/read_file'
