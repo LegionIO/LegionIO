@@ -27,10 +27,28 @@ end
 require 'legion/crypt'
 require 'legion/cache'
 
+# Pre-load legion-llm (or stub it) so Legion::LLM and Legion::LLM::Settings
+# exist before the mocks below are attached — same rationale as legion-data.
+begin
+  require 'legion/llm'
+rescue LoadError
+  module Legion
+    module LLM
+      module Settings
+        def self.default = {}
+      end
+
+      def self.start(**) = nil
+      def self.shutdown(**) = nil
+    end
+  end
+  $LOADED_FEATURES << 'legion/llm'
+end
+
 RSpec.describe Legion::CLI::Connection do
   before do
     %i[@logging_ready @settings_ready @data_ready @transport_ready
-       @crypt_ready @cache_ready @llm_ready @config_dir @log_level].each do |ivar|
+       @crypt_ready @cache_ready @llm_ready @llm_settings_ready @config_dir @log_level].each do |ivar|
       described_class.instance_variable_set(ivar, nil)
     end
   end
@@ -311,6 +329,108 @@ RSpec.describe Legion::CLI::Connection do
   end
 
   # ---------------------------------------------------------------------------
+  # ensure_llm_settings
+  # ---------------------------------------------------------------------------
+  describe '.ensure_llm_settings' do
+    before do
+      stub_logging_and_settings
+      allow(Legion::Settings).to receive(:merge_settings)
+      allow(Legion::LLM::Settings).to receive(:default).and_return({ daemon: { url: 'http://127.0.0.1:4567' } })
+      allow(Legion::LLM).to receive(:start)
+    end
+
+    it 'calls ensure_settings first' do
+      described_class.ensure_llm_settings
+      expect(Legion::Settings).to have_received(:load)
+    end
+
+    it 'merges the LLM defaults into the :llm namespace (populating daemon.url)' do
+      described_class.ensure_llm_settings
+      expect(Legion::Settings).to have_received(:merge_settings)
+        .with(:llm, { daemon: { url: 'http://127.0.0.1:4567' } })
+    end
+
+    it 'does NOT boot the local LLM stack (Legion::LLM.start)' do
+      described_class.ensure_llm_settings
+      expect(Legion::LLM).not_to have_received(:start)
+    end
+
+    it 'sets @llm_settings_ready to true' do
+      described_class.ensure_llm_settings
+      expect(described_class.instance_variable_get(:@llm_settings_ready)).to be(true)
+    end
+
+    it 'is idempotent: only merges once' do
+      described_class.ensure_llm_settings
+      described_class.ensure_llm_settings
+      expect(Legion::Settings).to have_received(:merge_settings).once
+    end
+
+    context 'when LoadError is raised (gem not available)' do
+      before { allow(Legion::LLM::Settings).to receive(:default).and_raise(LoadError, 'cannot load') }
+
+      it 'raises CLI::Error with gem install hint' do
+        expect { described_class.ensure_llm_settings }.to raise_error(
+          Legion::CLI::Error,
+          /legion-llm gem is not installed/
+        )
+      end
+    end
+
+    context 'when the merge fails with StandardError' do
+      before { allow(Legion::Settings).to receive(:merge_settings).and_raise(StandardError, 'bad schema') }
+
+      it 'raises CLI::Error with the settings failure message' do
+        expect { described_class.ensure_llm_settings }.to raise_error(
+          Legion::CLI::Error,
+          /LLM settings initialization failed: bad schema/
+        )
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # ensure_llm (delegates the settings merge to ensure_llm_settings, then boots)
+  # ---------------------------------------------------------------------------
+  describe '.ensure_llm' do
+    before do
+      stub_logging_and_settings
+      allow(Legion::Settings).to receive(:merge_settings)
+      allow(Legion::LLM::Settings).to receive(:default).and_return({})
+      allow(Legion::LLM).to receive(:start)
+    end
+
+    it 'merges LLM defaults and boots the local LLM stack' do
+      described_class.ensure_llm
+      expect(Legion::Settings).to have_received(:merge_settings).with(:llm, {})
+      expect(Legion::LLM).to have_received(:start)
+    end
+
+    it 'sets both @llm_settings_ready and @llm_ready to true' do
+      described_class.ensure_llm
+      expect(described_class.instance_variable_get(:@llm_settings_ready)).to be(true)
+      expect(described_class.instance_variable_get(:@llm_ready)).to be(true)
+    end
+
+    it 'is idempotent: does not boot a second time' do
+      described_class.ensure_llm
+      described_class.ensure_llm
+      expect(Legion::LLM).to have_received(:start).once
+    end
+
+    context 'when Legion::LLM.start fails with StandardError' do
+      before { allow(Legion::LLM).to receive(:start).and_raise(StandardError, 'discovery failed') }
+
+      it 'raises CLI::Error with the initialization failure message' do
+        expect { described_class.ensure_llm }.to raise_error(
+          Legion::CLI::Error,
+          /LLM initialization failed: discovery failed/
+        )
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Predicate methods
   # ---------------------------------------------------------------------------
   describe '.settings?' do
@@ -352,6 +472,20 @@ RSpec.describe Legion::CLI::Connection do
       allow(Legion::Transport::Connection).to receive(:setup)
       described_class.ensure_transport
       expect(described_class.transport?).to be(true)
+    end
+  end
+
+  describe '.llm_settings?' do
+    it 'returns false when defaults have not been merged' do
+      expect(described_class.llm_settings?).to be(false)
+    end
+
+    it 'returns true after ensure_llm_settings succeeds' do
+      stub_logging_and_settings
+      allow(Legion::Settings).to receive(:merge_settings)
+      allow(Legion::LLM::Settings).to receive(:default).and_return({})
+      described_class.ensure_llm_settings
+      expect(described_class.llm_settings?).to be(true)
     end
   end
 

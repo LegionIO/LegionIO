@@ -182,7 +182,10 @@ module Legion
         def setup_connection
           Connection.config_dir = options[:config_dir] if options[:config_dir]
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
-          Connection.ensure_settings
+          # Merge LLM defaults (populates llm.daemon.url) so DaemonClient.available?
+          # can resolve the daemon. This is intentionally lighter than ensure_llm:
+          # we route through the daemon, so the local LLM stack is not booted here.
+          Connection.ensure_llm_settings
 
           require 'legion/llm/call/daemon_client'
           return if Legion::LLM::Call::DaemonClient.available?
