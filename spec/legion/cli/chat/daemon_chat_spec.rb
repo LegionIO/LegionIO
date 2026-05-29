@@ -8,10 +8,11 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
 
   # Ensure the stub constant exists before each test.
   before do
-    unless defined?(Legion::LLM::DaemonClient)
+    unless defined?(Legion::LLM::Call::DaemonClient)
       stub_const('Legion::LLM', Module.new) unless defined?(Legion::LLM)
+      stub_const('Legion::LLM::Call', Module.new) unless defined?(Legion::LLM::Call)
       daemon_mod = Module.new
-      stub_const('Legion::LLM::DaemonClient', daemon_mod)
+      stub_const('Legion::LLM::Call::DaemonClient', daemon_mod)
     end
   end
 
@@ -28,7 +29,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
         model:         'claude-sonnet-4-6'
       }
     }
-    allow(Legion::LLM::DaemonClient).to receive(:inference).and_return(result)
+    allow(Legion::LLM::Call::DaemonClient).to receive(:inference).and_return(result)
     result
   end
 
@@ -47,7 +48,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       stub_inference
       responses = []
       chat.ask('test') { |chunk| responses << chunk.content }
-      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+      expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).with(
         hash_including(messages: array_including(hash_including(role: 'user', content: 'test')))
       )
     end
@@ -78,7 +79,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
     it 'passes caller and conversation_id to DaemonClient.inference' do
       stub_inference
       chat.ask('test')
-      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+      expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).with(
         hash_including(
           caller:          hash_including(requested_by: hash_including(type: :human)),
           conversation_id: chat.conversation_id
@@ -95,7 +96,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       chat.with_instructions('You are a helpful assistant.')
       chat.ask('test')
 
-      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+      expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).with(
         hash_including(
           messages: array_including(hash_including(role: 'system', content: 'You are a helpful assistant.'))
         )
@@ -121,7 +122,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       chat.with_tools(fake_tool)
       chat.ask('read something')
 
-      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+      expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).with(
         hash_including(
           tools: array_including(hash_including(name: 'read_file'))
         )
@@ -154,7 +155,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       chat.add_message(role: :user, content: 'injected context')
       chat.ask('follow up')
 
-      expect(Legion::LLM::DaemonClient).to have_received(:inference).with(
+      expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).with(
         hash_including(
           messages: array_including(hash_including(role: 'user', content: 'injected context'))
         )
@@ -169,7 +170,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
 
       # After reset, only the new message should appear in the next inference call
       captured_messages = nil
-      allow(Legion::LLM::DaemonClient).to receive(:inference) do |messages:, **_|
+      allow(Legion::LLM::Call::DaemonClient).to receive(:inference) do |messages:, **_|
         captured_messages = messages
         {
           status: :immediate,
@@ -223,7 +224,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
         }
       }
 
-      allow(Legion::LLM::DaemonClient).to receive(:inference)
+      allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
         .and_return(first_response, final_response)
 
       chat.with_tools(fake_tool)
@@ -257,7 +258,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
         }
       }
 
-      allow(Legion::LLM::DaemonClient).to receive(:inference)
+      allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
         .and_return(first_response, final_response)
 
       chat.with_tools(fake_tool)
@@ -301,13 +302,13 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
         stub_inference(content: 'follow up answer')
         chat.ask('follow up')
 
-        expect(Legion::LLM::DaemonClient).to have_received(:inference).twice
+        expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).twice
       end
     end
 
     context 'when daemon returns an error status' do
       it 'raises CLI::Error' do
-        allow(Legion::LLM::DaemonClient).to receive(:inference)
+        allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
           .and_return({ status: :error, error: 'connection refused' })
 
         expect { chat.ask('test') }.to raise_error(Legion::CLI::Error, /Daemon inference error/)
@@ -316,7 +317,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
 
     context 'when daemon is unavailable' do
       it 'raises CLI::Error' do
-        allow(Legion::LLM::DaemonClient).to receive(:inference)
+        allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
           .and_return({ status: :unavailable })
 
         expect { chat.ask('test') }.to raise_error(Legion::CLI::Error, /unavailable/)
@@ -360,7 +361,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       end
 
       before do
-        allow(Legion::LLM::DaemonClient).to receive(:inference)
+        allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
           .and_return(tool_call_response, final_response)
         chat.with_tools(fake_tool)
       end
@@ -368,7 +369,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       it 'loops until a non-tool response is received' do
         response = chat.ask('read main.rb')
         expect(response.content).to eq('Based on the file: it looks good.')
-        expect(Legion::LLM::DaemonClient).to have_received(:inference).twice
+        expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).twice
       end
 
       it 'appends tool result messages to the conversation' do
@@ -376,17 +377,17 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
 
         # On the second call, messages should include the tool result
         second_call_messages = nil
-        allow(Legion::LLM::DaemonClient).to receive(:inference) do |messages:, **|
+        allow(Legion::LLM::Call::DaemonClient).to receive(:inference) do |messages:, **|
           second_call_messages ||= messages if second_call_messages.nil?
           final_response
         end
 
-        expect(Legion::LLM::DaemonClient).to have_received(:inference).twice
+        expect(Legion::LLM::Call::DaemonClient).to have_received(:inference).twice
       end
 
       it 'returns "Unknown tool: name" when tool is not registered' do
         chat.with_tools # clear tools
-        allow(Legion::LLM::DaemonClient).to receive(:inference)
+        allow(Legion::LLM::Call::DaemonClient).to receive(:inference)
           .and_return(tool_call_response, final_response)
 
         # Should not raise — returns graceful error string as tool result

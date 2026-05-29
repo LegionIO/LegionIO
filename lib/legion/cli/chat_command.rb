@@ -184,8 +184,8 @@ module Legion
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_settings
 
-          require 'legion/llm/daemon_client'
-          return if Legion::LLM::DaemonClient.available?
+          require 'legion/llm/call/daemon_client'
+          return if Legion::LLM::Call::DaemonClient.available?
 
           raise CLI::Error,
                 "LegionIO daemon is not running. Start it with: legionio start\n  " \

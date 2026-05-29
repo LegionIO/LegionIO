@@ -4,7 +4,7 @@ require 'securerandom'
 require 'legion/cli/chat_command'
 
 begin
-  require 'legion/llm/daemon_client'
+  require 'legion/llm/call/daemon_client'
 rescue LoadError
   # legion-llm not yet loaded; DaemonClient must be defined before DaemonChat#ask is called.
 end
@@ -118,7 +118,7 @@ module Legion
         private
 
         def call_daemon_inference
-          Legion::LLM::DaemonClient.inference(
+          Legion::LLM::Call::DaemonClient.inference(
             messages:        build_messages,
             tools:           build_tool_schemas,
             model:           @model.id,
