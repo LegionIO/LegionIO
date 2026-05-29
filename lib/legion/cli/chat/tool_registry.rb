@@ -2,6 +2,21 @@
 
 require 'legion/cli/chat_command'
 
+# The chat tool classes below subclass Legion::Tools::Base, and
+# ExtensionToolLoader filters extension constants against it as well. On the
+# `ask` / `chat prompt` client path nothing boots Legion::Service, so neither
+# legion.rb nor legion/service.rb (the only files that require 'legion/tools')
+# has run, leaving Legion::Tools undefined. Require it here, before the tool
+# files load, or the first `require` below raises
+# `uninitialized constant Legion::Tools`.
+#
+# legion/tools eagerly loads Tools::Do/Status/Config, which `include
+# Legion::Logging::Helper` at class-definition time, so legion/logging must be
+# loaded first (it defines Helper) to keep the require order safe regardless of
+# how the registry is reached.
+require 'legion/logging'
+require 'legion/tools'
+
 require 'legion/cli/chat/tools/read_file'
 require 'legion/cli/chat/tools/write_file'
 require 'legion/cli/chat/tools/edit_file'
