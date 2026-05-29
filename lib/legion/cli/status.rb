@@ -25,7 +25,7 @@ module Legion
           port = options[:port] || 4567
           host = options[:host] || '127.0.0.1'
 
-          uri = URI("http://#{host}:#{port}/ready")
+          uri = URI("http://#{host}:#{port}/api/ready")
           response = Net::HTTP.get_response(uri)
           JSON.parse(response.body, symbolize_names: true)
         rescue StandardError => e
@@ -39,14 +39,15 @@ module Legion
             return
           end
 
-          ready = api_status[:ready]
+          payload = api_status[:data].is_a?(Hash) ? api_status[:data] : api_status
+          ready = payload[:ready]
           out.header('Legion Service')
           puts "  #{out.colorize('STATUS:', :cyan)} #{ready ? out.colorize('RUNNING', :green) : out.colorize('STARTING', :yellow)}"
           out.spacer
 
-          if api_status[:components]
+          if payload[:components]
             out.header('Components')
-            api_status[:components].each do |component, is_ready|
+            payload[:components].each do |component, is_ready|
               status_str = is_ready ? out.colorize('ready', :green) : out.colorize('not ready', :yellow)
               puts "  #{component.to_s.ljust(15)} #{status_str}"
             end
