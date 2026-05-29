@@ -124,12 +124,29 @@ module Legion
           raise CLI::Error, 'lex-knowledge gem is not installed (gem install lex-knowledge)'
         end
 
-        def ensure_llm
-          return if @llm_ready
+        # Merge Legion::LLM::Settings.default into the :llm namespace without
+        # booting the local LLM stack. This is all the daemon-routing CLI paths
+        # (chat prompt / ask) need: the merge populates llm.daemon.url so
+        # Legion::LLM::Call::DaemonClient.available? can resolve the daemon.
+        # Full local init (providers, discovery, transports) is deliberately
+        # skipped — that work already happened in the running daemon.
+        def ensure_llm_settings
+          return if @llm_settings_ready
 
           ensure_settings
           require 'legion/llm'
           Legion::Settings.merge_settings(:llm, Legion::LLM::Settings.default)
+          @llm_settings_ready = true
+        rescue LoadError
+          raise CLI::Error, 'legion-llm gem is not installed (gem install legion-llm)'
+        rescue StandardError => e
+          raise CLI::Error, "LLM settings initialization failed: #{e.message}"
+        end
+
+        def ensure_llm
+          return if @llm_ready
+
+          ensure_llm_settings
           Legion::LLM.start
           @llm_ready = true
         rescue LoadError
@@ -152,6 +169,10 @@ module Legion
 
         def llm?
           @llm_ready == true
+        end
+
+        def llm_settings?
+          @llm_settings_ready == true
         end
 
         def shutdown
