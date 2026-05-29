@@ -75,6 +75,9 @@ module Legion
 
         def check_network_db(adapter, _database)
           require 'legion/data'
+          # Resolve lease:// and vault:// credential references before connecting,
+          # otherwise the literal reference is passed to the database driver.
+          Connection.ensure_secrets_resolved if defined?(Connection) && Connection.respond_to?(:ensure_secrets_resolved)
           Legion::Data.setup
           Result.new(name: name, status: :pass, message: "#{adapter} connection ok")
         rescue LoadError

@@ -39,6 +39,7 @@ module Legion
           return if @data_ready
 
           ensure_settings
+          ensure_secrets_resolved
           require 'legion/data'
           Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
           Legion::Data.setup
@@ -53,6 +54,7 @@ module Legion
           return if @transport_ready
 
           ensure_settings
+          ensure_secrets_resolved
           require 'legion/transport'
           Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
           Legion::Transport::Connection.setup
@@ -76,6 +78,29 @@ module Legion
           raise CLI::Error, 'legion-crypt gem is not installed (gem install legion-crypt)'
         rescue StandardError => e
           raise CLI::Error, "crypt initialization failed: #{e.message}"
+        end
+
+        # Resolve lease:// and vault:// credential references before a direct
+        # backend connection. Mirrors the daemon boot order (Crypt.start ->
+        # resolve_secrets! -> connect): short-lived CLI processes must start
+        # Crypt so the LeaseManager/Vault client exists, otherwise unresolved
+        # lease:// strings are passed verbatim to the database/broker driver.
+        #
+        # Skipped when legion-crypt is not installed (e.g. a local-dev bundle
+        # with plaintext creds) so data/transport still connect. A genuine Crypt
+        # failure still surfaces via ensure_crypt as a CLI::Error.
+        def ensure_secrets_resolved
+          return if @crypt_ready
+          return unless crypt_available?
+
+          ensure_crypt
+        end
+
+        def crypt_available?
+          Gem::Specification.find_by_name('legion-crypt')
+          true
+        rescue Gem::MissingSpecError
+          false
         end
 
         def ensure_cache

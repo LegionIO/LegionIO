@@ -106,12 +106,21 @@ RSpec.describe Legion::CLI::Connection do
       allow(Legion::Settings).to receive(:merge_settings)
       allow(Legion::Data::Settings).to receive(:default).and_return({})
       allow(Legion::Data).to receive(:setup)
+      allow(described_class).to receive(:ensure_secrets_resolved)
     end
 
     context 'when legion-data is available and connects successfully' do
       it 'calls Legion::Data.setup' do
         described_class.ensure_data
         expect(Legion::Data).to have_received(:setup)
+      end
+
+      it 'resolves lease:// secrets before connecting to the database' do
+        call_order = []
+        allow(described_class).to receive(:ensure_secrets_resolved) { call_order << :resolve }
+        allow(Legion::Data).to receive(:setup) { call_order << :data_setup }
+        described_class.ensure_data
+        expect(call_order).to eq(%i[resolve data_setup])
       end
 
       it 'sets @data_ready to true' do
@@ -158,12 +167,21 @@ RSpec.describe Legion::CLI::Connection do
       allow(Legion::Settings).to receive(:merge_settings)
       allow(Legion::Transport::Settings).to receive(:default).and_return({})
       allow(Legion::Transport::Connection).to receive(:setup)
+      allow(described_class).to receive(:ensure_secrets_resolved)
     end
 
     context 'when legion-transport is available and connects successfully' do
       it 'calls Legion::Transport::Connection.setup' do
         described_class.ensure_transport
         expect(Legion::Transport::Connection).to have_received(:setup)
+      end
+
+      it 'resolves lease:// secrets before connecting to the broker' do
+        call_order = []
+        allow(described_class).to receive(:ensure_secrets_resolved) { call_order << :resolve }
+        allow(Legion::Transport::Connection).to receive(:setup) { call_order << :transport_setup }
+        described_class.ensure_transport
+        expect(call_order).to eq(%i[resolve transport_setup])
       end
 
       it 'sets @transport_ready to true' do
@@ -274,6 +292,56 @@ RSpec.describe Legion::CLI::Connection do
   end
 
   # ---------------------------------------------------------------------------
+  # ensure_secrets_resolved
+  # ---------------------------------------------------------------------------
+  describe '.ensure_secrets_resolved' do
+    context 'when legion-crypt is available' do
+      before do
+        allow(described_class).to receive(:crypt_available?).and_return(true)
+        allow(described_class).to receive(:ensure_crypt)
+      end
+
+      it 'starts crypt so lease:// references can be resolved' do
+        described_class.ensure_secrets_resolved
+        expect(described_class).to have_received(:ensure_crypt)
+      end
+
+      it 'is a no-op once crypt is already ready' do
+        described_class.instance_variable_set(:@crypt_ready, true)
+        described_class.ensure_secrets_resolved
+        expect(described_class).not_to have_received(:ensure_crypt)
+      end
+    end
+
+    context 'when legion-crypt is not installed' do
+      before do
+        allow(described_class).to receive(:crypt_available?).and_return(false)
+        allow(described_class).to receive(:ensure_crypt)
+      end
+
+      it 'skips crypt so plaintext-credential setups still connect' do
+        expect { described_class.ensure_secrets_resolved }.not_to raise_error
+        expect(described_class).not_to have_received(:ensure_crypt)
+      end
+    end
+
+    context 'when crypt is available but fails to start' do
+      before do
+        allow(described_class).to receive(:crypt_available?).and_return(true)
+        allow(described_class).to receive(:ensure_crypt)
+          .and_raise(Legion::CLI::Error, 'crypt initialization failed: vault unavailable')
+      end
+
+      it 'propagates the CLI::Error so the failure is visible' do
+        expect { described_class.ensure_secrets_resolved }.to raise_error(
+          Legion::CLI::Error,
+          /crypt initialization failed/
+        )
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # ensure_cache
   # ---------------------------------------------------------------------------
   describe '.ensure_cache' do
@@ -335,6 +403,7 @@ RSpec.describe Legion::CLI::Connection do
       allow(Legion::Settings).to receive(:merge_settings)
       allow(Legion::Data::Settings).to receive(:default).and_return({})
       allow(Legion::Data).to receive(:setup)
+      allow(described_class).to receive(:ensure_secrets_resolved)
       described_class.ensure_data
       expect(described_class.data?).to be(true)
     end
@@ -350,6 +419,7 @@ RSpec.describe Legion::CLI::Connection do
       allow(Legion::Settings).to receive(:merge_settings)
       allow(Legion::Transport::Settings).to receive(:default).and_return({})
       allow(Legion::Transport::Connection).to receive(:setup)
+      allow(described_class).to receive(:ensure_secrets_resolved)
       described_class.ensure_transport
       expect(described_class.transport?).to be(true)
     end
