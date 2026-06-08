@@ -62,7 +62,7 @@ module Legion
           end
         end
 
-        def self.register_assignments(app) # rubocop:disable Metrics/AbcSize
+        def self.register_assignments(app)
           app.get '/api/rbac/assignments' do
             return json_error('rbac_unavailable', 'legion-rbac not installed', status_code: 501) unless defined?(Legion::Rbac)
             return json_error('db_unavailable', 'legion-data not connected', status_code: 503) unless Legion::Rbac::Store.db_available?

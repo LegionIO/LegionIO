@@ -54,7 +54,7 @@ module Legion
 
       attr_reader :local_tasks
 
-      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Metrics/AbcSize
+      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         return nil if @loaded_extensions.nil?
 
         deadline = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
@@ -121,15 +121,21 @@ module Legion
         return if @pending_registrations.nil? || @pending_registrations.empty?
 
         registrations = @pending_registrations
-        count = registrations.size
         @pending_registrations = nil
 
-        registrations.each do |registration|
-          registration.publish
-        rescue StandardError => e
-          Legion::Logging.warn "[Extensions] flush registration failed: #{e.message}" if defined?(Legion::Logging)
-        end
-        Legion::Logging.info "[Extensions] flushed #{count} pending registrations" if defined?(Legion::Logging)
+        # Collect all runner hashes into a single batch payload
+        batch = registrations.map(&:opts).compact
+        count = batch.size
+        return if count.zero?
+
+        Legion::Transport::Messages::LexRegister.new(
+          function: 'save',
+          opts:     batch
+        ).publish
+
+        Legion::Logging.info "[Extensions] flushed #{count} pending registrations (batched)"
+      rescue StandardError => e
+        Legion::Logging.warn "[Extensions] batch flush failed: #{e.message}"
       end
 
       def require_identity_extensions
@@ -659,15 +665,18 @@ module Legion
       end
 
       def resolve_subscription_worker_count(actor_hash)
-        ext_name = actor_hash[:extension_name]
-        ext_settings = extension_settings_for_actor(ext_name, actor_hash[:settings_path])
-        if ext_settings.is_a?(Hash) && ext_settings.key?(:workers)
-          ext_settings[:workers]
-        elsif actor_hash[:size].is_a?(Integer)
-          actor_hash[:size]
-        else
-          1
-        end
+        ext_settings = extension_settings_for_actor(actor_hash[:extension_name], actor_hash[:settings_path])
+
+        return ext_settings[:workers] if ext_settings.is_a?(Hash) && ext_settings.key?(:workers)
+        return actor_hash[:size] if actor_hash[:size].is_a?(Integer)
+
+        actor_class = actor_hash[:actor_class]
+        # Check DSL-defined consumers
+        return actor_class.consumers if actor_class.respond_to?(:consumers) && actor_class.consumers.is_a?(Integer)
+        # Check size method
+        return actor_class.size if actor_class.respond_to?(:size) && actor_class.size.is_a?(Integer)
+
+        1
       end
 
       def resolve_remote_invocable(extension_name, opts = {})

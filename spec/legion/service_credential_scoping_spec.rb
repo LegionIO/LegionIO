@@ -463,7 +463,7 @@ RSpec.describe Legion::Service do
       end
     end
 
-    context 'flush_pending_registrations! is called from ensure block even when swap raises' do
+    context 'setup_identity does not call flush_pending_registrations!' do
       before do
         crypt = Module.new do
           def self.vault_connected? = true
@@ -474,8 +474,8 @@ RSpec.describe Legion::Service do
         stub_const('Legion::Mode', build_mode_stub(current: :agent, lite: false))
       end
 
-      it 'still flushes pending registrations' do
-        expect(Legion::Extensions).to receive(:flush_pending_registrations!)
+      it 'does not call flush_pending_registrations! (delegated to reload!)' do
+        expect(Legion::Extensions).not_to receive(:flush_pending_registrations!)
         service.setup_identity
       end
     end

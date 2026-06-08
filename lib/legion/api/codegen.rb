@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module Codegen
-        def self.registered(app) # rubocop:disable Metrics/MethodLength
+        def self.registered(app)
           app.get '/api/codegen/status' do
             halt 503, json_error('codegen_unavailable', 'codegen not available', status_code: 503) unless defined?(Legion::MCP::SelfGenerate)
 

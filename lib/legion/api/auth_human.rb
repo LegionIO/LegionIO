@@ -68,7 +68,7 @@ module Legion
           end
         end
 
-        def self.register_callback(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_callback(app)
           app.get '/api/auth/callback' do
             entra = Routes::AuthHuman.resolve_entra_settings
             unless entra[:tenant_id] && entra[:client_id]

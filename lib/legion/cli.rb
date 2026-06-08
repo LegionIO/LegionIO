@@ -395,7 +395,7 @@ module Legion
         raise SystemExit, 1
       end
 
-      no_commands do # rubocop:disable Metrics/BlockLength
+      no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],

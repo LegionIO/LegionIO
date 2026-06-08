@@ -55,7 +55,7 @@ module Legion
           end
         end
 
-        def self.register_review_actions(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_review_actions(app) # rubocop:disable Metrics/AbcSize
           app.post '/api/marketplace/:name/submit' do
             begin
               Legion::Registry.submit_for_review(params[:name])

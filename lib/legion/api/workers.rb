@@ -12,7 +12,7 @@ module Legion
           register_teams(app)
         end
 
-        def self.register_collection(app) # rubocop:disable Metrics/AbcSize
+        def self.register_collection(app)
           app.get '/api/workers' do
             require_data!
             dataset = Legion::Data::Model::DigitalWorker.order(:id)
@@ -53,7 +53,7 @@ module Legion
           end
         end
 
-        def self.register_member(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_member(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/workers/:id' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])
@@ -120,7 +120,7 @@ module Legion
           end
         end
 
-        def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+        def self.register_sub_resources(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
           app.get '/api/workers/:id/health' do
             require_data!
             worker = Legion::Data::Model::DigitalWorker.first(worker_id: params[:id])

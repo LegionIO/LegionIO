@@ -19,7 +19,7 @@ module Legion
                          required:   ['pattern']
                        })
 
-          def self.call(pattern:, directory: nil, glob: nil) # rubocop:disable Metrics/CyclomaticComplexity
+          def self.call(pattern:, directory: nil, glob: nil)
             dir = File.expand_path(directory || Dir.pwd)
             return "Error: directory not found: #{dir}" unless Dir.exist?(dir)
 

@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.9.42] - 2026-06-07
+
+### Performance
+- Extensions: batched extension registration into a single `LexRegister` publish after all extensions load, eliminating N individual queue messages and DB transactions during boot
+- Removed redundant `flush_pending_registrations!` call from `setup_identity` ensure block, consolidating to a single flush point in `reload!`
+
 ## [1.9.41] - 2026-06-02
 
 ### Fixed

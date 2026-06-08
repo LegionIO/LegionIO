@@ -218,7 +218,7 @@ module Legion
             Legion::Data::Model::DigitalWorker.where(Sequel.like(:worker_id, "#{worker_id}%")).first
         end
 
-        def create_worker(name) # rubocop:disable Metrics/AbcSize
+        def create_worker(name)
           out = formatter
           worker_id = SecureRandom.uuid
 

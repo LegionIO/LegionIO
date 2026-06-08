@@ -213,7 +213,7 @@ module Legion
           time.to_s
         end
 
-        def resolve_target(function_spec, out) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+        def resolve_target(function_spec, out) # rubocop:disable Metrics/AbcSize,Metrics/PerceivedComplexity
           # Parse dot-notation: extension.runner.function
           if function_spec&.include?('.')
             parts = function_spec.split('.')

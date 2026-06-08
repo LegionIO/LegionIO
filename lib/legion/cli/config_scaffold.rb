@@ -21,7 +21,7 @@ module Legion
 
       module_function
 
-      def run(formatter, options) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def run(formatter, options)
         dir       = options[:dir] || "#{Dir.home}/.legionio/settings"
         only      = options[:only] ? options[:only].split(',').map(&:strip) : SUBSYSTEMS
         full_mode = options[:full]
@@ -147,7 +147,7 @@ module Legion
         end
       end
 
-      def minimal_template(name) # rubocop:disable Metrics/MethodLength
+      def minimal_template(name)
         case name # rubocop:disable Style/HashLikeCase
         when 'transport'
           { transport: {

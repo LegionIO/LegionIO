@@ -101,7 +101,7 @@ module Legion
       end
 
       desc 'validate', 'Validate current configuration'
-      def validate # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+      def validate
         out = formatter
         Connection.config_dir = options[:config_dir] if options[:config_dir]
 
@@ -248,7 +248,7 @@ module Legion
         raise SystemExit, 1
       end
 
-      no_commands do # rubocop:disable Metrics/BlockLength
+      no_commands do
         def formatter
           @formatter ||= Output::Formatter.new(
             json:  options[:json],

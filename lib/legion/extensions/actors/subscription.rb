@@ -64,7 +64,7 @@ module Legion
           true
         end
 
-        def prepare # rubocop:disable Metrics/AbcSize
+        def prepare
           @dedicated_channel = create_dedicated_channel
           @queue = queue.new
           reassign_queue_channel(@queue, @dedicated_channel)
@@ -133,7 +133,7 @@ module Legion
           true
         end
 
-        def process_message(message, metadata, delivery_info) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+        def process_message(message, metadata, delivery_info)
           payload = if metadata.content_encoding && metadata.content_encoding == 'encrypted/cs'
                       headers = metadata.headers || {}
                       iv = headers['iv'] || headers[:iv]
@@ -173,7 +173,7 @@ module Legion
           function
         end
 
-        def subscribe # rubocop:disable Metrics/AbcSize
+        def subscribe
           log.info "[Subscription] subscribing: #{lex_name}/#{runner_name}"
           sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"

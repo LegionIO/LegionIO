@@ -4,7 +4,7 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module Chains
-        def self.registered(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.registered(app) # rubocop:disable Metrics/AbcSize
           app.get '/api/chains' do
             require_data!
             halt 501, json_error('not_implemented', 'chain data model is not yet available', status_code: 501) unless Legion::Data::Model.const_defined?(:Chain)

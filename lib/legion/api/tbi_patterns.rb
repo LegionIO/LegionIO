@@ -19,7 +19,7 @@ module Legion
         end
 
         # POST /api/tbi/patterns/export — anonymously export a learned behavioral pattern
-        def self.register_export(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_export(app)
           app.post '/api/tbi/patterns/export' do
             require_data!
             body = parse_request_body

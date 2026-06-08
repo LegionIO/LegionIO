@@ -8,7 +8,7 @@ module Legion
           register_worker_token_exchange(app)
         end
 
-        def self.register_worker_token_exchange(app) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def self.register_worker_token_exchange(app)
           app.post '/api/auth/worker-token' do
             Legion::Logging.debug "API: POST /api/auth/worker-token params=#{params.keys}"
             body = parse_request_body

@@ -274,7 +274,7 @@ module Legion
       desc 'python', 'Set up Legion Python environment (venv + document/data packages)'
       option :packages, type: :array,   default: [],    banner: 'PKG [PKG...]', desc: 'Additional pip packages to install'
       option :rebuild,  type: :boolean, default: false, desc: 'Destroy and recreate the venv from scratch'
-      def python # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+      def python
         out = formatter
         results = []
 
@@ -539,7 +539,7 @@ module Legion
           marker = File.join(marker_dir, pack_name.to_s)
           File.write(marker, '') unless File.exist?(marker)
           update_packs_setting(pack_name)
-        rescue Errno::EPERM, Errno::EACCES => e
+        rescue StandardError => e
           Legion::Logging.warn("Could not write pack marker: #{e.message}") if defined?(Legion::Logging)
         end
 
@@ -555,11 +555,11 @@ module Legion
           data['packs'] = packs.sort
           FileUtils.mkdir_p(File.dirname(settings_file))
           File.write(settings_file, ::JSON.pretty_generate(data))
-        rescue Errno::EPERM, Errno::EACCES => e
-          Legion::Logging.warn("Could not update packs setting: #{e.message}") if defined?(Legion::Logging)
         rescue ::JSON::ParserError
           data = { 'packs' => [pack_name.to_s] }
           File.write(settings_file, ::JSON.pretty_generate(data))
+        rescue StandardError => e
+          Legion::Logging.warn("Could not update packs setting: #{e.message}") if defined?(Legion::Logging)
         end
 
         def suggest_next_steps(out, pack_name)

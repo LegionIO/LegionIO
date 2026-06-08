@@ -8,7 +8,7 @@ module Legion
       option :runner, type: :string, required: false, desc: 'runner short name'
       option :function, type: :string, required: false, desc: 'function short name'
       option :delay, type: :numeric, default: 0, desc: 'how long to wait before running the task'
-      def queue(*args) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/MethodLength
+      def queue(*args) # rubocop:disable Metrics/AbcSize
         Legion::Service.new(cache: false, crypt: false, extensions: false, log_level: 'error')
         include Legion::Extensions::Helpers::Task
 

@@ -64,7 +64,7 @@ module Legion
           end
         end
 
-        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize,Metrics/CyclomaticComplexity
+        def self.dispatch_request(context, request, params) # rubocop:disable Metrics/MethodLength
           content_type = 'application/json'
           context.content_type content_type
 

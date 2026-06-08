@@ -17,7 +17,7 @@ module Legion
       option :until, type: :string, desc: 'Records before this ISO8601 timestamp'
       option :limit, type: :numeric, default: 20, desc: 'Number of records'
       option :json, type: :boolean, default: false, desc: 'Output as JSON'
-      def list # rubocop:disable Metrics/AbcSize
+      def list
         Connection.ensure_settings
         Connection.ensure_data
 
