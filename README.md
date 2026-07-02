@@ -162,6 +162,12 @@ rebuild, which is why most public repos are young. It runs production workloads 
 It is early, it is small, and the code is real. Read the source before betting on it —
 that's what it's there for.
 
+LegionIO is also published through [Optum Open Source](https://github.com/Optum/LegionIO),
+where it first shipped publicly; this org is the active development home, and updates are
+periodically merged back upstream. The enterprise provenance is why a framework this young
+ships RBAC, an audit ledger, and identity integration — a real production deployment
+required them.
+
 ## Requirements
 
 - Ruby >= 3.4
