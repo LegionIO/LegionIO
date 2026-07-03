@@ -40,6 +40,12 @@ module Legion
           parts << 'You have access to tools for reading files, writing files, editing files, searching, and running shell commands.'
           parts << 'Be concise and helpful. Use markdown formatting for code.'
           parts << ''
+          parts << 'TOOL CALLING: Always invoke tools using the native tool-calling API — never emit raw ' \
+                   'tool-call token sequences (e.g. <|tool_call>, [TOOL_CALL], [[tool_name]], or any ' \
+                   'model-specific delimiter syntax) as literal text in your response content. ' \
+                   'Raw token sequences embedded in text are not executed by the host and will be ' \
+                   'displayed verbatim to the user, which is always wrong.'
+          parts << ''
           parts << 'IMPORTANT: You are the AI assistant. Do not generate content (code, specs, prompts, ' \
                    'instructions) specifically for users to copy/paste into other AI tools (Claude, Codex, ' \
                    'ChatGPT, Copilot, etc.). If a user wants to accomplish a task, help them do it directly. ' \

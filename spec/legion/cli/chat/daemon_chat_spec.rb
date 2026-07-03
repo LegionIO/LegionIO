@@ -394,4 +394,93 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
       end
     end
   end
+
+  # ── sanitize_leaked_tool_calls (private) ──────────────────────────────────
+  # Some model chat-templates (e.g. Mistral, certain Llama3 fine-tunes) emit
+  # tool-call intent as raw literal tokens in the response content instead of
+  # using the API-level tool_calls field.  sanitize_leaked_tool_calls detects
+  # these, promotes them to proper tool_call hashes, and strips the tokens.
+
+  describe '#sanitize_leaked_tool_calls (via extract_data)' do
+    let(:fake_tool) do
+      Class.new do
+        def self.tool_name   = 'run_in_terminal'
+        def self.description = 'Runs a shell command'
+        def self.parameters  = {}
+        def self.call(**args) = "ran: #{args[:command]}"
+      end
+    end
+
+    def inference_result_with_content(content)
+      { status: :immediate, data: { content: content, tool_calls: nil,
+                                    input_tokens: 1, output_tokens: 1, model: 'test' } }
+    end
+
+    it 'passes through normal content without modification' do
+      result = inference_result_with_content('Hello, world!')
+      allow(Legion::LLM::DaemonClient).to receive(:inference).and_return(result)
+
+      buffer = String.new
+      chat.ask('hi') { |c| buffer << c.content if c.content }
+      expect(buffer).to eq('Hello, world!')
+    end
+
+    it 'strips a leaked <|tool_call> token from content and promotes it to a tool call' do
+      leaked = '<|tool_call>call:run_in_terminal{command:<|"|>echo hello<|"|>}<tool_call|>'
+      first_result  = inference_result_with_content(leaked)
+      second_result = inference_result_with_content('done')
+
+      allow(Legion::LLM::DaemonClient).to receive(:inference)
+        .and_return(first_result, second_result)
+
+      tool_calls_fired = []
+      chat.with_tools(fake_tool)
+      chat.on_tool_call { |tc| tool_calls_fired << { name: tc.name, args: tc.arguments } }
+      chat.ask('run something')
+
+      expect(tool_calls_fired.length).to eq(1)
+      expect(tool_calls_fired.first[:name]).to eq('run_in_terminal')
+      expect(tool_calls_fired.first[:args]).to include(command: 'echo hello')
+    end
+
+    it 'handles multiple leaked tool calls in a single response' do
+      another_tool = Class.new do
+        def self.tool_name   = 'read_file'
+        def self.description = 'Reads a file'
+        def self.parameters  = {}
+        def self.call(**args) = "content of #{args[:filePath]}"
+      end
+
+      leaked = "<|tool_call>call:run_in_terminal{command:<|\"|\>ls}<tool_call|>\n" \
+               "<|tool_call>call:read_file{filePath:<|\"|>/tmp/a.rb<|\"|>}<tool_call|>"
+      first_result  = inference_result_with_content(leaked)
+      second_result = inference_result_with_content('all done')
+
+      allow(Legion::LLM::DaemonClient).to receive(:inference)
+        .and_return(first_result, second_result)
+
+      tool_calls_fired = []
+      chat.with_tools(fake_tool, another_tool)
+      chat.on_tool_call { |tc| tool_calls_fired << tc.name }
+      chat.ask('do stuff')
+
+      expect(tool_calls_fired).to contain_exactly('run_in_terminal', 'read_file')
+    end
+
+    it 'does not expose the raw leaked token string to the streaming block' do
+      leaked = "preamble\n<|tool_call>call:run_in_terminal{command:<|\"|>pwd<|\"|>}<tool_call|>"
+      first_result  = inference_result_with_content(leaked)
+      second_result = inference_result_with_content('output')
+
+      allow(Legion::LLM::DaemonClient).to receive(:inference)
+        .and_return(first_result, second_result)
+
+      streamed = String.new
+      chat.with_tools(fake_tool)
+      chat.ask('go') { |c| streamed << c.content if c.content }
+
+      expect(streamed).not_to include('<|tool_call>')
+      expect(streamed).not_to include('<tool_call|>')
+    end
+  end
 end
