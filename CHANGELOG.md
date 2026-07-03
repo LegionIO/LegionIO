@@ -1,9 +1,11 @@
 # Legion Changelog
 
-## [1.9.48] - 2026-07-02
+## [1.9.49] - 2026-07-03
 
 ### Fixed
 - Chat: `DaemonChat` now sanitizes leaked model-specific tool-call tokens (e.g. `<|tool_call>call:TOOL{...}<tool_call|>` emitted by Mistral/Llama-style chat templates) from response content. Leaked tokens are promoted to proper `tool_calls` structs and executed normally; raw token text is no longer displayed to the user verbatim. System prompt updated to instruct all models to use the native tool-calling API only.
+
+## [1.9.48] - 2026-07-02
 
 ### Security
 - API: fixed an authentication bypass in the auth middleware's `skip_path?` (CWE-284). It used bare prefix matching (`start_with?`), so any path sharing a prefix with an unauthenticated route bypassed auth — e.g. `/api/healthily_fake`, `/api/health/admin/export`, `/api/auth/tokens_dump` all matched `/api/health` / `/api/auth/token`. Now uses segment-bounded matching (exact path or `/`-delimited sub-path) via precompiled `SKIP_PATTERNS`, so only the intended paths and their legitimate sub-paths skip auth (fixes #209)
