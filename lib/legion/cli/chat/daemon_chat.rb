@@ -128,17 +128,19 @@ module Legion
           )
         end
 
-        # Matches Mistral/Llama-style leaked tool-call tokens that some model chat-templates
-        # emit as literal text instead of using the API-level tool_calls field.
-        # Format: <|tool_call>call:TOOL_NAME{key:<|"|>str<|"|>,num:1}<tool_call|>
-        LEAKED_TOOL_CALL_RE = /\<\|tool_call\>call:([^\{]+)(\{.+?\})\<tool_call\|>/m
-
         def extract_data(result)
           # DaemonClient.inference returns { status:, data: { content:, tool_calls:, ... } }
           data = result[:data] || result[:body] || {}
-          data = data.is_a?(Hash) ? data : {}
+          data = {} unless data.is_a?(Hash)
           sanitize_leaked_tool_calls(data)
         end
+
+        # Matches Mistral/Llama-style leaked tool-call tokens that some model chat-templates
+        # emit as literal text instead of using the API-level tool_calls field.
+        # Format: <|tool_call>call:TOOL_NAME{key:<|"|>str<|"|>,num:1}<tool_call|>
+        # rubocop:disable Lint/UselessConstantScoping
+        LEAKED_TOOL_CALL_RE = /<\|tool_call>call:([^{]+)(\{.+?\})<tool_call\|>/m
+        # rubocop:enable Lint/UselessConstantScoping
 
         # Detects model-emitted raw tool-call tokens in the response content, converts them
         # to proper tool_call hashes, and strips the leaked tokens from the content string.
@@ -157,31 +159,22 @@ module Legion
 
             # Convert <|"|> quote markers back to standard double-quotes, then
             # add quotes around bare JSON keys so we can parse with JSON.parse.
-            normalized = raw_args
-                           .gsub('<|"|>', '"')
-                           .gsub(/([{,]\s*)(\w+):/, '\1"\2":')
+            normalized = raw_args.gsub('<|"|>', '"').gsub(/([{,]\s*)(\w+):/, '\1"\2":')
 
             arguments = begin
-                          parsed = ::JSON.parse(normalized)
-                          parsed.is_a?(Hash) ? parsed : {}
-                        rescue ::JSON::ParserError
-                          {}
-                        end
+              parsed = ::JSON.parse(normalized)
+              parsed.is_a?(Hash) ? parsed : {}
+            rescue ::JSON::ParserError
+              {}
+            end
 
-            extracted << {
-              id:        ::SecureRandom.hex(8),
-              name:      raw_name,
-              arguments: arguments
-            }
+            extracted << { id: ::SecureRandom.hex(8), name: raw_name, arguments: arguments }
 
             '' # Remove the raw token from the visible content
           end
 
-          clean_content = clean.strip
-          merged = data.dup
-          merged[:content]    = clean_content
-          merged[:tool_calls] = (data[:tool_calls] || []) + extracted if extracted.any?
-          merged
+          merged = data.merge(content: clean.strip)
+          extracted.any? ? merged.merge(tool_calls: (data[:tool_calls] || []) + extracted) : merged
         end
 
         def build_messages
