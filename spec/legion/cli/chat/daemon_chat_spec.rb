@@ -451,8 +451,8 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
         def self.call(**args) = "content of #{args[:filePath]}"
       end
 
-      leaked = "<|tool_call>call:run_in_terminal{command:<|\"|\>ls}<tool_call|>\n" \
-               "<|tool_call>call:read_file{filePath:<|\"|>/tmp/a.rb<|\"|>}<tool_call|>"
+      leaked = "<|tool_call>call:run_in_terminal{command:<|\"|>ls}<tool_call|>\n" \
+               '<|tool_call>call:read_file{filePath:<|"|>/tmp/a.rb<|"|>}<tool_call|>'
       first_result  = inference_result_with_content(leaked)
       second_result = inference_result_with_content('all done')
 

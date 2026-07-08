@@ -56,7 +56,7 @@ module Legion
             return pricing if models_str.nil? || models_str.strip.empty?
 
             names = models_str.split(',').map(&:strip).map(&:downcase)
-            pricing.select { |k, _| names.any? { |n| k.downcase.include?(n) } }
+            pricing.select { |k, _| names.intersect?(k.downcase) }
           end
 
           def self.format_comparison(selected, tokens)

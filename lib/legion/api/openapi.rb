@@ -92,7 +92,7 @@ module Legion
         }
       end
 
-      def self.to_json
+      def self.to_json(*_args)
         require 'json'
         ::JSON.generate(spec)
       end
