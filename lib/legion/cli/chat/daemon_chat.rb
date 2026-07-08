@@ -131,7 +131,50 @@ module Legion
         def extract_data(result)
           # DaemonClient.inference returns { status:, data: { content:, tool_calls:, ... } }
           data = result[:data] || result[:body] || {}
-          data.is_a?(Hash) ? data : {}
+          data = {} unless data.is_a?(Hash)
+          sanitize_leaked_tool_calls(data)
+        end
+
+        # Matches Mistral/Llama-style leaked tool-call tokens that some model chat-templates
+        # emit as literal text instead of using the API-level tool_calls field.
+        # Format: <|tool_call>call:TOOL_NAME{key:<|"|>str<|"|>,num:1}<tool_call|>
+        # rubocop:disable Lint/UselessConstantScoping
+        LEAKED_TOOL_CALL_RE = /<\|tool_call>call:([^{]+)(\{.+?\})<tool_call\|>/m
+        # rubocop:enable Lint/UselessConstantScoping
+
+        # Detects model-emitted raw tool-call tokens in the response content, converts them
+        # to proper tool_call hashes, and strips the leaked tokens from the content string.
+        # This handles the case where a model's chat template (e.g. Mistral, some Llama3
+        # fine-tunes) outputs <|tool_call>...<tool_call|> as literal text rather than using
+        # the structured tool_calls API field.
+        def sanitize_leaked_tool_calls(data)
+          content = data[:content].to_s
+          return data unless content.match?(LEAKED_TOOL_CALL_RE)
+
+          extracted = []
+
+          clean = content.gsub(LEAKED_TOOL_CALL_RE) do
+            raw_name = ::Regexp.last_match(1).strip
+            raw_args = ::Regexp.last_match(2)
+
+            # Convert <|"|> quote markers back to standard double-quotes, then
+            # add quotes around bare JSON keys so we can parse with JSON.parse.
+            normalized = raw_args.gsub('<|"|>', '"').gsub(/([{,]\s*)(\w+):/, '\1"\2":')
+
+            arguments = begin
+              parsed = ::JSON.parse(normalized)
+              parsed.is_a?(Hash) ? parsed : {}
+            rescue ::JSON::ParserError
+              {}
+            end
+
+            extracted << { id: ::SecureRandom.hex(8), name: raw_name, arguments: arguments }
+
+            '' # Remove the raw token from the visible content
+          end
+
+          merged = data.merge(content: clean.strip)
+          extracted.any? ? merged.merge(tool_calls: (data[:tool_calls] || []) + extracted) : merged
         end
 
         def build_messages
