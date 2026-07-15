@@ -1,9 +1,9 @@
 # Legion Changelog
 
-## [1.9.49] - 2026-07-15
+## [1.9.50] - 2026-07-15
 ### Fixed
 - Backfill extension routes with API router after boot to fix /api/extensions/* 404s
-
+- Fix CLI daemon_client require path after legion-llm restructure
 ## [1.9.48] - 2026-07-02
 
 ### Security

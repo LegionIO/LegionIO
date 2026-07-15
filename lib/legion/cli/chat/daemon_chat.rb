@@ -4,7 +4,7 @@ require 'securerandom'
 require 'legion/cli/chat_command'
 
 begin
-  require 'legion/llm/daemon_client'
+  require 'legion/llm/call/daemon_client'
 rescue LoadError
   # legion-llm not yet loaded; DaemonClient must be defined before DaemonChat#ask is called.
 end
