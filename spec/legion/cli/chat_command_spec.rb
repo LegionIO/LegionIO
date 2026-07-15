@@ -15,4 +15,10 @@ RSpec.describe Legion::CLI::Chat do
   it 'has a prompt command for headless mode' do
     expect(Legion::CLI::Chat.instance_methods).to include(:prompt)
   end
+
+  describe 'daemon_client require path' do
+    it 'resolves legion/llm/call/daemon_client without LoadError' do
+      expect { require 'legion/llm/call/daemon_client' }.not_to raise_error
+    end
+  end
 end

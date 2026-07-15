@@ -184,7 +184,7 @@ module Legion
           Connection.log_level = options[:verbose] ? 'debug' : 'error'
           Connection.ensure_settings
 
-          require 'legion/llm/daemon_client'
+          require 'legion/llm/call/daemon_client'
           return if Legion::LLM::DaemonClient.available?
 
           raise CLI::Error,
