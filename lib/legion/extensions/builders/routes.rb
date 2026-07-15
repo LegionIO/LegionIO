@@ -29,7 +29,6 @@ module Legion
             methods.each do |function|
               route_path = "#{extension_name}/#{runner_name}/#{function}"
               defn = runner_module.respond_to?(:definition_for) ? runner_module.definition_for(function) : nil
-              log.info "[Routes] auto-route registered: POST /api/extensions/#{extension_name}/runners/#{runner_name}/#{function}"
               @routes[route_path] = {
                 lex_name:       extension_name,
                 runner_name:    runner_name,
@@ -51,6 +50,7 @@ module Legion
                 runner_class:   runner_class,
                 definition:     defn
               )
+              log.info "[Routes] registered: POST /api/extensions/#{extension_name}/runners/#{runner_name}/#{function}"
             end
           end
         end
