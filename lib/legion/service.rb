@@ -418,6 +418,8 @@ module Legion
         Legion::API.use Legion::Rbac::Middleware
       end
 
+      register_extension_routes_with_api_router
+
       @api_thread = Thread.new do
         retries = 0
         max_retries = api_settings[:bind_retries]
@@ -446,6 +448,32 @@ module Legion
       handle_exception(e, level: :warn, operation: 'service.setup_api', dependency: 'api')
     rescue StandardError => e
       handle_exception(e, level: :warn, operation: 'service.setup_api')
+    end
+
+    def register_extension_routes_with_api_router
+      return unless defined?(Legion::API) && Legion::API.respond_to?(:router)
+      return unless defined?(Legion::Extensions)
+
+      count = 0
+      Legion::Extensions.loaded_extension_modules.each do |ext_mod|
+        next unless ext_mod.respond_to?(:routes) && ext_mod.routes.is_a?(Hash)
+
+        ext_mod.routes.each_value do |route_entry|
+          Legion::API.router.register_extension_route(
+            lex_name:       route_entry[:lex_name],
+            amqp_prefix:    ext_mod.respond_to?(:amqp_prefix) ? ext_mod.amqp_prefix : "lex.#{route_entry[:lex_name].to_s.tr('_', '.')}",
+            component_type: route_entry[:component_type],
+            component_name: route_entry[:runner_name],
+            method_name:    route_entry[:function].to_s,
+            runner_class:   route_entry[:runner_class],
+            definition:     route_entry[:definition]
+          )
+          count += 1
+        end
+      end
+      log.info "[Routes] backfilled #{count} extension routes with API router" if count.positive?
+    rescue StandardError => e
+      handle_exception(e, level: :warn, operation: 'service.register_extension_routes_with_api_router')
     end
 
     def setup_llm
@@ -960,6 +988,7 @@ module Legion
       Legion::Crypt.cs if defined?(Legion::Crypt)
       setup_apm if @api_enabled
       setup_api if @api_enabled
+      register_extension_routes_with_api_router if @api_enabled
 
       if defined?(Legion::MCP)
         Legion::MCP.reset!
