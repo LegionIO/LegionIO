@@ -20,10 +20,11 @@ module Legion
 
       def self.puma_defaults
         {
-          min_threads:        10,
-          max_threads:        16,
-          persistent_timeout: 20,
-          first_data_timeout: 30
+          min_threads:          10,
+          max_threads:          16,
+          persistent_timeout:   20,
+          first_data_timeout:   30,
+          force_shutdown_after: 10
         }
       end
 

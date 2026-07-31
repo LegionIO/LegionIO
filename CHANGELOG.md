@@ -1,5 +1,9 @@
 # Legion Changelog
 
+## [1.9.51] - 2026-07-31
+### Fixed
+- Puma: add `force_shutdown_after` (default 10s) to server_settings to prevent indefinite shutdown hangs when streaming connections are wedged (puma/puma#3569). Previously Puma's default of `-1` meant SIGTERM would wait forever on any open SSE/streaming body thread that could not be interrupted
+
 ## [1.9.50] - 2026-07-15
 ### Fixed
 - Backfill extension routes with API router after boot to fix /api/extensions/* 404s

@@ -382,8 +382,9 @@ module Legion
       max_threads = puma_cfg[:max_threads]
       thread_spec = "#{min_threads}:#{max_threads}"
       puma_timeouts = {
-        persistent_timeout: puma_cfg[:persistent_timeout],
-        first_data_timeout: puma_cfg[:first_data_timeout]
+        persistent_timeout:   puma_cfg[:persistent_timeout],
+        first_data_timeout:   puma_cfg[:first_data_timeout],
+        force_shutdown_after: puma_cfg[:force_shutdown_after]
       }.compact
 
       tls_cfg = build_api_tls_config(api_settings)
