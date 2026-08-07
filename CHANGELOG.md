@@ -1,5 +1,10 @@
 # Legion Changelog
 
+## [1.9.52] - 2026-08-07
+### Fixed
+- `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`
+- Fixed §4 exception-handling violations: `stats.rb` and `llm_command.rb` now use `handle_exception` instead of silent swallows or unstructured logging
+
 ## [1.9.51] - 2026-07-31
 ### Fixed
 - Puma: add `force_shutdown_after` (default 10s) to server_settings to prevent indefinite shutdown hangs when streaming connections are wedged (puma/puma#3569). Previously Puma's default of `-1` meant SIGTERM would wait forever on any open SSE/streaming body thread that could not be interrupted
