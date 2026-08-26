@@ -63,9 +63,9 @@ RSpec.describe Legion::CLI::Eval do
         {
           evaluator: 'default',
           results:   [
-            { row_index: 0, passed: true,  score: 1.0 },
-            { row_index: 1, passed: true,  score: 1.0 },
-            { row_index: 2, passed: true,  score: 0.9 }
+            { row_index: 0, passed: true, score: 1.0 },
+            { row_index: 1, passed: true, score: 1.0 },
+            { row_index: 2, passed: true, score: 0.9 }
           ],
           summary:   { total: 3, passed: 3, failed: 0, avg_score: 0.967 }
         }

@@ -8,8 +8,8 @@ RSpec.describe Legion::Extensions do
       [
         { name: 'lex-node', version: '0.1.0' },
         { name: 'lex-agentic-cognitive-anchor', version: '0.1.0' },
-        { name: 'lex-claude',                  version: '0.1.0' },
-        { name: 'lex-consul',                  version: '0.1.0' }
+        { name: 'lex-claude', version: '0.1.0' },
+        { name: 'lex-consul', version: '0.1.0' }
       ]
     end
 
