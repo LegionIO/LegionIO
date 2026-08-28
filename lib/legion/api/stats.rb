@@ -4,6 +4,8 @@ module Legion
   class API < Sinatra::Base
     module Routes
       module Stats
+        extend Legion::Logging::Helper
+
         def self.registered(app)
           app.get '/api/stats' do
             result = {}
@@ -137,16 +139,14 @@ module Legion
             info[:default_provider] = s[:default_provider]
             info[:pipeline_enabled] = s[:pipeline_enabled] == true
 
-            if defined?(Legion::LLM::Router) && Legion::LLM::Router.routing_enabled?
+            if defined?(Legion::LLM::Router) # legit optional-gem guard (standards §6): legion-llm may be absent
               info[:routing_enabled] = true
-              tracker = Legion::LLM::Router.health_tracker
-              if tracker
-                providers = s[:providers] || {}
-                info[:provider_health] = providers.each_with_object({}) do |(name, _cfg), h|
-                  h[name] = { circuit: tracker.circuit_state(name)&.to_s }
-                rescue StandardError
-                  nil
-                end
+              info[:provider_health] = Legion::LLM::Inventory.lanes.each_with_object({}) do |lane, h|
+                key = "#{lane[:provider_family]}/#{lane[:instance_id]}"
+                h[key] = { circuit: lane.dig(:health, :circuit_state)&.to_s }
+              rescue StandardError => e
+                handle_exception(e, level: :warn, operation: 'api.stats.provider_health', lane: lane[:id])
+                next # skip the malformed lane, but the failure is logged + published, not swallowed
               end
             else
               info[:routing_enabled] = false
@@ -158,6 +158,7 @@ module Legion
             end
             info
           rescue StandardError => e
+            handle_exception(e, level: :warn, operation: 'api.stats.collect_llm')
             { error: e.message }
           end
 

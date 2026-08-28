@@ -112,7 +112,7 @@ RSpec.describe Legion::CLI::Chat::DaemonChat do
   describe '#with_tools' do
     it 'stores tools and forwards their schemas to DaemonClient.inference' do
       fake_tool = Class.new do
-        def self.tool_name  = 'read_file'
+        def self.tool_name = 'read_file'
         def self.description = 'Reads a file'
         def self.parameters  = { type: 'object' }
       end

@@ -1045,8 +1045,8 @@ module Legion
         def handle_review_in_session(scope, out)
           scope = (scope || '').strip
           diff = case scope
-                 when 'staged'  then `git diff --staged 2>/dev/null`
-                 when 'branch'  then `git diff main...HEAD 2>/dev/null`
+                 when 'staged' then `git diff --staged 2>/dev/null`
+                 when 'branch' then `git diff main...HEAD 2>/dev/null`
                  when '', 'uncommitted' then `git diff 2>/dev/null`
                  else
                    out.error('Usage: /review [staged|uncommitted|branch]')

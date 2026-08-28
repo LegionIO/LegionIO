@@ -34,6 +34,10 @@ RSpec.describe Legion::API::Settings do
       expect(defaults[:puma][:first_data_timeout]).to eq(30)
     end
 
+    it 'includes puma force_shutdown_after setting' do
+      expect(defaults[:puma][:force_shutdown_after]).to eq(10)
+    end
+
     it 'includes bind_retries' do
       expect(defaults[:bind_retries]).to eq(3)
     end

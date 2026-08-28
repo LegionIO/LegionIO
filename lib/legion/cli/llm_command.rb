@@ -5,6 +5,8 @@ require 'thor'
 module Legion
   module CLI
     class Llm < Thor
+      include Legion::Logging::Helper
+
       namespace 'llm'
 
       def self.exit_on_failure?
@@ -163,31 +165,31 @@ module Legion
         end
 
         def collect_routing
-          return { enabled: false } unless defined?(Legion::LLM::Router)
+          return { enabled: false } unless defined?(Legion::LLM::Router) # legit optional-gem guard (standards §6)
 
           {
-            enabled:    Legion::LLM::Router.routing_enabled?,
+            enabled:    true,
             local_tier: Legion::LLM::Router.tier_available?(:local),
             fleet_tier: Legion::LLM::Router.tier_available?(:fleet),
             cloud_tier: Legion::LLM::Router.tier_available?(:cloud)
           }
         rescue StandardError => e
-          Legion::Logging.warn("LlmCommand#collect_routing failed: #{e.message}") if defined?(Legion::Logging)
+          handle_exception(e, level: :warn, operation: 'cli.llm.collect_routing')
           { enabled: false }
         end
 
         def collect_system
-          return {} unless defined?(Legion::LLM::Discovery::System)
+          return {} unless defined?(Legion::LLM::Inventory::Discovery::System) # legit optional-gem guard (standards §6)
 
-          Legion::LLM::Discovery::System.refresh! if Legion::LLM::Discovery::System.stale?
+          Legion::LLM::Inventory::Discovery::System.refresh! if Legion::LLM::Inventory::Discovery::System.stale?
           {
-            platform:        Legion::LLM::Discovery::System.platform,
-            total_memory_mb: Legion::LLM::Discovery::System.total_memory_mb,
-            avail_memory_mb: Legion::LLM::Discovery::System.available_memory_mb,
-            memory_pressure: Legion::LLM::Discovery::System.memory_pressure?
+            platform:        Legion::LLM::Inventory::Discovery::System.platform,
+            total_memory_mb: Legion::LLM::Inventory::Discovery::System.total_memory_mb,
+            avail_memory_mb: Legion::LLM::Inventory::Discovery::System.available_memory_mb,
+            memory_pressure: Legion::LLM::Inventory::Discovery::System.memory_pressure?
           }
         rescue StandardError => e
-          Legion::Logging.warn("LlmCommand#collect_system failed: #{e.message}") if defined?(Legion::Logging)
+          handle_exception(e, level: :warn, operation: 'cli.llm.collect_system')
           {}
         end
 
@@ -199,13 +201,14 @@ module Legion
             next unless cfg[:enabled]
 
             models = [cfg[:default_model]].compact
-            if name == :ollama && defined?(Legion::LLM::Discovery::Ollama)
+            if name == :ollama && defined?(Legion::LLM::Inventory) # legit optional-gem guard (standards §6)
               begin
-                Legion::LLM::Discovery::Ollama.refresh! if Legion::LLM::Discovery::Ollama.stale?
-                discovered = Legion::LLM::Discovery::Ollama.model_names
+                discovered = Legion::LLM::Inventory.lanes
+                                                   .select { |l| l[:provider_family].to_s == 'ollama' }
+                                                   .map { |l| l[:model] }.compact.uniq
                 models = discovered unless discovered.empty?
               rescue StandardError => e
-                Legion::Logging.debug("LlmCommand#collect_models ollama discovery failed: #{e.message}") if defined?(Legion::Logging)
+                handle_exception(e, level: :warn, operation: 'cli.llm.collect_models')
               end
             end
             result[name] = models

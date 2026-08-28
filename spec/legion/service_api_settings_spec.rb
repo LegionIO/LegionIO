@@ -17,4 +17,8 @@ RSpec.describe 'Service API settings integration' do
     expect(Legion::Settings[:api][:puma][:min_threads]).to eq(10)
     expect(Legion::Settings[:api][:puma][:max_threads]).to eq(16)
   end
+
+  it 'reads puma force_shutdown_after from Settings[:api][:puma]' do
+    expect(Legion::Settings[:api][:puma][:force_shutdown_after]).to eq(10)
+  end
 end
