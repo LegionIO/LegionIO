@@ -182,4 +182,29 @@ RSpec.describe Legion::CLI::Task do
       end
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Helpers::Task must be available AND mixed in at class level. It was
+  # previously included inside the `execute_task` instance method, which raises
+  # NoMethodError because `include` is a Module method.
+  # ---------------------------------------------------------------------------
+  describe 'Helpers::Task availability' do
+    it 'defines the constant on a CLI-only load path' do
+      expect(defined?(Legion::Extensions::Helpers::Task)).to be_truthy
+    end
+
+    it 'mixes the module into the command class' do
+      expect(described_class.ancestors).to include(Legion::Extensions::Helpers::Task)
+    end
+
+    it 'exposes generate_task_id as an instance method' do
+      expect(described_class.new).to respond_to(:generate_task_id)
+    end
+
+    it 'does not call include from inside an instance method' do
+      source = File.read(Legion::CLI::Task.instance_method(:help).source_location.first)
+      in_method_include = source.match?(/^\s{10,}include Legion::Extensions::Helpers::Task/)
+      expect(in_method_include).to be(false)
+    end
+  end
 end

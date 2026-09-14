@@ -1,8 +1,16 @@
 # frozen_string_literal: true
 
+# `Legion::Extensions::Helpers::Task` supplies `generate_task_id`, used by `execute_task`. Its file
+# is otherwise required only from `legion/extensions/core.rb`, which no CLI path loads, so without
+# this the constant does not exist and `task trigger` dies with
+# `uninitialized constant Legion::Extensions::Helpers::Task`.
+require 'legion/extensions/helpers/task'
+
 module Legion
   module CLI
     class Task < Thor
+      include Legion::Extensions::Helpers::Task
+
       def self.exit_on_failure?
         true
       end
@@ -324,8 +332,10 @@ module Legion
         end
 
         def execute_task(target, payload, _out)
-          include Legion::Extensions::Helpers::Task
-
+          # `Helpers::Task` is included at class level (top of this file). It was previously
+          # included here, inside an instance method, which cannot work: `include` is a `Module`
+          # method, so calling it on an instance raises
+          # `NoMethodError: undefined method 'include' for an instance of Legion::CLI::Task`.
           ext = target[:extension]
           runner = target[:runner]
           func = target[:function]

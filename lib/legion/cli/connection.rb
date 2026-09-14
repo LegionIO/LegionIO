@@ -39,7 +39,13 @@ module Legion
           return if @data_ready
 
           ensure_settings
+          ensure_crypt_for_placeholders
           require 'legion/data'
+          # `Legion::Data.skip_migrations?` gates auto-migration on `Legion::Mode.infra?`, but only
+          # `if defined?(Legion::Mode)`. Nothing on a CLI path requires it, so the gate never
+          # evaluates and an agent-mode CLI attempts `CREATE TABLE schema_info` on a shared
+          # database it holds no CREATE grant on. Requiring it lets the existing gate work.
+          require 'legion/mode'
           Legion::Settings.merge_settings(:data, Legion::Data::Settings.default)
           Legion::Data.setup
           @data_ready = true
@@ -53,6 +59,7 @@ module Legion
           return if @transport_ready
 
           ensure_settings
+          ensure_crypt_for_placeholders
           require 'legion/transport'
           Legion::Settings.merge_settings('transport', Legion::Transport::Settings.default)
           Legion::Transport::Connection.setup
@@ -140,6 +147,46 @@ module Legion
         end
 
         private
+
+        # Sections whose credentials arrive as `lease://` / `vault://` placeholders.
+        PLACEHOLDER_SECTIONS = %i[data transport cache crypt].freeze
+
+        # Start Crypt — and re-resolve secrets — only when the loaded settings still hold
+        # unresolved `lease://` / `vault://` URIs.
+        #
+        # `ensure_settings` calls `Settings.resolve_secrets!` before any Vault client exists, so
+        # those URIs survive as literal strings and are handed to Postgres/RabbitMQ as
+        # credentials (`403 ACCESS_REFUSED — Username: lease://rabbitmq#username`). `ensure_crypt`
+        # already re-resolves after starting Crypt, but nothing ever called it. `Legion::Service`
+        # gets this right by ordering Crypt (phase 3) ahead of transport (4) and data (6); this
+        # gives the CLI the same ordering lazily.
+        #
+        # Non-fatal by design: `LEGION_MODE=lite` has no Vault, and a config with no placeholders
+        # must not pay for a Vault round-trip. On failure we fall through and let the subsystem
+        # report its own connection error.
+        def ensure_crypt_for_placeholders
+          return if @crypt_ready
+          return unless unresolved_placeholders?
+
+          ensure_crypt
+        rescue StandardError => e
+          Legion::Logging.warn("Connection: crypt init for lease resolution failed: #{e.message}") if defined?(Legion::Logging)
+        end
+
+        def unresolved_placeholders?
+          PLACEHOLDER_SECTIONS.any? { |section| placeholder?(Legion::Settings[section]) }
+        rescue StandardError
+          false
+        end
+
+        def placeholder?(node)
+          case node
+          when String then node.start_with?('lease://', 'vault://')
+          when Hash   then node.any? { |_key, value| placeholder?(value) }
+          when Array  then node.any? { |value| placeholder?(value) }
+          else false
+          end
+        end
 
         def resolve_config_dir
           if @config_dir.is_a?(String)

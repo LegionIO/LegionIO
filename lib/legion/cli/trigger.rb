@@ -1,8 +1,14 @@
 # frozen_string_literal: true
 
+# See the note in `legion/cli/task_command.rb`: `Helpers::Task` is required here because its file
+# is otherwise loaded only via `legion/extensions/core.rb`, which no CLI path requires.
+require 'legion/extensions/helpers/task'
+
 module Legion
   class Cli
     class Trigger < Thor
+      include Legion::Extensions::Helpers::Task
+
       desc 'queue', 'used to send a job directly to a worker via Legion::Transport'
       option :extension, type: :string, required: false, desc: 'extension short name'
       option :runner, type: :string, required: false, desc: 'runner short name'
@@ -10,7 +16,6 @@ module Legion
       option :delay, type: :numeric, default: 0, desc: 'how long to wait before running the task'
       def queue(*args) # rubocop:disable Metrics/AbcSize
         Legion::Service.new(cache: false, crypt: false, extensions: false, log_level: 'error')
-        include Legion::Extensions::Helpers::Task
 
         response = if options['extension'].is_a? String
                      options[:extension]

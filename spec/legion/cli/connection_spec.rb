@@ -519,4 +519,107 @@ RSpec.describe Legion::CLI::Connection do
       expect(described_class.log_level).to eq('warn')
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Lease resolution: ensure_data / ensure_transport must start Crypt when the
+  # loaded settings still carry unresolved lease:// or vault:// placeholders,
+  # because ensure_settings resolves secrets before any Vault client exists.
+  # ---------------------------------------------------------------------------
+  describe 'lease placeholder resolution' do
+    before do
+      stub_logging_and_settings
+      allow(Legion::Settings).to receive(:merge_settings)
+      allow(Legion::Data::Settings).to receive(:default).and_return({})
+      allow(Legion::Data).to receive(:setup)
+      allow(Legion::Crypt).to receive(:start)
+      allow(Legion::Settings).to receive(:resolve_secrets!)
+    end
+
+    context 'when a lease:// placeholder survives in settings' do
+      before do
+        allow(Legion::Settings).to receive(:[]).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with(:data)
+                                               .and_return({ creds: { user: 'lease://postgresql#username' } })
+      end
+
+      it 'starts Crypt so the lease can resolve' do
+        described_class.ensure_data
+        expect(Legion::Crypt).to have_received(:start)
+      end
+
+      it 'marks crypt ready' do
+        described_class.ensure_data
+        expect(described_class.instance_variable_get(:@crypt_ready)).to be(true)
+      end
+    end
+
+    context 'when a vault:// placeholder survives in settings' do
+      before do
+        allow(Legion::Settings).to receive(:[]).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with(:transport)
+                                               .and_return({ connection: { password: 'vault://kv/rmq#pass' } })
+      end
+
+      it 'starts Crypt from ensure_transport too' do
+        allow(Legion::Transport::Connection).to receive(:setup)
+        allow(Legion::Transport::Settings).to receive(:default).and_return({})
+        described_class.ensure_transport
+        expect(Legion::Crypt).to have_received(:start)
+      end
+    end
+
+    context 'when settings contain no placeholders' do
+      before { allow(Legion::Settings).to receive(:[]).and_return({ creds: { user: 'legion' } }) }
+
+      it 'does not start Crypt (no Vault round-trip for a resolved config)' do
+        described_class.ensure_data
+        expect(Legion::Crypt).not_to have_received(:start)
+      end
+
+      it 'still sets up data' do
+        described_class.ensure_data
+        expect(Legion::Data).to have_received(:setup)
+      end
+    end
+
+    context 'when Crypt cannot start (e.g. LEGION_MODE=lite, no Vault)' do
+      before do
+        allow(Legion::Settings).to receive(:[]).and_return(nil)
+        allow(Legion::Settings).to receive(:[]).with(:data)
+                                               .and_return({ creds: { user: 'lease://postgresql#username' } })
+        allow(Legion::Crypt).to receive(:start).and_raise(StandardError, 'vault unreachable')
+        allow(Legion::Logging).to receive(:warn)
+      end
+
+      it 'does not abort ensure_data' do
+        expect { described_class.ensure_data }.not_to raise_error
+        expect(Legion::Data).to have_received(:setup)
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Migration mode gate: Legion::Data.skip_migrations? checks
+  # `if defined?(Legion::Mode)`, so the constant must exist on the CLI path or
+  # an agent-mode CLI issues DDL against a shared database.
+  # ---------------------------------------------------------------------------
+  describe '.ensure_data migration mode gate' do
+    before do
+      stub_logging_and_settings
+      allow(Legion::Settings).to receive(:merge_settings)
+      allow(Legion::Settings).to receive(:[]).and_return(nil)
+      allow(Legion::Data::Settings).to receive(:default).and_return({})
+      allow(Legion::Data).to receive(:setup)
+    end
+
+    it 'defines Legion::Mode so the skip_migrations? gate can evaluate' do
+      described_class.ensure_data
+      expect(defined?(Legion::Mode)).to be_truthy
+    end
+
+    it 'reports a non-infra mode, which is what suppresses CLI migrations' do
+      described_class.ensure_data
+      expect(Legion::Mode.infra?).to be(false)
+    end
+  end
 end
