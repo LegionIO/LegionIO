@@ -237,4 +237,45 @@ RSpec.describe Legion::Identity::LeaseRenewer do
       expect(result).to eq(described_class::MIN_SLEEP)
     end
   end
+
+  describe 'failure backoff' do
+    it 'does not retry every second when provide_token keeps returning nil' do
+      expired = Legion::Identity::Lease.new(provider: :vault, credential: 'tok',
+                                            issued_at: Time.now - 20, expires_at: Time.now - 10)
+      calls = 0
+      allow(provider).to receive(:provide_token) do
+        calls += 1
+        nil
+      end
+
+      r = described_class.new(provider_name: :vault, provider: provider, lease: expired)
+      sleep 3.5
+      # previously ~3 calls (MIN_SLEEP); with backoff the 2nd attempt waits BACKOFF_SLEEP (5s)
+      expect(calls).to eq(1)
+      expect(r.consecutive_failures).to eq(1)
+    ensure
+      r&.stop!
+    end
+
+    it 'doubles the wait per consecutive failure up to MAX_BACKOFF' do
+      r = described_class.new(provider_name: :vault, provider: provider, lease: initial_lease)
+      failures = r.instance_variable_get(:@failures)
+      waits = [1, 2, 3, 10].map do |n|
+        failures.value = n
+        r.send(:backoff_sleep)
+      end
+      expect(waits).to eq([5, 10, 20, described_class::MAX_BACKOFF])
+    ensure
+      r&.stop!
+    end
+
+    it 'resets the failure count after a successful renewal' do
+      r = described_class.new(provider_name: :vault, provider: provider, lease: initial_lease)
+      r.instance_variable_get(:@failures).value = 4
+      r.send(:renew)
+      expect(r.consecutive_failures).to eq(0)
+    ensure
+      r&.stop!
+    end
+  end
 end
