@@ -1,5 +1,12 @@
 # Legion Changelog
 
+## [1.9.53] - 2026-10-19
+### Fixed
+- `legionio auth teams` callback page (`GET /api/auth/teams/callback`) now reads "LegionIO — Microsoft Teams / Entra sign-in complete. You can close this tab." There is a matching failure page that shows the error and description Microsoft returned (HTML-escaped) and suggests re-running `legionio auth teams`. It uses `Legion::Extensions::Identity::Entra::Helpers::CallbackPage` when lex-identity-entra (>= 0.6.1) is loaded and an identical built-in page otherwise.
+- The callback no longer reports success when the token could not be stored. `store_teams_token` now returns true/false, and on success resets the cached Entra delegated client so the next Graph call uses the new token.
+- `POST /api/auth/teams/authorize` falls back to `identity.entra.auth` tenant_id/client_id (the values the daemon's TokenManager refreshes with). When no scopes are configured it requests the Entra delegated scope set instead of the old 3-scope default.
+- `Legion::Identity::LeaseRenewer` backs off when `provide_token` returns nil, an invalid lease, or raises. Waits run 5 s, 10 s, 20 s ... capped at 300 s, and reset after a success. Previously an expired lease made it retry about once a second indefinitely.
+
 ## [1.9.52] - 2026-08-07
 ### Fixed
 - `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'sinatra/base'
 require 'legion/api/auth_teams'
 
 RSpec.describe Legion::API::Routes::AuthTeams::TeamsTokenHelper do
@@ -42,11 +43,18 @@ RSpec.describe Legion::API::Routes::AuthTeams::TeamsTokenHelper do
         .with(:delegated, hash_including(tenant_id: 'tid', client_id: 'cid'))
     end
 
-    it 'does not raise when the token store fails (logs a warning instead)' do
+    it 'does not raise when the token store fails and returns false' do
       allow(token_manager).to receive(:save_token).and_raise(StandardError, 'vault down')
 
-      expect { helper.store_teams_token(token_body, 'scope', tenant_id: 't', client_id: 'c') }
-        .not_to raise_error
+      expect(helper.store_teams_token(token_body, 'scope', tenant_id: 't', client_id: 'c')).to be(false)
+    end
+
+    it 'returns true and resets the cached Entra delegated client on success' do
+      client = class_double('Legion::Extensions::Identity::Entra::Client', reset!: true)
+      stub_const('Legion::Extensions::Identity::Entra::Client', client)
+
+      expect(helper.store_teams_token(token_body, 'scope', tenant_id: 't', client_id: 'c')).to be(true)
+      expect(client).to have_received(:reset!).with(pattern: :delegated)
     end
   end
 end
