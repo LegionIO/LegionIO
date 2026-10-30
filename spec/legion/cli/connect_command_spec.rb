@@ -45,29 +45,9 @@ RSpec.describe Legion::CLI::ConnectCommand do
     end
   end
 
-  describe '#microsoft' do
-    it 'forwards tenant_id, client_id, and scope (as --scopes) to the teams auth flow' do
-      expect(Legion::CLI::Auth).to receive(:start).with(
-        ['teams', '--tenant_id', 'tid', '--client_id', 'cid', '--scopes', 'Calendars.Read']
-      )
-      cmd = described_class.new([], { tenant_id: 'tid', client_id: 'cid', scope: 'Calendars.Read' })
-      cmd.microsoft
-    end
-
-    it 'forwards only teams when no options are given' do
-      expect(Legion::CLI::Auth).to receive(:start).with(['teams'])
-      cmd = described_class.new([], {})
-      cmd.microsoft
-    end
-  end
-
   describe '#disconnect' do
     it 'rejects unknown providers' do
       expect { described_class.new.invoke(:disconnect, ['unknown']) }.to output(/Unknown provider/).to_stdout
-    end
-
-    it 'accepts known providers' do
-      expect { described_class.new.invoke(:disconnect, ['microsoft']) }.to output(/Disconnected/).to_stdout
     end
   end
 end

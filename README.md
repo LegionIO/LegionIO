@@ -126,8 +126,57 @@ legion mcp                   # MCP server over stdio or streamable HTTP
 curl http://localhost:4567/api/v1/tasks   # REST API (OpenAPI 3.1 spec in legionio-spec)
 ```
 
-Every CLI command supports `--json`. MCP tools are discovered at runtime from
-installed extensions, so the tool list reflects what your deployment can actually do.
+MCP tools are discovered at runtime from installed extensions, so the tool list
+reflects what your deployment can actually do.
+
+## Native ChatGPT sign-in
+
+Install `lex-llm-openai >= 0.6.7` in the same Ruby environment as Legion. It owns
+OAuth, local credential storage, refresh, and account identity; the CLI only
+delegates and displays safe results. The extension remains optional for other
+connection commands. Provider implementation: [lex-llm-openai#17](https://github.com/LegionIO/lex-llm-openai/pull/17).
+
+```sh
+legion connect chatgpt --instance personal
+legion connect chatgpt --instance worker --device
+legion connect status --provider chatgpt --instance personal
+legion connect disconnect chatgpt --instance personal
+```
+
+The same commands are available through `legionio connect`. Instance names are
+explicit and preserved exactly; no default account is selected. Browser login
+prints an authorization URL and waits for the registered localhost callback.
+Device login prints a verification URL and user code instead.
+
+Run login **on the credential-owning host, as the OS account that runs Legion**.
+A local CLI does not authenticate a remote daemon or another service account.
+For a headless worker, run `--device` on that worker. Credentials stay in the
+provider's protected `~/.legionio/auth/llm/openai/` store, not the daemon-login
+file, settings, or another harness's auth store.
+
+Named status performs no login, refresh, or live provider readiness check:
+
+| Local status | Meaning |
+|---|---|
+| `missing` | No local native login |
+| `authenticated` | Saved credentials are unexpired |
+| `expired_refreshable` | Saved credentials have expired; the provider can attempt refresh during execution |
+| `reauth_required` | The provider has recorded a definitive authentication failure; sign in again |
+
+Status inspection succeeds even when the state is `missing`; disconnecting a
+missing login fails rather than reporting a successful no-op. Missing/outdated
+extensions, cancellation, rejected authorization, and credential-storage errors
+exit nonzero. Disconnect removes only the named local login; it does not revoke
+unrelated ChatGPT, Codex, or OMP sessions.
+
+Unfiltered `legion connect status` retains the existing Microsoft/GitHub/Google
+status behavior. Use `--provider` to filter it, and `--provider chatgpt --instance
+NAME` for a native login. Authorization prompts are human-readable.
+
+Subscription inference separately requires `extensions.llm.ssl.verify: true`
+through the shared `lex-llm` transport. The shared default remains `false`; these
+CLI commands do not change it. OAuth grant requests use verified HTTPS. Local
+HTTP-fixture verification is not a claim of authenticated upstream compatibility.
 
 ## Verify the claims yourself
 

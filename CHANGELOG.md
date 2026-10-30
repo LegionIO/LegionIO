@@ -1,5 +1,17 @@
 # Legion Changelog
 
+## [1.9.53] - 2026-10-29
+
+### Added
+- CLI: native `legion connect chatgpt --instance NAME` browser login and `--device` authorization, delegated to `lex-llm-openai >= 0.6.7` without a second OAuth implementation or credential store (#249).
+- CLI: read-only named ChatGPT status and local disconnect, with explicit host/OS-account ownership, distinct credential states, sanitized failure output, nonzero error exits, and rejection of missing-login disconnects.
+- CLI: register the existing connection commands on the `legion` interactive entry point as well as `legionio`; bootstrap extension runtime classes lazily without starting the daemon.
+- Real executable/OAuth-peer regression coverage for restart persistence, exact instance names, both binaries, cancellation, denied authorization, failed persistence, missing dependencies, token-free status, and legacy-provider compatibility.
+
+### Changed
+- Connection status supports explicit provider filtering while preserving unfiltered legacy-provider behavior. Native commands require an explicit instance and never import Codex/OMP credentials.
+- Release-gate specs: run local bootstrap lifecycle checks without an unrelated Azure credential gate; remove skipped placeholders for nonexistent ownership-transfer/drain APIs and assertions that only called their own mocks.
+
 ## [1.9.52] - 2026-08-07
 ### Fixed
 - `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`

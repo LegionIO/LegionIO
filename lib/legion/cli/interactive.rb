@@ -42,6 +42,8 @@ module Legion
 
       desc 'init', 'Initialize a new Legion workspace'
       subcommand 'init', Legion::CLI::Init
+      desc 'connect PROVIDER', 'Connect external accounts; use chatgpt --instance NAME for native subscription login'
+      subcommand 'connect', Legion::CLI::ConnectCommand
 
       desc 'tty', 'Launch the rich terminal UI'
       subcommand 'tty', Legion::CLI::Tty

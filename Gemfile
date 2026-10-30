@@ -51,6 +51,7 @@ group :test do
   gem 'graphql'
   gem 'lex-codegen'
   gem 'lex-eval'
+  gem 'lex-llm-openai', '>= 0.6.7' unless File.exist?(File.expand_path('../extensions-ai/lex-llm-openai', __dir__))
   gem 'rack-test'
   gem 'rake'
   gem 'rspec'
