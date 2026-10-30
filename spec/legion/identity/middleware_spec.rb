@@ -413,9 +413,8 @@ RSpec.describe Legion::Identity::Middleware do
       end
 
       it 'passes the principal_id to Legion::Rbac::Principal' do
-        captured = nil
-        app = described_class.new(lambda { |e|
-          captured = e
+        nil
+        app = described_class.new(lambda { |_e|
           [200, {}, []]
         })
         env = env_for('/api/tasks', 'legion.auth' => jwt_claims, 'legion.auth_method' => 'jwt')
@@ -425,9 +424,8 @@ RSpec.describe Legion::Identity::Middleware do
 
       it 'maps :service kind to :worker type in the RBAC principal' do
         service_claims = { sub: 'svc-1', name: 'Bot', scope: 'worker', worker_id: 'svc-1' }
-        captured = nil
-        app = described_class.new(lambda { |e|
-          captured = e
+        nil
+        app = described_class.new(lambda { |_e|
           [200, {}, []]
         })
         env = env_for('/api/tasks', 'legion.auth' => service_claims, 'legion.auth_method' => 'jwt')
@@ -437,9 +435,8 @@ RSpec.describe Legion::Identity::Middleware do
 
       it 'passes resolved roles (from claims[:roles]) to the RBAC principal' do
         claims_with_roles = jwt_claims.merge(roles: ['admin'])
-        captured = nil
-        app = described_class.new(lambda { |e|
-          captured = e
+        nil
+        app = described_class.new(lambda { |_e|
           [200, {}, []]
         })
         env = env_for('/api/tasks', 'legion.auth' => claims_with_roles, 'legion.auth_method' => 'jwt')
