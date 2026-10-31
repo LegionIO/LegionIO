@@ -1,16 +1,20 @@
 # frozen_string_literal: true
 
+require 'legion/settings/task_execution'
+
 module Legion
   module TaskOutcomeObserver
+    extend Legion::Settings::TaskExecution::Helper
+
     class << self
       def setup
         return unless enabled?
 
-        Legion::Events.on('task.completed') do |payload|
+        Legion::Events.on(task_status(name: :completed)) do |payload|
           handle_outcome(payload, success: true)
         end
 
-        Legion::Events.on('task.failed') do |payload|
+        Legion::Events.on(task_status(name: :failed)) do |payload|
           handle_outcome(payload, success: false)
         end
 
@@ -21,11 +25,7 @@ module Legion
       end
 
       def enabled?
-        settings = begin
-          Legion::Settings[:task_outcome_observer]
-        rescue StandardError
-          nil
-        end
+        settings = Legion::Settings[:task_outcome_observer]
         return true unless settings.is_a?(Hash)
 
         settings.fetch(:enabled, true)
@@ -35,6 +35,14 @@ module Legion
 
       def handle_outcome(payload, success:)
         return unless observable_outcome?(payload)
+
+        status = outcome_value(payload, :status)
+        if success
+          return unless outcome_value(payload, :success) == true && status == task_status(name: :completed)
+        else
+          return unless outcome_value(payload, :success) == false
+          return unless %i[failed exception].any? { |name| status == task_status(name: name) }
+        end
 
         runner_class = outcome_value(payload, :runner_class).to_s
         function = outcome_value(payload, :function).to_s
@@ -55,7 +63,8 @@ module Legion
       end
 
       def observable_outcome?(payload)
-        !outcome_value(payload, :task_id).to_s.strip.empty? &&
+        outcome_value(payload, :persisted) == true &&
+          !outcome_value(payload, :task_id).to_s.strip.empty? &&
           !outcome_value(payload, :runner_class).to_s.strip.empty? &&
           !outcome_value(payload, :function).to_s.strip.empty?
       end
@@ -63,7 +72,7 @@ module Legion
       def outcome_value(payload, key)
         return unless payload.respond_to?(:[])
 
-        payload[key] || payload[key.to_s]
+        payload.key?(key) ? payload[key] : payload[key.to_s]
       end
 
       def record_learning(domain:, success:)
@@ -98,11 +107,7 @@ module Legion
       def setup_llm_reflection_hook
         return unless defined?(Legion::LLM)
 
-        reflection_enabled = begin
-          Legion::Settings.dig(:llm, :reflection, :enabled)
-        rescue StandardError
-          false
-        end
+        reflection_enabled = Legion::Settings.dig(:llm, :reflection, :enabled)
         return unless reflection_enabled
 
         return unless defined?(Legion::LLM::Hooks::Reflection)

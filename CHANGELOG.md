@@ -1,5 +1,19 @@
 # Legion Changelog
 
+## [1.9.53] - 2026-10-30
+
+### Fixed
+- Runner exceptions now propagate after recording truthful outcomes; returned failures never emit successful completion or dispatch success continuations.
+- Persisted tasks use atomic execution claims, attempt outcomes, and completion/outbox transactions. Duplicate completion cannot repeat execution or enqueue another continuation; stale failures cannot overwrite success.
+- AMQP subscriptions use the same admission, worker-registration, and authorization policy as ingress. Quiescing consumers defer work instead of acknowledging discarded deliveries.
+- Retry publication requires broker acceptance and preserves the original envelope, including encrypted payload metadata and correlation identity. Unknown external effects are terminal unless the runner is explicitly declared safe to retry.
+- Task helpers persist result, payload, and arguments through guarded transitions; outcome learning only consumes truthful persisted terminal results.
+
+### Changed
+- Shared task execution policy comes from `Legion::Settings[:task_execution]`; retry eligibility is explicit via `retry.safe_runners`.
+- `Helpers::Task.task_update` now requires keyword arguments. Internal service subscriptions must explicitly opt into `trusted_internal`; generic ingress no longer grants an implicit local-admin principal.
+- Requires legion-settings 1.5.0, legion-data 1.11.0, and legion-transport 1.4.32. Lite execution remains available without durable-storage guarantees.
+
 ## [1.9.52] - 2026-08-07
 ### Fixed
 - `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`

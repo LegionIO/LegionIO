@@ -24,7 +24,7 @@ unless defined?(Legion::Rbac::Principal)
   module Legion
     module Rbac
       class Principal
-        def self.local_admin = :admin
+        def self.anonymous = Struct.new(:id, :type).new('anonymous', :human)
       end
 
       def self.authorize_execution!(**) = nil

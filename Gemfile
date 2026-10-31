@@ -8,9 +8,12 @@ gem 'pg'
 gem 'kramdown', '>= 2.0'
 gem 'mysql2'
 
-gem 'legion-data', path: '../legion-data' if File.exist?(File.expand_path('../legion-data', __dir__))
+companion_root = File.directory?(File.expand_path('.ci-dependencies', __dir__)) ? '.ci-dependencies' : '..'
+%w[legion-data legion-settings legion-transport].each do |dependency|
+  path = File.expand_path("#{companion_root}/#{dependency}", __dir__)
+  gem dependency, path: path if File.directory?(path)
+end
 gem 'legion-logging', path: '../legion-logging' if File.exist?(File.expand_path('../legion-logging', __dir__))
-gem 'legion-settings', path: '../legion-settings' if File.exist?(File.expand_path('../legion-settings', __dir__))
 
 gem 'legion-apollo', path: '../legion-apollo' if File.exist?(File.expand_path('../legion-apollo', __dir__))
 gem 'legion-gaia', path: '../legion-gaia' if File.exist?(File.expand_path('../legion-gaia', __dir__))
@@ -49,6 +52,9 @@ group :test do
   gem 'faraday'
   gem 'faraday-net_http'
   gem 'graphql'
+  rbac_path = File.expand_path("#{companion_root}/legion-rbac", __dir__)
+  rbac_options = File.directory?(rbac_path) ? { path: rbac_path } : {}
+  gem 'legion-rbac', '>= 0.3.5', **rbac_options
   gem 'lex-codegen'
   gem 'lex-eval'
   gem 'rack-test'
@@ -58,4 +64,5 @@ group :test do
   gem 'rubocop-legion'
   gem 'rubocop-rspec'
   gem 'simplecov'
+  gem 'sqlite3'
 end

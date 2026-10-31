@@ -96,8 +96,38 @@ The original core, in production since before any of the AI layers existed:
 - Scale by starting more processes; RabbitMQ distributes the work.
 
 `LEGION_MODE=lite` swaps RabbitMQ for in-process pub/sub and Redis for an in-memory
-cache. Every feature works; nothing external is required. This is the recommended way
-to evaluate the framework, and it takes about five minutes.
+cache. No external service is required to evaluate the framework. Without a database,
+execution is explicitly ephemeral: process loss cannot recover task claims or
+continuations, and ephemeral events are not treated as durable learning outcomes.
+
+With connected task storage, each invocation claims a logical task and records an
+attempt. Successful completion and its child-dispatch intent are committed together;
+the `lex-tasker` outbox relay publishes with broker confirms and mandatory routing.
+Redelivery cannot repeat a completed task, and late failure updates cannot overwrite
+its outcome. The outbox, not the transport disk spool, owns task-dispatch durability.
+
+Task execution settings live under `Legion::Settings[:task_execution]`. The default
+retry budget is three total attempts with exponential delays capped at 30 seconds.
+`retry.safe_runners` is an explicit permission map such as `{ 'MyRunner#fetch' => true }`,
+empty by default. Set a method to `false` to revoke an inherited retry grant. Only
+enable operations whose side effects are safe to repeat. Other post-invocation
+exceptions record `task.unknown` and are not automatically retried.
+Returned `success: false` is a terminal failure, not a completed task. Cancelled and
+expired tasks do not execute. A failed retry publication retains the original
+delivery instead of acknowledging a lost handoff.
+
+Subscriptions and HTTP ingress share worker and authorization checks. An authenticated
+caller passes its principal explicitly; neither a payload identity nor `source: 'amqp'`
+grants admin access. Framework-generated task subscriptions and approved internal
+stage actors explicitly declare `trusted_internal true`; custom subscriptions remain
+untrusted by default. Internal actors execute as the configured service principal
+(the existing `worker` role by default), subject to normal RBAC checks. This assumes
+broker publisher ACLs restrict these queues to authenticated internal producers.
+Service role grants are also a Boolean map (`roles: { worker: true }`); `false`
+revokes an inherited role instead of additive array merging restoring it.
+Claimed user identities are preserved only as `originating_principal_id` /
+`originating_principal_type` audit metadata; they are not authorization credentials.
+Quiescing extensions defer delivery without completing or discarding the task.
 
 ## The experimental part, labeled as such
 

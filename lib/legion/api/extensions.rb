@@ -155,6 +155,7 @@ module Legion
               runner_class:  info[:runner_class],
               function:      func_sym,
               source:        'api',
+              principal:     env['legion.rbac_principal'],
               check_subtask: body.fetch(:check_subtask, true),
               generate_task: body.fetch(:generate_task, true)
             )

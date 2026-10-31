@@ -8,14 +8,16 @@ on:
 
 jobs:
   ci:
-    uses: LegionIO/.github/.github/workflows/ci.yml@main
+    uses: LegionIO/.github/.github/workflows/ci.yml@e0fc7364b73f446d4cb9bdc162a66ed34bf0daa7
     with:
       needs-rabbitmq: true
+      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"b5369f610ccd9aad7de1623e61fa06ac2089d9d1"},"legion-data":{"repository":"LegionIO/legion-data","ref":"697bb472972b83c55f57f7f1ecf856325a7f860b"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"a6eeb3377b1822ed0557a9ef5551f134f5d8b4af"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"}}' || '{}' }}
 
   security:
-    uses: LegionIO/.github/.github/workflows/security-scan.yml@main
+    uses: LegionIO/.github/.github/workflows/security-scan.yml@e0fc7364b73f446d4cb9bdc162a66ed34bf0daa7
     with:
       brakeman-enabled: false
+      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"b5369f610ccd9aad7de1623e61fa06ac2089d9d1"},"legion-data":{"repository":"LegionIO/legion-data","ref":"697bb472972b83c55f57f7f1ecf856325a7f860b"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"a6eeb3377b1822ed0557a9ef5551f134f5d8b4af"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"}}' || '{}' }}
 
   version-changelog:
     uses: LegionIO/.github/.github/workflows/version-changelog.yml@main

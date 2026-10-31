@@ -1,36 +1,31 @@
 # frozen_string_literal: true
 
+require 'legion/settings/task_execution'
+
 module Legion
   module Extensions
     module Actors
       module RetryPolicy
-        DEFAULT_THRESHOLD = 2
+        extend Legion::Settings::TaskExecution::Helper
+
         RETRY_COUNT_HEADER = 'x-retry-count'
 
-        module_function
-
-        def should_retry?(retry_count:, threshold:)
-          return true if threshold.nil?
-
+        def self.should_retry?(retry_count:, threshold:)
           retry_count < threshold
         end
 
-        def extract_retry_count(headers)
-          return 0 if headers.nil?
-
-          count = headers[RETRY_COUNT_HEADER] || headers[RETRY_COUNT_HEADER.to_sym] || 0
-          count.to_i
+        def self.extract_retry_count(headers:)
+          count = (headers || {})[RETRY_COUNT_HEADER] || (headers || {})[RETRY_COUNT_HEADER.to_sym] || 0
+          Integer(count).tap { |value| raise ArgumentError, 'retry count cannot be negative' if value.negative? }
         end
 
-        def retry_threshold
-          threshold = nil
-          if defined?(Legion::Settings)
-            threshold = Legion::Settings.dig(:fleet, :poison_message_threshold)
-            threshold ||= Legion::Settings.dig(:transport, :retry_threshold)
-          end
-          threshold || DEFAULT_THRESHOLD
-        rescue StandardError
-          DEFAULT_THRESHOLD
+        def self.retry_threshold
+          task_execution_settings[:retry][:max_attempts] - 1
+        end
+
+        def self.retry_delay(retry_count:)
+          policy = task_execution_settings[:retry]
+          [policy[:base_delay_seconds] * (2**retry_count), policy[:max_delay_seconds]].min
         end
       end
     end

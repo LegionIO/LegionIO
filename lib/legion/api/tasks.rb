@@ -35,6 +35,7 @@ module Legion
 
             result = Legion::Ingress.run(
               payload: body, runner_class: runner_class, function: function.to_sym,
+              principal: env['legion.rbac_principal'],
               source: 'api', check_subtask: body.fetch(:check_subtask, true),
               generate_task: body.fetch(:generate_task, true)
             )
