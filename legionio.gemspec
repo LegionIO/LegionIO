@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.bindir        = 'exe'
   spec.executables   = %w[legion legionio]
 
-  spec.add_dependency 'legion-mcp', '>= 0.7.1'
+  spec.add_dependency 'legion-mcp', '>= 0.9.2'
 
   spec.add_dependency 'kramdown', '>= 2.0'
 

@@ -129,6 +129,9 @@ Claimed user identities are preserved only as `originating_principal_id` /
 `originating_principal_type` audit metadata; they are not authorization credentials.
 Quiescing extensions defer delivery without completing or discarding the task.
 
+The MCP integration requires `legion-mcp >= 0.9.2` and MCP SDK `>= 1.2.0`,
+which fixes [OAuth-discovery requests to private hosts](https://github.com/modelcontextprotocol/ruby-sdk/security/advisories/GHSA-4m5j-jjfc-97gx).
+
 ## The experimental part, labeled as such
 
 The `lex-agentic-*` gems are a research layer: 16 gems containing 369 actor and runner

@@ -8,6 +8,7 @@
 - AMQP subscriptions use the same admission, worker-registration, and authorization policy as ingress. Quiescing consumers defer work instead of acknowledging discarded deliveries.
 - Retry publication requires broker acceptance and preserves the original envelope, including encrypted payload metadata and correlation identity. Unknown external effects are terminal unless the runner is explicitly declared safe to retry.
 - Task helpers persist result, payload, and arguments through guarded transitions; outcome learning only consumes truthful persisted terminal results.
+- Require legion-mcp 0.9.2 with MCP SDK >= 1.2.0 to fix OAuth-discovery SSRF (GHSA-4m5j-jjfc-97gx), without suppressing security advisories.
 
 ### Changed
 - Shared task execution policy comes from `Legion::Settings[:task_execution]`; retry eligibility is explicit via `retry.safe_runners`.
