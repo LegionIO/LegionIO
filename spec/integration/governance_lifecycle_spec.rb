@@ -395,68 +395,12 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
-  # 2. Ownership transfer
-  #    Transfer worker ownership -> validate identity binding updated ->
-  #    validate trust reset
+  # 2. Pausing for ownership revalidation
+  #    The implemented lifecycle transition emits events and audit records.
   # ===========================================================================
-  describe 'ownership transfer' do
-    let(:worker) do
-      build_worker(
-        lifecycle_state: 'active',
-        owner_msid:      'alice@example.com',
-        trust_score:     0.9
-      )
-    end
-
-    context 'when updating owner_msid to a new owner' do
-      it 'calls update on the worker with the new owner_msid' do
-        expect(worker).to receive(:update).with(hash_including(owner_msid: 'bob@example.com'))
-        worker.update(owner_msid: 'bob@example.com')
-      end
-
-      it 'calls update with the previous owner recorded as transferred_by' do
-        expect(worker).to receive(:update).with(
-          hash_including(owner_msid: 'bob@example.com', transferred_by: 'alice@example.com')
-        )
-        worker.update(owner_msid: 'bob@example.com', transferred_by: 'alice@example.com')
-      end
-
-      it 'emits a worker.ownership_transferred event through Legion::Events' do
-        # TODO: Replace with a call to the ownership-transfer production method once
-        # it exists (e.g. Legion::DigitalWorker::Lifecycle.transfer_ownership!).
-        # Using skip (not pending) so this example does not execute and fail on
-        # the missing transfer_ownership! method.
-        skip 'ownership-transfer workflow not yet implemented in production code'
-
-        Legion::DigitalWorker::Lifecycle.transfer_ownership!(
-          worker,
-          to_owner:       'bob@example.com',
-          transferred_by: 'alice@example.com'
-        )
-
-        expect(Legion::Events).to have_received(:emit).with(
-          'worker.ownership_transferred',
-          hash_including(
-            worker_id:  'worker-gov-01',
-            from_owner: 'alice@example.com',
-            to_owner:   'bob@example.com'
-          )
-        )
-      end
-    end
-
-    context 'when trust and confidence scores are reset after transfer' do
-      it 'resets trust_score to 0.0 after ownership change' do
-        expect(worker).to receive(:update).with(hash_including(trust_score: 0.0))
-        worker.update(owner_msid: 'bob@example.com', trust_score: 0.0)
-      end
-
-      it 'resets consent_tier to supervised after ownership change' do
-        expect(worker).to receive(:update).with(hash_including(consent_tier: 'supervised'))
-        worker.update(owner_msid: 'bob@example.com', consent_tier: 'supervised', trust_score: 0.0)
-      end
-
-      it 'reverts lifecycle to paused (pending re-validation) after transfer' do
+  describe 'pausing for ownership revalidation' do
+    context 'when an active worker must be revalidated' do
+      it 'pauses the worker for revalidation' do
         paused_worker = build_worker(lifecycle_state: 'active')
 
         result = Legion::DigitalWorker::Lifecycle.transition!(
@@ -469,7 +413,7 @@ RSpec.describe 'Governance lifecycle integration' do
         expect(result).to eq(paused_worker)
       end
 
-      it 'emits a lifecycle event for the paused transition during transfer' do
+      it 'emits a lifecycle event for the paused transition' do
         paused_worker = build_worker(lifecycle_state: 'active')
 
         Legion::DigitalWorker::Lifecycle.transition!(
@@ -486,7 +430,7 @@ RSpec.describe 'Governance lifecycle integration' do
         )
       end
 
-      it 'writes an audit entry for the paused transition during transfer' do
+      it 'writes an audit entry for the paused transition' do
         paused_worker = build_worker(lifecycle_state: 'active')
 
         Legion::DigitalWorker::Lifecycle.transition!(
@@ -683,48 +627,6 @@ RSpec.describe 'Governance lifecycle integration' do
       end
     end
 
-    # -------------------------------------------------------------------------
-    # Queue drain ordering: verify drain is called before state transition
-    # Uses an ordering spy (append array) rather than Time.now resolution so
-    # the test catches regressions in production code ordering.
-    # -------------------------------------------------------------------------
-    context 'queue drain signal ordering' do
-      it 'drain is signalled before lifecycle state is updated' do
-        call_order = []
-
-        drain_mod = Module.new do
-          define_singleton_method(:drain_queue) do |_worker_id:, &_block|
-            call_order << :drain
-          end
-        end
-        stub_const('Legion::Extensions::Queue::Drain', drain_mod)
-
-        # TODO: Replace with a call to a production method (e.g.
-        # Lifecycle.retire_with_drain!) that internally calls
-        # Queue::Drain.drain_queue before worker.update, so this example
-        # catches regressions in SUT ordering rather than test-script ordering.
-        # Using skip (not pending) so this example does not execute and fail on
-        # the missing retire_with_drain! method.
-        skip 'drain-then-retire production method not yet implemented'
-
-        # Stub worker#update to record when the state update actually happens.
-        # (Doubles have no original method to wrap, so we use a plain stub.)
-        allow(worker).to receive(:update) do |*_args, **_kwargs, &blk|
-          call_order << :state_update
-          blk ? blk.call : true
-        end
-
-        Legion::DigitalWorker::Lifecycle.retire_with_drain!(
-          worker,
-          by:                 'ops@example.com',
-          reason:             'graceful shutdown after drain',
-          authority_verified: true
-        )
-
-        expect(call_order).to eq(%i[drain state_update])
-      end
-    end
-
     context 'data retention policy check after retirement' do
       it 'records the retiring principal in the audit trail' do
         Legion::DigitalWorker::Lifecycle.transition!(
@@ -805,35 +707,19 @@ RSpec.describe 'Governance lifecycle integration' do
   end
 
   # ===========================================================================
-  # 4. Lifecycle transitions for Foundry-bound workers
-  #    Verifies that workers intended for Azure AI Foundry dispatch follow the
-  #    correct lifecycle path (bootstrap -> active) and that the governance
-  #    hooks (events, audit) fire correctly.
-  #
-  #    NOTE: These examples exercise Lifecycle.transition! with doubles only —
-  #    they do NOT dispatch tasks through the Grid gateway or talk to Azure AI
-  #    Foundry. Full E2E gateway/Foundry tests belong in a separate staging
-  #    suite that requires live infrastructure (AZURE_FOUNDRY_ENDPOINT,
-  #    AZURE_FOUNDRY_API_KEY, a running Legion daemon, and lex-azure-ai).
-  #
-  #    Tagged :staging so they are skipped in normal CI.
-  #    Run them with: bundle exec rspec --tag staging
+  # 4. Bootstrap lifecycle transitions
+  #    These checks exercise the local lifecycle owner, events, and audit.
+  #    No gateway, Azure service, credentials, or staging environment is used.
   # ===========================================================================
-  describe 'Lifecycle transitions for Foundry-bound workers', :staging do
-    before(:all) do
-      required_env_vars = %w[AZURE_FOUNDRY_ENDPOINT AZURE_FOUNDRY_API_KEY]
-      missing = required_env_vars.select { |key| ENV[key].to_s.empty? }
-      skip("Azure AI Foundry staging specs require env vars: #{missing.join(', ')}") if missing.any?
-    end
-
+  describe 'bootstrap lifecycle transitions' do
     let(:worker) { build_worker(lifecycle_state: 'bootstrap') }
 
-    it 'activates a worker and allows it to accept Foundry tasks' do
+    it 'activates a bootstrapped worker' do
       result = Legion::DigitalWorker::Lifecycle.transition!(
         worker,
         to_state:           'active',
         by:                 'staging-ci',
-        reason:             'Azure AI Foundry E2E test activation',
+        reason:             'bootstrap readiness confirmed',
         authority_verified: true
       )
       expect(result).to eq(worker)
@@ -845,7 +731,7 @@ RSpec.describe 'Governance lifecycle integration' do
         worker,
         to_state:           'active',
         by:                 'staging-ci',
-        reason:             'Azure AI Foundry E2E test activation',
+        reason:             'bootstrap readiness confirmed',
         authority_verified: true
       )
 
@@ -859,7 +745,7 @@ RSpec.describe 'Governance lifecycle integration' do
       )
     end
 
-    it 'raises InvalidTransition if Foundry task is dispatched to a retired worker' do
+    it 'rejects reactivation of a retired worker' do
       retired_worker = build_worker(lifecycle_state: 'retired')
 
       expect do
@@ -872,12 +758,12 @@ RSpec.describe 'Governance lifecycle integration' do
       end.to raise_error(Legion::DigitalWorker::Lifecycle::InvalidTransition)
     end
 
-    it 'records audit trail for worker activated for Foundry dispatch' do
+    it 'records an audit trail for worker activation' do
       Legion::DigitalWorker::Lifecycle.transition!(
         worker,
         to_state:           'active',
         by:                 'staging-ci',
-        reason:             'Azure AI Foundry E2E test',
+        reason:             'bootstrap readiness confirmed',
         authority_verified: true
       )
 
