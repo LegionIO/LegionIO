@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-require 'legion/settings/task_execution'
+require 'legion/task_execution'
+require 'legion/transport/task_protocol'
 
 module Legion
   module Ingress
-    extend Legion::Settings::TaskExecution::Helper
+    extend Legion::TaskExecution::Helper
+    extend Legion::Transport::TaskProtocol::Helper
 
     RUNNER_CLASS_PATTERN = /\A[A-Z][A-Za-z0-9:]+\z/
     FUNCTION_PATTERN = /\A[a-z_][a-z0-9_]*[!?]?\z/
@@ -39,7 +41,7 @@ module Legion
         message[:source] = source
         message[:timestamp] ||= Time.now.to_i
         message[:datetime] ||= Time.at(message[:timestamp]).to_datetime.to_s
-        message.merge(opts)
+        message.merge(opts).except(:execution_policy)
       end
 
       # Normalize and execute via Legion::Runner.run.

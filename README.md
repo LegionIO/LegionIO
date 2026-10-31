@@ -106,15 +106,35 @@ the `lex-tasker` outbox relay publishes with broker confirms and mandatory routi
 Redelivery cannot repeat a completed task, and late failure updates cannot overwrite
 its outcome. The outbox, not the transport disk spool, owns task-dispatch durability.
 
-Task execution settings live under `Legion::Settings[:task_execution]`. The default
-retry budget is three total attempts with exponential delays capped at 30 seconds.
-`retry.safe_runners` is an explicit permission map such as `{ 'MyRunner#fetch' => true }`,
-empty by default. Set a method to `false` to revoke an inherited retry grant. Only
-enable operations whose side effects are safe to repeat. Other post-invocation
-exceptions record `task.unknown` and are not automatically retried.
+Core-local task policy lives under `Legion::Settings[:task_execution]`: payload
+limits, trusted internal service identity, retry grants, and ephemeral retry bounds.
+The default ephemeral retry budget is three total attempts with exponential delays
+capped at 30 seconds. `retry.safe_runners` is an explicit permission map such as
+`{ 'MyRunner#fetch' => true }`, empty by default. Set a method to `false` to revoke
+an inherited retry grant on the current worker. Only enable operations whose side
+effects are safe to repeat. Other post-invocation exceptions record `task.unknown`
+and are not automatically retried.
+
+Durable tasks instead capture lease, heartbeat, and retry bounds from
+`Legion::Settings[:data][:task_execution]` when created (or atomically at first
+claim for legacy rows). Data returns that stored policy with each execution claim;
+Core uses it even when another worker has different local settings. Stored
+`retry_at` controls durable redelivery, not the worker's ephemeral retry threshold.
+Incoming payloads cannot supply this policy. Settings are process-local configuration,
+not a distributed consistency mechanism. Upgrade Data through migration **144**
+before deploying this execution path; the migration adds the policy snapshot to
+both active and archived tasks.
+
+Status names, routes, message types, and protocol metadata are fixed wire contracts
+owned by `Legion::Transport::TaskProtocol`, not runtime settings. Publication policy
+is local to `Legion::Settings[:transport][:task_publication]`.
+
 Returned `success: false` is a terminal failure, not a completed task. Cancelled and
 expired tasks do not execute. A failed retry publication retains the original
 delivery instead of acknowledging a lost handoff.
+
+This release requires legion-settings >= 1.4.3, legion-data >= 1.11.0, and
+legion-transport >= 1.4.32.
 
 Subscriptions and HTTP ingress share worker and authorization checks. An authenticated
 caller passes its principal explicitly; neither a payload identity nor `source: 'amqp'`

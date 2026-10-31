@@ -11,9 +11,11 @@
 - Require legion-mcp 0.9.2 with MCP SDK >= 1.2.0 to fix OAuth-discovery SSRF (GHSA-4m5j-jjfc-97gx), without suppressing security advisories.
 
 ### Changed
-- Shared task execution policy comes from `Legion::Settings[:task_execution]`; retry eligibility is explicit via `retry.safe_runners`.
+- Core owns local payload limits, service admission, retry grants, and ephemeral retry policy under `Legion::Settings[:task_execution]`; Settings remains a generic process-local facility.
+- Durable heartbeat and retry bounds come only from Data's stored claim policy, and persisted `retry_at` remains authoritative across workers with different local retry thresholds. Inbound policy snapshots are ignored; current Boolean safe-runner grants still enforce local revocation.
+- Transport owns immutable task status, route, message-type, and metadata identities. Data migration 144 adds execution-policy snapshots to active and archived tasks and must run before rollout.
 - `Helpers::Task.task_update` now requires keyword arguments. Internal service subscriptions must explicitly opt into `trusted_internal`; generic ingress no longer grants an implicit local-admin principal.
-- Requires legion-settings 1.5.0, legion-data 1.11.0, and legion-transport 1.4.32. Lite execution remains available without durable-storage guarantees.
+- Requires legion-settings 1.4.3, legion-data 1.11.0, and legion-transport 1.4.32. Lite execution remains available without durable-storage guarantees.
 
 ## [1.9.52] - 2026-08-07
 ### Fixed

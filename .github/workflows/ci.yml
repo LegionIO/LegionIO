@@ -11,13 +11,13 @@ jobs:
     uses: LegionIO/.github/.github/workflows/ci.yml@e0fc7364b73f446d4cb9bdc162a66ed34bf0daa7
     with:
       needs-rabbitmq: true
-      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"b5369f610ccd9aad7de1623e61fa06ac2089d9d1"},"legion-data":{"repository":"LegionIO/legion-data","ref":"697bb472972b83c55f57f7f1ecf856325a7f860b"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"a6eeb3377b1822ed0557a9ef5551f134f5d8b4af"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"},"legion-mcp":{"repository":"LegionIO/legion-mcp","ref":"90af6ac41362a8f7dbf81b92786b5a9b4443f324"}}' || '{}' }}
+      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"ec2274f2001f0b8db296acf78ea99f2a8aebb4d7"},"legion-data":{"repository":"LegionIO/legion-data","ref":"1174f6fac06c53235e688f9bc35ee47c730f3651"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"0cec78271825be7ed9d8c7888ffcbb7cfd321d12"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"},"legion-mcp":{"repository":"LegionIO/legion-mcp","ref":"90af6ac41362a8f7dbf81b92786b5a9b4443f324"}}' || '{}' }}
 
   security:
     uses: LegionIO/.github/.github/workflows/security-scan.yml@e0fc7364b73f446d4cb9bdc162a66ed34bf0daa7
     with:
       brakeman-enabled: false
-      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"b5369f610ccd9aad7de1623e61fa06ac2089d9d1"},"legion-data":{"repository":"LegionIO/legion-data","ref":"697bb472972b83c55f57f7f1ecf856325a7f860b"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"a6eeb3377b1822ed0557a9ef5551f134f5d8b4af"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"},"legion-mcp":{"repository":"LegionIO/legion-mcp","ref":"90af6ac41362a8f7dbf81b92786b5a9b4443f324"}}' || '{}' }}
+      companion-gems: ${{ github.event_name == 'pull_request' && '{"legion-settings":{"repository":"LegionIO/legion-settings","ref":"ec2274f2001f0b8db296acf78ea99f2a8aebb4d7"},"legion-data":{"repository":"LegionIO/legion-data","ref":"1174f6fac06c53235e688f9bc35ee47c730f3651"},"legion-transport":{"repository":"LegionIO/legion-transport","ref":"0cec78271825be7ed9d8c7888ffcbb7cfd321d12"},"legion-rbac":{"repository":"LegionIO/legion-rbac","ref":"26e9982e131c968ba2f8681e3bdad23c16acfaf7"},"legion-mcp":{"repository":"LegionIO/legion-mcp","ref":"90af6ac41362a8f7dbf81b92786b5a9b4443f324"}}' || '{}' }}
 
   version-changelog:
     uses: LegionIO/.github/.github/workflows/version-changelog.yml@main

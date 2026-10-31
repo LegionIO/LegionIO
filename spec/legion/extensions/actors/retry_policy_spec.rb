@@ -7,7 +7,7 @@ RSpec.describe Legion::Extensions::Actors::RetryPolicy do
   around do |example|
     described_class.task_execution_settings
     original = Legion::Settings[:task_execution]
-    Legion::Settings.loader.settings[:task_execution] = Legion::Settings::TaskExecution.default
+    Legion::Settings.loader.settings[:task_execution] = Legion::TaskExecution::Settings.default
     example.run
   ensure
     Legion::Settings.loader.settings[:task_execution] = original

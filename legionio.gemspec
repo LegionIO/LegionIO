@@ -60,7 +60,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'legion-data', '>= 1.11.0'
   spec.add_dependency 'legion-json', '>= 1.2.1'
   spec.add_dependency 'legion-logging', '>= 1.5.0'
-  spec.add_dependency 'legion-settings', '>= 1.5.0'
+  spec.add_dependency 'legion-settings', '>= 1.4.3'
   spec.add_dependency 'legion-transport', '>= 1.4.32'
 
   spec.add_dependency 'legion-apollo', '>= 0.4.0'

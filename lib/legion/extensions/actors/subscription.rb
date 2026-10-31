@@ -6,7 +6,9 @@ require_relative 'retry_policy'
 require 'date'
 require 'securerandom'
 require 'legion/ingress'
-require 'legion/settings/task_execution'
+require 'legion/task_execution'
+require 'legion/transport/task_protocol'
+require 'time'
 require 'legion/transport/publisher'
 
 module Legion
@@ -28,7 +30,8 @@ module Legion
         include Concurrent::Async
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Helpers::Transport
-        include Legion::Settings::TaskExecution::Helper
+        include Legion::TaskExecution::Helper
+        include Legion::Transport::TaskProtocol::Helper
 
         define_dsl_accessor :consumers, default: 1
         define_dsl_accessor :manual_ack, default: true
@@ -263,13 +266,18 @@ module Legion
             return
           end
           retry_count = RetryPolicy.extract_retry_count(headers: metadata&.headers)
-          threshold = RetryPolicy.retry_threshold
-          unless RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
-            @queue.reject(delivery_info.delivery_tag, requeue: false)
-            return
+          if outcome && outcome[:persisted]
+            retry_at = outcome.fetch(:retry_at)
+            retry_at = Time.parse(retry_at) unless retry_at.is_a?(Time)
+            sleep([retry_at - Time.now, 0].max)
+          else
+            threshold = RetryPolicy.retry_threshold
+            unless RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
+              @queue.reject(delivery_info.delivery_tag, requeue: false)
+              return
+            end
+            sleep(RetryPolicy.retry_delay(retry_count: retry_count))
           end
-
-          sleep(RetryPolicy.retry_delay(retry_count: retry_count))
           republish_with_retry_count(delivery_info, metadata, payload, retry_count + 1)
           @queue.acknowledge(delivery_info.delivery_tag)
         rescue StandardError => e

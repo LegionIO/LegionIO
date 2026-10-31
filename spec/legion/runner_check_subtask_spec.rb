@@ -38,7 +38,7 @@ module PersistedTaskRunner
 end
 
 RSpec.describe 'Runner durable completion boundary' do
-  include Legion::Settings::TaskExecution::Helper
+  include Legion::Transport::TaskProtocol::Helper
 
   before(:context) do
     @directory = Dir.mktmpdir('legion-core-tasks')
@@ -57,10 +57,10 @@ RSpec.describe 'Runner durable completion boundary' do
     original_data = Legion::Settings[:data]
     original_client = Legion::Settings[:client]
     original_tasks = Legion::Settings[:task_execution]
-    Legion::Settings.loader.settings[:task_execution] = Legion::Settings::TaskExecution.default
+    Legion::Settings.loader.settings[:task_execution] = Legion::TaskExecution::Settings.default
     original_listeners = Legion::Events.instance_variable_get(:@listeners)
     Legion::Data::Connection.instance_variable_set(:@sequel, @database)
-    Legion::Settings.loader.settings[:data] = { connected: true }
+    Legion::Settings.loader.settings[:data] = Legion::Data::Settings.default.merge(connected: true)
     Legion::Settings.loader.settings[:client] = { name: 'core-spec' }
     Legion::Events.instance_variable_set(:@listeners, Hash.new { |hash, key| hash[key] = [] })
     @database[:task_dispatches].delete
@@ -81,6 +81,8 @@ RSpec.describe 'Runner durable completion boundary' do
   end
 
   it 'records one completion and continuation despite redelivery, without stale payload overriding results or identity' do
+    Legion::Settings[:task_execution].merge!(statuses: { completed: 'custom.completed' },
+                                             protocol: { metadata_fields: [:execution_policy] })
     master = create_task
     task = create_task(master_id: master[:id])
     events = []
@@ -124,17 +126,44 @@ RSpec.describe 'Runner durable completion boundary' do
     expect(@database[:task_dispatches].count).to eq(0)
   end
 
-  it 'permits only explicitly safe retry attempts and exhausts the total attempt budget' do
+  it 'uses the stored retry budget despite different worker policy and forged inbound policy' do
+    Legion::Settings[:data][:task_execution][:retry][:max_attempts] = 2
     task = create_task
     Legion::Settings[:task_execution][:retry].merge!(safe_runners: { 'PersistedTaskRunner#raise_after_effect' => true },
-                                                     max_attempts: 2)
-    first = Legion::Runner.run(runner_class: PersistedTaskRunner, function: :raise_after_effect, task_id: task[:id], catch_exceptions: true)
+                                                     max_attempts: 1)
+    first = Legion::Runner.run(runner_class: PersistedTaskRunner, function: :raise_after_effect, task_id: task[:id], catch_exceptions: true,
+                               execution_policy: { retry: { max_attempts: 1 }, execution: { heartbeat_seconds: 999 } })
     expect(first[:status]).to eq(task_status(name: :retry_pending))
     @database[:tasks].where(id: task[:id]).update(retry_at: Time.now - 1)
+    Legion::Settings[:data][:task_execution][:retry][:max_attempts] = 99
+    Legion::Settings[:task_execution][:retry][:max_attempts] = 99
     second = Legion::Runner.run(runner_class: PersistedTaskRunner, function: :raise_after_effect, task_id: task[:id], catch_exceptions: true)
     expect(second[:status]).to eq(task_status(name: :exception))
     expect(PersistedTaskRunner.calls).to eq(2)
     expect(@database[:task_attempts].count).to eq(2)
+  end
+
+  it 'honors current safe-runner revocation even when the durable retry budget permits another attempt' do
+    Legion::Settings[:task_execution][:retry][:safe_runners] = { 'PersistedTaskRunner#raise_after_effect' => true }
+    task = create_task
+    first = Legion::Runner.run(runner_class: PersistedTaskRunner, function: :raise_after_effect, task_id: task[:id], catch_exceptions: true)
+    expect(first[:status]).to eq(task_status(name: :retry_pending))
+    @database[:tasks].where(id: task[:id]).update(retry_at: Time.now - 1)
+    Legion::Settings[:task_execution][:retry][:safe_runners]['PersistedTaskRunner#raise_after_effect'] = false
+    second = Legion::Runner.run(runner_class: PersistedTaskRunner, function: :raise_after_effect, task_id: task[:id], catch_exceptions: true)
+    expect(second[:status]).to eq(task_status(name: :unknown))
+    expect(@database[:tasks].where(id: task[:id]).get(:status)).to eq(task_status(name: :unknown))
+  end
+
+  it 'rejects ambiguous permission grants when symbol and string keys conflict' do
+    Legion::Settings[:task_execution][:retry][:safe_runners] = {
+      :'PersistedTaskRunner#raise_after_effect' => true,
+      'PersistedTaskRunner#raise_after_effect'  => false
+    }
+
+    expect do
+      Object.new.extend(Legion::TaskExecution::Helper).task_execution_settings
+    end.to raise_error(ArgumentError)
   end
 
   it 'does not execute expired or cancelled tasks' do
@@ -157,8 +186,9 @@ RSpec.describe 'Runner durable completion boundary' do
   end
 
   it 'renews a live long-running attempt and stops its heartbeat before completion' do
+    Legion::Settings[:data][:task_execution][:execution].merge!(heartbeat_seconds: 1, lease_seconds: 3)
     task = create_task
-    Legion::Settings[:task_execution][:execution].merge!(heartbeat_seconds: 1, lease_seconds: 3)
+    Legion::Settings[:data][:task_execution][:execution].merge!(heartbeat_seconds: 20, lease_seconds: 60)
     started = Queue.new
     release = Queue.new
     invocation = Thread.new do

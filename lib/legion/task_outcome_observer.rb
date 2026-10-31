@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'legion/settings/task_execution'
+require 'legion/transport/task_protocol'
 
 module Legion
   module TaskOutcomeObserver
-    extend Legion::Settings::TaskExecution::Helper
+    extend Legion::Transport::TaskProtocol::Helper
 
     class << self
       def setup

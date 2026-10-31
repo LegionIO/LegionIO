@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'legion/settings/task_execution'
+require 'legion/transport/task_protocol'
 require 'legion/data/task_execution'
 require 'securerandom'
 
 module Legion
   module Runner
     module Status
-      extend Legion::Settings::TaskExecution::Helper
+      extend Legion::Transport::TaskProtocol::Helper
 
       def self.data_connected?
         Legion::Settings[:data].is_a?(Hash) && Legion::Settings[:data][:connected] == true

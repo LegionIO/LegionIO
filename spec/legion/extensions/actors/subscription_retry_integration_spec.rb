@@ -4,6 +4,10 @@ require 'spec_helper'
 require 'legion/runner'
 require 'legion/extensions/actors/subscription'
 require 'legion/rbac'
+require 'legion/data'
+require 'tmpdir'
+require 'fileutils'
+require 'sequel/extensions/migration'
 
 module TaskExecutionBoundary
   module Runner
@@ -92,7 +96,7 @@ RSpec.describe 'Subscription execution recovery boundary' do
   around do |example|
     Legion::Runner.task_execution_settings
     original_tasks = Legion::Settings[:task_execution]
-    Legion::Settings.loader.settings[:task_execution] = Legion::Settings::TaskExecution.default
+    Legion::Settings.loader.settings[:task_execution] = Legion::TaskExecution::Settings.default
     original_data = Legion::Settings[:data]
     original_client = Legion::Settings[:client]
     original_listeners = Legion::Events.instance_variable_get(:@listeners)
@@ -119,9 +123,9 @@ RSpec.describe 'Subscription execution recovery boundary' do
     allow(consumer).to receive(:sleep)
   end
 
-  def deliver(function:, metadata: self.metadata)
+  def deliver(function:, metadata: self.metadata, **fields)
     consumer.send(:handle_delivery, delivery_info: delivery, metadata: metadata,
-                                   payload: Legion::JSON.dump({ function: function, args: { value: 'business' } }))
+                                   payload: Legion::JSON.dump({ function: function, args: { value: 'business' }, **fields }))
   end
 
   it 'reaches recovery from a real raising runner and acknowledges only a confirmed retry with its envelope' do
@@ -156,6 +160,67 @@ RSpec.describe 'Subscription execution recovery boundary' do
     deliver(function: 'unknown_effect')
     expect(TaskExecutionBoundary::Runner.calls).to eq(1)
     expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+  end
+
+  it 'ignores inbound policy when applying the ephemeral retry limit' do
+    Legion::Settings[:task_execution][:retry][:max_attempts] = 1
+    expect(Legion::Transport::Publisher).not_to receive(:publish!)
+    deliver(function: 'raise_once', execution_policy: { retry: { max_attempts: 99 } })
+    expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+  end
+
+  context 'with durable task policy' do
+    before(:context) do
+      @directory = Dir.mktmpdir('legion-subscription-tasks')
+      @database = Sequel.sqlite(File.join(@directory, 'tasks.db'))
+      Sequel::Migrator.run(@database, File.join(Gem.loaded_specs.fetch('legion-data').full_gem_path, 'lib/legion/data/migrations'))
+    end
+
+    after(:context) do
+      @database&.disconnect
+      FileUtils.remove_entry(@directory) if @directory
+    end
+
+    around do |example|
+      original_db = Legion::Data::Connection.instance_variable_get(:@sequel)
+      Legion::Data::Connection.instance_variable_set(:@sequel, @database)
+      Legion::Settings.loader.settings[:data] = Legion::Data::Settings.default.merge(connected: true)
+      Legion::Settings[:client][:name] = 'subscription-spec'
+      example.run
+    ensure
+      Legion::Data::Connection.instance_variable_set(:@sequel, original_db)
+    end
+
+    it 'retains a durable retry beyond local thresholds, waits for persisted retry_at, and executes after redelivery' do
+      Legion::Settings[:data][:task_execution][:retry].merge!(max_attempts: 3, base_delay_seconds: 4, max_delay_seconds: 4)
+      task = Legion::Data::TaskExecution.create_task(values: {}, idempotency_key: SecureRandom.uuid).fetch(:task)
+      Legion::Settings[:data][:task_execution][:retry].merge!(max_attempts: 1, base_delay_seconds: 1, max_delay_seconds: 1)
+      Legion::Settings[:task_execution][:retry].merge!(max_attempts: 1, base_delay_seconds: 1, max_delay_seconds: 1)
+      metadata.headers['x-retry-count'] = 9
+      published = nil
+      allow(Legion::Transport::Publisher).to receive(:publish!) do |**options|
+        expect(queue.settlements).to be_empty
+        published = options
+        { accepted: true }
+      end
+      expect(consumer).to receive(:sleep).with(be_within(1).of(4))
+      deliver(function: 'raise_once', task_id: task[:id])
+      expect(@database[:tasks].where(id: task[:id]).get(:status)).to eq('task.retry_pending')
+      expect(queue.settlements).to eq([[:ack, 'delivery-1']])
+      expect(published[:envelope]).to include(message_id: 'message-1', correlation_id: 'chain-1',
+                                              headers: { 'tenant_id' => 'tenant-a', 'x-retry-count' => 10 })
+      expect(Legion::JSON.load(published[:payload])).to include(task_id: task[:id], args: { value: 'business' })
+
+      metadata.headers = published[:envelope][:headers]
+      deliver(function: 'raise_once', task_id: task[:id])
+      expect(TaskExecutionBoundary::Runner.calls).to eq(1)
+      expect(queue.settlements.last).to eq([:reject, 'delivery-1', true])
+      @database[:tasks].where(id: task[:id]).update(retry_at: Time.now - 1)
+      deliver(function: 'raise_once', task_id: task[:id])
+      expect(TaskExecutionBoundary::Runner.calls).to eq(2)
+      expect(queue.settlements.last).to eq([:ack, 'delivery-1'])
+      expect(@database[:tasks].where(id: task[:id]).get(:status)).to eq('task.completed')
+    end
   end
 
   it 'does not emit completion or publish continuation for a returned failure' do

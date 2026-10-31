@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'legion/settings/task_execution'
+require 'legion/task_execution'
 
 module Legion
   module Extensions
     module Actors
       module RetryPolicy
-        extend Legion::Settings::TaskExecution::Helper
+        extend Legion::TaskExecution::Helper
 
         RETRY_COUNT_HEADER = 'x-retry-count'
 

@@ -5,13 +5,15 @@ require_relative 'runner/status'
 require_relative 'context'
 require 'legion/transport'
 require 'legion/transport/messages/check_subtask'
-require 'legion/settings/task_execution'
+require 'legion/task_execution'
+require 'legion/transport/task_protocol'
 require 'time'
 require 'concurrent'
 
 module Legion
   module Runner
-    extend Legion::Settings::TaskExecution::Helper
+    extend Legion::TaskExecution::Helper
+    extend Legion::Transport::TaskProtocol::Helper
 
     # Preserve the original exception class/backtrace while giving the consumer
     # the recorded outcome. A publication failure must never rerun external effects.
@@ -28,7 +30,8 @@ module Legion
       raise ArgumentError, "unknown runner function #{runner_class}##{function}" unless runner_class.respond_to?(function)
       raise ArgumentError, 'runner args must be a Hash' unless args.nil? || args.is_a?(Hash)
 
-      args = (args || opts.except(*task_execution_settings[:protocol][:metadata_fields], :'x-retry-count')).dup
+      opts = opts.except(:execution_policy)
+      args = (args || opts.except(*Legion::Transport::TaskProtocol::METADATA_FIELDS, :'x-retry-count')).dup
       if task_id.nil? && generate_task
         generated = Legion::Runner::Status.generate_task_id(runner_class: runner_class, function: function,
                                                             parent_id: parent_id, master_id: master_id, args: args, **opts)
@@ -46,6 +49,7 @@ module Legion
 
       context[:attempt_id] = claim[:attempt_id]
       context[:execution_token] = claim[:token]
+      context[:execution_policy] = claim.fetch(:policy) if persisted
       context[:attempt_number] = claim[:task][:attempt_count] if persisted
       context.merge!(claim[:task].slice(:parent_id, :master_id, :relationship_id, :function_id, :depth, :deadline_at)) if persisted
       args.delete(:task_id)
@@ -103,7 +107,8 @@ module Legion
 
     def self.start_execution_heartbeat(context:, rlog:)
       owned = Concurrent::AtomicBoolean.new(true)
-      timer = Concurrent::TimerTask.new(execution_interval: task_execution_settings[:execution][:heartbeat_seconds]) do
+      interval = context.fetch(:execution_policy).fetch(:execution).fetch(:heartbeat_seconds)
+      timer = Concurrent::TimerTask.new(execution_interval: interval) do
         renewal = Legion::Data::TaskExecution.renew_task_lease(task_id: context[:task_id], token: context[:execution_token])
         owned.make_false unless renewal[:renewed]
       rescue StandardError => e
@@ -111,12 +116,12 @@ module Legion
         rlog.error "[Runner] execution lease renewal failed: #{e.class}: #{e.message}"
       end
       timer.execute
-      { timer: timer, owned: owned }
+      { timer: timer, owned: owned, interval: interval }
     end
 
     def self.stop_execution_heartbeat(heartbeat:, rlog:)
       heartbeat[:timer].shutdown
-      return if heartbeat[:timer].wait_for_termination(task_execution_settings[:execution][:heartbeat_seconds])
+      return if heartbeat[:timer].wait_for_termination(heartbeat[:interval])
 
       heartbeat[:owned].make_false
       rlog.error '[Runner] execution lease renewal did not stop before completion'
@@ -151,21 +156,22 @@ module Legion
     end
 
     def self.exception_status(context:)
-      policy = task_execution_settings[:retry]
+      local_policy = task_execution_settings[:retry]
       target = "#{context[:runner_class]}##{context[:function]}"
-      safe = policy[:safe_runners].fetch(target.to_sym) { policy[:safe_runners][target] }
+      safe = local_policy[:safe_runners].fetch(target.to_sym) { local_policy[:safe_runners][target] }
       return task_status(name: :unknown) unless safe == true
 
+      policy = context[:execution_policy] ? context[:execution_policy].fetch(:retry) : local_policy
       attempts = context[:attempt_number] || (context.fetch(:'x-retry-count', 0).to_i + 1)
       task_status(name: attempts < policy[:max_attempts] ? :retry_pending : :exception)
     end
 
     def self.finish_execution(context:, args:, result:, status:, persisted:, check_subtask:) # rubocop:disable Metrics/ParameterLists
       success = status == task_status(name: :completed)
-      options = context.slice(*task_execution_settings[:protocol][:metadata_fields]).merge(result: result, original_args: args)
+      options = context.slice(*Legion::Transport::TaskProtocol::METADATA_FIELDS).merge(result: result, original_args: args)
       continuation = if success && check_subtask
                        { event_key: "task:#{context[:task_id]}:completed",
-                         message_type: task_execution_settings[:message_types][:check_subtask], options: options }
+                         message_type: Legion::Transport::TaskProtocol::MESSAGE_TYPES[:check_subtask], options: options }
                      end
       changed = true
       if persisted
@@ -181,6 +187,7 @@ module Legion
       end
       outcome = { success: success, status: status, result: result, task_id: context[:task_id],
                   attempt_id: context[:attempt_id], persisted: persisted, executed: true }
+      outcome[:retry_at] = completion[:task][:retry_at] if persisted && status == task_status(name: :retry_pending)
       if changed
         Legion::Events.emit(task_status(name: success ? :completed : :failed), **context.slice(:runner_class, :function), **outcome)
         publish_ephemeral_continuation(options: options, outcome: outcome) if continuation && !persisted

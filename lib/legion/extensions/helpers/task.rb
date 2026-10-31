@@ -5,7 +5,7 @@ require_relative 'logger'
 require 'legion/transport'
 require 'legion/transport/messages/task_update'
 require 'legion/transport/messages/task_log'
-require 'legion/settings/task_execution'
+require 'legion/transport/task_protocol'
 require 'legion/data/task_execution'
 require 'securerandom'
 
@@ -15,7 +15,7 @@ module Legion
       module Task
         include Legion::Extensions::Helpers::Base
         include Legion::Extensions::Helpers::Logger
-        include Legion::Settings::TaskExecution::Helper
+        include Legion::Transport::TaskProtocol::Helper
 
         def generate_task_log(task_id:, function:, runner_class: to_s, **payload)
           begin

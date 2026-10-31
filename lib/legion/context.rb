@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
 require 'securerandom'
-require 'legion/settings/task_execution'
+require 'legion/transport/task_protocol'
 
 module Legion
   module Context
-    extend Legion::Settings::TaskExecution::Helper
-
     class SessionContext
       attr_reader :session_id, :user_id, :started_at, :metadata
 
@@ -61,7 +59,7 @@ module Legion
 
       def with_task_context(message)
         previous = Thread.current[:legion_context]
-        Thread.current[:legion_context] = message.slice(*task_execution_settings[:protocol][:metadata_fields], :conversation_id).compact
+        Thread.current[:legion_context] = message.slice(*Legion::Transport::TaskProtocol::METADATA_FIELDS, :conversation_id).compact
         yield
       ensure
         Thread.current[:legion_context] = previous
