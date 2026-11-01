@@ -16,9 +16,6 @@ module Legion
 
     module Helper
       def task_execution_settings
-        unless Legion::Settings.loader&.merged_modules&.key?(:task_execution)
-          Legion::Settings.register_library(:task_execution, Legion::TaskExecution::Settings.default)
-        end
         policy = Legion::Settings[:task_execution]
         raise ArgumentError, 'task_execution must be a Hash' unless policy.is_a?(Hash)
 

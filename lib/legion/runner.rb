@@ -49,13 +49,17 @@ module Legion
 
       context[:attempt_id] = claim[:attempt_id]
       context[:execution_token] = claim[:token]
-      context[:execution_policy] = claim.fetch(:policy) if persisted
-      context[:attempt_number] = claim[:task][:attempt_count] if persisted
-      context.merge!(claim[:task].slice(:parent_id, :master_id, :relationship_id, :function_id, :depth, :deadline_at)) if persisted
-      args.delete(:task_id)
-      args.delete(:parent_id)
-      args.delete(:master_id)
-      args.merge!(context.slice(:task_id, :parent_id, :master_id).compact)
+      if persisted
+        context[:execution_policy] = claim.fetch(:policy)
+        context[:attempt_number] = claim[:task][:attempt_count]
+        context.merge!(claim[:task].slice(:parent_id, :master_id, :relationship_id, :function_id, :depth, :deadline_at))
+      end
+      if task_id || parent_id || master_id
+        args.delete(:task_id)
+        args.delete(:parent_id)
+        args.delete(:master_id)
+        args.merge!(context.slice(:task_id, :parent_id, :master_id).compact)
+      end
       status = pre_execution_status(context: context) unless persisted
       result = { success: false, status: status } if status
       result, status, error = execute_runner(context: context, runner_class: runner_class, args: args, persisted: persisted, rlog: rlog) unless status

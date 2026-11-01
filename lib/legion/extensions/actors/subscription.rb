@@ -289,8 +289,7 @@ module Legion
           s = Legion::Transport::Connection.session
           raise IOError, 'transport session unavailable' unless s&.open?
 
-          settings = Legion::Transport::Connection.settings
-          s.create_channel(nil, settings[:channel][:default_worker_pool_size], false, 10)
+          s.create_channel(nil, Legion::Settings[:transport][:channel][:default_worker_pool_size], false, 10)
         end
 
         def reassign_queue_channel(queue_instance, new_channel)

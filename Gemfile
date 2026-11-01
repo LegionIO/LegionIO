@@ -9,7 +9,7 @@ gem 'kramdown', '>= 2.0'
 gem 'mysql2'
 
 companion_root = File.directory?(File.expand_path('.ci-dependencies', __dir__)) ? '.ci-dependencies' : '..'
-%w[legion-data legion-settings legion-transport legion-mcp].each do |dependency|
+%w[legion-crypt legion-data legion-settings legion-transport legion-mcp].each do |dependency|
   path = File.expand_path("#{companion_root}/#{dependency}", __dir__)
   gem dependency, path: path if File.directory?(path)
 end
@@ -27,7 +27,6 @@ gem 'lex-llm', path: '../extensions-ai/lex-llm' if File.directory?(File.expand_p
 gem 'lex-lex', path: '../extensions/lex-lex' if File.directory?(File.expand_path('../extensions/lex-lex', __dir__))
 gem 'lex-llm-ledger', path: '../extensions-ai/lex-llm-ledger' if File.directory?(File.expand_path('../extensions-ai/lex-llm-ledger', __dir__))
 gem 'lex-scheduler', path: '../extensions/lex-scheduler' if File.directory?(File.expand_path('../extensions/lex-scheduler', __dir__))
-gem 'lex-tasker', path: '../extensions/lex-tasker' if File.directory?(File.expand_path('../extensions/lex-tasker', __dir__))
 
 if File.directory?(File.expand_path('../extensions-identity/lex-identity-entra', __dir__))
   gem 'lex-identity-entra', path: '../extensions-identity/lex-identity-entra'
@@ -54,6 +53,11 @@ group :test do
   rbac_path = File.expand_path("#{companion_root}/legion-rbac", __dir__)
   rbac_options = File.directory?(rbac_path) ? { path: rbac_path } : {}
   gem 'legion-rbac', '>= 0.3.5', **rbac_options
+  %w[lex-conditioner lex-transformer lex-tasker].each do |dependency|
+    paths = [File.expand_path("#{companion_root}/#{dependency}", __dir__), File.expand_path("../extensions/#{dependency}", __dir__)]
+    path = paths.find { |candidate| File.directory?(candidate) }
+    gem dependency, '>= 0.4.0', **(path ? { path: path } : {})
+  end
   gem 'lex-codegen'
   gem 'lex-eval'
   gem 'rack-test'

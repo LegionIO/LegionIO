@@ -133,8 +133,17 @@ Returned `success: false` is a terminal failure, not a completed task. Cancelled
 expired tasks do not execute. A failed retry publication retains the original
 delivery instead of acknowledging a lost handoff.
 
-This release requires legion-settings >= 1.4.3, legion-data >= 1.11.0, and
+This release requires legion-settings >= 1.4.5, legion-data >= 1.11.0, and
 legion-transport >= 1.4.32.
+
+Conditioner runs through normal ingress and Runner execution with the destination
+envelope in its business arguments. Its stage completion cannot claim or complete
+the destination task. Relationship and transformation fan-out retain distinct task
+identities and lineage.
+
+Framework runners and actors receive the standard `settings` helper automatically.
+Plain objects and core libraries read live `Legion::Settings[:component]` values;
+defaults register at boot, never as a side effect of reading configuration.
 
 Subscriptions and HTTP ingress share worker and authorization checks. An authenticated
 caller passes its principal explicitly; neither a payload identity nor `source: 'amqp'`

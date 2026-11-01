@@ -8,6 +8,8 @@
 - AMQP subscriptions use the same admission, worker-registration, and authorization policy as ingress. Quiescing consumers defer work instead of acknowledging discarded deliveries.
 - Retry publication requires broker acceptance and preserves the original envelope, including encrypted payload metadata and correlation identity. Unknown external effects are terminal unless the runner is explicitly declared safe to retry.
 - Task helpers persist result, payload, and arguments through guarded transitions; outcome learning only consumes truthful persisted terminal results.
+- Preserve destination identity as business arguments during Conditioner stage invocation; normal Runner completion applies only to the stage, not the eventual target task.
+- Use native live settings access and framework helper injection; extension default registration preserves configured arrays without duplicating Settings merge logic.
 - Require legion-mcp 0.9.2 with MCP SDK >= 1.2.0 to fix OAuth-discovery SSRF (GHSA-4m5j-jjfc-97gx), without suppressing security advisories.
 
 ### Changed
@@ -15,7 +17,7 @@
 - Durable heartbeat and retry bounds come only from Data's stored claim policy, and persisted `retry_at` remains authoritative across workers with different local retry thresholds. Inbound policy snapshots are ignored; current Boolean safe-runner grants still enforce local revocation.
 - Transport owns immutable task status, route, message-type, and metadata identities. Data migration 144 adds execution-policy snapshots to active and archived tasks and must run before rollout.
 - `Helpers::Task.task_update` now requires keyword arguments. Internal service subscriptions must explicitly opt into `trusted_internal`; generic ingress no longer grants an implicit local-admin principal.
-- Requires legion-settings 1.4.3, legion-data 1.11.0, and legion-transport 1.4.32. Lite execution remains available without durable-storage guarantees.
+- Requires legion-settings 1.4.5, legion-data 1.11.0, and legion-transport 1.4.32. Lite execution remains available without durable-storage guarantees.
 
 ## [1.9.52] - 2026-08-07
 ### Fixed
