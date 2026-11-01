@@ -1,14 +1,20 @@
 # frozen_string_literal: true
 
+require 'legion/task_execution'
+require 'legion/transport/task_protocol'
+
 module Legion
   module Ingress
-    MAX_PAYLOAD_SIZE = 524_288 # 512KB serialized
+    extend Legion::TaskExecution::Helper
+    extend Legion::Transport::TaskProtocol::Helper
+
     RUNNER_CLASS_PATTERN = /\A[A-Z][A-Za-z0-9:]+\z/
     FUNCTION_PATTERN = /\A[a-z_][a-z0-9_]*[!?]?\z/
 
     class PayloadTooLarge < StandardError; end
     class InvalidRunnerClass < StandardError; end
     class InvalidFunction < StandardError; end
+    class Deferred < StandardError; end
 
     class << self
       # Normalize a payload from any source into a runner-compatible message hash.
@@ -26,7 +32,8 @@ module Legion
 
         if message.is_a?(Hash) && defined?(Legion::JSON)
           serialized_size = Legion::JSON.dump(message).bytesize
-          raise PayloadTooLarge, "payload exceeds #{MAX_PAYLOAD_SIZE} bytes" if serialized_size > MAX_PAYLOAD_SIZE
+          limit = task_execution_settings[:execution][:max_payload_bytes]
+          raise PayloadTooLarge, "payload exceeds #{limit} bytes" if serialized_size > limit
         end
 
         message[:runner_class] = runner_class || message[:runner_class]
@@ -34,23 +41,26 @@ module Legion
         message[:source] = source
         message[:timestamp] ||= Time.now.to_i
         message[:datetime] ||= Time.at(message[:timestamp]).to_datetime.to_s
-        message.merge(opts)
+        message.merge(opts).except(:execution_policy)
       end
 
       # Normalize and execute via Legion::Runner.run.
       # Returns the runner result hash.
-      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, **opts) # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
+      def run(payload:, runner_class: nil, function: nil, source: 'unknown', principal: nil, # rubocop:disable Metrics/ParameterLists
+              use_runner: true, **opts)
         Legion::Logging.info "[Ingress] run: source=#{source} runner_class=#{runner_class} function=#{function}" if defined?(Legion::Logging)
         check_subtask = opts.fetch(:check_subtask, true)
         generate_task = opts.fetch(:generate_task, true)
-        message = normalize(payload: payload, runner_class: runner_class,
-                            function: function, source: source,
-                            **opts.except(:check_subtask, :generate_task, :principal))
+        message = normalize(payload: payload, source: source, **opts.except(:check_subtask, :generate_task, :principal))
 
         Legion::Logging.debug "[Ingress] payload keys: #{message.keys}" if defined?(Legion::Logging)
 
-        rc = message.delete(:runner_class)
-        fn = message.delete(:function)
+        rc = runner_class || message[:runner_class]
+        fn = function || message[:function]
+        if use_runner
+          message.delete(:runner_class)
+          message.delete(:function)
+        end
 
         if rc.nil?
           Legion::Logging.warn '[Ingress] runner_class is missing' if defined?(Legion::Logging)
@@ -64,77 +74,59 @@ module Legion
         fn_str = fn.to_s
         raise InvalidFunction, "invalid function format: #{fn_str}" unless fn_str.match?(FUNCTION_PATTERN)
 
-        unless extension_dispatch_allowed?(rc)
-          return {
-            success: false,
-            status:  'task.blocked',
-            error:   { code: 'extension_quiescing', message: "extension for #{rc} is not accepting new work" }
-          }
-        end
-
-        # RAI invariant #2: registration precedes permission
-        if defined?(Legion::DigitalWorker::Registry) && message[:worker_id]
-          Legion::DigitalWorker::Registry.validate_execution!(
-            worker_id:        message[:worker_id],
-            required_consent: message[:required_consent]
-          )
-        end
-
-        if defined?(Legion::Rbac)
-          principal ||= Legion::Rbac::Principal.local_admin
-          Legion::Rbac.authorize_execution!(principal: principal, runner_class: rc.to_s, function: fn.to_s)
+        principal = authorize_execution!(runner_class: rc, function: fn, message: message, principal: principal)
+        claimed_id = message.delete(:principal_id)
+        claimed_type = message.delete(:principal_type)
+        message[:originating_principal_id] ||= claimed_id
+        message[:originating_principal_type] ||= claimed_type
+        if principal
+          message[:principal_id] = principal.id
+          message[:principal_type] = principal.type
         end
 
         Legion::Events.emit('ingress.received', runner_class: rc.to_s, function: fn, source: source)
 
-        resolved_rc = begin
-          resolve_runner_class(rc)
-        rescue InvalidRunnerClass
-          rc
-        end
-
-        if local_runner?(rc)
-          Legion::Logging.debug "[Ingress] local short-circuit: #{rc}.#{fn}" if defined?(Legion::Logging)
-          ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
-          return Legion::Context.with_task_context(ctx) { resolved_rc.send(fn.to_sym, **message) }
-        end
-
-        runner_block = lambda {
-          ctx = message.merge(runner_class: rc.to_s, function: fn.to_s)
-          Legion::Context.with_task_context(ctx) do
-            Legion::Runner.run(
-              runner_class:  resolved_rc,
-              function:      fn,
-              check_subtask: check_subtask,
-              generate_task: generate_task,
-              **message
-            )
-          end
-        }
-
-        if defined?(Legion::Telemetry::OpenInference)
-          Legion::Telemetry::OpenInference.tool_span(name: "#{rc}.#{fn}", parameters: message) { |_span| runner_block.call }
-        else
-          runner_block.call
-        end
+        execute(message: message, runner_class: rc, function: fn, use_runner: use_runner,
+                check_subtask: check_subtask, generate_task: generate_task)
+      rescue Deferred => e
+        Legion::Logging.warn "[Ingress] deferred: #{e.message}"
+        { success: false, status: task_status(name: :queued), deferred: true, error: { code: 'extension_quiescing', message: e.message } }
       rescue PayloadTooLarge => e
-        Legion::Logging.error "[Ingress] payload_too_large: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'payload_too_large', message: e.message } }
+        Legion::Logging.error "[Ingress] payload_too_large: #{e.message}"
+        { success: false, status: task_status(name: :blocked), error: { code: 'payload_too_large', message: e.message } }
       rescue InvalidRunnerClass => e
-        Legion::Logging.error "[Ingress] invalid_runner_class: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'invalid_runner_class', message: e.message } }
+        Legion::Logging.error "[Ingress] invalid_runner_class: #{e.message}"
+        { success: false, status: task_status(name: :blocked), error: { code: 'invalid_runner_class', message: e.message } }
       rescue InvalidFunction => e
-        Legion::Logging.error "[Ingress] invalid_function: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'invalid_function', message: e.message } }
-      rescue Legion::DigitalWorker::Registry::WorkerNotFound => e
-        Legion::Logging.error "[Ingress] worker_not_found: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'worker_not_found', message: e.message } }
-      rescue Legion::DigitalWorker::Registry::WorkerNotActive => e
-        Legion::Logging.error "[Ingress] worker_not_active: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'worker_not_active', message: e.message } }
-      rescue Legion::DigitalWorker::Registry::InsufficientConsent => e
-        Legion::Logging.error "[Ingress] insufficient_consent: #{e.message}" if defined?(Legion::Logging)
-        { success: false, status: 'task.blocked', error: { code: 'insufficient_consent', message: e.message } }
+        Legion::Logging.error "[Ingress] invalid_function: #{e.message}"
+        { success: false, status: task_status(name: :blocked), error: { code: 'invalid_function', message: e.message } }
+      rescue StandardError => e
+        code = if defined?(Legion::DigitalWorker::Registry::WorkerNotFound) && e.is_a?(Legion::DigitalWorker::Registry::WorkerNotFound)
+                 'worker_not_found'
+               elsif defined?(Legion::DigitalWorker::Registry::WorkerNotActive) && e.is_a?(Legion::DigitalWorker::Registry::WorkerNotActive)
+                 'worker_not_active'
+               elsif defined?(Legion::DigitalWorker::Registry::InsufficientConsent) && e.is_a?(Legion::DigitalWorker::Registry::InsufficientConsent)
+                 'insufficient_consent'
+               elsif defined?(Legion::Rbac::AccessDenied) && e.is_a?(Legion::Rbac::AccessDenied)
+                 'access_denied'
+               end
+        raise unless code
+
+        Legion::Logging.warn "[Ingress] #{code}: #{e.message}"
+        { success: false, status: task_status(name: :blocked), error: { code: code, message: e.message } }
+      end
+
+      def authorize_execution!(runner_class:, function:, message:, principal: nil)
+        raise Deferred, "extension for #{runner_class} is not accepting new work" unless extension_dispatch_allowed?(runner_class)
+
+        if defined?(Legion::DigitalWorker::Registry) && message[:worker_id]
+          Legion::DigitalWorker::Registry.validate_execution!(worker_id: message[:worker_id], required_consent: message[:required_consent])
+        end
+        return principal unless defined?(Legion::Rbac)
+
+        principal ||= Legion::Rbac::Principal.anonymous
+        Legion::Rbac.authorize_execution!(principal: principal, runner_class: runner_class.to_s, function: function.to_s)
+        principal
       end
 
       def local_runner?(runner_class)
@@ -142,7 +134,8 @@ module Legion
 
         klass = resolve_runner_class(runner_class)
         Legion::Extensions.local_tasks.any? { |t| t[:runner_module] == klass }
-      rescue NameError, InvalidRunnerClass
+      rescue NameError, InvalidRunnerClass => e
+        Legion::Logging.debug "[Ingress] local runner lookup: #{e.message}"
         false
       end
 
@@ -151,6 +144,29 @@ module Legion
       end
 
       private
+
+      def execute(message:, runner_class:, function:, use_runner:, **)
+        resolved = begin
+          resolve_runner_class(runner_class)
+        rescue InvalidRunnerClass => e
+          Legion::Logging.debug "[Ingress] runner lookup: #{e.message}"
+          runner_class
+        end
+        context = message.merge(runner_class: runner_class.to_s, function: function.to_s)
+        return Legion::Context.with_task_context(context) { resolved.public_send(function.to_sym, **message) } if !use_runner || local_runner?(runner_class)
+
+        runner_block = lambda {
+          Legion::Context.with_task_context(context) do
+            Legion::Runner.run(**message.except(:principal, :use_runner, :check_subtask, :generate_task),
+                               runner_class: resolved, function: function, **)
+          end
+        }
+        if defined?(Legion::Telemetry::OpenInference)
+          Legion::Telemetry::OpenInference.tool_span(name: "#{runner_class}.#{function}", parameters: message) { |_span| runner_block.call }
+        else
+          runner_block.call
+        end
+      end
 
       def extension_dispatch_allowed?(runner_class)
         return true unless defined?(Legion::Extensions) && Legion::Extensions.respond_to?(:dispatch_allowed_for_runner?)

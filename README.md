@@ -96,8 +96,70 @@ The original core, in production since before any of the AI layers existed:
 - Scale by starting more processes; RabbitMQ distributes the work.
 
 `LEGION_MODE=lite` swaps RabbitMQ for in-process pub/sub and Redis for an in-memory
-cache. Every feature works; nothing external is required. This is the recommended way
-to evaluate the framework, and it takes about five minutes.
+cache. No external service is required to evaluate the framework. Without a database,
+execution is explicitly ephemeral: process loss cannot recover task claims or
+continuations, and ephemeral events are not treated as durable learning outcomes.
+
+With connected task storage, each invocation claims a logical task and records an
+attempt. Successful completion and its child-dispatch intent are committed together;
+the `lex-tasker` outbox relay publishes with broker confirms and mandatory routing.
+Redelivery cannot repeat a completed task, and late failure updates cannot overwrite
+its outcome. The outbox, not the transport disk spool, owns task-dispatch durability.
+
+Core-local task policy lives under `Legion::Settings[:task_execution]`: payload
+limits, trusted internal service identity, retry grants, and ephemeral retry bounds.
+The default ephemeral retry budget is three total attempts with exponential delays
+capped at 30 seconds. `retry.safe_runners` is an explicit permission map such as
+`{ 'MyRunner#fetch' => true }`, empty by default. Set a method to `false` to revoke
+an inherited retry grant on the current worker. Only enable operations whose side
+effects are safe to repeat. Other post-invocation exceptions record `task.unknown`
+and are not automatically retried.
+
+Durable tasks instead capture lease, heartbeat, and retry bounds from
+`Legion::Settings[:data][:task_execution]` when created (or atomically at first
+claim for legacy rows). Data returns that stored policy with each execution claim;
+Core uses it even when another worker has different local settings. Stored
+`retry_at` controls durable redelivery, not the worker's ephemeral retry threshold.
+Incoming payloads cannot supply this policy. Settings are process-local configuration,
+not a distributed consistency mechanism. Upgrade Data through migration **144**
+before deploying this execution path; the migration adds the policy snapshot to
+both active and archived tasks.
+
+Status names, routes, message types, and protocol metadata are fixed wire contracts
+owned by `Legion::Transport::TaskProtocol`, not runtime settings. Publication policy
+is local to `Legion::Settings[:transport][:task_publication]`.
+
+Returned `success: false` is a terminal failure, not a completed task. Cancelled and
+expired tasks do not execute. A failed retry publication retains the original
+delivery instead of acknowledging a lost handoff.
+
+This release requires legion-settings >= 1.4.5, legion-data >= 1.11.0, and
+legion-transport >= 1.4.32.
+
+Conditioner runs through normal ingress and Runner execution with the destination
+envelope in its business arguments. Its stage completion cannot claim or complete
+the destination task. Relationship and transformation fan-out retain distinct task
+identities and lineage.
+
+Framework runners and actors receive the standard `settings` helper automatically.
+Plain objects and core libraries read live `Legion::Settings[:component]` values;
+defaults register at boot, never as a side effect of reading configuration.
+
+Subscriptions and HTTP ingress share worker and authorization checks. An authenticated
+caller passes its principal explicitly; neither a payload identity nor `source: 'amqp'`
+grants admin access. Framework-generated task subscriptions and approved internal
+stage actors explicitly declare `trusted_internal true`; custom subscriptions remain
+untrusted by default. Internal actors execute as the configured service principal
+(the existing `worker` role by default), subject to normal RBAC checks. This assumes
+broker publisher ACLs restrict these queues to authenticated internal producers.
+Service role grants are also a Boolean map (`roles: { worker: true }`); `false`
+revokes an inherited role instead of additive array merging restoring it.
+Claimed user identities are preserved only as `originating_principal_id` /
+`originating_principal_type` audit metadata; they are not authorization credentials.
+Quiescing extensions defer delivery without completing or discarding the task.
+
+The MCP integration requires `legion-mcp >= 0.9.2` and MCP SDK `>= 1.2.0`,
+which fixes [OAuth-discovery requests to private hosts](https://github.com/modelcontextprotocol/ruby-sdk/security/advisories/GHSA-4m5j-jjfc-97gx).
 
 ## The experimental part, labeled as such
 

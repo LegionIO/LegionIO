@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.bindir        = 'exe'
   spec.executables   = %w[legion legionio]
 
-  spec.add_dependency 'legion-mcp', '>= 0.7.1'
+  spec.add_dependency 'legion-mcp', '>= 0.9.2'
 
   spec.add_dependency 'kramdown', '>= 2.0'
 
@@ -57,11 +57,11 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'legion-cache', '>= 1.3.22'
   spec.add_dependency 'legion-crypt', '>= 1.5.1'
-  spec.add_dependency 'legion-data', '>= 1.8.0'
+  spec.add_dependency 'legion-data', '>= 1.11.0'
   spec.add_dependency 'legion-json', '>= 1.2.1'
   spec.add_dependency 'legion-logging', '>= 1.5.0'
-  spec.add_dependency 'legion-settings', '>= 1.3.25'
-  spec.add_dependency 'legion-transport', '>= 1.4.14'
+  spec.add_dependency 'legion-settings', '>= 1.4.5'
+  spec.add_dependency 'legion-transport', '>= 1.4.32'
 
   spec.add_dependency 'legion-apollo', '>= 0.4.0'
   spec.add_dependency 'legion-gaia', '>= 0.9.26'

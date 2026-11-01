@@ -142,6 +142,7 @@ module Legion
             runner_class:  entry[:runner_class],
             function:      entry[:method_name].to_sym,
             source:        'lex_dispatch',
+            principal:     request.env['legion.rbac_principal'],
             generate_task: true
           )
 
@@ -274,6 +275,7 @@ module Legion
             runner_class:  runner,
             function:      function,
             source:        'hook',
+            principal:     request.env['legion.rbac_principal'],
             check_subtask: true,
             generate_task: true
           )

@@ -62,8 +62,10 @@ module Legion
         def build_meta_actor(runner, attr)
           define_constant_two('Actor', root: lex_class)
 
+          actor = Class.new(Legion::Extensions::Actors::Subscription)
+          actor.trusted_internal(true)
           Kernel.const_get("#{attr[:extension_class]}::Actor")
-                .const_set(runner.to_s.split('_').collect(&:capitalize).join, Class.new(Legion::Extensions::Actors::Subscription))
+                .const_set(runner.to_s.split('_').collect(&:capitalize).join, actor)
         end
 
         def actor_files

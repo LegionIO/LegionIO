@@ -27,6 +27,7 @@ module Legion
                 runner_class: 'Legion::Extensions::Mesh::Runners::Mesh',
                 function:     'mesh_status',
                 source:       :api,
+                principal:    env['legion.rbac_principal'],
                 payload:      {}
               )
             end
@@ -43,6 +44,7 @@ module Legion
                 runner_class: 'Legion::Extensions::Mesh::Runners::Mesh',
                 function:     'find_agents',
                 source:       :api,
+                principal:    env['legion.rbac_principal'],
                 payload:      { capability: nil }
               )
             end

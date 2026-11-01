@@ -5,17 +5,33 @@ require_relative 'dsl'
 require_relative 'retry_policy'
 require 'date'
 require 'securerandom'
+require 'legion/ingress'
+require 'legion/task_execution'
+require 'legion/transport/task_protocol'
+require 'time'
+require 'legion/transport/publisher'
 
 module Legion
   module Extensions
     module Actors
       class UnrecoverableMessageError < StandardError; end
 
+      class TaskExecutionRejected < StandardError
+        attr_reader :task_outcome
+
+        def initialize(outcome:)
+          @task_outcome = outcome
+          super("task execution rejected: #{outcome[:status]}")
+        end
+      end
+
       class Subscription
         extend Legion::Extensions::Actors::Dsl
         include Concurrent::Async
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Helpers::Transport
+        include Legion::TaskExecution::Helper
+        include Legion::Transport::TaskProtocol::Helper
 
         define_dsl_accessor :consumers, default: 1
         define_dsl_accessor :manual_ack, default: true
@@ -23,6 +39,7 @@ module Legion
         define_dsl_accessor :block, default: false
         define_dsl_accessor :prefetch, default: 2
         define_dsl_accessor :routing_key_hint, default: nil
+        define_dsl_accessor :trusted_internal, default: false
 
         def self.pattern(routing_key = nil)
           return routing_key_hint unless routing_key
@@ -65,6 +82,8 @@ module Legion
         end
 
         def prepare
+          return self if Legion::Transport::Connection.lite_mode?
+
           @dedicated_channel = create_dedicated_channel
           @queue = queue.new
           reassign_queue_channel(@queue, @dedicated_channel)
@@ -72,35 +91,7 @@ module Legion
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
           @consumer.on_delivery do |delivery_info, metadata, payload|
-            fn = nil
-            message = process_message(payload, metadata, delivery_info)
-            fn = find_function(message)
-            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
-
-            affinity_result = check_region_affinity(message)
-            if affinity_result == :reject
-              log.warn '[Subscription] nack: region affinity mismatch'
-              @queue.reject(delivery_info.delivery_tag) if manual_ack
-              next
-            end
-
-            record_cross_region_metric(message) if affinity_result == :remote
-
-            if use_runner?
-              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
-            else
-              runner_class.send(fn, **message)
-            end
-            @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
-
-            cancel if Legion::Settings[:client][:shutting_down]
-          rescue UnrecoverableMessageError => e
-            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
-            log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
-            @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack
-          rescue StandardError => e
-            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
-            reject_or_retry(delivery_info, metadata, payload) if manual_ack
+            handle_delivery(delivery_info: delivery_info, metadata: metadata, payload: payload)
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
         rescue StandardError => e
@@ -108,6 +99,8 @@ module Legion
         end
 
         def activate
+          return subscribe if Legion::Transport::Connection.lite_mode?
+
           unless @consumer
             log.warn "[Subscription] skipping activate for #{lex_name}/#{runner_name}: no consumer (prepare failed?)"
             return
@@ -152,8 +145,10 @@ module Legion
                       { value: payload }
                     end
           if include_metadata_in_message?
-            message = message.merge(metadata.headers.transform_keys(&:to_sym)) unless metadata.headers.nil?
+            headers = (metadata.headers || {}).transform_keys(&:to_sym)
+            message = headers.merge(message)
             message[:routing_key] = delivery_info[:routing_key]
+            message[:'x-retry-count'] = RetryPolicy.extract_retry_count(headers: headers)
           end
 
           message[:message_id] ||= metadata.message_id if metadata.respond_to?(:message_id) && metadata.message_id
@@ -179,53 +174,44 @@ module Legion
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           on_cancellation = block { cancel }
 
-          @consumer = @queue.subscribe(manual_ack: manual_ack, block: false, consumer_tag: consumer_tag, on_cancellation: on_cancellation) do |*rmq_message|
-            delivery_info = nil
-            metadata = nil
-            payload = nil
-            fn = nil
-
-            delivery_info = rmq_message.first
-            metadata = rmq_message.last
-            payload = rmq_message.pop
-            message = process_message(payload, metadata, delivery_info)
-            fn = find_function(message)
-            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
-
-            affinity_result = check_region_affinity(message)
-            if affinity_result == :reject
-              log.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
-              @queue.reject(delivery_info.delivery_tag) if manual_ack
-              next
-            end
-
-            if affinity_result == :remote
-              log.debug 'Processing remote-region message ' \
-                        "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
-              record_cross_region_metric(message)
-            end
-
-            if use_runner?
-              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
-            else
-              runner_class.send(fn, **message)
-            end
-            @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
-
-            cancel if Legion::Settings[:client][:shutting_down]
-          rescue UnrecoverableMessageError => e
-            handle_exception(e, lex: lex_name, fn: fn)
-            log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
-            @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack && delivery_info
-          rescue StandardError => e
-            handle_exception(e)
-            log.warn "[Subscription] retry-or-dlq for #{lex_name}/#{fn}"
-            reject_or_retry(delivery_info, metadata, payload) if manual_ack && delivery_info
+          @consumer = @queue.subscribe(manual_ack: manual_ack, block: false, consumer_tag: consumer_tag,
+                                       on_cancellation: on_cancellation) do |delivery_info, metadata, payload|
+            handle_delivery(delivery_info: delivery_info, metadata: metadata, payload: payload)
           end
           log.info "[Subscription] subscribed: #{lex_name}/#{runner_name} (consumer registered)" if defined?(log)
         end
 
         private
+
+        def handle_delivery(delivery_info:, metadata:, payload:)
+          message = process_message(payload, metadata, delivery_info)
+          fn = find_function(message)
+          affinity = check_region_affinity(message)
+          if affinity == :reject
+            @queue.reject(delivery_info.delivery_tag, requeue: true) if manual_ack
+            return
+          end
+          record_cross_region_metric(message) if affinity == :remote
+          raise Legion::Ingress::Deferred, "#{lex_name} is not accepting work" unless extension_dispatch_allowed?
+
+          result = dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
+          if result[:deferred] || (result[:executed] == false && !task_terminal_status?(status: result[:status]))
+            raise Legion::Ingress::Deferred, 'task is leased or deferred'
+          end
+          raise TaskExecutionRejected.new(outcome: result) if result[:success] == false
+
+          @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
+          cancel if Legion::Settings[:client][:shutting_down]
+        rescue Legion::Ingress::Deferred => e
+          log.info "[Subscription] deferring: #{e.message}"
+          @queue.reject(delivery_info.delivery_tag, requeue: true) if manual_ack
+        rescue UnrecoverableMessageError => e
+          handle_exception(e, lex: lex_name, fn: fn)
+          @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack
+        rescue StandardError => e
+          handle_exception(e, lex: lex_name, fn: fn)
+          reject_or_retry(delivery_info, metadata, payload, error: e) if manual_ack
+        end
 
         def record_cross_region_metric(message)
           return unless defined?(Legion::Extensions::Telemetry::Runners::Telemetry)
@@ -249,22 +235,17 @@ module Legion
         end
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
-          unless extension_dispatch_allowed?
-            log.warn "[Subscription] rejecting #{lex_name}/#{function}: extension is not accepting new work" if defined?(log)
-            return { success: false, status: 'task.blocked', error: { code: 'extension_quiescing' } }
-          end
-
+          principal = if defined?(Legion::Rbac) && trusted_internal
+                        service = task_execution_settings[:ingress][:trusted_internal_principal]
+                        roles = service[:roles].filter_map { |role, enabled| role.to_s if enabled }
+                        Legion::Rbac::Principal.new(**service, roles: roles)
+                      end
           run_block = lambda {
-            ctx = message.merge(runner_class: runner_cls.to_s, function: function.to_s)
-            Legion::Context.with_task_context(ctx) do
-              Legion::Runner.run(**message,
-                                 runner_class:  runner_cls,
-                                 function:      function,
-                                 check_subtask: check_subtask,
-                                 generate_task: generate_task)
-            end
+            Legion::Ingress.run(payload: message.except(:principal, :use_runner, :check_subtask, :generate_task, :catch_exceptions),
+                                runner_class: runner_cls, function: function, source: 'amqp', principal: principal,
+                                use_runner: use_runner?, check_subtask: check_subtask, generate_task: generate_task,
+                                catch_exceptions: false)
           }
-
           if defined?(Legion::Telemetry::OpenInference)
             Legion::Telemetry::OpenInference.chain_span(type: 'task_chain') { |_span| run_block.call }
           else
@@ -278,34 +259,37 @@ module Legion
           Legion::Extensions.dispatch_allowed?(lex_name)
         end
 
-        def reject_or_retry(delivery_info, metadata, payload)
-          headers = metadata&.headers || {}
-          retry_count = RetryPolicy.extract_retry_count(headers)
-          threshold = RetryPolicy.retry_threshold
-
-          if RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
-            base_delay = Legion::Settings.dig(:fleet, :transport, :retry_base_delay_seconds) || 1
-            max_delay = Legion::Settings.dig(:fleet, :transport, :retry_max_delay_seconds) || 30
-            delay = [base_delay * (2**retry_count), max_delay].min
-            log.info "[Subscription] retrying message in #{delay}s (attempt #{retry_count + 1}/#{threshold}) for #{lex_name}"
-            sleep(delay)
-            if republish_with_retry_count(delivery_info, metadata, payload, retry_count + 1)
-              @queue.acknowledge(delivery_info.delivery_tag)
-            else
-              @queue.reject(delivery_info.delivery_tag, requeue: false)
-            end
-          else
-            log.warn "[Subscription] dead-lettering message after #{retry_count} retries for #{lex_name}"
+        def reject_or_retry(delivery_info, metadata, payload, error:)
+          outcome = error.task_outcome if error.respond_to?(:task_outcome)
+          if outcome && outcome[:status] != task_status(name: :retry_pending)
             @queue.reject(delivery_info.delivery_tag, requeue: false)
+            return
           end
+          retry_count = RetryPolicy.extract_retry_count(headers: metadata&.headers)
+          if outcome && outcome[:persisted]
+            retry_at = outcome.fetch(:retry_at)
+            retry_at = Time.parse(retry_at) unless retry_at.is_a?(Time)
+            sleep([retry_at - Time.now, 0].max)
+          else
+            threshold = RetryPolicy.retry_threshold
+            unless RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
+              @queue.reject(delivery_info.delivery_tag, requeue: false)
+              return
+            end
+            sleep(RetryPolicy.retry_delay(retry_count: retry_count))
+          end
+          republish_with_retry_count(delivery_info, metadata, payload, retry_count + 1)
+          @queue.acknowledge(delivery_info.delivery_tag)
+        rescue StandardError => e
+          log.warn "[Subscription] retry publication rejected; retaining original delivery: #{e.message}"
+          @queue.reject(delivery_info.delivery_tag, requeue: true)
         end
 
         def create_dedicated_channel
           s = Legion::Transport::Connection.session
           raise IOError, 'transport session unavailable' unless s&.open?
 
-          settings = Legion::Transport::Connection.settings
-          s.create_channel(nil, settings[:channel][:default_worker_pool_size], false, 10)
+          s.create_channel(nil, Legion::Settings[:transport][:channel][:default_worker_pool_size], false, 10)
         end
 
         def reassign_queue_channel(queue_instance, new_channel)
@@ -316,22 +300,14 @@ module Legion
         end
 
         def republish_with_retry_count(_delivery_info, metadata, payload, new_count)
+          properties = metadata.respond_to?(:to_hash) ? metadata.to_hash.dup : {}
           headers = (metadata&.headers || {}).dup
           headers[RetryPolicy::RETRY_COUNT_HEADER] = new_count
-
-          exchange = @queue.channel.default_exchange
-          exchange.publish(
-            payload,
-            routing_key:      @queue.name,
-            headers:          headers,
-            content_type:     metadata&.content_type,
-            content_encoding: metadata&.content_encoding,
-            persistent:       true
-          )
-          true
-        rescue StandardError => e
-          log.warn "[Subscription] republish failed, dead-lettering: #{e.message}"
-          false
+          %i[content_type content_encoding message_id correlation_id reply_to type app_id expiration priority timestamp].each do |key|
+            properties[key] = metadata.public_send(key) if metadata.respond_to?(key)
+          end
+          properties.merge!(headers: headers, routing_key: @queue.name, persistent: true)
+          Legion::Transport::Publisher.publish!(exchange: @queue.channel.default_exchange, payload: payload, envelope: properties)
         end
       end
     end
