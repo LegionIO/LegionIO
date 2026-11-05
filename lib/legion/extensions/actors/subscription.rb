@@ -6,8 +6,7 @@ require_relative 'retry_policy'
 require 'date'
 require 'securerandom'
 require 'legion/ingress'
-require 'legion/task_execution'
-require 'legion/transport/task_protocol'
+require 'legion/transport/task/protocol'
 require 'time'
 require 'legion/transport/publisher'
 
@@ -16,28 +15,20 @@ module Legion
     module Actors
       class UnrecoverableMessageError < StandardError; end
 
-      class TaskExecutionRejected < StandardError
-        attr_reader :task_outcome
-
-        def initialize(outcome:)
-          @task_outcome = outcome
-          super("task execution rejected: #{outcome[:status]}")
-        end
-      end
+      class TaskRejected < StandardError; end
 
       class Subscription
         extend Legion::Extensions::Actors::Dsl
         include Concurrent::Async
         include Legion::Extensions::Actors::Base
         include Legion::Extensions::Helpers::Transport
-        include Legion::TaskExecution::Helper
-        include Legion::Transport::TaskProtocol::Helper
+        include Legion::Transport::Task::Protocol::Helper
 
         define_dsl_accessor :consumers, default: 1
         define_dsl_accessor :manual_ack, default: true
         define_dsl_accessor :delay_start, default: 0
         define_dsl_accessor :block, default: false
-        define_dsl_accessor :prefetch, default: 2
+        define_dsl_accessor :prefetch, default: 1
         define_dsl_accessor :routing_key_hint, default: nil
         define_dsl_accessor :trusted_internal, default: false
 
@@ -195,22 +186,21 @@ module Legion
           raise Legion::Ingress::Deferred, "#{lex_name} is not accepting work" unless extension_dispatch_allowed?
 
           result = dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
-          if result[:deferred] || (result[:executed] == false && !task_terminal_status?(status: result[:status]))
-            raise Legion::Ingress::Deferred, 'task is leased or deferred'
-          end
-          raise TaskExecutionRejected.new(outcome: result) if result[:success] == false
+          raise Legion::Ingress::Deferred, 'task is deferred' if result[:deferred]
+          raise UnrecoverableMessageError, result[:error].to_s if result[:status] == task_status(name: :blocked)
+          raise TaskRejected, 'task returned failure' if result[:success] == false
 
           @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
           cancel if Legion::Settings[:client][:shutting_down]
         rescue Legion::Ingress::Deferred => e
           log.info "[Subscription] deferring: #{e.message}"
           @queue.reject(delivery_info.delivery_tag, requeue: true) if manual_ack
-        rescue UnrecoverableMessageError => e
+        rescue UnrecoverableMessageError, TaskRejected => e
           handle_exception(e, lex: lex_name, fn: fn)
           @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack
         rescue StandardError => e
           handle_exception(e, lex: lex_name, fn: fn)
-          reject_or_retry(delivery_info, metadata, payload, error: e) if manual_ack
+          reject_or_retry(delivery_info, metadata, payload) if manual_ack
         end
 
         def record_cross_region_metric(message)
@@ -235,11 +225,7 @@ module Legion
         end
 
         def dispatch_runner(message, runner_cls, function, check_subtask, generate_task)
-          principal = if defined?(Legion::Rbac) && trusted_internal
-                        service = task_execution_settings[:ingress][:trusted_internal_principal]
-                        roles = service[:roles].filter_map { |role, enabled| role.to_s if enabled }
-                        Legion::Rbac::Principal.new(**service, roles: roles)
-                      end
+          principal = (Legion::Ingress.trusted_internal_principal if defined?(Legion::Rbac) && trusted_internal)
           run_block = lambda {
             Legion::Ingress.run(payload: message.except(:principal, :use_runner, :check_subtask, :generate_task, :catch_exceptions),
                                 runner_class: runner_cls, function: function, source: 'amqp', principal: principal,
@@ -259,25 +245,13 @@ module Legion
           Legion::Extensions.dispatch_allowed?(lex_name)
         end
 
-        def reject_or_retry(delivery_info, metadata, payload, error:)
-          outcome = error.task_outcome if error.respond_to?(:task_outcome)
-          if outcome && outcome[:status] != task_status(name: :retry_pending)
+        def reject_or_retry(delivery_info, metadata, payload)
+          retry_count = RetryPolicy.extract_retry_count(headers: metadata&.headers)
+          unless RetryPolicy.should_retry?(retry_count: retry_count, threshold: RetryPolicy.retry_threshold)
             @queue.reject(delivery_info.delivery_tag, requeue: false)
             return
           end
-          retry_count = RetryPolicy.extract_retry_count(headers: metadata&.headers)
-          if outcome && outcome[:persisted]
-            retry_at = outcome.fetch(:retry_at)
-            retry_at = Time.parse(retry_at) unless retry_at.is_a?(Time)
-            sleep([retry_at - Time.now, 0].max)
-          else
-            threshold = RetryPolicy.retry_threshold
-            unless RetryPolicy.should_retry?(retry_count: retry_count, threshold: threshold)
-              @queue.reject(delivery_info.delivery_tag, requeue: false)
-              return
-            end
-            sleep(RetryPolicy.retry_delay(retry_count: retry_count))
-          end
+          sleep(RetryPolicy.retry_delay(retry_count: retry_count))
           republish_with_retry_count(delivery_info, metadata, payload, retry_count + 1)
           @queue.acknowledge(delivery_info.delivery_tag)
         rescue StandardError => e

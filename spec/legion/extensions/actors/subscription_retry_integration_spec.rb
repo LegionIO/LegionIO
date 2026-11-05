@@ -4,10 +4,8 @@ require 'spec_helper'
 require 'legion/runner'
 require 'legion/extensions/actors/subscription'
 require 'legion/rbac'
-require 'legion/data'
-require 'tmpdir'
-require 'fileutils'
-require 'sequel/extensions/migration'
+require 'sequel'
+require 'sqlite3'
 
 module TaskExecutionBoundary
   module Runner
@@ -84,7 +82,7 @@ module TaskExecutionBoundary
   end
 end
 
-RSpec.describe 'Subscription execution recovery boundary' do
+RSpec.describe 'Subscription transport retry boundary' do
   let(:queue) { TaskExecutionBoundary::Queue.new }
   let(:consumer) { TaskExecutionBoundary::Consumer.allocate }
   let(:delivery) { Struct.new(:delivery_tag, :routing_key).new('delivery-1', 'runner.work') }
@@ -94,22 +92,20 @@ RSpec.describe 'Subscription execution recovery boundary' do
   end
 
   around do |example|
-    Legion::Runner.task_execution_settings
-    original_tasks = Legion::Settings[:task_execution]
-    Legion::Settings.loader.settings[:task_execution] = Legion::TaskExecution::Settings.default
+    original_ingress = Legion::Settings[:ingress]
     original_data = Legion::Settings[:data]
     original_client = Legion::Settings[:client]
     original_listeners = Legion::Events.instance_variable_get(:@listeners)
     original_rbac = Legion::Settings[:rbac]
     original_roles = Legion::Rbac.instance_variable_get(:@role_index)
+    Legion::Settings.loader.settings[:ingress] = Legion::JSON.load(Legion::JSON.dump(original_ingress))
     Legion::Settings.loader.settings[:rbac] = { enabled: false }
     Legion::Settings.loader.settings[:data] = { connected: false }
     Legion::Settings.loader.settings[:client] = { shutting_down: false }
-    Legion::Settings[:task_execution][:retry][:safe_runners] = { 'TaskExecutionBoundary::Runner#raise_once' => true }
     Legion::Events.instance_variable_set(:@listeners, Hash.new { |hash, key| hash[key] = [] })
     example.run
   ensure
-    Legion::Settings.loader.settings[:task_execution] = original_tasks
+    Legion::Settings.loader.settings[:ingress] = original_ingress
     Legion::Settings.loader.settings[:data] = original_data
     Legion::Settings.loader.settings[:client] = original_client
     Legion::Events.instance_variable_set(:@listeners, original_listeners)
@@ -154,76 +150,43 @@ RSpec.describe 'Subscription execution recovery boundary' do
     expect(queue.settlements).to eq([[:reject, 'delivery-1', true]])
   end
 
-  it 'does not retry ambiguous effects when a present safe-runner grant is explicitly false' do
-    Legion::Settings[:task_execution][:retry][:safe_runners]['TaskExecutionBoundary::Runner#unknown_effect'] = false
+  it 'rejects a raising runner when transport retries are exhausted' do
+    metadata.headers['x-retry-count'] = 2
     expect(Legion::Transport::Publisher).not_to receive(:publish!)
     deliver(function: 'unknown_effect')
     expect(TaskExecutionBoundary::Runner.calls).to eq(1)
     expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
   end
 
-  it 'ignores inbound policy when applying the ephemeral retry limit' do
-    Legion::Settings[:task_execution][:retry][:max_attempts] = 1
+  it 'rejects a returned business failure without retrying the completed invocation' do
+    expect(Legion::Transport::Publisher).not_to receive(:publish!)
+    deliver(function: 'fail_result')
+    expect(TaskExecutionBoundary::Runner.calls).to eq(1)
+    expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+  end
+
+  it 'retains the ingress payload size limit independently of retry settings' do
+    Legion::Settings[:ingress][:max_payload_bytes] = 1
+    expect(Legion::Transport::Publisher).not_to receive(:publish!)
+    deliver(function: 'succeed')
+    expect(TaskExecutionBoundary::Runner.calls).to eq(0)
+    expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+  end
+
+  it 'rejects ambiguous configured internal role grants' do
+    Legion::Settings[:ingress][:trusted_internal_principal][:roles] = { worker: true, 'worker' => false }
+    expect { Legion::Ingress.trusted_internal_principal }.to raise_error(ArgumentError)
+  end
+
+  it 'ignores inbound policy when applying the transport retry limit' do
+    metadata.headers['x-retry-count'] = 2
     expect(Legion::Transport::Publisher).not_to receive(:publish!)
     deliver(function: 'raise_once', execution_policy: { retry: { max_attempts: 99 } })
     expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
   end
 
-  context 'with durable task policy' do
-    before(:context) do
-      @directory = Dir.mktmpdir('legion-subscription-tasks')
-      @database = Sequel.sqlite(File.join(@directory, 'tasks.db'))
-      Sequel::Migrator.run(@database, File.join(Gem.loaded_specs.fetch('legion-data').full_gem_path, 'lib/legion/data/migrations'))
-    end
-
-    after(:context) do
-      @database&.disconnect
-      FileUtils.remove_entry(@directory) if @directory
-    end
-
-    around do |example|
-      original_db = Legion::Data::Connection.instance_variable_get(:@sequel)
-      Legion::Data::Connection.instance_variable_set(:@sequel, @database)
-      Legion::Settings.loader.settings[:data] = Legion::Data::Settings.default.merge(connected: true)
-      Legion::Settings[:client][:name] = 'subscription-spec'
-      example.run
-    ensure
-      Legion::Data::Connection.instance_variable_set(:@sequel, original_db)
-    end
-
-    it 'retains a durable retry beyond local thresholds, waits for persisted retry_at, and executes after redelivery' do
-      Legion::Settings[:data][:task_execution][:retry].merge!(max_attempts: 3, base_delay_seconds: 4, max_delay_seconds: 4)
-      task = Legion::Data::TaskExecution.create_task(values: {}, idempotency_key: SecureRandom.uuid).fetch(:task)
-      Legion::Settings[:data][:task_execution][:retry].merge!(max_attempts: 1, base_delay_seconds: 1, max_delay_seconds: 1)
-      Legion::Settings[:task_execution][:retry].merge!(max_attempts: 1, base_delay_seconds: 1, max_delay_seconds: 1)
-      metadata.headers['x-retry-count'] = 9
-      published = nil
-      allow(Legion::Transport::Publisher).to receive(:publish!) do |**options|
-        expect(queue.settlements).to be_empty
-        published = options
-        { accepted: true }
-      end
-      expect(consumer).to receive(:sleep).with(be_within(1).of(4))
-      deliver(function: 'raise_once', task_id: task[:id])
-      expect(@database[:tasks].where(id: task[:id]).get(:status)).to eq('task.retry_pending')
-      expect(queue.settlements).to eq([[:ack, 'delivery-1']])
-      expect(published[:envelope]).to include(message_id: 'message-1', correlation_id: 'chain-1',
-                                              headers: { 'tenant_id' => 'tenant-a', 'x-retry-count' => 10 })
-      expect(Legion::JSON.load(published[:payload])).to include(task_id: task[:id], args: { value: 'business' })
-
-      metadata.headers = published[:envelope][:headers]
-      deliver(function: 'raise_once', task_id: task[:id])
-      expect(TaskExecutionBoundary::Runner.calls).to eq(1)
-      expect(queue.settlements.last).to eq([:reject, 'delivery-1', true])
-      @database[:tasks].where(id: task[:id]).update(retry_at: Time.now - 1)
-      deliver(function: 'raise_once', task_id: task[:id])
-      expect(TaskExecutionBoundary::Runner.calls).to eq(2)
-      expect(queue.settlements.last).to eq([:ack, 'delivery-1'])
-      expect(@database[:tasks].where(id: task[:id]).get(:status)).to eq('task.completed')
-    end
-  end
-
   it 'does not emit completion or publish continuation for a returned failure' do
+    metadata.headers['x-retry-count'] = 2
     completed = []
     Legion::Events.on('task.completed') { |event| completed << event }
     expect(Legion::Transport::Messages::CheckSubtask).not_to receive(:new)
@@ -231,6 +194,44 @@ RSpec.describe 'Subscription execution recovery boundary' do
     deliver(function: 'fail_result')
     expect(completed).to be_empty
     expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+  end
+
+  context 'with an ordinary database action' do
+    let(:consumer) { TaskExecutionBoundary::StageConsumer.allocate }
+    let(:database) { Sequel.sqlite }
+
+    before do
+      database.create_table(:records) do
+        primary_key :id
+        String :value, null: false
+      end
+      model = Class.new(Sequel::Model(database[:records]))
+      action = Module.new
+      stub_const('TaskExecutionBoundary::DatabaseAction', action)
+      action.define_singleton_method(:forward) do |args:, **|
+        model.create(**args).values
+      end
+      allow(consumer).to receive(:runner_class).and_return(action)
+    end
+
+    after { database.disconnect }
+
+    it 'acknowledges only after the real model action succeeds' do
+      allow(queue).to receive(:acknowledge).and_wrap_original do |method, tag|
+        expect(database[:records].get(:value)).to eq('business')
+        method.call(tag)
+      end
+      deliver(function: 'forward')
+      expect(queue.settlements).to eq([[:ack, 'delivery-1']])
+    end
+
+    it 'rejects exhausted database errors without acknowledging them' do
+      database.drop_table(:records)
+      metadata.headers['x-retry-count'] = 2
+      expect(Legion::Transport::Publisher).not_to receive(:publish!)
+      deliver(function: 'forward')
+      expect(queue.settlements).to eq([[:reject, 'delivery-1', false]])
+    end
   end
 
   it 'defers quiescing work without running or acknowledging it' do
@@ -279,7 +280,7 @@ RSpec.describe 'Subscription execution recovery boundary' do
     end
 
     it 'denies a trusted service actor when its configured worker role is revoked' do
-      Legion::Settings[:task_execution][:ingress][:trusted_internal_principal][:roles][:worker] = false
+      Legion::Settings[:ingress][:trusted_internal_principal][:roles][:worker] = false
       internal = TaskExecutionBoundary::InternalConsumer.allocate
       internal.instance_variable_set(:@queue, queue)
       internal.send(:handle_delivery, delivery_info: delivery, metadata: metadata,

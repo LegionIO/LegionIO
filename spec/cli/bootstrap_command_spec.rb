@@ -707,6 +707,9 @@ RSpec.describe Legion::CLI::Bootstrap do
       before do
         allow(cli).to receive(:shell_capture)
           .with('brew services start redis').and_return(['Successfully started redis', true])
+        allow(Open3).to receive(:capture2e)
+          .with('launchctl', 'kickstart', "gui/#{::Process.uid}/homebrew.mxcl.redis")
+          .and_return(['', instance_double(::Process::Status, success?: true)])
       end
 
       it 'returns true' do

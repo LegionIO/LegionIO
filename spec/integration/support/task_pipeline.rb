@@ -127,8 +127,7 @@ Dir.mktmpdir('legion-pipeline-contract') do |directory|
                                                conditions: Legion::JSON.dump(conditions),
                                                transformation: scenario[:transformation], engine: 'static')
     end
-    root = Legion::Data::TaskExecution.create_task(values:          { function_id: trigger.id, function_args: { value: 41 } },
-                                                   idempotency_key: SecureRandom.uuid).fetch(:task)
+    root = Legion::Data::Model::Task.create(status: 'task.queued', function_id: trigger.id, function_args: Legion::JSON.dump({ value: 41 })).values
     result = Legion::Ingress.run(payload: { task_id: root[:id], args: { value: 41 } },
                                  runner_class: Legion::Extensions::CanonicalPipeline::Runners::Source, function: 'produce', source: 'pipeline-smoke')
     raise "root execution failed: #{result.inspect}" unless result[:success]
@@ -136,9 +135,6 @@ Dir.mktmpdir('legion-pipeline-contract') do |directory|
     active = consumers + [[destination_queue, destination_actor]]
     deadline = Time.now + 10
     loop do
-      dispatch = Legion::Extensions::Tasker::Runners::Outbox.dispatch_pending
-      raise "outbox rejected work: #{dispatch.inspect}" unless dispatch[:success]
-
       delivered = 0
       active.each do |queue, actor|
         loop do
@@ -151,8 +147,7 @@ Dir.mktmpdir('legion-pipeline-contract') do |directory|
           delivered += 1
         end
       end
-      pending = database[:task_dispatches].where(delivered_at: nil, discarded_at: nil).count
-      break if delivered.zero? && pending.zero?
+      break if delivered.zero?
       raise 'pipeline failed to settle' if Time.now >= deadline
     end
 
@@ -160,7 +155,7 @@ Dir.mktmpdir('legion-pipeline-contract') do |directory|
       name: scenario[:name], root: database[:tasks].where(id: root[:id]).first.slice(:id, :status),
       effects: database[:pipeline_effects].all.map { |row| row.slice(:task_id, :value) },
       tasks: database[:tasks].where(master_id: root[:id]).all.map do |row|
-        row.slice(:id, :parent_id, :master_id, :status, :attempt_count)
+        row.slice(:id, :parent_id, :master_id, :status)
       end,
       conditioner_completions: stage_events.length
     }

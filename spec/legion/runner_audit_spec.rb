@@ -29,7 +29,7 @@ RSpec.describe 'Runner.run audit integration' do
     allow(Legion::Events).to receive(:emit)
     allow(Legion::Runner::Status).to receive(:generate_task_id).and_return({ task_id: 1 })
     allow(Legion::Runner::Status).to receive(:update)
-    allow(Legion::Transport::Messages::CheckSubtask).to receive_message_chain(:new, :publish)
+    allow(Legion::Transport::Messages::CheckSubtask).to receive_message_chain(:new, :publish!)
   end
 
   context 'when Legion::Audit is defined' do

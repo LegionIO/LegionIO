@@ -1,13 +1,9 @@
 # frozen_string_literal: true
 
-require 'legion/task_execution'
-
 module Legion
   module Extensions
     module Actors
       module RetryPolicy
-        extend Legion::TaskExecution::Helper
-
         RETRY_COUNT_HEADER = 'x-retry-count'
 
         def self.should_retry?(retry_count:, threshold:)
@@ -20,12 +16,11 @@ module Legion
         end
 
         def self.retry_threshold
-          task_execution_settings[:retry][:max_attempts] - 1
+          2
         end
 
         def self.retry_delay(retry_count:)
-          policy = task_execution_settings[:retry]
-          [policy[:base_delay_seconds] * (2**retry_count), policy[:max_delay_seconds]].min
+          [2**retry_count, 30].min
         end
       end
     end

@@ -5,7 +5,7 @@ require 'open3'
 require 'rbconfig'
 require 'tmpdir'
 
-RSpec.describe 'Durable Conditioner and Transformer task chaining' do
+RSpec.describe 'Conditioner and Transformer task chaining' do
   it 'runs framework stages without consuming destination identities across one-to-one, fan-out, and rejection paths' do
     Dir.mktmpdir('legion-chain-spec') do |directory|
       result_path = File.join(directory, 'results.json')
@@ -32,10 +32,10 @@ RSpec.describe 'Durable Conditioner and Transformer task chaining' do
         end
         report[:effects].each do |effect|
           task = report[:tasks].find { |row| row[:id] == effect[:task_id] }
-          expect(task).to include(status: 'task.completed', attempt_count: 1)
+          expect(task).to include(status: 'task.completed')
         end
       end
-      expect(reports.last[:tasks]).to contain_exactly(include(status: 'task.skipped', attempt_count: 0))
+      expect(reports.last[:tasks]).to contain_exactly(include(status: 'task.skipped'))
     end
   end
 end

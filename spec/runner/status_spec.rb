@@ -20,4 +20,13 @@ RSpec.describe Legion::Runner::Status do
     expect(Legion::Transport::Messages::TaskUpdate).not_to receive(:new)
     expect { described_class.update(task_id: nil, status: 'task.failed') }.to raise_error(ArgumentError)
   end
+
+  it 'publishes an ordinary update when storage is not connected' do
+    message = instance_double(Legion::Transport::Messages::TaskUpdate, publish!: true)
+    expect(Legion::Transport::Messages::TaskUpdate).to receive(:new)
+      .with(task_id: 12, status: 'task.completed', results: { answer: 42 }).and_return(message)
+
+    described_class.update(task_id: 12, status: 'task.completed', results: { answer: 42 })
+    expect(message).to have_received(:publish!).once
+  end
 end

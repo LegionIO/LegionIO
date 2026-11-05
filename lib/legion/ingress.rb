@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require 'legion/task_execution'
-require 'legion/transport/task_protocol'
+require 'legion/settings'
+require 'legion/transport/task/protocol'
 
 module Legion
   module Ingress
-    extend Legion::TaskExecution::Helper
-    extend Legion::Transport::TaskProtocol::Helper
+    extend Legion::Transport::Task::Protocol::Helper
 
     RUNNER_CLASS_PATTERN = /\A[A-Z][A-Za-z0-9:]+\z/
     FUNCTION_PATTERN = /\A[a-z_][a-z0-9_]*[!?]?\z/
@@ -17,6 +16,22 @@ module Legion
     class Deferred < StandardError; end
 
     class << self
+      def trusted_internal_principal
+        service = Legion::Settings[:ingress][:trusted_internal_principal]
+        unless service.is_a?(Hash) && %i[id type].all? { |key| service[key].is_a?(String) && !service[key].strip.empty? }
+          raise ArgumentError, 'ingress trusted internal principal requires nonempty id and type'
+        end
+
+        grants = service[:roles]
+        valid = grants.is_a?(Hash) && grants.keys.map(&:to_s).uniq.size == grants.size
+        valid &&= grants.all? do |key, enabled|
+          (key.is_a?(String) || key.is_a?(Symbol)) && !key.to_s.empty? && [true, false].include?(enabled)
+        end
+        raise ArgumentError, 'ingress trusted internal roles must be a Boolean permission map' unless valid
+
+        Legion::Rbac::Principal.new(**service, roles: grants.filter_map { |role, enabled| role.to_s if enabled })
+      end
+
       # Normalize a payload from any source into a runner-compatible message hash.
       # This is the universal entry point — AMQP subscriptions, HTTP webhooks, CLI
       # commands, and API endpoints all feed through here.
@@ -32,7 +47,8 @@ module Legion
 
         if message.is_a?(Hash) && defined?(Legion::JSON)
           serialized_size = Legion::JSON.dump(message).bytesize
-          limit = task_execution_settings[:execution][:max_payload_bytes]
+          limit = Legion::Settings[:ingress][:max_payload_bytes]
+          raise ArgumentError, 'ingress.max_payload_bytes must be a positive Integer' unless limit.is_a?(Integer) && limit.positive?
           raise PayloadTooLarge, "payload exceeds #{limit} bytes" if serialized_size > limit
         end
 
@@ -218,3 +234,10 @@ module Legion
     end
   end
 end
+
+Legion::Settings.register_library(:ingress, {
+                                    max_payload_bytes:          524_288,
+                                    trusted_internal_principal: {
+                                      id: 'legion-task-service', type: 'worker', roles: { worker: true }
+                                    }
+                                  })

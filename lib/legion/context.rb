@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
-require 'legion/transport/task_protocol'
+require 'legion/transport/task/protocol'
 
 module Legion
   module Context
@@ -59,7 +59,7 @@ module Legion
 
       def with_task_context(message)
         previous = Thread.current[:legion_context]
-        Thread.current[:legion_context] = message.slice(*Legion::Transport::TaskProtocol::METADATA_FIELDS, :conversation_id).compact
+        Thread.current[:legion_context] = message.slice(*Legion::Transport::Task::Protocol::METADATA_FIELDS, :conversation_id).compact
         yield
       ensure
         Thread.current[:legion_context] = previous

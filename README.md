@@ -91,53 +91,37 @@ The original core, in production since before any of the AI layers existed:
 - Eight actor types (subscription, poll, every, once, loop, singleton, nothing,
   absorber_dispatch) — see
   [lib/legion/extensions/actors/](https://github.com/LegionIO/LegionIO/tree/main/lib/legion/extensions/actors).
-- Distributed cron scheduling with interval locking.
+- Distributed cron and interval scheduling.
 - A JSONL disk spool that buffers messages through AMQP outages.
 - Scale by starting more processes; RabbitMQ distributes the work.
 
 `LEGION_MODE=lite` swaps RabbitMQ for in-process pub/sub and Redis for an in-memory
 cache. No external service is required to evaluate the framework. Without a database,
-execution is explicitly ephemeral: process loss cannot recover task claims or
-continuations, and ephemeral events are not treated as durable learning outcomes.
+execution is ephemeral: process loss cannot recover unfinished work or continuations.
 
-With connected task storage, each invocation claims a logical task and records an
-attempt. Successful completion and its child-dispatch intent are committed together;
-the `lex-tasker` outbox relay publishes with broker confirms and mandatory routing.
-Redelivery cannot repeat a completed task, and late failure updates cannot overwrite
-its outcome. The outbox, not the transport disk spool, owns task-dispatch durability.
+Task persistence assumes prefetch 1: one persistence message performs one ordinary
+Sequel model create or update. There are no execution claims, attempt records,
+leases, heartbeat renewal, batched writes, or transactional outbox relays.
+Database exceptions propagate to the consumer rather than being acknowledged as
+successful writes.
 
-Core-local task policy lives under `Legion::Settings[:task_execution]`: payload
-limits, trusted internal service identity, retry grants, and ephemeral retry bounds.
-The default ephemeral retry budget is three total attempts with exponential delays
-capped at 30 seconds. `retry.safe_runners` is an explicit permission map such as
-`{ 'MyRunner#fetch' => true }`, empty by default. Set a method to `false` to revoke
-an inherited retry grant on the current worker. Only enable operations whose side
-effects are safe to repeat. Other post-invocation exceptions record `task.unknown`
-and are not automatically retried.
-
-Durable tasks instead capture lease, heartbeat, and retry bounds from
-`Legion::Settings[:data][:task_execution]` when created (or atomically at first
-claim for legacy rows). Data returns that stored policy with each execution claim;
-Core uses it even when another worker has different local settings. Stored
-`retry_at` controls durable redelivery, not the worker's ephemeral retry threshold.
-Incoming payloads cannot supply this policy. Settings are process-local configuration,
-not a distributed consistency mechanism. Upgrade Data through migration **144**
-before deploying this execution path; the migration adds the policy snapshot to
-both active and archived tasks.
+Task completion updates and continuation publication are separate operations.
+Broker redelivery can repeat work, and a failure between a database write and
+publication can leave an incomplete handoff. Runners must account for repeated
+external effects; the engine does not promise exactly-once execution.
 
 Status names, routes, message types, and protocol metadata are fixed wire contracts
-owned by `Legion::Transport::TaskProtocol`, not runtime settings. Publication policy
+owned by `Legion::Transport::Task::Protocol`, not runtime settings. Publication policy
 is local to `Legion::Settings[:transport][:task_publication]`.
 
-Returned `success: false` is a terminal failure, not a completed task. Cancelled and
-expired tasks do not execute. A failed retry publication retains the original
-delivery instead of acknowledging a lost handoff.
+Returned `success: false` is a failure, not a completed task. A failed retry
+publication retains the original delivery instead of acknowledging a lost handoff.
 
 This release requires legion-settings >= 1.4.5, legion-data >= 1.11.0, and
 legion-transport >= 1.4.32.
 
 Conditioner runs through normal ingress and Runner execution with the destination
-envelope in its business arguments. Its stage completion cannot claim or complete
+envelope in its business arguments. Its stage completion cannot complete
 the destination task. Relationship and transformation fan-out retain distinct task
 identities and lineage.
 
@@ -152,6 +136,8 @@ stage actors explicitly declare `trusted_internal true`; custom subscriptions re
 untrusted by default. Internal actors execute as the configured service principal
 (the existing `worker` role by default), subject to normal RBAC checks. This assumes
 broker publisher ACLs restrict these queues to authenticated internal producers.
+Configure `max_payload_bytes` and `trusted_internal_principal` under
+`Legion::Settings[:ingress]`; there is no task-execution coordination settings namespace.
 Service role grants are also a Boolean map (`roles: { worker: true }`); `false`
 revokes an inherited role instead of additive array merging restoring it.
 Claimed user identities are preserved only as `originating_principal_id` /

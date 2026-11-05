@@ -8,7 +8,7 @@ RSpec.describe Legion::TaskOutcomeObserver do
   let(:lessons) { [] }
   let(:payload) do
     { task_id: 42, runner_class: 'Legion::Extensions::Github::Runners::Issues', function: 'create',
-      persisted: true, success: true, status: 'task.completed' }
+      executed: true, success: true, status: 'task.completed' }
   end
 
   around do |example|
@@ -40,7 +40,7 @@ RSpec.describe Legion::TaskOutcomeObserver do
     described_class.setup
   end
 
-  it 'learns success only from a committed successful outcome' do
+  it 'learns success only from a successful execution' do
     Legion::Events.emit('task.completed', **payload)
     expect(episodes).to eq([{ domain_id: 'issues', success: true }])
     expect(lessons.first[:tags]).to include('succeeded')
@@ -52,10 +52,9 @@ RSpec.describe Legion::TaskOutcomeObserver do
     expect(lessons).to be_empty
   end
 
-  it 'does not teach retries, unknown external effects, or ephemeral outcomes as terminal facts' do
-    Legion::Events.emit('task.failed', **payload, success: false, status: 'task.retry_pending')
-    Legion::Events.emit('task.failed', **payload, success: false, status: 'task.unknown')
-    Legion::Events.emit('task.completed', **payload, persisted: false)
+  it 'does not teach deferred or unexecuted outcomes as terminal facts' do
+    Legion::Events.emit('task.failed', **payload, success: false, status: 'task.queued')
+    Legion::Events.emit('task.completed', **payload, executed: false)
     expect(episodes).to be_empty
     expect(lessons).to be_empty
   end

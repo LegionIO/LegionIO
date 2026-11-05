@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'legion/transport/task_protocol'
+require 'legion/transport/task/protocol'
 
 module Legion
   module TaskOutcomeObserver
-    extend Legion::Transport::TaskProtocol::Helper
+    extend Legion::Transport::Task::Protocol::Helper
 
     class << self
       def setup
@@ -63,7 +63,7 @@ module Legion
       end
 
       def observable_outcome?(payload)
-        outcome_value(payload, :persisted) == true &&
+        outcome_value(payload, :executed) == true &&
           !outcome_value(payload, :task_id).to_s.strip.empty? &&
           !outcome_value(payload, :runner_class).to_s.strip.empty? &&
           !outcome_value(payload, :function).to_s.strip.empty?
