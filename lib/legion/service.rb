@@ -53,7 +53,7 @@ module Legion
 
       if crypt
         require 'legion/crypt'
-        Legion::Crypt.start
+        Legion::Crypt.start(mode: Legion::Mode.current)
         Legion::Readiness.mark_ready(:crypt)
         setup_mtls_rotation
         # Phase 5: fetch short-lived bootstrap RMQ creds from Vault before transport connects.
@@ -920,7 +920,7 @@ module Legion
       Legion::Settings.load(force: true, config_dirs: Legion::Settings::Loader.default_directories.select { |d| Dir.exist?(d) })
       Legion::Readiness.mark_ready(:settings)
 
-      Legion::Crypt.start if defined?(Legion::Crypt)
+      Legion::Crypt.start(mode: Legion::Mode.current) if defined?(Legion::Crypt)
       Legion::Readiness.mark_ready(:crypt) if defined?(Legion::Crypt)
       # Phase 5: fetch bootstrap RMQ creds after Vault reconnects on reload.
       fetch_phase5_bootstrap_creds unless Legion::Mode.lite?
