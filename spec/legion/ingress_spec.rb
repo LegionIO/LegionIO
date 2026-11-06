@@ -24,7 +24,7 @@ RSpec.describe Legion::Ingress do
     allow(Legion::Runner).to receive(:run).and_return({ success: true, status: 'task.completed' })
     if defined?(Legion::Rbac)
       allow(Legion::Rbac).to receive(:authorize_execution!)
-      stub_const('Legion::Rbac::Principal', double(local_admin: double('Principal')))
+      stub_const('Legion::Rbac::Principal', double(anonymous: double('Principal', id: 'anonymous', type: :human)))
     end
   end
 
@@ -162,7 +162,7 @@ RSpec.describe Legion::Ingress do
         )
 
         expect(result[:success]).to be false
-        expect(result[:status]).to eq('task.blocked')
+        expect(result).to include(status: 'task.queued', deferred: true)
         expect(result[:error][:code]).to eq('extension_quiescing')
         expect(Legion::Runner).not_to have_received(:run)
       end

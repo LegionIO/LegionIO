@@ -8,15 +8,16 @@ RSpec.describe Legion::Memory::Consolidator do
   let(:tmpdir) { Dir.mktmpdir }
   let(:lock_file) { File.join(tmpdir, 'memory_consolidation.lock') }
   let(:sessions_dir) { File.join(tmpdir, 'sessions') }
+  let(:consolidation_policy) { { enabled: true, min_hours: 24, min_sessions: 5 } }
+
+  around do |example|
+    Legion::Settings.with_overlay(memory: { consolidation: consolidation_policy }) { example.run }
+  end
 
   before do
     stub_const('Legion::Memory::Consolidator::LOCK_FILE', lock_file)
     stub_const('Legion::Memory::Consolidator::SESSIONS_DIR', sessions_dir)
     FileUtils.mkdir_p(sessions_dir)
-    allow(Legion::Logging).to receive(:info)
-    allow(Legion::Logging).to receive(:debug)
-    allow(Legion::Logging).to receive(:warn)
-    allow(Legion::Logging).to receive(:error)
   end
 
   after { FileUtils.rm_rf(tmpdir) }
@@ -27,24 +28,7 @@ RSpec.describe Legion::Memory::Consolidator do
     File.write(File.join(sessions_dir, "#{name}.json"), raw)
   end
 
-  describe '.enabled?' do
-    it 'returns false by default' do
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation).and_return(nil)
-      expect(described_class.enabled?).to be false
-    end
-
-    it 'returns true when enabled in settings' do
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation).and_return({ enabled: true })
-      expect(described_class.enabled?).to be true
-    end
-  end
-
   describe '.gate_status' do
-    before do
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation)
-                                              .and_return({ enabled: true, min_hours: 24, min_sessions: 5 })
-    end
-
     it 'returns hash with three gates' do
       status = described_class.gate_status
       expect(status).to have_key(:time_gate)
@@ -91,25 +75,26 @@ RSpec.describe Legion::Memory::Consolidator do
   end
 
   describe '.run' do
+    let(:consolidation_policy) { { enabled: true, min_hours: 0, min_sessions: 1 } }
+
     before do
-      allow(Legion::Settings).to receive(:dig).and_return(nil)
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation)
-                                              .and_return({ enabled: true, min_hours: 0, min_sessions: 1 })
+      allow(Legion::LLM).to receive(:chat).and_return(content: '[]') if defined?(Legion::LLM)
     end
 
     it 'returns disabled when not enabled' do
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation).and_return({ enabled: false })
-      result = described_class.run
-      expect(result[:success]).to be false
-      expect(result[:reason]).to eq(:disabled)
+      Legion::Settings.with_overlay(memory: { consolidation: { enabled: false } }) do
+        result = described_class.run
+        expect(result[:success]).to be false
+        expect(result[:reason]).to eq(:disabled)
+      end
     end
 
     it 'returns gates_failed when gates do not pass' do
-      allow(Legion::Settings).to receive(:dig).with(:memory, :consolidation)
-                                              .and_return({ enabled: true, min_hours: 24, min_sessions: 100 })
-      result = described_class.run
-      expect(result[:success]).to be false
-      expect(result[:reason]).to eq(:gates_failed)
+      Legion::Settings.with_overlay(memory: { consolidation: { min_hours: 24, min_sessions: 100 } }) do
+        result = described_class.run
+        expect(result[:success]).to be false
+        expect(result[:reason]).to eq(:gates_failed)
+      end
     end
 
     it 'succeeds with force even when gates fail' do

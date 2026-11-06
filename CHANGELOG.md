@@ -1,5 +1,19 @@
 # Legion Changelog
 
+## [1.9.54] - 2026-11-05
+
+### Fixed
+- Preserve runner exceptions so subscriptions reject or retry failed database writes rather than acknowledging them.
+- Returned failures do not emit successful completion or dispatch success continuations.
+- Preserve destination identity as business arguments during Conditioner stage invocation.
+- Retain shared ingress authorization and explicit trusted-internal subscription admission.
+
+### Changed
+- Persist task messages with ordinary Sequel model creates and updates. Remove execution claims, attempts, leases, heartbeat renewal, guarded transitions, and transactional outbox coordination.
+- Assume prefetch 1; subscription consumers default to one outstanding delivery.
+- Use the canonical `Legion::Transport::Task::Protocol` contract and direct continuation publication.
+- Require legion-settings 1.4.5, legion-data 1.11.0, legion-transport 1.4.32, and legion-mcp 0.9.2.
+
 ## [1.9.52] - 2026-08-07
 ### Fixed
 - `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`

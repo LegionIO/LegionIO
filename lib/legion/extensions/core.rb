@@ -221,8 +221,8 @@ module Legion
 
       def build_settings
         target = extension_settings_target
-        merge_extension_defaults!(target, Legion::Settings[:default_extension_settings] || {})
-        merge_extension_defaults!(target, default_settings)
+        target.replace(Legion::Settings::DeepMerge.merge_defaults(defaults: Legion::Settings[:default_extension_settings] || {}, settings: target))
+        target.replace(Legion::Settings::DeepMerge.merge_defaults(defaults: default_settings, settings: target))
       end
 
       def default_settings
@@ -253,42 +253,11 @@ module Legion
         handle_exception(e, lex: lex_name, operation: 'auto_generate_data')
       end
 
-      def deep_dup_settings_value(value)
-        case value
-        when Hash
-          value.each_with_object({}) do |(key, nested), duplicated|
-            duplicated[key.to_sym] = deep_dup_settings_value(nested)
-          end
-        when Array
-          value.map { |item| deep_dup_settings_value(item) }
-        else
-          value.dup
-        end
-      rescue TypeError
-        value
-      end
-
       def extension_settings_target
         settings_path.reduce(Legion::Settings[:extensions]) do |current, key|
           current[key] = {} unless current[key].is_a?(Hash)
           current[key]
         end
-      end
-
-      def merge_extension_defaults!(target, defaults)
-        defaults.each do |key, value|
-          key = key.to_sym
-          target[key] = if target.key?(key)
-                          merge_extension_default_value(deep_dup_settings_value(value), target[key])
-                        else
-                          deep_dup_settings_value(value)
-                        end
-        end
-      end
-
-      def merge_extension_default_value(default_value, current_value)
-        merge_extension_defaults!(current_value, default_value) if default_value.is_a?(Hash) && current_value.is_a?(Hash)
-        current_value
       end
     end
   end

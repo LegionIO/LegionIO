@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'legion/ingress'
 require 'legion/extensions'
+require 'legion/rbac'
 
 RSpec.describe 'Ingress local dispatch' do
   let(:runner_module) do
@@ -33,6 +34,17 @@ RSpec.describe 'Ingress local dispatch' do
   end
 
   describe '.run with local runner' do
+    around do |example|
+      original_settings = Legion::Settings[:rbac]
+      original_roles = Legion::Rbac.instance_variable_get(:@role_index)
+      Legion::Settings.loader.settings[:rbac] = Legion::Rbac::Settings.default
+      Legion::Rbac.setup
+      example.run
+    ensure
+      Legion::Settings.loader.settings[:rbac] = original_settings
+      Legion::Rbac.instance_variable_set(:@role_index, original_roles)
+    end
+
     before do
       allow(Legion::Extensions).to receive(:local_tasks).and_return([
                                                                       { runner_module: runner_module, actor_name: 'test' }
@@ -50,6 +62,7 @@ RSpec.describe 'Ingress local dispatch' do
         payload:      { key: 'value' },
         runner_class: 'TestLocalRunner',
         function:     'action',
+        principal:    Legion::Rbac::Principal.new(id: 'local-test', roles: ['worker']),
         source:       'test'
       )
       expect(result[:result]).to eq('local')

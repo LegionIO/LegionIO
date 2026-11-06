@@ -91,13 +91,61 @@ The original core, in production since before any of the AI layers existed:
 - Eight actor types (subscription, poll, every, once, loop, singleton, nothing,
   absorber_dispatch) — see
   [lib/legion/extensions/actors/](https://github.com/LegionIO/LegionIO/tree/main/lib/legion/extensions/actors).
-- Distributed cron scheduling with interval locking.
+- Distributed cron and interval scheduling.
 - A JSONL disk spool that buffers messages through AMQP outages.
 - Scale by starting more processes; RabbitMQ distributes the work.
 
 `LEGION_MODE=lite` swaps RabbitMQ for in-process pub/sub and Redis for an in-memory
-cache. Every feature works; nothing external is required. This is the recommended way
-to evaluate the framework, and it takes about five minutes.
+cache. No external service is required to evaluate the framework. Without a database,
+execution is ephemeral: process loss cannot recover unfinished work or continuations.
+
+Task persistence assumes prefetch 1: one persistence message performs one ordinary
+Sequel model create or update. There are no execution claims, attempt records,
+leases, heartbeat renewal, batched writes, or transactional outbox relays.
+Database exceptions propagate to the consumer rather than being acknowledged as
+successful writes.
+
+Task completion updates and continuation publication are separate operations.
+Broker redelivery can repeat work, and a failure between a database write and
+publication can leave an incomplete handoff. Runners must account for repeated
+external effects; the engine does not promise exactly-once execution.
+
+Status names, routes, message types, and protocol metadata are fixed wire contracts
+owned by `Legion::Transport::Task::Protocol`, not runtime settings. Publication policy
+is local to `Legion::Settings[:transport][:task_publication]`.
+
+Returned `success: false` is a failure, not a completed task. A failed retry
+publication retains the original delivery instead of acknowledging a lost handoff.
+
+This release requires legion-settings >= 1.4.5, legion-data >= 1.11.0, and
+legion-transport >= 1.4.32.
+
+Conditioner runs through normal ingress and Runner execution with the destination
+envelope in its business arguments. Its stage completion cannot complete
+the destination task. Relationship and transformation fan-out retain distinct task
+identities and lineage.
+
+Framework runners and actors receive the standard `settings` helper automatically.
+Plain objects and core libraries read live `Legion::Settings[:component]` values;
+defaults register at boot, never as a side effect of reading configuration.
+
+Subscriptions and HTTP ingress share worker and authorization checks. An authenticated
+caller passes its principal explicitly; neither a payload identity nor `source: 'amqp'`
+grants admin access. Framework-generated task subscriptions and approved internal
+stage actors explicitly declare `trusted_internal true`; custom subscriptions remain
+untrusted by default. Internal actors execute as the configured service principal
+(the existing `worker` role by default), subject to normal RBAC checks. This assumes
+broker publisher ACLs restrict these queues to authenticated internal producers.
+Configure `max_payload_bytes` and `trusted_internal_principal` under
+`Legion::Settings[:ingress]`; there is no task-execution coordination settings namespace.
+Service role grants are also a Boolean map (`roles: { worker: true }`); `false`
+revokes an inherited role instead of additive array merging restoring it.
+Claimed user identities are preserved only as `originating_principal_id` /
+`originating_principal_type` audit metadata; they are not authorization credentials.
+Quiescing extensions defer delivery without completing or discarding the task.
+
+The MCP integration requires `legion-mcp >= 0.9.2` and MCP SDK `>= 1.2.0`,
+which fixes [OAuth-discovery requests to private hosts](https://github.com/modelcontextprotocol/ruby-sdk/security/advisories/GHSA-4m5j-jjfc-97gx).
 
 ## The experimental part, labeled as such
 

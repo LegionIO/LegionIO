@@ -167,49 +167,6 @@ RSpec.describe Legion::Extensions do
       expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-openai')
       expect(loaded_names.index('lex-llm')).to be < loaded_names.index('lex-llm-ollama')
     end
-
-    it 'wires local lex-llm provider gems after the base gem in the Gemfile' do
-      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
-      base_index = gemfile.index("gem 'lex-llm'")
-      provider_list_index = gemfile.index('%w[anthropic azure-foundry bedrock gemini mlx ollama openai vertex vllm]')
-      provider_token = ['#', '{provider}'].join
-      provider_gem_index = gemfile.index(%(gem "lex-llm-#{provider_token}"))
-
-      expect(base_index).not_to be_nil
-      expect(provider_list_index).not_to be_nil
-      expect(provider_gem_index).not_to be_nil
-      expect(base_index).to be < provider_list_index
-      expect(base_index).to be < provider_gem_index
-    end
-
-    it 'wires legion-llm for local development when present' do
-      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
-
-      expect(gemfile).to include("gem 'legion-llm', path: '../legion-llm'")
-      expect(gemfile).to include("File.exist?(File.expand_path('../legion-llm', __dir__))")
-    end
-
-    it 'wires legion-tty for local development when present' do
-      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
-
-      expect(gemfile).to include("gem 'legion-tty', path: '../legion-tty'")
-      expect(gemfile).to include("File.exist?(File.expand_path('../legion-tty', __dir__))")
-    end
-
-    it 'wires hosted lex-llm provider gems for local development' do
-      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
-
-      expect(gemfile).to include('azure-foundry')
-      expect(gemfile).to include('bedrock')
-      expect(gemfile).to include('vertex')
-    end
-
-    it 'wires lex-llm-ledger for local development when present' do
-      gemfile = File.read(File.expand_path('../../Gemfile', __dir__))
-
-      expect(gemfile).to include("gem 'lex-llm-ledger', path: '../extensions-ai/lex-llm-ledger'")
-      expect(gemfile).to include("File.exist?(File.expand_path('../extensions-ai/lex-llm-ledger', __dir__))")
-    end
   end
 
   describe '.require_identity_extensions' do

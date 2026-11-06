@@ -80,6 +80,7 @@ module Legion
               payload:      payload,
               runner_class: body[:runner_class],
               function:     body[:function],
+              principal:    env['legion.rbac_principal'],
               source:       'acp'
             )
 

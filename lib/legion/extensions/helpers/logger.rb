@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require 'legion/exception'
 
 module Legion
   module Extensions
