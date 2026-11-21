@@ -13,8 +13,10 @@ module Legion
         dispatcher.submit(&)
       end
 
-      def shutdown
-        @dispatcher&.stop
+      def shutdown(deadline: nil, **)
+        return true unless @dispatcher
+
+        @dispatcher.stop(deadline: deadline)
       end
 
       def reset!

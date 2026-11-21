@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'dsl'
+require 'legion/extensions/actors/lifecycle'
 
 module Legion
   module Extensions
@@ -8,6 +9,7 @@ module Legion
       module Base
         extend Legion::Extensions::Actors::Dsl
         include Legion::Extensions::Helpers::Lex
+        include Legion::Extensions::Actors::Lifecycle
 
         define_dsl_accessor :use_runner, default: true
         define_dsl_accessor :check_subtask, default: true

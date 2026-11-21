@@ -18,21 +18,24 @@ module Legion
         define_dsl_accessor :run_now, default: true
         define_dsl_accessor :int_percentage_normalize, default: 0.00
 
-        def initialize
+        def initialize(**)
+          super()
           log.debug "Starting timer for #{self.class} with #{{ execution_interval: time, run_now: run_now?,
 check_subtask: check_subtask? }}"
           @executing = Concurrent::AtomicBoolean.new(false)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            if @executing.make_true
-              begin
-                skip_or_run { poll_cycle }
-              rescue StandardError => e
-                handle_exception(e, level: :fatal)
-              ensure
-                @executing.make_false
+            with_actor_execution do
+              if @executing.make_true
+                begin
+                  skip_or_run { poll_cycle }
+                rescue StandardError => e
+                  handle_exception(e, level: :fatal)
+                ensure
+                  @executing.make_false
+                end
+              else
+                log.debug "[Poll] skipped (previous still running): #{self.class}"
               end
-            else
-              Legion::Logging.debug "[Poll] skipped (previous still running): #{self.class}"
             end
           end
           @timer.execute
@@ -88,11 +91,11 @@ check_subtask: check_subtask? }}"
           Legion::Logging.warn 'An extension is using the default block from Legion::Extensions::Runners::Every'
         end
 
-        def cancel
-          Legion::Logging.debug 'Cancelling Legion Poller'
-          @timer.shutdown
-        rescue StandardError => e
-          handle_exception(e)
+        def cancel(**)
+          request_stop
+          log.debug 'Cancelling Legion Poller'
+          @timer&.shutdown
+          true
         end
       end
     end

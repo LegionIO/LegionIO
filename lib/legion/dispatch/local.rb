@@ -21,11 +21,10 @@ module Legion
         end
       end
 
-      def stop
-        return unless @pool.running?
-
+      def stop(deadline: nil, **)
         @pool.shutdown
-        @pool.wait_for_termination(15)
+        remaining = [deadline - ::Process.clock_gettime(::Process::CLOCK_MONOTONIC), 0].max if deadline
+        @pool.wait_for_termination(remaining)
       end
 
       def capacity

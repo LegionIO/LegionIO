@@ -17,26 +17,30 @@ module Legion
         define_dsl_accessor :run_now, default: false
 
         def initialize(**_opts)
+          super()
           @executing = Concurrent::AtomicBoolean.new(false)
           @timer = Concurrent::TimerTask.new(execution_interval: time, run_now: run_now?) do
-            if @executing.make_true
-              begin
-                log.debug "[Every] tick: #{self.class}" if defined?(log)
-                skip_or_run { use_runner? ? runner : manual }
-              rescue StandardError => e
-                log.error "[Every] tick failed for #{self.class}: #{e.class}: #{e.message}" if defined?(log)
-                handle_exception(e) if defined?(log)
-              ensure
-                @executing.make_false
+            with_actor_execution do
+              if @executing.make_true
+                begin
+                  log.debug "[Every] tick: #{self.class}"
+                  skip_or_run { use_runner? ? runner : manual }
+                rescue StandardError => e
+                  handle_exception(e, level: :error, operation: :every_tick)
+                ensure
+                  @executing.make_false
+                end
+              else
+                log.debug "[Every] skipped (previous still running): #{self.class}"
               end
-            elsif defined?(log)
-              log.debug "[Every] skipped (previous still running): #{self.class}"
             end
           end
 
           initial_delay = respond_to?(:delay) ? delay.to_f : 0
           if initial_delay.positive?
-            Concurrent::ScheduledTask.execute(initial_delay) { @timer.execute }
+            @delayed_start = Concurrent::ScheduledTask.execute(initial_delay) do
+              @actor_lifecycle_mutex.synchronize { @timer.execute unless @actor_stopping }
+            end
           else
             @timer.execute
           end
@@ -52,13 +56,12 @@ module Legion
           log.warn 'An extension is using the default block from Legion::Extensions::Runners::Every'
         end
 
-        def cancel
+        def cancel(**)
+          request_stop
           log.debug 'Cancelling Legion Timer'
-          return true unless @timer.respond_to?(:shutdown)
-
-          @timer.shutdown
-        rescue StandardError => e
-          handle_exception(e)
+          @delayed_start&.cancel
+          @timer&.shutdown
+          true
         end
       end
     end

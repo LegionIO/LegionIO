@@ -705,6 +705,7 @@ RSpec.describe Legion::CLI::Bootstrap do
   describe '#run_brew_service' do
     context 'when brew services start succeeds' do
       before do
+        allow(cli).to receive(:kickstart_launchd_service).with('homebrew.mxcl.redis', out).and_return(true)
         allow(cli).to receive(:shell_capture)
           .with('brew services start redis').and_return(['Successfully started redis', true])
       end

@@ -533,7 +533,7 @@ RSpec.describe Legion::Service do
 
       extensions_mod = Module.new do
         def self.respond_to?(method, *) = method == :shutdown ? true : super
-        def self.shutdown = nil
+        def self.shutdown = true
       end
       stub_const('Legion::Extensions', extensions_mod)
 
@@ -650,7 +650,7 @@ RSpec.describe Legion::Service do
       extensions_mod = Module.new do
         def self.respond_to?(mth, *) = %i[flush_pending_registrations! shutdown loaded_extension_modules].include?(mth) || super
         def self.flush_pending_registrations! = nil
-        def self.shutdown = nil
+        def self.shutdown = true
         def self.loaded_extension_modules = []
       end
       tools_mod = Module.new { def self.clear = nil }

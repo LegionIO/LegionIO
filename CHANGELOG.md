@@ -1,5 +1,11 @@
 # Legion Changelog
 
+## [1.9.53] - 2026-11-21
+### Fixed
+- Stop subscription intake once and drain buffered delivery callbacks before closing actor channels. Delivery callbacks no longer cancel their own consumer.
+- Wait for active timer, poll, one-shot, loop, and local dispatch work before shutdown or reload closes shared dependencies; retain actor resources when a bounded drain is incomplete.
+- Preserve subscription metadata on the local delivery path, and avoid retrying a completed invocation after a closed-channel acknowledgement failure.
+
 ## [1.9.52] - 2026-08-07
 ### Fixed
 - `/api/stats` + `legion llm status` now report routing on and read circuit state from Inventory SSOT; removed dead `Discovery::System/Ollama` guards and retargeted CLI discovery at `Inventory::Discovery::System`
