@@ -97,16 +97,18 @@ RSpec.describe Legion::Extensions::Actors::Subscription, 'shutdown' do
   it 'does not cancel from a callback when the process shutdown flag is set' do
     client = Legion::Settings[:client]
     original = client[:shutting_down]
-    client[:shutting_down] = true
-    allow(runner).to receive(:insert)
+    begin
+      client[:shutting_down] = true
+      allow(runner).to receive(:insert)
 
-    @delivery_callback.call(delivery, nil, {})
+      @delivery_callback.call(delivery, nil, {})
 
-    expect(consumer).not_to have_received(:cancel)
-    expect(channel).not_to have_received(:close)
-    expect(events.pop).to eq([:ack, 1])
-  ensure
-    client[:shutting_down] = original
+      expect(consumer).not_to have_received(:cancel)
+      expect(channel).not_to have_received(:close)
+      expect(events.pop).to eq([:ack, 1])
+    ensure
+      client[:shutting_down] = original
+    end
   end
 
   it 'retains a failed cancellation instead of declaring the subscription drained' do
