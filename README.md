@@ -176,3 +176,16 @@ LegionIO is also published through [Optum Open Source](https://github.com/Optum/
 
 Core framework: [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0).
 Extensions: [MIT](https://opensource.org/licenses/MIT).
+
+## Graceful actor shutdown
+
+On shutdown or reload, Legion stops actor intake and waits for active actor work
+and local dispatch jobs before closing shared dependencies. Subscription channels
+remain open until their buffered deliveries finish and delivery workers exit.
+Messages still ready at RabbitMQ remain queued for another consumer or restart.
+
+Actor drain has no automatic force-close deadline. The former
+`extensions.shutdown_timeout` setting no longer terminates active actors. A slow
+or stuck runner can therefore delay shutdown; dependency connections remain
+available while it finishes. This ordering also applies to timer, poll, one-shot,
+and loop actors. It does not change the delivery guarantees of the transport.

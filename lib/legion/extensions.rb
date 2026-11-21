@@ -6,12 +6,15 @@ require 'legion/extensions/catalog'
 require 'legion/extensions/handle_registry'
 require 'legion/extensions/permissions'
 require 'legion/runner'
+require 'legion/dispatch'
 
 module Legion
   module Extensions
     SUBMODULE_SKIP = %i[VERSION Actor Actors Runners Helpers Transport Data].freeze
 
     class << self
+      include Legion::Logging::Helper
+
       def setup
         hook_extensions
       end
@@ -54,67 +57,36 @@ module Legion
 
       attr_reader :local_tasks
 
-      def shutdown # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
-        return nil if @loaded_extensions.nil?
+      def shutdown(deadline: nil, **)
+        return true if @loaded_extensions.nil?
 
-        deadline = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
-        shutdown_start = Time.now
-
-        transition_loaded_extensions(:stopping)
+        instances = @running_instances.to_a
+        instances.each(&:cancel)
 
         if @subscription_pool
           @subscription_pool.shutdown
-          @subscription_pool.kill unless @subscription_pool.wait_for_termination(5)
+          remaining = [deadline - ::Process.clock_gettime(::Process::CLOCK_MONOTONIC), 0].max if deadline
+          return false unless @subscription_pool.wait_for_termination(remaining)
+
           @subscription_pool = nil
         end
 
-        # Cancel all running instances (real objects, not new instances)
-        @running_instances&.each do |instance|
-          instance.cancel if instance.respond_to?(:cancel)
-        rescue StandardError => e
-          Legion::Logging.debug "Extension shutdown cancel failed: #{e.message}" if defined?(Legion::Logging)
+        log.info 'Waiting for active actors to finish'
+        instances.each do |instance|
+          return false unless instance.await_stopped(deadline: deadline)
         end
+        return false unless Legion::Dispatch.shutdown(deadline: deadline)
 
-        # Wait for in-flight work to drain, up to deadline
-        remaining = deadline - (Time.now - shutdown_start)
-        if remaining.positive?
-          drain_start = Time.now
-          loop do
-            elapsed = Time.now - drain_start
-            break if elapsed >= remaining
+        instances.each(&:close)
 
-            still_active = @running_instances&.any? do |inst|
-              (inst.respond_to?(:channel) && inst.instance_variable_get(:@queue)&.channel&.open?) ||
-                (inst.instance_variable_get(:@timer).respond_to?(:running?) && inst.instance_variable_get(:@timer).running?) ||
-                (inst.instance_variable_get(:@loop) == true)
-            end
-            break unless still_active
-
-            sleep 0.25
-          end
-        end
-
-        # Force-close any channels still open after deadline
-        elapsed = Time.now - shutdown_start
-        if elapsed >= deadline
-          Legion::Logging.warn "Shutdown deadline (#{deadline}s) reached, force-closing remaining actors" if defined?(Legion::Logging)
-          @running_instances&.each do |inst|
-            queue = inst.instance_variable_get(:@queue)
-            queue&.channel&.close if queue&.channel.respond_to?(:close) && queue.channel.open?
-            timer = inst.instance_variable_get(:@timer)
-            timer&.kill if timer.respond_to?(:kill)
-            inst.instance_variable_set(:@loop, false) if inst.instance_variable_defined?(:@loop)
-          rescue StandardError => e
-            Legion::Logging.debug "Force-close failed: #{e.message}" if defined?(Legion::Logging)
-          end
-        end
-
-        @running_instances&.clear
-
-        Legion::Dispatch.shutdown if defined?(Legion::Dispatch) && Legion::Dispatch.instance_variable_get(:@dispatcher)
-
+        transition_loaded_extensions(:stopping)
         transition_loaded_extensions(:stopped) { |name| unregister_capabilities(name) }
-        Legion::Logging.info "Successfully shut down all actors (#{(Time.now - shutdown_start).round(1)}s)"
+        @running_instances.clear
+        log.info 'Successfully shut down all actors'
+        true
+      rescue StandardError => e
+        handle_exception(e, level: :error, operation: :extensions_shutdown)
+        raise
       end
 
       def flush_pending_registrations!
@@ -726,7 +698,6 @@ module Legion
 
           actor_hash[:runner_module] = runner_mod
           actor_hash[:running_class] = actor_hash[:actor_class]
-          @running_instances&.push(actor_hash[:actor_class])
 
           Legion::Logging.info "[LocalDispatch] registered: #{ext_name}/#{actor_hash[:actor_name]}" if defined?(Legion::Logging)
         end

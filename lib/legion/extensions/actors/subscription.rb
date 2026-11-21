@@ -55,52 +55,92 @@ module Legion
           @queue_string ||= "#{queues}::#{actor_const}"
         end
 
-        def cancel
-          return true unless @queue.channel.active
+        def cancel(**)
+          @actor_lifecycle_mutex.synchronize do
+            @actor_stopping = true
+            @cancel_thread ||= Thread.new do
+              @consumer&.cancel
+              if @dedicated_channel
+                [@delivery_pool, @dedicated_channel.work_pool].compact.uniq.each do |pool|
+                  pool.shutdown if pool.running?
+                end
+              end
+            rescue StandardError => e
+              handle_exception(e, level: :error, operation: :subscription_cancel)
+              @cancel_error = e
+            end
+          end
+          true
+        end
 
-          log.debug "Closing subscription to #{@queue.name}"
-          @consumer.cancel
-          @queue.channel.close
+        def await_stopped(deadline: nil, **)
+          return false unless @cancel_thread
+          return false unless await_actor_thread(thread: @cancel_thread, deadline: deadline)
+
+          raise @cancel_error if @cancel_error
+
+          pools = [@delivery_pool, @dedicated_channel&.work_pool].compact.uniq
+          pools.each do |pool|
+            Array(pool.threads).each do |thread|
+              return false unless await_actor_thread(thread: thread, deadline: deadline)
+            end
+          end
+          super
+        end
+
+        def close(**)
+          deadline = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+          raise ThreadError, 'subscription deliveries have not stopped' unless await_stopped(deadline: deadline)
+
+          @actor_lifecycle_mutex.synchronize do
+            @dedicated_channel.close if @dedicated_channel&.open?
+          end
           true
         end
 
         def prepare
+          initialize_actor_lifecycle
+          return self if Legion::Transport::Connection.lite_mode?
+
           @dedicated_channel = create_dedicated_channel
+          @delivery_pool = @dedicated_channel.work_pool
           @queue = queue.new
           reassign_queue_channel(@queue, @dedicated_channel)
           @dedicated_channel.prefetch(prefetch) if defined? prefetch
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
           @consumer = Bunny::Consumer.new(@queue.channel, @queue, consumer_tag, false, false)
           @consumer.on_delivery do |delivery_info, metadata, payload|
-            fn = nil
-            message = process_message(payload, metadata, delivery_info)
-            fn = find_function(message)
-            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
+            with_actor_execution(delivery: true) do
+              fn = nil
+              message = process_message(payload, metadata, delivery_info)
+              fn = find_function(message)
+              log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
 
-            affinity_result = check_region_affinity(message)
-            if affinity_result == :reject
-              log.warn '[Subscription] nack: region affinity mismatch'
-              @queue.reject(delivery_info.delivery_tag) if manual_ack
-              next
+              affinity_result = check_region_affinity(message)
+              if affinity_result == :reject
+                log.warn '[Subscription] nack: region affinity mismatch'
+                @queue.reject(delivery_info.delivery_tag) if manual_ack
+                next
+              end
+
+              record_cross_region_metric(message) if affinity_result == :remote
+
+              if use_runner?
+                dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
+              else
+                runner_class.send(fn, **message)
+              end
+              @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
+            rescue UnrecoverableMessageError => e
+              handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
+              log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
+              @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack
+            rescue Legion::Transport::CONNECTOR::ChannelAlreadyClosed => e
+              handle_exception(e, level: :error, operation: :subscription_settlement)
+            rescue StandardError => e
+              handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
+              reject_or_retry(delivery_info, metadata, payload) if manual_ack
             end
-
-            record_cross_region_metric(message) if affinity_result == :remote
-
-            if use_runner?
-              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
-            else
-              runner_class.send(fn, **message)
-            end
-            @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
-
-            cancel if Legion::Settings[:client][:shutting_down]
-          rescue UnrecoverableMessageError => e
-            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
-            log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
-            @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack
-          rescue StandardError => e
-            handle_exception(e, lex: lex_name, fn: fn, routing_key: delivery_info.routing_key)
-            reject_or_retry(delivery_info, metadata, payload) if manual_ack
           end
           log.info "[Subscription] prepared: #{lex_name}/#{runner_name}"
         rescue StandardError => e
@@ -108,6 +148,8 @@ module Legion
         end
 
         def activate
+          return subscribe if Legion::Transport::Connection.lite_mode?
+
           unless @consumer
             log.warn "[Subscription] skipping activate for #{lex_name}/#{runner_name}: no consumer (prepare failed?)"
             return
@@ -174,53 +216,49 @@ module Legion
         end
 
         def subscribe
+          initialize_actor_lifecycle
+          @delivery_pool = @queue.channel.work_pool unless Legion::Transport::Connection.lite_mode?
           log.info "[Subscription] subscribing: #{lex_name}/#{runner_name}"
           sleep(delay_start) if delay_start.positive?
           consumer_tag = "#{Legion::Settings[:client][:name]}_#{lex_name}_#{runner_name}_#{SecureRandom.uuid}"
-          on_cancellation = block { cancel }
+          @consumer = @queue.subscribe(manual_ack: manual_ack, block: false, consumer_tag: consumer_tag) do |delivery_info, metadata, payload|
+            with_actor_execution(delivery: true) do
+              fn = nil
 
-          @consumer = @queue.subscribe(manual_ack: manual_ack, block: false, consumer_tag: consumer_tag, on_cancellation: on_cancellation) do |*rmq_message|
-            delivery_info = nil
-            metadata = nil
-            payload = nil
-            fn = nil
+              message = process_message(payload, metadata, delivery_info)
+              fn = find_function(message)
+              log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
 
-            delivery_info = rmq_message.first
-            metadata = rmq_message.last
-            payload = rmq_message.pop
-            message = process_message(payload, metadata, delivery_info)
-            fn = find_function(message)
-            log.debug "[Subscription] message received: #{lex_name}/#{fn}" if defined?(log)
+              affinity_result = check_region_affinity(message)
+              if affinity_result == :reject
+                log.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
+                @queue.reject(delivery_info.delivery_tag) if manual_ack
+                next
+              end
 
-            affinity_result = check_region_affinity(message)
-            if affinity_result == :reject
-              log.warn "[Subscription] nack: region affinity mismatch region=#{message[:region]} affinity=#{message[:region_affinity]}"
-              @queue.reject(delivery_info.delivery_tag) if manual_ack
-              next
+              if affinity_result == :remote
+                log.debug 'Processing remote-region message ' \
+                          "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
+                record_cross_region_metric(message)
+              end
+
+              if use_runner?
+                dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
+              else
+                runner_class.send(fn, **message)
+              end
+              @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
+            rescue UnrecoverableMessageError => e
+              handle_exception(e, lex: lex_name, fn: fn)
+              log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
+              @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack && delivery_info
+            rescue Legion::Transport::CONNECTOR::ChannelAlreadyClosed => e
+              handle_exception(e, level: :error, operation: :subscription_settlement)
+            rescue StandardError => e
+              handle_exception(e)
+              log.warn "[Subscription] retry-or-dlq for #{lex_name}/#{fn}"
+              reject_or_retry(delivery_info, metadata, payload) if manual_ack && delivery_info
             end
-
-            if affinity_result == :remote
-              log.debug 'Processing remote-region message ' \
-                        "(region=#{message[:region]}, affinity=#{message[:region_affinity]})"
-              record_cross_region_metric(message)
-            end
-
-            if use_runner?
-              dispatch_runner(message, runner_class, fn, check_subtask?, generate_task?)
-            else
-              runner_class.send(fn, **message)
-            end
-            @queue.acknowledge(delivery_info.delivery_tag) if manual_ack
-
-            cancel if Legion::Settings[:client][:shutting_down]
-          rescue UnrecoverableMessageError => e
-            handle_exception(e, lex: lex_name, fn: fn)
-            log.warn "[Subscription] dead-lettering unrecoverable message for #{lex_name}/#{fn}: #{e.message}"
-            @queue.reject(delivery_info.delivery_tag, requeue: false) if manual_ack && delivery_info
-          rescue StandardError => e
-            handle_exception(e)
-            log.warn "[Subscription] retry-or-dlq for #{lex_name}/#{fn}"
-            reject_or_retry(delivery_info, metadata, payload) if manual_ack && delivery_info
           end
           log.info "[Subscription] subscribed: #{lex_name}/#{runner_name} (consumer registered)" if defined?(log)
         end

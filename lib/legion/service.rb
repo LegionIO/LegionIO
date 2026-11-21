@@ -813,6 +813,10 @@ module Legion
       shutdown_api
       shutdown_apm
 
+      return false unless Legion::Extensions.shutdown
+
+      Legion::Readiness.mark_not_ready(:extensions)
+
       Legion::Metrics.reset! if defined?(Legion::Metrics)
 
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
@@ -825,13 +829,7 @@ module Legion
         @cluster_leader = nil
       end
 
-      shutdown_component('Dispatch') { Legion::Dispatch.shutdown } if defined?(Legion::Dispatch)
-
       Legion::Tools::Registry.clear if defined?(Legion::Tools::Registry)
-
-      ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
-      shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
-      Legion::Readiness.mark_not_ready(:extensions)
 
       if Legion::Settings[:llm]&.dig(:connected)
         shutdown_component('LLM') { Legion::LLM.shutdown }
@@ -877,6 +875,7 @@ module Legion
 
       Legion::Settings[:client][:ready] = false
       Legion::Events.emit('service.shutdown')
+      true
     end
 
     def reload # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
@@ -890,6 +889,10 @@ module Legion
       shutdown_api
       shutdown_apm
 
+      return false unless Legion::Extensions.shutdown
+
+      Legion::Readiness.mark_not_ready(:extensions)
+
       if defined?(Legion::Gaia) && Legion::Gaia.respond_to?(:started?) && Legion::Gaia.started?
         shutdown_component('Gaia') { Legion::Gaia.shutdown }
         Legion::Readiness.mark_not_ready(:gaia)
@@ -897,10 +900,6 @@ module Legion
 
       Legion::Tools::Registry.clear if defined?(Legion::Tools::Registry)
       Legion::Tools::EmbeddingCache.clear_memory if defined?(Legion::Tools::EmbeddingCache) && Legion::Tools::EmbeddingCache.respond_to?(:clear_memory)
-
-      ext_timeout = Legion::Settings.dig(:extensions, :shutdown_timeout) || 15
-      shutdown_component('Extensions', timeout: ext_timeout) { Legion::Extensions.shutdown }
-      Legion::Readiness.mark_not_ready(:extensions)
 
       shutdown_component('Data') { Legion::Data.shutdown }
       Legion::Readiness.mark_not_ready(:data)
@@ -970,6 +969,8 @@ module Legion
         Legion::Readiness.mark_skipped(:gaia)
       end
 
+      Legion::Dispatch.reset!
+      setup_dispatch
       setup_supervision
       load_extensions
       Legion::Readiness.mark_ready(:extensions)

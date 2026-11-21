@@ -85,7 +85,7 @@ RSpec.describe Legion::Service do
       allow(broker_mod).to receive(:shutdown)
 
       # Stub extensions shutdown
-      allow(Legion::Extensions).to receive(:shutdown)
+      allow(Legion::Extensions).to receive(:shutdown).and_return(true)
 
       # Stub cache shutdown
       cache_mod = Module.new
@@ -108,24 +108,50 @@ RSpec.describe Legion::Service do
       expect(service).to have_received(:shutdown_network_watchdog)
     end
 
-    it 'wraps each component shutdown in a timeout' do
-      allow(Legion::Extensions).to receive(:shutdown).and_raise(Timeout::Error)
+    it 'does not close dependencies when actor shutdown fails' do
+      allow(Legion::Extensions).to receive(:shutdown).and_raise(IOError, 'consumer cancellation failed')
 
-      start = Time.now
-      service.shutdown
-      elapsed = Time.now - start
+      expect { service.shutdown }.to raise_error(IOError, 'consumer cancellation failed')
 
-      expect(elapsed).to be < 2.0
+      expect(Legion::Cache).not_to have_received(:shutdown)
+      expect(Legion::Transport::Connection).not_to have_received(:shutdown)
+      expect(Legion::Crypt).not_to have_received(:shutdown)
     end
 
-    it 'continues shutting down other components when one times out' do
-      allow(Legion::Extensions).to receive(:shutdown).and_raise(Timeout::Error)
+    it 'retains dependencies when actors report an incomplete drain' do
+      allow(Legion::Extensions).to receive(:shutdown).and_return(false)
 
-      service.shutdown
+      expect(service.shutdown).to be false
 
+      expect(Legion::Cache).not_to have_received(:shutdown)
+      expect(Legion::Transport::Connection).not_to have_received(:shutdown)
+      expect(Legion::Crypt).not_to have_received(:shutdown)
+      expect(Legion::Readiness).not_to have_received(:mark_not_ready).with(:extensions)
+    end
+
+    it 'waits for actor completion before closing shared dependencies' do
+      entered = Concurrent::Event.new
+      release = Concurrent::Event.new
+      allow(Legion::Extensions).to receive(:shutdown) do
+        entered.set
+        release.wait
+        true
+      end
+      thread = Thread.new { service.shutdown }
+      expect(entered.wait(2)).to be true
+
+      expect(Legion::Cache).not_to have_received(:shutdown)
+      expect(Legion::Transport::Connection).not_to have_received(:shutdown)
+      release.set
+      thread.join(2)
+
+      expect(thread.alive?).to be false
       expect(Legion::Cache).to have_received(:shutdown)
       expect(Legion::Transport::Connection).to have_received(:shutdown)
       expect(Legion::Crypt).to have_received(:shutdown)
+    ensure
+      release&.set
+      thread&.join(2)
     end
   end
 

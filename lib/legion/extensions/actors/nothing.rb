@@ -8,7 +8,9 @@ module Legion
       class Nothing
         include Legion::Extensions::Actors::Base
 
-        def cancel; end
+        def cancel(**)
+          request_stop
+        end
       end
     end
   end

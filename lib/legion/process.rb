@@ -66,7 +66,7 @@ module Legion
       end
       @retrap_thread&.kill
       Legion::Logging.info('Legion is shutting down!')
-      Legion.shutdown
+      sleep(1) while Legion.shutdown == false
       Legion::Logging.info('Legion has shutdown. Goodbye!')
 
       exit
